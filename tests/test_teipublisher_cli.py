@@ -64,7 +64,7 @@ def test_transform_command_runs_minimal_xml(tmp_path: Path, capsys) -> None:
 
 
 def test_compile_command_writes_default_named_file(tmp_path: Path) -> None:
-    """Without ``-o``, emit ``<odd-stem>-<mode>.py`` in the current working directory."""
+    """Without ``-o``, emit ``transform/<odd-stem>-<mode>.py`` under the current working directory."""
     import os
     import shutil
 
@@ -78,7 +78,7 @@ def test_compile_command_writes_default_named_file(tmp_path: Path) -> None:
         assert main(['compile', str(odd_copy)]) == 0
     finally:
         os.chdir(prev)
-    dest = tmp_path / 'teipublisher-web.py'
+    dest = tmp_path / 'transform' / 'teipublisher-web.py'
     assert dest.is_file()
     text = dest.read_text(encoding='utf-8')
     assert 'def _dispatch' in text

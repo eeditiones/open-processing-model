@@ -96,7 +96,7 @@ uv run teipublisher compile odd/teipublisher.odd -o teipublisher_web.py
 Arguments and options:
 
 - `odd` (required): path to the `.odd` file.
-- `-o, --output`: write generated Python to this path (default: `<odd-basename>-<mode>.py` in the current working directory).
+- `-o, --output`: write generated Python to this path (default: `transform/<odd-basename>-<mode>.py` under the current working directory).
 - `-m, --mode`: ODD processing-model output channel (default: `web`).
 - `--module-name`: logical module name used in generated docstring (default: `generated_odd`).
 
@@ -118,7 +118,7 @@ Arguments and options:
 Examples:
 
 ```bash
-# Write odd/teipublisher-web.py (default path and mode)
+# Write transform/teipublisher-web.py (default path and mode)
 uv run teipublisher compile odd/teipublisher.odd
 
 # Transform with runtime parameters

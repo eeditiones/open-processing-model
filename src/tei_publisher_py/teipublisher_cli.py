@@ -66,7 +66,7 @@ def compile_cmd(
             '-o',
             help=(
                 'Write generated Python to this file (default: '
-                '<odd-basename>-<mode>.py in the current working directory)'
+                'transform/<odd-basename>-<mode>.py below the current working directory)'
             ),
         ),
     ] = None,
@@ -85,7 +85,11 @@ def compile_cmd(
 ) -> None:
     """Emit a Python transformation module from a TEI Publisher ODD."""
     src = compile_odd_to_python(str(odd), module_name=module_name, output_mode=mode)
-    dest = output if output is not None else Path(f'{odd.stem}-{mode}.py')
+    if output is not None:
+        dest = output
+    else:
+        dest = Path('transform') / f'{odd.stem}-{mode}.py'
+        dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(src, encoding='utf-8')
 
 
