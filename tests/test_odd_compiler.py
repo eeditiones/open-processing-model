@@ -86,6 +86,38 @@ def test_emit_skips_xml_comments_inside_elementSpec(tmp_path: Path) -> None:
     assert "case 'p':" in src
 
 
+def test_compile_odd_without_web_specs_emits_valid_python(tmp_path: Path) -> None:
+    """An ODD whose element specs target only non-web outputs (e.g. print)
+    must still yield a syntactically valid Python module — the previous
+    emitter produced a bare ``match`` with no ``case`` lines, which is a
+    SyntaxError."""
+    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+
+    odd = tmp_path / 'print_only.odd'
+    odd.write_text(
+        '<?xml version="1.0"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0">'
+        '<teiHeader><fileDesc><titleStmt><title>t</title></titleStmt>'
+        '<publicationStmt><p>p</p></publicationStmt>'
+        '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
+        '<text><body>'
+        '<schemaSpec ident="x" ns="http://www.tei-c.org/ns/1.0">'
+        '<elementSpec ident="p" mode="change">'
+        '<model output="print" behaviour="paragraph"/>'
+        '</elementSpec>'
+        '</schemaSpec>'
+        '</body></text></TEI>',
+        encoding='utf-8',
+    )
+    src = compile_odd_to_python(str(odd))
+    out = tmp_path / 'gen.py'
+    out.write_text(src, encoding='utf-8')
+    py_compile.compile(str(out), doraise=True)
+    # No cases for web output → match statement is omitted entirely.
+    assert 'match _tag(node):' not in src
+    assert 'return apply(config, child_nodes(node))' in src
+
+
 def test_teipublisher_web_injects_generated_css_in_head(tmp_path: Path) -> None:
     """Compiled module passes ODD CSS into ``odd_css``; HTML ``head`` gets a ``style`` block."""
     from lxml import etree
