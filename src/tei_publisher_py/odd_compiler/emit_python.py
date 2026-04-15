@@ -142,6 +142,8 @@ def _python_triple_quoted(s: str) -> str:
 def _top_level_models(spec_el) -> list:
     kids = []
     for child in spec_el:
+        if not isinstance(child.tag, str):
+            continue  # skip XML comments / processing instructions
         loc = _local(child.tag)
         if loc in ('model', 'modelSequence', 'modelGrp'):
             kids.append(child)
@@ -151,6 +153,8 @@ def _top_level_models(spec_el) -> list:
 def _model_children(seq_or_grp) -> list:
     kids = []
     for child in seq_or_grp:
+        if not isinstance(child.tag, str):
+            continue  # skip XML comments / processing instructions
         loc = _local(child.tag)
         if loc in ('model', 'modelSequence', 'modelGrp'):
             kids.append(child)

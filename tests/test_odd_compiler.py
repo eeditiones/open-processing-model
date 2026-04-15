@@ -60,6 +60,32 @@ def test_load_odd_tolerates_duplicate_xml_id(tmp_path: Path) -> None:
     assert parsed.schema_ns == 'http://www.tei-c.org/ns/1.0'
 
 
+def test_emit_skips_xml_comments_inside_elementSpec(tmp_path: Path) -> None:
+    """XML comments are legitimate children of elementSpec / modelGrp and must
+    not reach _local(tag) — their .tag is a cyfunction, not a string."""
+    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+
+    odd = tmp_path / 'with_comment.odd'
+    odd.write_text(
+        '<?xml version="1.0"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0">'
+        '<teiHeader><fileDesc><titleStmt><title>t</title></titleStmt>'
+        '<publicationStmt><p>p</p></publicationStmt>'
+        '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
+        '<text><body>'
+        '<schemaSpec ident="x" ns="http://www.tei-c.org/ns/1.0">'
+        '<elementSpec ident="p" mode="change">'
+        '<!-- comment between specs is legal -->'
+        '<model behaviour="paragraph"/>'
+        '</elementSpec>'
+        '</schemaSpec>'
+        '</body></text></TEI>',
+        encoding='utf-8',
+    )
+    src = compile_odd_to_python(str(odd))
+    assert "case 'p':" in src
+
+
 def test_teipublisher_web_injects_generated_css_in_head(tmp_path: Path) -> None:
     """Compiled module passes ODD CSS into ``odd_css``; HTML ``head`` gets a ``style`` block."""
     from lxml import etree
