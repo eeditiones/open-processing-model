@@ -13,6 +13,7 @@ Currently only HTML output is implemented (:class:`HtmlOutputFunctions`).
 
 import re
 from abc import ABC, abstractmethod
+from typing import Any
 
 from lxml import etree
 
@@ -25,6 +26,7 @@ XLINK_HREF = f'{{{XLINK_NS}}}href'
 XML_LANG   = f'{{{XML_NS}}}lang'
 XML_ID     = f'{{{XML_NS}}}id'
 TEI_NS     = 'http://www.tei-c.org/ns/1.0'
+PMResult = list[Any]
 
 RTL_LANGUAGES = {
     "ar", "he", "kd", "fa", "ps", "ug", "ur", "yi",
@@ -118,95 +120,95 @@ class ProcessingModelFunctions(ABC):
     """
 
     @abstractmethod
-    def block(self, config, node, cls, content): ...
+    def block(self, config, node, cls, content) -> PMResult: ...
 
     @abstractmethod
-    def inline(self, config, node, cls, content): ...
+    def inline(self, config, node, cls, content) -> PMResult: ...
 
     @abstractmethod
-    def paragraph(self, config, node, cls, content): ...
+    def paragraph(self, config, node, cls, content) -> PMResult: ...
 
     @abstractmethod
-    def heading(self, config, node, cls, content, level): ...
+    def heading(self, config, node, cls, content, level) -> PMResult: ...
 
     @abstractmethod
-    def section(self, config, node, cls, content): ...
+    def section(self, config, node, cls, content) -> PMResult: ...
 
     @abstractmethod
-    def body(self, config, node, cls, content): ...
+    def body(self, config, node, cls, content) -> PMResult: ...
 
     @abstractmethod
-    def document(self, config, node, cls, content): ...
+    def document(self, config, node, cls, content) -> PMResult: ...
 
     @abstractmethod
-    def pass_through(self, config, node, cls, content): ...
+    def pass_through(self, config, node, cls, content) -> PMResult: ...
 
     @abstractmethod
-    def list(self, config, node, cls, content, list_type=None): ...
+    def list(self, config, node, cls, content, list_type=None) -> PMResult: ...
 
     @abstractmethod
-    def list_item(self, config, node, cls, content, n=None): ...
+    def list_item(self, config, node, cls, content, n=None) -> PMResult: ...
 
     @abstractmethod
-    def link(self, config, node, cls, content, uri, target, optional): ...
+    def link(self, config, node, cls, content, uri, target, optional) -> PMResult: ...
 
     @abstractmethod
-    def table(self, config, node, cls, content): ...
+    def table(self, config, node, cls, content) -> PMResult: ...
 
     @abstractmethod
-    def row(self, config, node, cls, content): ...
+    def row(self, config, node, cls, content) -> PMResult: ...
 
     @abstractmethod
-    def cell(self, config, node, cls, content, cell_type=None): ...
+    def cell(self, config, node, cls, content, cell_type=None) -> PMResult: ...
 
     @abstractmethod
-    def figure(self, config, node, cls, content, title=None): ...
+    def figure(self, config, node, cls, content, title=None) -> PMResult: ...
 
     @abstractmethod
     def graphic(self, config, node, cls, content, url_node,
-                width, height, scale, title): ...
+                width, height, scale, title) -> PMResult: ...
 
     @abstractmethod
-    def note(self, config, node, cls, content, place=None, label=None): ...
+    def note(self, config, node, cls, content, place=None, label=None) -> PMResult: ...
 
     @abstractmethod
-    def cit(self, config, node, cls, content, source=None): ...
+    def cit(self, config, node, cls, content, source=None) -> PMResult: ...
 
     @abstractmethod
-    def webcomponent(self, config, node, cls, content, name, optional=None): ...
+    def webcomponent(self, config, node, cls, content, name, optional=None) -> PMResult: ...
 
     @abstractmethod
-    def omit(self, config, node, cls, content): ...
+    def omit(self, config, node, cls, content) -> PMResult: ...
 
     @abstractmethod
-    def index(self, config, node, cls, content, index_type=None): ...
+    def index(self, config, node, cls, content, index_type=None) -> PMResult: ...
 
     @abstractmethod
-    def break_(self, config, node, cls, content, break_type=None, label=None): ...
+    def break_(self, config, node, cls, content, break_type=None, label=None) -> PMResult: ...
 
     @abstractmethod
-    def anchor(self, config, node, cls, content, id=None): ...
+    def anchor(self, config, node, cls, content, id=None) -> PMResult: ...
 
     @abstractmethod
-    def alternate(self, config, node, cls, content, default, alternate, optional=None): ...
+    def alternate(self, config, node, cls, content, default, alternate, optional=None) -> PMResult: ...
 
     @abstractmethod
-    def glyph(self, config, node, cls, content): ...
+    def glyph(self, config, node, cls, content) -> PMResult: ...
 
     @abstractmethod
-    def text(self, config, node, cls, content): ...
+    def text(self, config, node, cls, content) -> PMResult: ...
 
     @abstractmethod
-    def metadata(self, config, node, cls, content): ...
+    def metadata(self, config, node, cls, content) -> PMResult: ...
 
     @abstractmethod
-    def title(self, config, node, cls, content): ...
+    def title(self, config, node, cls, content) -> PMResult: ...
 
     @abstractmethod
-    def match(self, config, node, cls, content): ...
+    def match(self, config, node, cls, content) -> PMResult: ...
 
     @abstractmethod
-    def template(self, config, node, cls, content): ...
+    def template(self, config, node, cls, content) -> PMResult: ...
 
 
 # ── HTML implementation (equivalent to html-functions.xql) ────────────────────
@@ -229,22 +231,22 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
 
     # ── ProcessingModelFunctions implementation ───────────────────────────────
 
-    def block(self, config, node, cls, content):
+    def block(self, config, node, cls, content) -> PMResult:
         el = self._el('div', cls, node)
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def inline(self, config, node, cls, content):
+    def inline(self, config, node, cls, content) -> PMResult:
         el = self._el('span', cls, node)
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def paragraph(self, config, node, cls, content):
+    def paragraph(self, config, node, cls, content) -> PMResult:
         el = self._el('p', cls, node)
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def heading(self, config, node, cls, content, level):
+    def heading(self, config, node, cls, content, level) -> PMResult:
         try:
             lvl = int(level) if level is not None else 1
         except (TypeError, ValueError):
@@ -253,12 +255,12 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def section(self, config, node, cls, content):
+    def section(self, config, node, cls, content) -> PMResult:
         el = self._el('section', cls, node)
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def body(self, config, node, cls, content):
+    def body(self, config, node, cls, content) -> PMResult:
         el = self._el('body', cls, node)
         config['apply_children'](config, node, content, el)
         return [el]
@@ -271,7 +273,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         st.set('type', 'text/css')
         st.text = css
 
-    def document(self, config, node, cls, content):
+    def document(self, config, node, cls, content) -> PMResult:
         el = self._el('html', cls, node)
         config['apply_children'](config, node, content, el)
         css = config.get('odd_css')
@@ -281,7 +283,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
             el.insert(0, head)
         return [el]
 
-    def pass_through(self, config, node, cls, content):
+    def pass_through(self, config, node, cls, content) -> PMResult:
         """Render content without adding a wrapper element."""
         result = []
         for item in normalize(content):
@@ -294,19 +296,19 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
                 result.extend(sub)
         return result
 
-    def list(self, config, node, cls, content, list_type=None):
+    def list(self, config, node, cls, content, list_type=None) -> PMResult:
         effective = list_type or node.get('type')
         tag = 'ol' if effective == 'ordered' else 'ul'
         el = self._el(tag, cls, node)
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def list_item(self, config, node, cls, content, n=None):
+    def list_item(self, config, node, cls, content, n=None) -> PMResult:
         el = self._el('li', cls, node)
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def link(self, config, node, cls, content, uri, target, optional):
+    def link(self, config, node, cls, content, uri, target, optional) -> PMResult:
         if isinstance(uri, etree._Element):
             href = uri.get(XLINK_HREF)
         else:
@@ -321,17 +323,17 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def table(self, config, node, cls, content):
+    def table(self, config, node, cls, content) -> PMResult:
         el = self._el('table', cls, node)
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def row(self, config, node, cls, content):
+    def row(self, config, node, cls, content) -> PMResult:
         el = self._el('tr', cls, node)
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def cell(self, config, node, cls, content, cell_type=None):
+    def cell(self, config, node, cls, content, cell_type=None) -> PMResult:
         el = etree.Element('th' if cell_type == 'head' else 'td')
         el.set('class', classes(*cls))
         if node.get('cols'):
@@ -342,7 +344,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def figure(self, config, node, cls, content, title=None):
+    def figure(self, config, node, cls, content, title=None) -> PMResult:
         el = etree.Element('figure')
         el.set('class', classes(*cls))
         config['apply_children'](config, node, content, el)
@@ -352,8 +354,9 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
             config['apply_children'](config, node, title, cap)
         return [el]
 
-    def graphic(self, config, node, cls, _content, url_node,
-                width, height, scale, title):
+    def graphic(self, config, node, cls, content, url_node,
+                width, height, scale, title) -> PMResult:
+        _ = content
         el = etree.Element('img')
         el.set('class', classes(*cls))
         href = url_node.get(XLINK_HREF) if url_node is not None else None
@@ -371,7 +374,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
             el.set('id', xml_id)
         return [el]
 
-    def note(self, config, node, cls, content, place=None, label=None):
+    def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
         """Emit inline call marker; append the ``dl.footnote`` body to ``config['footnotes']``."""
         global _note_counter
         _note_counter += 1
@@ -410,7 +413,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         config.setdefault('footnotes', []).append(dl)
         return [ref_span]
 
-    def cit(self, config, node, cls, content, source=None):
+    def cit(self, config, node, cls, content, source=None) -> PMResult:
         el = self._el('blockquote', cls, node)
         config['apply_children'](config, node, content, el)
         if source:
@@ -418,7 +421,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
             config['apply_children'](config, node, source, cite)
         return [el]
 
-    def webcomponent(self, config, node, cls, content, name, optional=None):
+    def webcomponent(self, config, node, cls, content, name, optional=None) -> PMResult:
         el = etree.Element(name)
         el.set('class', classes(*cls))
         xml_id = node.get(XML_ID)
@@ -433,13 +436,13 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def omit(self, config, node, cls, content):
+    def omit(self, config, node, cls, content) -> PMResult:
         return []
 
-    def index(self, config, node, cls, content, index_type=None):
+    def index(self, config, node, cls, content, index_type=None) -> PMResult:
         return []
 
-    def break_(self, config, node, cls, content, break_type=None, label=None):
+    def break_(self, config, node, cls, content, break_type=None, label=None) -> PMResult:
         if (break_type or '').lower() == 'page':
             el = self._el('span', cls, node)
             config['apply_children'](config, node, label or [], el)
@@ -448,7 +451,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         br.set('class', classes(*cls))
         return [br]
 
-    def anchor(self, config, node, cls, content, id=None):
+    def anchor(self, config, node, cls, content, id=None) -> PMResult:
         el = etree.Element('span')
         if id:
             el.set('id', str(id))
@@ -456,7 +459,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         add_lang_attrs(el, node)
         return [el]
 
-    def alternate(self, config, node, cls, content, default, alternate, optional=None):
+    def alternate(self, config, node, cls, content, default, alternate, optional=None) -> PMResult:
         alt_parts = list(cls) + ['alternate'] if cls is not None else ['alternate']
         outer = self._el('span', alt_parts, node)
         d = etree.SubElement(outer, 'span')
@@ -467,12 +470,12 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
             config['apply_children'](config, node, alternate, a)
         return [outer]
 
-    def glyph(self, config, node, cls, content):
+    def glyph(self, config, node, cls, content) -> PMResult:
         if content == 'char:EOLhyphen':
             return ['\u00ad']
         return []
 
-    def text(self, config, node, cls, content):
+    def text(self, config, node, cls, content) -> PMResult:
         out = []
         for item in normalize(content):
             if isinstance(item, str):
@@ -481,7 +484,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
                 out.append(str(item))
         return out
 
-    def metadata(self, config, node, cls, content):
+    def metadata(self, config, node, cls, content) -> PMResult:
         el = etree.Element('head')
         el.set('class', classes(*cls))
         title_el = node.find(f'.//{{{TEI_NS}}}fileDesc/{{{TEI_NS}}}titleStmt/{{{TEI_NS}}}title')
@@ -495,21 +498,21 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         self._append_odd_css(config, el)
         return [el]
 
-    def title(self, config, node, cls, content):
+    def title(self, config, node, cls, content) -> PMResult:
         el = etree.Element('title')
         el.set('class', classes(*cls))
         add_lang_attrs(el, node)
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def match(self, config, node, cls, content):
+    def match(self, config, node, cls, content) -> PMResult:
         el = etree.Element('mark')
         el.set('class', classes(*cls))
         add_lang_attrs(el, node)
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def template(self, config, node, cls, content):
+    def template(self, config, node, cls, content) -> PMResult:
         el = self._el('div', cls, node)
         config['apply_children'](config, node, content, el)
         return [el]
