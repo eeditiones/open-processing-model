@@ -367,17 +367,28 @@ def _emit_model_or_sequence(ident: str, el, spec_el, indent: str) -> str:
     return 'apply(config, child_nodes(node))'
 
 
+def _is_block_element(el) -> bool:
+    """A modelGrp expands to an if/elif/else block with its own `return`s, so
+    placing it in a `return <expr>` context produces invalid Python.
+    Other inputs (model, modelSequence) always expand to a single expression.
+    """
+    return isinstance(el.tag, str) and _local(el.tag) == 'modelGrp'
+
+
 def _emit_process_models(ident: str, models: list, spec_el, indent: str, *, in_sequence: bool) -> str:
     models = _filter_output_web(models)
     if not models:
         return f'{indent}return apply(config, child_nodes(node))'
 
     if not models[0].get('predicate'):
-        inner = _emit_model_or_sequence(ident, models[0], spec_el, indent)
-        lines = []
-        lines.extend(_desc_comment_lines(models[0], indent))
-        lines.append(f'{indent}return {inner}')
-        return '\n'.join(lines)
+        m = models[0]
+        if _is_block_element(m):
+            # Already a complete statement block (contains its own `return`s).
+            return _emit_model_or_sequence(ident, m, spec_el, indent)
+        inner = _emit_model_or_sequence(ident, m, spec_el, indent)
+        out = _desc_comment_lines(m, indent)
+        out.append(f'{indent}return {inner}')
+        return '\n'.join(out)
 
     conds = [m for m in models if m.get('predicate')]
     unconds = [m for m in models if not m.get('predicate')]
@@ -385,17 +396,23 @@ def _emit_process_models(ident: str, models: list, spec_el, indent: str, *, in_s
     lines = []
     for i, m in enumerate(conds):
         pred = m.get('predicate', '')
-        inner = _emit_model_or_sequence(ident, m, spec_el, indent + '    ')
         kw = 'if' if i == 0 else 'elif'
         lines.append(f'{indent}{kw} xpath_test(node, {repr(pred)}, params):')
         lines.extend(_desc_comment_lines(m, indent + '    '))
-        lines.append(f'{indent}    return {inner}')
+        if _is_block_element(m):
+            lines.append(_emit_model_or_sequence(ident, m, spec_el, indent + '    '))
+        else:
+            inner = _emit_model_or_sequence(ident, m, spec_el, indent + '    ')
+            lines.append(f'{indent}    return {inner}')
     if unconds:
-        u = unconds[0] if len(unconds) > 1 and not in_sequence else unconds[0]
-        inner = _emit_model_or_sequence(ident, u, spec_el, indent + '    ')
+        u = unconds[0]
         lines.append(f'{indent}else:')
         lines.extend(_desc_comment_lines(u, indent + '    '))
-        lines.append(f'{indent}    return {inner}')
+        if _is_block_element(u):
+            lines.append(_emit_model_or_sequence(ident, u, spec_el, indent + '    '))
+        else:
+            inner = _emit_model_or_sequence(ident, u, spec_el, indent + '    ')
+            lines.append(f'{indent}    return {inner}')
     else:
         lines.append(f'{indent}else:')
         lines.append(f'{indent}    return apply(config, child_nodes(node))')

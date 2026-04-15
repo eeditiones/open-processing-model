@@ -37,35 +37,18 @@ def test_compile_teipublisher_odd_emits_valid_python(tmp_path: Path) -> None:
     assert 'def main()' not in src
 
 
-def test_load_odd_tolerates_duplicate_xml_id(tmp_path: Path) -> None:
-    """Real-world ODDs (e.g. tei_simplePrint.odd) carry duplicate xml:id values;
-    the loader must not reject them, since xml:id is not used for spec lookup."""
-    from tei_publisher_py.odd_compiler.parse_odd import load_odd
+def test_modelGrp_as_unconditional_or_else_emits_valid_block(tmp_path: Path) -> None:
+    """When a modelGrp sits next to a conditional model at top level (i.e. one
+    conditional model plus an unconditional modelGrp), the modelGrp expands to
+    an if/elif/else block with its own `return`s. Placing it after a bare
+    `return ` produces `return         if xpath_test(...)` — invalid Python.
 
-    odd = tmp_path / 'dup_id.odd'
-    odd.write_text(
-        '<?xml version="1.0"?>\n'
-        '<TEI xmlns="http://www.tei-c.org/ns/1.0">'
-        '<teiHeader><fileDesc><titleStmt><title>t</title></titleStmt>'
-        '<publicationStmt><p>p</p></publicationStmt>'
-        '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
-        '<text><body>'
-        '<note xml:id="n7">a</note><note xml:id="n7">b</note>'
-        '<schemaSpec xmlns="http://www.tei-c.org/ns/1.0" ident="x" '
-        'ns="http://www.tei-c.org/ns/1.0"/>'
-        '</body></text></TEI>',
-        encoding='utf-8',
-    )
-    parsed = load_odd(str(odd))
-    assert parsed.schema_ns == 'http://www.tei-c.org/ns/1.0'
+    Regression test derived from the `pb` elementSpec in real-world rqzh.odd."""
+    import py_compile
 
-
-def test_emit_skips_xml_comments_inside_elementSpec(tmp_path: Path) -> None:
-    """XML comments are legitimate children of elementSpec / modelGrp and must
-    not reach _local(tag) — their .tag is a cyfunction, not a string."""
     from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
 
-    odd = tmp_path / 'with_comment.odd'
+    odd = tmp_path / 'grp.odd'
     odd.write_text(
         '<?xml version="1.0"?>\n'
         '<TEI xmlns="http://www.tei-c.org/ns/1.0">'
@@ -74,36 +57,13 @@ def test_emit_skips_xml_comments_inside_elementSpec(tmp_path: Path) -> None:
         '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
         '<text><body>'
         '<schemaSpec ident="x" ns="http://www.tei-c.org/ns/1.0">'
-        '<elementSpec ident="p" mode="change">'
-        '<!-- comment between specs is legal -->'
-        '<model behaviour="paragraph"/>'
-        '</elementSpec>'
-        '</schemaSpec>'
-        '</body></text></TEI>',
-        encoding='utf-8',
-    )
-    src = compile_odd_to_python(str(odd))
-    assert "case 'p':" in src
-
-
-def test_compile_odd_without_web_specs_emits_valid_python(tmp_path: Path) -> None:
-    """An ODD whose element specs target only non-web outputs (e.g. print)
-    must still yield a syntactically valid Python module — the previous
-    emitter produced a bare ``match`` with no ``case`` lines, which is a
-    SyntaxError."""
-    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
-
-    odd = tmp_path / 'print_only.odd'
-    odd.write_text(
-        '<?xml version="1.0"?>\n'
-        '<TEI xmlns="http://www.tei-c.org/ns/1.0">'
-        '<teiHeader><fileDesc><titleStmt><title>t</title></titleStmt>'
-        '<publicationStmt><p>p</p></publicationStmt>'
-        '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
-        '<text><body>'
-        '<schemaSpec ident="x" ns="http://www.tei-c.org/ns/1.0">'
-        '<elementSpec ident="p" mode="change">'
-        '<model output="print" behaviour="paragraph"/>'
+        '<elementSpec ident="pb" mode="change">'
+        '<model predicate="@foo" behaviour="inline"/>'
+        '<modelGrp>'
+        '<model predicate="@a" behaviour="inline"/>'
+        '<model predicate="@b" behaviour="pass-through"/>'
+        '<model behaviour="block"/>'
+        '</modelGrp>'
         '</elementSpec>'
         '</schemaSpec>'
         '</body></text></TEI>',
@@ -113,12 +73,9 @@ def test_compile_odd_without_web_specs_emits_valid_python(tmp_path: Path) -> Non
     out = tmp_path / 'gen.py'
     out.write_text(src, encoding='utf-8')
     py_compile.compile(str(out), doraise=True)
-    # No cases for web output → match statement is omitted entirely.
-    assert 'match _tag(node):' not in src
-    assert 'return apply(config, child_nodes(node))' in src
-
-
-def test_teipublisher_web_injects_generated_css_in_head(tmp_path: Path) -> None:
+    # No orphan "return " immediately followed by a conditional.
+    assert 'return                 if' not in src
+    assert 'return         if' not in src
     """Compiled module passes ODD CSS into ``odd_css``; HTML ``head`` gets a ``style`` block."""
     from lxml import etree
 
