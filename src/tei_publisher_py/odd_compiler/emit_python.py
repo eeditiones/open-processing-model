@@ -387,7 +387,11 @@ def _emit_process_models(
         inner = _emit_model_or_sequence(ident, models[0], spec_el, indent, output_mode)
         lines = []
         lines.extend(_desc_comment_lines(models[0], indent))
-        lines.append(f'{indent}return {inner}')
+        if '\n' in inner:
+            # Nested ``if``/``elif``/``else`` from modelGrp / modelSequence — must not prefix ``return``.
+            lines.append(inner)
+        else:
+            lines.append(f'{indent}return {inner}')
         return '\n'.join(lines)
 
     conds = [m for m in models if m.get('predicate')]
@@ -400,13 +404,19 @@ def _emit_process_models(
         kw = 'if' if i == 0 else 'elif'
         lines.append(f'{indent}{kw} xpath_test(node, {repr(pred)}, params):')
         lines.extend(_desc_comment_lines(m, indent + '    '))
-        lines.append(f'{indent}    return {inner}')
+        if '\n' in inner:
+            lines.append(inner)
+        else:
+            lines.append(f'{indent}    return {inner}')
     if unconds:
         u = unconds[0] if len(unconds) > 1 and not in_sequence else unconds[0]
         inner = _emit_model_or_sequence(ident, u, spec_el, indent + '    ', output_mode)
         lines.append(f'{indent}else:')
         lines.extend(_desc_comment_lines(u, indent + '    '))
-        lines.append(f'{indent}    return {inner}')
+        if '\n' in inner:
+            lines.append(inner)
+        else:
+            lines.append(f'{indent}    return {inner}')
     else:
         lines.append(f'{indent}else:')
         lines.append(f'{indent}    return apply(config, child_nodes(node))')

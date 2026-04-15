@@ -80,6 +80,9 @@ def normalize(content):
         return [str(content)]
     if isinstance(content, etree._Element):
         return [content]
+    # XPath atomics (number(), count unwrapped elsewhere, booleans) from ``xpath_content``
+    if isinstance(content, (int, float, bool)):
+        return [str(content)]
     return list(content)
 
 
@@ -445,7 +448,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
     def break_(self, config, node, cls, content, break_type=None, label=None) -> PMResult:
         if (break_type or '').lower() == 'page':
             el = self._el('span', cls, node)
-            config['apply_children'](config, node, label or [], el)
+            config['apply_children'](config, node, label if label is not None else [], el)
             return [el]
         br = etree.Element('br')
         br.set('class', classes(*cls))

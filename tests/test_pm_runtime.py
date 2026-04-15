@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from lxml import etree
 
+from tei_publisher_py.output_functions import normalize
 from tei_publisher_py.pm_runtime import (
     inject_cached_footnotes,
     resolve_context_element,
@@ -55,6 +56,13 @@ def test_inject_cached_footnotes_noop_when_empty() -> None:
     body = etree.SubElement(html, 'body')
     inject_cached_footnotes([html], {'footnotes': []})
     assert len(body) == 0
+
+
+def test_normalize_stringifies_xpath_numeric_atoms() -> None:
+    """``xpath_content`` can be a bare ``int``/``float``; :func:`normalize` must not ``list()`` them."""
+    assert normalize(3.5) == ['3.5']
+    assert normalize(0) == ['0']
+    assert normalize(0.0) == ['0.0']
 
 
 def test_xpath_select_nodes_unwraps_singleton_count() -> None:
