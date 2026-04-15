@@ -9,6 +9,26 @@ ROOT = Path(__file__).resolve().parents[1]
 ODD = ROOT / 'odd' / 'teipublisher.odd'
 
 
+def test_main_subcommand_missing_required_arg_usage_error(capsys) -> None:
+    """Click ``UsageError`` (e.g. missing ODD) must not dump a traceback under ``standalone_mode=False``."""
+    from tei_publisher_py.teipublisher_cli import main
+
+    assert main(['compile']) == 2
+    err = capsys.readouterr().err
+    assert 'Missing argument' in err and 'ODD' in err
+    assert 'Traceback' not in err
+
+
+def test_main_no_command_shows_help_and_exits_zero(capsys) -> None:
+    """``no_args_is_help`` raises :class:`click.exceptions.NoArgsIsHelpError` when not using Click's standalone mode; we must map that to exit 0."""
+    from tei_publisher_py.teipublisher_cli import main
+
+    assert main([]) == 0
+    captured = capsys.readouterr()
+    combined = captured.out + captured.err
+    assert 'compile' in combined and 'transform' in combined
+
+
 def test_load_transform_module(tmp_path: Path) -> None:
     from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
     from tei_publisher_py.teipublisher_cli import load_transform_module
@@ -43,13 +63,26 @@ def test_transform_command_runs_minimal_xml(tmp_path: Path, capsys) -> None:
     assert captured.out.strip()
 
 
-def test_compile_command_writes_stdout(tmp_path: Path, capsys) -> None:
+def test_compile_command_writes_default_named_file(tmp_path: Path) -> None:
+    """Without ``-o``, emit ``<odd-stem>-<mode>.py`` in the current working directory."""
+    import os
+    import shutil
+
     from tei_publisher_py.teipublisher_cli import main
 
-    assert main(['compile', str(ODD)]) == 0
-    out = capsys.readouterr().out
-    assert 'def _dispatch' in out
-    assert 'def transform' in out
+    odd_copy = tmp_path / 'teipublisher.odd'
+    shutil.copy(ODD, odd_copy)
+    prev = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+        assert main(['compile', str(odd_copy)]) == 0
+    finally:
+        os.chdir(prev)
+    dest = tmp_path / 'teipublisher-web.py'
+    assert dest.is_file()
+    text = dest.read_text(encoding='utf-8')
+    assert 'def _dispatch' in text
+    assert 'def transform' in text
 
 
 def test_compile_command_writes_file(tmp_path: Path) -> None:

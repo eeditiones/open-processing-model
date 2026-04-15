@@ -43,18 +43,16 @@ def _model_ordinal(spec_el, model_el) -> int:
     return 1
 
 
-def _filter_output_web(elements: list) -> list:
-    out = []
-    for el in elements:
-        o = el.get('output')
-        if o is None or o == 'web':
-            out.append(el)
-    return out
+def _model_matches_output_mode(el, output_mode: str) -> bool:
+    """Whether *el* participates in the given ODD output channel (``@output`` on models)."""
+    o = el.get('output')
+    if output_mode == 'web':
+        return o is None or o == 'web'
+    return o == output_mode
 
 
-def _model_output_web(model_el) -> bool:
-    o = model_el.get('output')
-    return o is None or o == 'web'
+def _filter_by_output_mode(elements: list, output_mode: str) -> list:
+    return [el for el in elements if _model_matches_output_mode(el, output_mode)]
 
 
 def _normalize_css_body(text: str) -> str:
@@ -82,7 +80,7 @@ def _collect_tagsdecl_renditions(parsed: ParsedOdd) -> tuple[dict[str, str], lis
     return simple_rules, sources
 
 
-def collect_odd_generated_css(parsed: ParsedOdd) -> str:
+def collect_odd_generated_css(parsed: ParsedOdd, output_mode: str = 'web') -> str:
     """Build CSS from the ODD, matching ``css:generate-css`` in ``css.xql`` (web).
 
     Emits ``.simple_{xml:id}`` rules from ``tagsDecl/tei:rendition`` and
@@ -113,7 +111,7 @@ def collect_odd_generated_css(parsed: ParsedOdd) -> str:
             continue
         san = _sanitize_ident(ident)
         for model_el in _all_models_in_spec(spec):
-            if not _model_output_web(model_el):
+            if not _model_matches_output_mode(model_el, output_mode):
                 continue
             rends = model_el.findall(f'{{{TEI_NS}}}outputRendition')
             if not rends:
@@ -139,7 +137,7 @@ def _python_triple_quoted(s: str) -> str:
     return '"""' + s.replace('"""', '\\"""') + '"""'
 
 
-def _top_level_models(spec_el) -> list:
+def _top_level_models(spec_el, output_mode: str) -> list:
     kids = []
     for child in spec_el:
         if not isinstance(child.tag, str):
@@ -147,10 +145,10 @@ def _top_level_models(spec_el) -> list:
         loc = _local(child.tag)
         if loc in ('model', 'modelSequence', 'modelGrp'):
             kids.append(child)
-    return _filter_output_web(kids)
+    return _filter_by_output_mode(kids, output_mode)
 
 
-def _model_children(seq_or_grp) -> list:
+def _model_children(seq_or_grp, output_mode: str) -> list:
     kids = []
     for child in seq_or_grp:
         if not isinstance(child.tag, str):
@@ -158,7 +156,7 @@ def _model_children(seq_or_grp) -> list:
         loc = _local(child.tag)
         if loc in ('model', 'modelSequence', 'modelGrp'):
             kids.append(child)
-    return _filter_output_web(kids)
+    return _filter_by_output_mode(kids, output_mode)
 
 
 def _param_tier_ok(value: str) -> bool:
@@ -347,14 +345,19 @@ def _emit_leaf_model(ident: str, model_el, spec_el) -> str:
     return _emit_pmf_call(ident, beh, model_el, spec_el, pm)
 
 
-def _emit_model_or_sequence(ident: str, el, spec_el, indent: str) -> str:
+def _emit_model_or_sequence(
+    ident: str, el, spec_el, indent: str, output_mode: str,
+) -> str:
     loc = _local(el.tag)
     if loc == 'modelGrp':
-        return _emit_process_models(ident, _model_children(el), spec_el, indent, in_sequence=False)
+        return _emit_process_models(
+            ident, _model_children(el, output_mode), spec_el, indent,
+            in_sequence=False, output_mode=output_mode,
+        )
     if loc == 'modelSequence':
         parts = []
-        for child in _model_children(el):
-            part = _emit_model_or_sequence(ident, child, spec_el, indent)
+        for child in _model_children(el, output_mode):
+            part = _emit_model_or_sequence(ident, child, spec_el, indent, output_mode)
             parts.append(f'({part})')
         if not parts:
             return f'{indent}apply(config, child_nodes(node))'
@@ -367,13 +370,21 @@ def _emit_model_or_sequence(ident: str, el, spec_el, indent: str) -> str:
     return 'apply(config, child_nodes(node))'
 
 
-def _emit_process_models(ident: str, models: list, spec_el, indent: str, *, in_sequence: bool) -> str:
-    models = _filter_output_web(models)
+def _emit_process_models(
+    ident: str,
+    models: list,
+    spec_el,
+    indent: str,
+    *,
+    in_sequence: bool,
+    output_mode: str,
+) -> str:
+    models = _filter_by_output_mode(models, output_mode)
     if not models:
         return f'{indent}return apply(config, child_nodes(node))'
 
     if not models[0].get('predicate'):
-        inner = _emit_model_or_sequence(ident, models[0], spec_el, indent)
+        inner = _emit_model_or_sequence(ident, models[0], spec_el, indent, output_mode)
         lines = []
         lines.extend(_desc_comment_lines(models[0], indent))
         lines.append(f'{indent}return {inner}')
@@ -385,14 +396,14 @@ def _emit_process_models(ident: str, models: list, spec_el, indent: str, *, in_s
     lines = []
     for i, m in enumerate(conds):
         pred = m.get('predicate', '')
-        inner = _emit_model_or_sequence(ident, m, spec_el, indent + '    ')
+        inner = _emit_model_or_sequence(ident, m, spec_el, indent + '    ', output_mode)
         kw = 'if' if i == 0 else 'elif'
         lines.append(f'{indent}{kw} xpath_test(node, {repr(pred)}, params):')
         lines.extend(_desc_comment_lines(m, indent + '    '))
         lines.append(f'{indent}    return {inner}')
     if unconds:
         u = unconds[0] if len(unconds) > 1 and not in_sequence else unconds[0]
-        inner = _emit_model_or_sequence(ident, u, spec_el, indent + '    ')
+        inner = _emit_model_or_sequence(ident, u, spec_el, indent + '    ', output_mode)
         lines.append(f'{indent}else:')
         lines.extend(_desc_comment_lines(u, indent + '    '))
         lines.append(f'{indent}    return {inner}')
@@ -402,10 +413,15 @@ def _emit_process_models(ident: str, models: list, spec_el, indent: str, *, in_s
     return '\n'.join(lines)
 
 
-def generate_python_module(parsed: ParsedOdd, module_name: str = 'generated_odd') -> str:
+def generate_python_module(
+    parsed: ParsedOdd,
+    module_name: str = 'generated_odd',
+    *,
+    output_mode: str = 'web',
+) -> str:
     schema_ns = parsed.schema_ns
     odd_path = parsed.odd_path
-    odd_css = collect_odd_generated_css(parsed)
+    odd_css = collect_odd_generated_css(parsed, output_mode=output_mode)
     odd_css_literal = _python_triple_quoted(odd_css)
 
     cases = []
@@ -415,10 +431,12 @@ def generate_python_module(parsed: ParsedOdd, module_name: str = 'generated_odd'
         ident = spec.get('ident')
         if not ident or ident in ('*', 'text()'):
             continue
-        tops = _top_level_models(spec)
+        tops = _top_level_models(spec, output_mode)
         if not tops:
-            continue  # spec has models but none target web output
-        block = _emit_process_models(ident, tops, spec, '            ', in_sequence=False)
+            continue  # spec has models but none target this output mode
+        block = _emit_process_models(
+            ident, tops, spec, '            ', in_sequence=False, output_mode=output_mode,
+        )
         cases.append(f"        case {ident!r}:\n{block}")
 
     if cases:
@@ -436,7 +454,7 @@ def generate_python_module(parsed: ParsedOdd, module_name: str = 'generated_odd'
 
     return f'''#!/usr/bin/env python3
 """
-Auto-generated TEI processing model (web output).
+Auto-generated TEI processing model ({output_mode} output).
 
 Source ODD: {odd_path}
 schema namespace: {schema_ns}
@@ -487,7 +505,7 @@ def _dispatch(config, node, params):
 def transform(root, options=None):
     reset_counters()
     config = {{
-        'output':         ['web'],
+        'output':         [{output_mode!r}],
         'parameters':    options or {{}},
         'pmf':           HtmlOutputFunctions(),
         'apply':         apply,
@@ -500,6 +518,11 @@ def transform(root, options=None):
 '''
 
 
-def compile_odd_to_python(odd_path: str, module_name: str = 'generated_odd') -> str:
+def compile_odd_to_python(
+    odd_path: str,
+    module_name: str = 'generated_odd',
+    *,
+    output_mode: str = 'web',
+) -> str:
     parsed = load_odd(odd_path)
-    return generate_python_module(parsed, module_name=module_name)
+    return generate_python_module(parsed, module_name=module_name, output_mode=output_mode)

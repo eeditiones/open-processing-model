@@ -11,6 +11,7 @@ requires-python = ">=3.12"
 dependencies = [
     "lxml>=5.0",
     "elementpath>=4.8",
+    "typer>=0.24.1",
 ]
 
 [dependency-groups]

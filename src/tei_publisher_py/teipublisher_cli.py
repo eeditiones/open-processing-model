@@ -2,16 +2,24 @@
 
 from __future__ import annotations
 
-import argparse
 import importlib.util
-import json
-import sys
 from pathlib import Path
+from typing import Annotated, Optional
 
+import typer
+from click.exceptions import NoArgsIsHelpError, UsageError
 from lxml import etree
+from typer.main import get_command
 
 from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
 from tei_publisher_py.pm_runtime import resolve_context_element, serialize as default_serialize
+
+app = typer.Typer(
+    name='teipublisher',
+    help='TEI Publisher Python tools: compile ODD to Python, or run a transform on XML.',
+    no_args_is_help=True,
+    context_settings={'help_option_names': ['-h', '--help']},
+)
 
 
 def load_transform_module(script_path: Path):
@@ -48,112 +56,121 @@ def _parameters_from_cli(param_list: list[str] | None) -> dict[str, str]:
     return out
 
 
-def _cmd_compile(args: argparse.Namespace) -> int:
-    src = compile_odd_to_python(args.odd, module_name=args.module_name)
-    if args.output:
-        with open(args.output, 'w', encoding='utf-8') as f:
-            f.write(src)
-    else:
-        sys.stdout.write(src)
-    return 0
-
-
-def _cmd_transform(args: argparse.Namespace) -> int:
-    mod = load_transform_module(args.transform_script)
-    serialize = getattr(mod, 'serialize', default_serialize)
-
-    tree = etree.parse(str(args.input))
-    doc_root = tree.getroot()
-    opts = _parameters_from_cli(args.param)
-    if args.xpath:
-        root = resolve_context_element(
-            doc_root,
-            args.xpath,
-            opts if opts else None,
-        )
-    else:
-        root = doc_root
-
-    result = mod.transform(root, opts if opts else None)
-    out = serialize(result)
-    if args.output:
-        with open(args.output, 'w', encoding='utf-8') as f:
-            print(out, file=f)
-    else:
-        print(out)
-    return 0
-
-
-def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(
-        prog='teipublisher',
-        description='TEI Publisher Python tools: compile ODD to Python, or run a transform on XML.',
-    )
-    sub = p.add_subparsers(dest='command', required=True)
-
-    c = sub.add_parser(
-        'compile',
-        help='Emit a Python transformation module from a TEI Publisher ODD.',
-    )
-    c.add_argument('odd', help='Path to the .odd file')
-    c.add_argument(
-        '-o', '--output',
-        help='Write output to this file (default: stdout)',
-    )
-    c.add_argument(
-        '--module-name',
-        default='generated_odd',
-        help='Logical module name (recorded in the generated docstring only)',
-    )
-    c.set_defaults(func=_cmd_compile)
-
-    t = sub.add_parser(
-        'transform',
-        help='Load a transformation script and print HTML for an XML document.',
-    )
-    t.add_argument(
-        'transform_script',
-        type=Path,
-        help='Path to the .py file (must define transform())',
-    )
-    t.add_argument('input', type=Path, help='Input XML file')
-    t.add_argument(
-        '-o', '--output',
-        type=Path,
-        help='Write HTML output to this file (default: stdout)',
-    )
-    t.add_argument(
-        '-p', '--param',
-        action='append',
-        default=[],
-        metavar='KEY=VALUE',
-        help='Runtime parameter for XPath $parameters (repeatable), e.g. -p mode=toc -p display=browse',
-    )
-    t.add_argument(
-        '-x', '--xpath',
-        metavar='EXPR',
-        help=(
-            'XPath 3.1 expression evaluated with the document root as the context item; '
-            'the single selected element becomes the transform root. Unprefixed names use '
-            'the same default element namespace as the document root. $parameters is bound '
-            'from --param.'
+@app.command('compile')
+def compile_cmd(
+    odd: Annotated[Path, typer.Argument(help='Path to the .odd file')],
+    output: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--output',
+            '-o',
+            help=(
+                'Write generated Python to this file (default: '
+                '<odd-basename>-<mode>.py in the current working directory)'
+            ),
         ),
-    )
-    t.set_defaults(func=_cmd_transform)
+    ] = None,
+    module_name: Annotated[
+        str,
+        typer.Option(help='Logical module name (recorded in the generated docstring only)'),
+    ] = 'generated_odd',
+    mode: Annotated[
+        str,
+        typer.Option(
+            '--mode',
+            '-m',
+            help='ODD processing-model output channel (@output on models; default: web).',
+        ),
+    ] = 'web',
+) -> None:
+    """Emit a Python transformation module from a TEI Publisher ODD."""
+    src = compile_odd_to_python(str(odd), module_name=module_name, output_mode=mode)
+    dest = output if output is not None else Path(f'{odd.stem}-{mode}.py')
+    dest.write_text(src, encoding='utf-8')
 
-    return p
+
+@app.command('transform')
+def transform_cmd(
+    transform_script: Annotated[
+        Path,
+        typer.Argument(help='Path to the .py file (must define transform())'),
+    ],
+    input_xml: Annotated[Path, typer.Argument(help='Input XML file')],
+    output: Annotated[
+        Optional[Path],
+        typer.Option('--output', '-o', help='Write HTML output to this file (default: stdout)'),
+    ] = None,
+    param: Annotated[
+        list[str],
+        typer.Option(
+            '--param',
+            '-p',
+            metavar='KEY=VALUE',
+            help='Runtime parameter for XPath $parameters (repeatable), e.g. -p mode=toc -p display=browse',
+        ),
+    ] = [],
+    xpath: Annotated[
+        Optional[str],
+        typer.Option(
+            '--xpath',
+            '-x',
+            metavar='EXPR',
+            help=(
+                'XPath 3.1 expression evaluated with the document root as the context item; '
+                'the single selected element becomes the transform root. Unprefixed names use '
+                'the same default element namespace as the document root. $parameters is bound '
+                'from --param.'
+            ),
+        ),
+    ] = None,
+) -> None:
+    """Load a transformation script and print HTML for an XML document."""
+    try:
+        mod = load_transform_module(transform_script)
+        serialize = getattr(mod, 'serialize', default_serialize)
+
+        tree = etree.parse(str(input_xml))
+        doc_root = tree.getroot()
+        opts = _parameters_from_cli(param if param else None)
+        if xpath:
+            root = resolve_context_element(
+                doc_root,
+                xpath,
+                opts if opts else None,
+            )
+        else:
+            root = doc_root
+
+        result = mod.transform(root, opts if opts else None)
+        out = serialize(result)
+        if output:
+            with open(output, 'w', encoding='utf-8') as f:
+                print(out, file=f)
+        else:
+            print(out)
+    except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
+        typer.echo(f'teipublisher: error: {e}', err=True)
+        raise SystemExit(1) from e
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = build_parser()
-    args = parser.parse_args(argv)
+    """Programmatic entry (``argv`` is like ``sys.argv[1:]`` when invoking the installed script)."""
+    cmd = get_command(app)
     try:
-        return args.func(args)
-    except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
-        if args.command == 'transform':
-            print(f'teipublisher: error: {e}', file=sys.stderr)
-            return 1
-        raise
+        cmd.main(args=argv, prog_name='teipublisher', standalone_mode=False)
+    except NoArgsIsHelpError:
+        # With ``standalone_mode=False``, Click does not turn this into exit 0 (Typer ``no_args_is_help``).
+        return 0
+    except UsageError as e:
+        # Missing required args, bad option values, etc. (``standalone_mode=False`` skips Click's handler).
+        e.show()
+        return e.exit_code
+    except SystemExit as e:
+        code = e.code
+        if isinstance(code, int):
+            return code
+        return 1 if code else 0
+    return 0
 
 
 if __name__ == '__main__':
