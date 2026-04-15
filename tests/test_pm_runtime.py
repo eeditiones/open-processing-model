@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import pytest
 from lxml import etree
 
 from tei_publisher_py.pm_runtime import (
     inject_cached_footnotes,
+    resolve_context_element,
     serialize,
     xpath_select_nodes,
     xpath_test,
@@ -64,6 +66,21 @@ def test_xpath_select_nodes_unwraps_singleton_count() -> None:
     n = xpath_select_nodes(head, 'count(ancestor::div)', {})
     assert n == 2
     assert isinstance(n, int)
+
+
+def test_resolve_context_element_selects_single_node() -> None:
+    xml = f'''<TEI xmlns="{TEI_NS}"><text><body><p>x</p><p>y</p></body></text></TEI>'''
+    root = etree.fromstring(xml.encode())
+    body = root.find(f'.//{{{TEI_NS}}}body')
+    assert body is not None
+    assert resolve_context_element(root, '//body', None) is body
+
+
+def test_resolve_context_element_requires_unique_element() -> None:
+    xml = f'''<TEI xmlns="{TEI_NS}"><text><body><p>a</p><p>b</p></body></text></TEI>'''
+    root = etree.fromstring(xml.encode())
+    with pytest.raises(ValueError, match='exactly one'):
+        resolve_context_element(root, '//p', None)
 
 
 def test_xpath_test_parent_axis_matches_namespaced_tei_elements() -> None:

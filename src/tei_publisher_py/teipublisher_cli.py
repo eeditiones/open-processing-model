@@ -11,7 +11,7 @@ from pathlib import Path
 from lxml import etree
 
 from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
-from tei_publisher_py.pm_runtime import serialize as default_serialize
+from tei_publisher_py.pm_runtime import resolve_context_element, serialize as default_serialize
 
 
 def load_transform_module(script_path: Path):
@@ -63,14 +63,16 @@ def _cmd_transform(args: argparse.Namespace) -> int:
     serialize = getattr(mod, 'serialize', default_serialize)
 
     tree = etree.parse(str(args.input))
-    root = tree.getroot()
+    doc_root = tree.getroot()
     opts = _parameters_from_cli(args.param)
-
-    print(
-        'teipublisher: parameters: ' + json.dumps(opts, sort_keys=True, ensure_ascii=False),
-        file=sys.stdout,
-        flush=True,
-    )
+    if args.xpath:
+        root = resolve_context_element(
+            doc_root,
+            args.xpath,
+            opts if opts else None,
+        )
+    else:
+        root = doc_root
 
     result = mod.transform(root, opts if opts else None)
     out = serialize(result)
@@ -126,6 +128,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         metavar='KEY=VALUE',
         help='Runtime parameter for XPath $parameters (repeatable), e.g. -p mode=toc -p display=browse',
+    )
+    t.add_argument(
+        '-x', '--xpath',
+        metavar='EXPR',
+        help=(
+            'XPath 3.1 expression evaluated with the document root as the context item; '
+            'the single selected element becomes the transform root. Unprefixed names use '
+            'the same default element namespace as the document root. $parameters is bound '
+            'from --param.'
+        ),
     )
     t.set_defaults(func=_cmd_transform)
 

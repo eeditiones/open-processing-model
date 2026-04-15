@@ -32,14 +32,15 @@ From the project root:
 uv sync
 ```
 
-This creates `.venv` and installs runtime + development dependencies from
-`pyproject.toml` / `uv.lock`.
+This creates `.venv` and installs runtime dependencies from `pyproject.toml` /
+`uv.lock`. For pytest and other dev tools, also run `uv sync --group dev` (see
+**Running tests** below).
 
 ### 3) Verify the installation
 
 ```bash
 uv run teipublisher --help
-uv run pytest -q
+uv run --group dev pytest -q
 ```
 
 ### 4) Typical first run
@@ -50,6 +51,34 @@ uv run teipublisher compile odd/teipublisher.odd -o teipublisher_web.py
 
 # Apply transform to an XML file
 uv run teipublisher transform teipublisher_web.py input.xml -o output.html
+```
+
+## Running tests
+
+The test suite uses [pytest](https://pytest.org/) (listed under the `dev` dependency group in `pyproject.toml`). From the project root, install dev dependencies if you have not already:
+
+```bash
+uv sync --group dev
+```
+
+Run all tests:
+
+```bash
+uv run --group dev pytest
+```
+
+Useful variants:
+
+```bash
+# Quiet (one line per file)
+uv run --group dev pytest -q
+
+# Verbose, stop on first failure
+uv run --group dev pytest -v -x
+
+# Single file or test node id
+uv run --group dev pytest tests/test_odd_compiler.py -q
+uv run --group dev pytest tests/test_odd_compiler.py::test_compile_teipublisher_odd_emits_valid_python -q
 ```
 
 ## CLI Commands
@@ -98,6 +127,4 @@ uv run teipublisher transform teipublisher_web.py input.xml \
 
 Notes:
 
-- During `transform`, the CLI prints the constructed parameter map to stdout as:
-  `teipublisher: parameters: {...}`.
 - If you omit `-o`, HTML is printed to stdout after that parameters line.

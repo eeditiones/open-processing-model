@@ -83,6 +83,28 @@ def test_transform_accepts_param_pairs(tmp_path: Path, capsys) -> None:
     assert capsys.readouterr().out.strip()
 
 
+def test_transform_xpath_selects_subtree(tmp_path: Path, capsys) -> None:
+    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+    from tei_publisher_py.teipublisher_cli import main
+
+    gen = tmp_path / 'gen.py'
+    gen.write_text(compile_odd_to_python(str(ODD)), encoding='utf-8')
+    xml = tmp_path / 'in.xml'
+    xml.write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc>'
+        '<titleStmt><title>Hi</title></titleStmt></fileDesc></teiHeader>'
+        '<text><body><p>x</p></body></text></TEI>\n',
+        encoding='utf-8',
+    )
+
+    assert main([
+        'transform', str(gen), str(xml),
+        '--xpath', '//body',
+    ]) == 0
+    assert capsys.readouterr().out.strip()
+
+
 def test_transform_writes_output_file(tmp_path: Path) -> None:
     from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
     from tei_publisher_py.teipublisher_cli import main

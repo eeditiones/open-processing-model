@@ -179,6 +179,47 @@ def xpath_select_nodes(node: etree._Element, expr: str, params: dict | None = No
         return []
 
 
+def resolve_context_element(
+    document_root: etree._Element,
+    xpath_expr: str,
+    params: dict | None = None,
+) -> etree._Element:
+    """Evaluate *xpath_expr* with *document_root* as the context item; return that element.
+
+    Unprefixed names in *xpath_expr* use the default element namespace taken from
+    *document_root* (same rule as :func:`xpath_test` and ODD ``@predicate`` XPath).
+    ``$parameters`` is bound from *params* like :func:`make_context`.
+
+    Raises:
+        ValueError: XPath is invalid, or the expression does not select exactly one
+            element node.
+    """
+    try:
+        token = _compiled_xpath(
+            xpath_expr,
+            _default_element_namespace_uri(document_root),
+        )
+        raw = list(token.select(make_context(document_root, params)))
+    except elementpath.ElementPathError as e:
+        raise ValueError(f'Invalid XPath: {e}') from e
+
+    elements: list[etree._Element] = []
+    for item in raw:
+        if isinstance(item, XPathNode):
+            v = item.value
+            if isinstance(v, etree._Element):
+                elements.append(v)
+        elif isinstance(item, etree._Element):
+            elements.append(item)
+
+    if len(elements) != 1:
+        raise ValueError(
+            f'XPath {xpath_expr!r} must select exactly one element; '
+            f'got {len(elements)} element(s) from {len(raw)} value(s)',
+        )
+    return elements[0]
+
+
 def tag(node: etree._Element) -> str:
     return etree.QName(node).localname
 
