@@ -370,7 +370,7 @@ def _emit_model_or_sequence(ident: str, el, spec_el, indent: str) -> str:
 def _emit_process_models(ident: str, models: list, spec_el, indent: str, *, in_sequence: bool) -> str:
     models = _filter_output_web(models)
     if not models:
-        return f'{indent}apply(config, child_nodes(node))'
+        return f'{indent}return apply(config, child_nodes(node))'
 
     if not models[0].get('predicate'):
         inner = _emit_model_or_sequence(ident, models[0], spec_el, indent)
@@ -416,10 +416,23 @@ def generate_python_module(parsed: ParsedOdd, module_name: str = 'generated_odd'
         if not ident or ident in ('*', 'text()'):
             continue
         tops = _top_level_models(spec)
+        if not tops:
+            continue  # spec has models but none target web output
         block = _emit_process_models(ident, tops, spec, '            ', in_sequence=False)
         cases.append(f"        case {ident!r}:\n{block}")
 
-    match_body = '\n'.join(cases) if cases else '            return apply(config, child_nodes(node))'
+    if cases:
+        dispatch_body = (
+            '    match _tag(node):\n'
+            + '\n'.join(cases) + '\n'
+            '        case _:\n'
+            '            return apply(config, child_nodes(node))'
+        )
+    else:
+        # No web-output specs — skip the match entirely; a bare `match` with no
+        # `case` is a SyntaxError, and a match followed by a stray `return` is
+        # also invalid.
+        dispatch_body = '    return apply(config, child_nodes(node))'
 
     return f'''#!/usr/bin/env python3
 """
@@ -468,10 +481,7 @@ def _dispatch(config, node, params):
     if _ns(node) != {schema_ns!r}:
         return [node]
 
-    match _tag(node):
-{match_body}
-        case _:
-            return apply(config, child_nodes(node))
+{dispatch_body}
 
 
 def transform(root, options=None):
