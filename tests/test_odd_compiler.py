@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ODD = ROOT / 'odd' / 'teipublisher.odd'
+SHAKESPEARE_ODD = ROOT / 'odd' / 'shakespeare.odd'
 
 
 def test_compile_teipublisher_odd_emits_valid_python(tmp_path: Path) -> None:
@@ -36,13 +37,15 @@ def test_compile_teipublisher_odd_emits_valid_python(tmp_path: Path) -> None:
     assert 'def main()' not in src
 
 
-def test_teipublisher_web_injects_generated_css_in_head() -> None:
+def test_teipublisher_web_injects_generated_css_in_head(tmp_path: Path) -> None:
     """Compiled module passes ODD CSS into ``odd_css``; HTML ``head`` gets a ``style`` block."""
     from lxml import etree
 
+    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
     from tei_publisher_py.pm_runtime import serialize
 
-    path = ROOT / 'teipublisher_web.py'
+    path = tmp_path / 'teipublisher_web.py'
+    path.write_text(compile_odd_to_python(str(ODD)), encoding='utf-8')
     spec = importlib.util.spec_from_file_location('teipublisher_web', str(path))
     assert spec and spec.loader
     m = importlib.util.module_from_spec(spec)
@@ -56,3 +59,22 @@ def test_teipublisher_web_injects_generated_css_in_head() -> None:
     assert '<style' in out
     assert 'Model rendition styles' in m.ODD_GENERATED_CSS
     assert '.tei-del1' in out
+
+
+def test_compile_inherited_odd_loads_parent_then_overwrites_child() -> None:
+    """Child ODD inherits elementSpec from source ODD and overwrites duplicate idents."""
+    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+
+    src = compile_odd_to_python(str(SHAKESPEARE_ODD))
+
+    # Inherited from teipublisher.odd (not declared in shakespeare.odd).
+    assert "case 'ab':" in src
+
+    # Overwritten by shakespeare.odd for ident='lb' (mode is ignored).
+    assert "case 'lb':" in src
+    assert "return pmf.omit(config, node, ['tei-lb', 'tei-lb1', r], node)" in src
+    # Inherited + local tagsDecl rendition sources are included in generated CSS.
+    assert 'external styles loaded from shakespeare.css' in src
+    assert '.simple_bold { font-weight: bold; }' in src
+    # <desc> from models is preserved as generated Python comments.
+    assert "# for breadcrumbs, pick title/@type='statement'" in src

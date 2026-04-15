@@ -15,24 +15,97 @@ class ParsedOdd:
     tree: etree._ElementTree
     schema_ns: str
     odd_path: str
+    element_specs: list
+    odd_chain: list[str]
+
+
+def _schema_spec(root) -> etree._Element:
+    spec = root.find(f'.//{{{TEI_NS}}}schemaSpec')
+    if spec is None:
+        raise ValueError('No tei:schemaSpec in ODD')
+    return spec
+
+
+def _resolve_source_paths(schema_spec, odd_path: Path) -> list[Path]:
+    raw = (schema_spec.get('source') or '').strip()
+    if not raw:
+        return []
+    out: list[Path] = []
+    for token in raw.split():
+        p = Path(token)
+        if not p.is_absolute():
+            p = (odd_path.parent / p).resolve()
+        out.append(p)
+    return out
+
+
+def _collect_element_specs(odd_path: Path, seen: set[Path]) -> list:
+    odd_path = odd_path.resolve()
+    if odd_path in seen:
+        raise ValueError(f'Circular ODD inheritance via schemaSpec@source: {odd_path}')
+    seen.add(odd_path)
+
+    tree = etree.parse(str(odd_path))
+    root = tree.getroot()
+    schema_spec = _schema_spec(root)
+
+    # Parent ODDs first, then local ODD; same ident always overwrites earlier.
+    merged: dict[str, etree._Element] = {}
+    for source_path in _resolve_source_paths(schema_spec, odd_path):
+        for spec in _collect_element_specs(source_path, seen):
+            ident = spec.get('ident')
+            if ident:
+                merged[ident] = spec
+
+    for spec in root.iter(f'{{{TEI_NS}}}elementSpec'):
+        ident = spec.get('ident')
+        if ident:
+            merged[ident] = spec
+
+    seen.remove(odd_path)
+    return list(merged.values())
+
+
+def _collect_odd_chain(odd_path: Path, seen: set[Path]) -> list[Path]:
+    """Return inherited ODD files in load order: parent(s) first, then *odd_path*."""
+    odd_path = odd_path.resolve()
+    if odd_path in seen:
+        raise ValueError(f'Circular ODD inheritance via schemaSpec@source: {odd_path}')
+    seen.add(odd_path)
+
+    tree = etree.parse(str(odd_path))
+    root = tree.getroot()
+    schema_spec = _schema_spec(root)
+
+    chain: list[Path] = []
+    for source_path in _resolve_source_paths(schema_spec, odd_path):
+        chain.extend(_collect_odd_chain(source_path, seen))
+    chain.append(odd_path)
+
+    seen.remove(odd_path)
+    return chain
 
 
 def load_odd(path: str | Path) -> ParsedOdd:
     p = Path(path).resolve()
     tree = etree.parse(str(p))
     root = tree.getroot()
-    spec = root.find(f'.//{{{TEI_NS}}}schemaSpec')
-    if spec is None:
-        raise ValueError('No tei:schemaSpec in ODD')
+    spec = _schema_spec(root)
     ns = spec.get('ns') or TEI_NS
-    return ParsedOdd(tree=tree, schema_ns=ns, odd_path=str(p))
+    odd_chain = _collect_odd_chain(p, set())
+    element_specs = _collect_element_specs(p, set())
+    return ParsedOdd(
+        tree=tree,
+        schema_ns=ns,
+        odd_path=str(p),
+        element_specs=element_specs,
+        odd_chain=[str(x) for x in odd_chain],
+    )
 
 
 def iter_element_specs(parsed: ParsedOdd):
     """Yield tei:elementSpec elements in document order."""
-    root = parsed.tree.getroot()
-    for el in root.iter(f'{{{TEI_NS}}}elementSpec'):
-        yield el
+    yield from parsed.element_specs
 
 
 def has_models(spec_el) -> bool:

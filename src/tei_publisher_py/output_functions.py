@@ -245,7 +245,11 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         return [el]
 
     def heading(self, config, node, cls, content, level):
-        el = self._el(f'h{max(1, min(6, level))}', cls, node)
+        try:
+            lvl = int(level) if level is not None else 1
+        except (TypeError, ValueError):
+            lvl = 1
+        el = self._el(f'h{max(1, min(6, lvl))}', cls, node)
         config['apply_children'](config, node, content, el)
         return [el]
 

@@ -61,6 +61,27 @@ def _normalize_css_body(text: str) -> str:
     return ' '.join(text.split())
 
 
+def _collect_tagsdecl_renditions(parsed: ParsedOdd) -> tuple[dict[str, str], list[str]]:
+    """Collect inherited tagsDecl renditions: parent ODDs first, child overwrites by xml:id."""
+    simple_rules: dict[str, str] = {}
+    sources: list[str] = []
+
+    for odd_file in parsed.odd_chain:
+        root = etree.parse(odd_file).getroot()
+        for rend in root.iter(f'{{{TEI_NS}}}rendition'):
+            par = rend.getparent()
+            if par is None or _local(par.tag) != 'tagsDecl':
+                continue
+            rid = rend.get(XML_ID)
+            body = _normalize_css_body(''.join(rend.itertext()))
+            if rid and body:
+                simple_rules[rid] = body
+            src = (rend.get('source') or '').strip()
+            if src and src not in sources:
+                sources.append(src)
+    return simple_rules, sources
+
+
 def collect_odd_generated_css(parsed: ParsedOdd) -> str:
     """Build CSS from the ODD, matching ``css:generate-css`` in ``css.xql`` (web).
 
@@ -72,22 +93,16 @@ def collect_odd_generated_css(parsed: ParsedOdd) -> str:
     # tagsDecl rendition (class names simple_* — see css:get-rendition / html output)
     root = parsed.tree.getroot()
     odd_dir = Path(parsed.odd_path).parent
-    for rend in root.iter(f'{{{TEI_NS}}}rendition'):
-        par = rend.getparent()
-        if par is None or _local(par.tag) != 'tagsDecl':
-            continue
-        rid = rend.get(XML_ID)
-        body = _normalize_css_body(''.join(rend.itertext()))
-        if rid and body:
-            chunks.append(f'.simple_{rid} {{ {body} }}')
-        src = rend.get('source')
-        if src:
-            path = odd_dir / src
-            if path.is_file():
-                chunks.append(f'/* external styles loaded from {src} */')
-                chunks.append(path.read_text(encoding='utf-8'))
-            else:
-                chunks.append(f'/* external styles not found: {src} */')
+    simple_rules, sources = _collect_tagsdecl_renditions(parsed)
+    for rid, body in simple_rules.items():
+        chunks.append(f'.simple_{rid} {{ {body} }}')
+    for src in sources:
+        path = odd_dir / src
+        if path.is_file():
+            chunks.append(f'/* external styles loaded from {src} */')
+            chunks.append(path.read_text(encoding='utf-8'))
+        else:
+            chunks.append(f'/* external styles not found: {src} */')
 
     chunks.append('')
     chunks.append('/* Model rendition styles */')
@@ -117,6 +132,11 @@ def collect_odd_generated_css(parsed: ParsedOdd) -> str:
                 chunks.append(f'{sel} {{ {body} }}')
 
     return '\n'.join(chunks).strip() + '\n'
+
+
+def _python_triple_quoted(s: str) -> str:
+    """Return *s* as a Python triple-quoted literal preserving line breaks."""
+    return '"""' + s.replace('"""', '\\"""') + '"""'
 
 
 def _top_level_models(spec_el) -> list:
@@ -181,6 +201,38 @@ def _gather_params(model_el) -> dict[str, str]:
     if 'content' not in out:
         out['content'] = '.'
     return out
+
+
+def _model_desc(model_el) -> str:
+    """Normalized text content from optional child <desc>."""
+    desc_el = model_el.find(f'{{{TEI_NS}}}desc')
+    if desc_el is None:
+        return ''
+    text = ' '.join(' '.join(desc_el.itertext()).split())
+    return text
+
+
+def _desc_comment_lines(model_el, indent: str) -> list[str]:
+    desc = _model_desc(model_el)
+    if not desc:
+        return []
+    # Keep line lengths reasonable in generated sources.
+    words = desc.split()
+    lines: list[str] = []
+    cur: list[str] = []
+    cur_len = 0
+    for w in words:
+        add = len(w) + (1 if cur else 0)
+        if cur and cur_len + add > 96:
+            lines.append(f"{indent}# {' '.join(cur)}")
+            cur = [w]
+            cur_len = len(w)
+        else:
+            cur.append(w)
+            cur_len += add
+    if cur:
+        lines.append(f"{indent}# {' '.join(cur)}")
+    return lines
 
 
 def _classes_expr(ident: str, model_el, spec_el) -> str:
@@ -318,7 +370,10 @@ def _emit_process_models(ident: str, models: list, spec_el, indent: str, *, in_s
 
     if not models[0].get('predicate'):
         inner = _emit_model_or_sequence(ident, models[0], spec_el, indent)
-        return f'{indent}return {inner}'
+        lines = []
+        lines.extend(_desc_comment_lines(models[0], indent))
+        lines.append(f'{indent}return {inner}')
+        return '\n'.join(lines)
 
     conds = [m for m in models if m.get('predicate')]
     unconds = [m for m in models if not m.get('predicate')]
@@ -329,11 +384,13 @@ def _emit_process_models(ident: str, models: list, spec_el, indent: str, *, in_s
         inner = _emit_model_or_sequence(ident, m, spec_el, indent + '    ')
         kw = 'if' if i == 0 else 'elif'
         lines.append(f'{indent}{kw} xpath_test(node, {repr(pred)}, params):')
+        lines.extend(_desc_comment_lines(m, indent + '    '))
         lines.append(f'{indent}    return {inner}')
     if unconds:
         u = unconds[0] if len(unconds) > 1 and not in_sequence else unconds[0]
         inner = _emit_model_or_sequence(ident, u, spec_el, indent + '    ')
         lines.append(f'{indent}else:')
+        lines.extend(_desc_comment_lines(u, indent + '    '))
         lines.append(f'{indent}    return {inner}')
     else:
         lines.append(f'{indent}else:')
@@ -345,7 +402,7 @@ def generate_python_module(parsed: ParsedOdd, module_name: str = 'generated_odd'
     schema_ns = parsed.schema_ns
     odd_path = parsed.odd_path
     odd_css = collect_odd_generated_css(parsed)
-    odd_css_literal = repr(odd_css)
+    odd_css_literal = _python_triple_quoted(odd_css)
 
     cases = []
     for spec in iter_element_specs(parsed):
