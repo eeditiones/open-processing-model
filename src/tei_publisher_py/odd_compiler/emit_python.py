@@ -67,7 +67,7 @@ def _collect_tagsdecl_renditions(parsed: ParsedOdd) -> tuple[dict[str, str], lis
     sources: list[str] = []
 
     for odd_file in parsed.odd_chain:
-        root = etree.parse(odd_file).getroot()
+        root = etree.parse(odd_file, etree.XMLParser(collect_ids=False)).getroot()
         for rend in root.iter(f'{{{TEI_NS}}}rendition'):
             par = rend.getparent()
             if par is None or _local(par.tag) != 'tagsDecl':
