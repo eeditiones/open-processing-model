@@ -9,6 +9,11 @@ from lxml import etree
 
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
 
+# Real-world ODDs (e.g. tei_simplePrint.odd) carry duplicate xml:id values.
+# collect_ids=False prevents lxml from rejecting them; xml:id is not used by
+# the compiler — specs are located by @ident, not by xml:id lookup.
+_PARSER = etree.XMLParser(collect_ids=False)
+
 
 @dataclass
 class ParsedOdd:
@@ -45,7 +50,7 @@ def _collect_element_specs(odd_path: Path, seen: set[Path]) -> list:
         raise ValueError(f'Circular ODD inheritance via schemaSpec@source: {odd_path}')
     seen.add(odd_path)
 
-    tree = etree.parse(str(odd_path))
+    tree = etree.parse(str(odd_path), _PARSER)
     root = tree.getroot()
     schema_spec = _schema_spec(root)
 
@@ -73,7 +78,7 @@ def _collect_odd_chain(odd_path: Path, seen: set[Path]) -> list[Path]:
         raise ValueError(f'Circular ODD inheritance via schemaSpec@source: {odd_path}')
     seen.add(odd_path)
 
-    tree = etree.parse(str(odd_path))
+    tree = etree.parse(str(odd_path), _PARSER)
     root = tree.getroot()
     schema_spec = _schema_spec(root)
 
@@ -91,8 +96,7 @@ def load_odd(path: str | Path) -> ParsedOdd:
     # collect_ids=False avoids rejecting real-world ODDs that carry duplicate
     # xml:id values (e.g. tei_simplePrint.odd). xml:id indexing is not needed
     # by the compiler — specs are located by ident, not by xml:id lookup.
-    parser = etree.XMLParser(collect_ids=False)
-    tree = etree.parse(str(p), parser)
+    tree = etree.parse(str(p), _PARSER)
     root = tree.getroot()
     spec = _schema_spec(root)
     ns = spec.get('ns') or TEI_NS
