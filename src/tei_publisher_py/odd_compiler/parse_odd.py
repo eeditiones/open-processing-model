@@ -88,7 +88,11 @@ def _collect_odd_chain(odd_path: Path, seen: set[Path]) -> list[Path]:
 
 def load_odd(path: str | Path) -> ParsedOdd:
     p = Path(path).resolve()
-    tree = etree.parse(str(p))
+    # collect_ids=False avoids rejecting real-world ODDs that carry duplicate
+    # xml:id values (e.g. tei_simplePrint.odd). xml:id indexing is not needed
+    # by the compiler — specs are located by ident, not by xml:id lookup.
+    parser = etree.XMLParser(collect_ids=False)
+    tree = etree.parse(str(p), parser)
     root = tree.getroot()
     spec = _schema_spec(root)
     ns = spec.get('ns') or TEI_NS

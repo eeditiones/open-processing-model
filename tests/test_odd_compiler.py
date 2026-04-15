@@ -37,6 +37,29 @@ def test_compile_teipublisher_odd_emits_valid_python(tmp_path: Path) -> None:
     assert 'def main()' not in src
 
 
+def test_load_odd_tolerates_duplicate_xml_id(tmp_path: Path) -> None:
+    """Real-world ODDs (e.g. tei_simplePrint.odd) carry duplicate xml:id values;
+    the loader must not reject them, since xml:id is not used for spec lookup."""
+    from tei_publisher_py.odd_compiler.parse_odd import load_odd
+
+    odd = tmp_path / 'dup_id.odd'
+    odd.write_text(
+        '<?xml version="1.0"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0">'
+        '<teiHeader><fileDesc><titleStmt><title>t</title></titleStmt>'
+        '<publicationStmt><p>p</p></publicationStmt>'
+        '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
+        '<text><body>'
+        '<note xml:id="n7">a</note><note xml:id="n7">b</note>'
+        '<schemaSpec xmlns="http://www.tei-c.org/ns/1.0" ident="x" '
+        'ns="http://www.tei-c.org/ns/1.0"/>'
+        '</body></text></TEI>',
+        encoding='utf-8',
+    )
+    parsed = load_odd(str(odd))
+    assert parsed.schema_ns == 'http://www.tei-c.org/ns/1.0'
+
+
 def test_teipublisher_web_injects_generated_css_in_head(tmp_path: Path) -> None:
     """Compiled module passes ODD CSS into ``odd_css``; HTML ``head`` gets a ``style`` block."""
     from lxml import etree
