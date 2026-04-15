@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tei-publisher-py"
+version = "0.1.0"
+description = "Python implementation of tei-publisher-lib transformations"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "lxml>=5.0",
+    "elementpath>=4.8",
+]
+
+[dependency-groups]
+dev = [
+    "pyinstrument>=5.1.2",
+    "pytest>=8.0",
+]
+
+[project.scripts]
+teipublisher = "tei_publisher_py.teipublisher_cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tei_publisher_py"]
