@@ -58,6 +58,17 @@ def test_inject_cached_footnotes_noop_when_empty() -> None:
     assert len(body) == 0
 
 
+def test_tag_and_ns_on_comment_do_not_use_qname_on_factory_tag() -> None:
+    """Comments use a non-string ``.tag``; :func:`tag` / :func:`ns` must not call ``QName``."""
+    from lxml import etree
+
+    from tei_publisher_py.pm_runtime import ns, tag
+
+    c = etree.Comment('note')
+    assert tag(c) == 'comment'
+    assert ns(c) == ''
+
+
 def test_normalize_stringifies_xpath_numeric_atoms() -> None:
     """``xpath_content`` can be a bare ``int``/``float``; :func:`normalize` must not ``list()`` them."""
     assert normalize(3.5) == ['3.5']

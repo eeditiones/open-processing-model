@@ -77,6 +77,8 @@ def _default_element_namespace_uri(node: etree._Element) -> str:
     ``http://www.tei-c.org/ns/1.0``, not the empty namespace, so ``parent::div`` only
     matches after setting this. Empty string means no default (legacy behaviour).
     """
+    if isinstance(node, (etree._Comment, etree._ProcessingInstruction, etree._Entity)):
+        return ''
     uri = etree.QName(node).namespace
     return uri or ''
 
@@ -221,10 +223,23 @@ def resolve_context_element(
 
 
 def tag(node: etree._Element) -> str:
+    """Local name for *node*.
+
+    lxml comments, PIs, and entities use a Cython factory object as ``.tag``, not a
+    string, so :func:`etree.QName` cannot be used on them directly.
+    """
+    if isinstance(node, etree._Comment):
+        return 'comment'
+    if isinstance(node, etree._ProcessingInstruction):
+        return 'processing-instruction'
+    if isinstance(node, etree._Entity):
+        return 'entity'
     return etree.QName(node).localname
 
 
 def ns(node: etree._Element) -> str:
+    if isinstance(node, (etree._Comment, etree._ProcessingInstruction, etree._Entity)):
+        return ''
     return etree.QName(node).namespace or ''
 
 
