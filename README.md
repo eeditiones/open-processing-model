@@ -96,7 +96,7 @@ uv run teipublisher compile odd/teipublisher.odd -o teipublisher_web.py
 Arguments and options:
 
 - `odd` (required): path to the `.odd` file.
-- `-o, --output`: write generated Python to this path (default: `transform/<odd-basename>-<mode>.py` under the current working directory).
+- `-o, --output`: write generated Python to this path (default: `modules/<odd-basename>-<mode>.py` under the current working directory).
 - `-m, --mode`: ODD processing-model output channel — `web` (HTML via `html_output_functions`), `markdown` (via `markdown_output_functions`), or other `@output` values such as `print` (default: `web`).
 - `--module-name`: logical module name used in generated docstring (default: `generated_odd`).
 
@@ -128,7 +128,7 @@ Arguments and options:
 Examples:
 
 ```bash
-# Write transform/teipublisher-web.py (default path and mode)
+# Write modules/teipublisher-web.py (default path and mode)
 uv run teipublisher compile odd/teipublisher.odd
 
 # Transform with runtime parameters
@@ -136,10 +136,10 @@ uv run teipublisher transform teipublisher_web.py input.xml \
   -p mode=toc -p display=browse -o output.html
 
 # Preview markdown output in the terminal (no stdout dump)
-uv run teipublisher transform transform/teipublisher-markdown.py input.xml --preview
+uv run teipublisher transform modules/teipublisher-markdown.py input.xml --preview
 
 # Preview HTML in the browser and also save to a file
-uv run teipublisher transform transform/teipublisher-web.py input.xml -o out.html --preview
+uv run teipublisher transform modules/teipublisher-web.py input.xml -o out.html --preview
 ```
 
 Notes:

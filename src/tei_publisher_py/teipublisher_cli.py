@@ -111,7 +111,7 @@ def compile_cmd(
             '-o',
             help=(
                 'Write generated Python to this file (default: '
-                'transform/<odd-basename>-<mode>.py below the current working directory)'
+                'modules/<odd-basename>-<mode>.py below the current working directory)'
             ),
         ),
     ] = None,
@@ -133,7 +133,7 @@ def compile_cmd(
     if output is not None:
         dest = output
     else:
-        dest = Path('transform') / f'{odd.stem}-{mode}.py'
+        dest = Path('modules') / f'{odd.stem}-{mode}.py'
         dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(src, encoding='utf-8')
 
