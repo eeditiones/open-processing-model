@@ -97,7 +97,7 @@ Arguments and options:
 
 - `odd` (required): path to the `.odd` file.
 - `-o, --output`: write generated Python to this path (default: `transform/<odd-basename>-<mode>.py` under the current working directory).
-- `-m, --mode`: ODD processing-model output channel (default: `web`).
+- `-m, --mode`: ODD processing-model output channel — `web` (HTML via `html_output_functions`), `markdown` (via `markdown_output_functions`), or other `@output` values such as `print` (default: `web`).
 - `--module-name`: logical module name used in generated docstring (default: `generated_odd`).
 
 ### `teipublisher transform`
@@ -108,12 +108,22 @@ Load a generated transform module and apply it to an XML file.
 uv run teipublisher transform teipublisher_web.py input.xml -o output.html
 ```
 
+The transform module must define:
+
+- `transform(root, options=None)` — run the processing model.
+- `transform_output_channels()` — return the same channel list as in the generated `transform()` config (e.g. `['web']`, `['markdown']`). Modules emitted by `teipublisher compile` include this automatically.
+
 Arguments and options:
 
-- `transform_script` (required): path to a Python module that defines `transform(root, options=None)`.
-- `input` (required): input XML file path.
-- `-o, --output`: write HTML output to a file (default: stdout).
+- `transform_script` (required): path to the Python module (see above).
+- `input_xml` (required): input XML file path.
+- `-o, --output`: write serialized output to a file. If you also pass `--preview`, the file is written and then previewed.
+- `--preview`, `-v`: preview the result instead of printing it to stdout. How preview works depends on the first channel from `transform_output_channels()`:
+  - **`web`** — open the serialized HTML in the default browser (via a temporary file).
+  - **`markdown`** — render with [Rich](https://rich.readthedocs.io/) as Markdown in the terminal.
+  - **Other channels** (e.g. `print`) — print plain text in the terminal with Rich.
 - `-p, --param KEY=VALUE`: set runtime parameters passed as XPath `$parameters` (repeatable).
+- `-x, --xpath EXPR`: XPath 3.1 expression with the document root as context; the single selected element becomes the transform root (instead of the whole document). Unprefixed names use the document’s default element namespace.
 
 Examples:
 
@@ -124,8 +134,15 @@ uv run teipublisher compile odd/teipublisher.odd
 # Transform with runtime parameters
 uv run teipublisher transform teipublisher_web.py input.xml \
   -p mode=toc -p display=browse -o output.html
+
+# Preview markdown output in the terminal (no stdout dump)
+uv run teipublisher transform transform/teipublisher-markdown.py input.xml --preview
+
+# Preview HTML in the browser and also save to a file
+uv run teipublisher transform transform/teipublisher-web.py input.xml -o out.html --preview
 ```
 
 Notes:
 
-- If you omit `-o`, HTML is printed to stdout after that parameters line.
+- If you omit both `-o` and `--preview`, the serialized result is printed to stdout.
+- With `--preview` alone, nothing is printed to stdout (only the preview).

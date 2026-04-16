@@ -37,6 +37,33 @@ def test_compile_teipublisher_odd_emits_valid_python(tmp_path: Path) -> None:
     assert 'def main()' not in src
 
 
+def test_compile_markdown_mode_imports_markdown_output_functions() -> None:
+    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+
+    src = compile_odd_to_python(str(ODD), output_mode='markdown')
+    assert 'MarkdownOutputFunctions' in src
+    assert 'normalize_markdown_xml_text' in src
+    assert "'normalize_text': normalize_markdown_xml_text" in src
+    assert 'MarkdownOutputFunctions()' in src
+    assert 'def transform_output_channels' in src
+    assert "return ['markdown']" in src
+
+
+def test_compile_web_mode_emits_transform_output_channels() -> None:
+    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+
+    src = compile_odd_to_python(str(ODD), output_mode='web')
+    assert 'def transform_output_channels' in src
+    assert "return ['web']" in src
+
+
+def test_generated_transform_calls_pmf_finish() -> None:
+    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+
+    src = compile_odd_to_python(str(ODD))
+    assert "config['pmf'].finish(config, result)" in src
+
+
 def test_load_odd_tolerates_duplicate_xml_id(tmp_path: Path) -> None:
     """Real-world ODDs (e.g. tei_simplePrint.odd) carry duplicate xml:id values;
     the loader must not reject them, since xml:id is not used for spec lookup."""

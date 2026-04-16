@@ -58,6 +58,31 @@ def test_inject_cached_footnotes_noop_when_empty() -> None:
     assert len(body) == 0
 
 
+def test_apply_markdown_finish_regexes_matches_pmf_finish() -> None:
+    from tei_publisher_py.markdown_output_functions import apply_markdown_finish_regexes
+
+    assert apply_markdown_finish_regexes('a\n\n\n\nb') == 'a\n\nb'
+    assert apply_markdown_finish_regexes('_  word  _') == '_word_'
+    assert apply_markdown_finish_regexes('**  bold  **') == '**bold**'
+
+
+def test_normalize_markdown_xml_text_collapses_pretty_print() -> None:
+    from tei_publisher_py.markdown_output_functions import normalize_markdown_xml_text
+
+    assert normalize_markdown_xml_text('hello\n              world') == 'hello world'
+    assert normalize_markdown_xml_text('\n        ') == ''
+    assert normalize_markdown_xml_text('a  \n  b') == 'a b'
+    assert normalize_markdown_xml_text(' ') == ' '
+
+
+def test_markdown_output_finish_serializes_then_cleans() -> None:
+    from tei_publisher_py.markdown_output_functions import MarkdownOutputFunctions
+
+    pmf = MarkdownOutputFunctions()
+    out = pmf.finish({}, ['x', '**  y  **', 'z'])
+    assert out == ['x**y**z']
+
+
 def test_tag_and_ns_on_comment_do_not_use_qname_on_factory_tag() -> None:
     """Comments use a non-string ``.tag``; :func:`tag` / :func:`ns` must not call ``QName``."""
     from lxml import etree

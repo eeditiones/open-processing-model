@@ -247,7 +247,13 @@ def optional_item(item):
     return [item] if item is not None else []
 
 
-def append_to(parent_el: etree._Element, item) -> None:
+def append_to(parent_el: etree._Element | list, item) -> None:
+    if isinstance(parent_el, list):
+        if isinstance(item, str):
+            parent_el.append(item)
+        elif isinstance(item, etree._Element):
+            parent_el.append(etree.tostring(item, encoding='unicode', method='html'))
+        return
     if isinstance(item, str):
         if len(parent_el) == 0:
             parent_el.text = (parent_el.text or '') + item
@@ -259,9 +265,11 @@ def append_to(parent_el: etree._Element, item) -> None:
 
 
 def apply_children(config, source_node, content, parent_el) -> None:
+    norm = config.get('normalize_text')
     for item in normalize(content):
         if isinstance(item, str):
-            append_to(parent_el, item)
+            s = norm(item) if norm else item
+            append_to(parent_el, s)
         elif isinstance(item, etree._Element):
             dispatch = config['dispatch']
             sub = (
@@ -276,10 +284,14 @@ def apply_children(config, source_node, content, parent_el) -> None:
 def apply(config, nodes, dispatch):
     """Transform nodes via *dispatch(config, node, params)*."""
     params = config.get('parameters', {})
+    norm = config.get('normalize_text')
     result = []
     for node in nodes:
         if isinstance(node, (str, etree._ElementUnicodeResult)):
-            result.append(str(node))
+            s = str(node)
+            if norm:
+                s = norm(s)
+            result.append(s)
         elif isinstance(node, etree._Element):
             result.extend(dispatch(config, node, params))
     return result
@@ -309,15 +321,18 @@ def _footnote_injection_target(element_roots: list[etree._Element]) -> etree._El
 
 
 def inject_cached_footnotes(nodes: list, config: dict) -> list:
-    """Append ``dl.footnote`` bodies collected in ``config['footnotes']`` to the document end.
+    """Append footnote bodies collected in ``config['footnotes']`` after the main flow.
 
-    :class:`~tei_publisher_py.output_functions.HtmlOutputFunctions` stores each
-    footnote body there during :meth:`~tei_publisher_py.output_functions.HtmlOutputFunctions.note`
-    and only emits the inline marker in flow; call this after ``apply`` completes.
+    HTML: :class:`~tei_publisher_py.html_output_functions.HtmlOutputFunctions` stores
+    ``dl.footnote`` elements. Markdown: stores reference-definition strings.
     """
     footnotes = config.get('footnotes')
     if not footnotes:
         return nodes
+    if isinstance(footnotes[0], str):
+        out = list(nodes) + list(footnotes)
+        footnotes.clear()
+        return out
     roots = [x for x in nodes if isinstance(x, etree._Element)]
     if not roots:
         return nodes

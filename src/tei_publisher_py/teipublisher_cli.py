@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import importlib.util
+import tempfile
+import webbrowser
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -23,7 +25,7 @@ app = typer.Typer(
 
 
 def load_transform_module(script_path: Path):
-    """Load a Python file that defines ``transform(root, options=None)``."""
+    """Load a Python file that defines ``transform()`` and ``transform_output_channels()``."""
     path = script_path.resolve()
     if not path.is_file():
         raise FileNotFoundError(f'Not a file: {path}')
@@ -37,7 +39,50 @@ def load_transform_module(script_path: Path):
         raise AttributeError(
             f'{path} has no transform() — expected a TEI Publisher transform module',
         )
+    if not hasattr(mod, 'transform_output_channels'):
+        raise AttributeError(
+            f'{path} has no transform_output_channels() — expected a module emitted by teipublisher compile',
+        )
     return mod
+
+
+def _preview_kind_from_module(mod) -> str:
+    """Return ``'html'``, ``'markdown'``, or ``'text'`` (plain terminal) from ``transform_output_channels()``."""
+    raw = mod.transform_output_channels()
+    if not raw:
+        return 'text'
+    primary = raw[0] if isinstance(raw, (list, tuple)) else raw
+    if primary == 'markdown':
+        return 'markdown'
+    if primary == 'web':
+        return 'html'
+    return 'text'
+
+
+def _preview_html_in_browser(html: str) -> None:
+    with tempfile.NamedTemporaryFile(
+        mode='w',
+        encoding='utf-8',
+        suffix='.html',
+        delete=False,
+        prefix='teipublisher-preview-',
+    ) as f:
+        f.write(html)
+        path = Path(f.name)
+    webbrowser.open(path.as_uri())
+
+
+def _preview_markdown_terminal(md: str) -> None:
+    from rich.console import Console
+    from rich.markdown import Markdown
+
+    Console().print(Markdown(md))
+
+
+def _preview_plain_terminal(text: str) -> None:
+    from rich.console import Console
+
+    Console().print(text)
 
 
 def _parameters_from_cli(param_list: list[str] | None) -> dict[str, str]:
@@ -79,7 +124,7 @@ def compile_cmd(
         typer.Option(
             '--mode',
             '-m',
-            help='ODD processing-model output channel (@output on models; default: web).',
+            help='ODD processing-model output channel: web (HTML), markdown, print, … (@output on models; default: web).',
         ),
     ] = 'web',
 ) -> None:
@@ -102,8 +147,23 @@ def transform_cmd(
     input_xml: Annotated[Path, typer.Argument(help='Input XML file')],
     output: Annotated[
         Optional[Path],
-        typer.Option('--output', '-o', help='Write HTML output to this file (default: stdout)'),
+        typer.Option(
+            '--output',
+            '-o',
+            help='Write transform output to this file (default: stdout unless --preview)',
+        ),
     ] = None,
+    preview: Annotated[
+        bool,
+        typer.Option(
+            '--preview',
+            '-v',
+            help=(
+                'Preview output: channel web → browser, markdown → Rich in the terminal; '
+                'other channels (e.g. print) → plain text in the terminal.'
+            ),
+        ),
+    ] = False,
     param: Annotated[
         list[str],
         typer.Option(
@@ -128,7 +188,7 @@ def transform_cmd(
         ),
     ] = None,
 ) -> None:
-    """Load a transformation script and print HTML for an XML document."""
+    """Load a transformation script and print the result (HTML, markdown, …) for an XML document."""
     try:
         mod = load_transform_module(transform_script)
         serialize = getattr(mod, 'serialize', default_serialize)
@@ -148,9 +208,16 @@ def transform_cmd(
         result = mod.transform(root, opts if opts else None)
         out = serialize(result)
         if output:
-            with open(output, 'w', encoding='utf-8') as f:
-                print(out, file=f)
-        else:
+            output.write_text(out, encoding='utf-8')
+        if preview:
+            kind = _preview_kind_from_module(mod)
+            if kind == 'html':
+                _preview_html_in_browser(out)
+            elif kind == 'markdown':
+                _preview_markdown_terminal(out)
+            else:
+                _preview_plain_terminal(out)
+        elif not output:
             print(out)
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
         typer.echo(f'teipublisher: error: {e}', err=True)

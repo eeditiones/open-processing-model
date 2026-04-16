@@ -1,8 +1,8 @@
-"""Map ODD @behaviour names to HtmlOutputFunctions method names."""
+"""Map ODD @behaviour names to :class:`~tei_publisher_py.output_functions.ProcessingModelFunctions` method names."""
 
 from __future__ import annotations
 
-# TEI processing model behaviour ident -> Python method name on HtmlOutputFunctions
+# TEI processing model behaviour ident -> Python method name on ProcessingModelFunctions subclasses
 BEHAVIOUR_METHOD = {
     'paragraph': 'paragraph',
     'pass-through': 'pass_through',

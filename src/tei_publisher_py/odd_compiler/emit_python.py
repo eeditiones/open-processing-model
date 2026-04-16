@@ -48,6 +48,8 @@ def _model_matches_output_mode(el, output_mode: str) -> bool:
     o = el.get('output')
     if output_mode == 'web':
         return o is None or o == 'web'
+    if output_mode == 'markdown':
+        return o is None or o == 'markdown'
     return o == output_mode
 
 
@@ -462,6 +464,20 @@ def generate_python_module(
         # also invalid.
         dispatch_body = '    return apply(config, child_nodes(node))'
 
+    if output_mode == 'markdown':
+        pmf_import = (
+            'from tei_publisher_py.markdown_output_functions import (\n'
+            '    MarkdownOutputFunctions,\n'
+            '    normalize_markdown_xml_text,\n'
+            ')'
+        )
+        pmf_ctor = 'MarkdownOutputFunctions()'
+        transform_config_extra = "\n        'normalize_text': normalize_markdown_xml_text,"
+    else:
+        pmf_import = 'from tei_publisher_py.html_output_functions import HtmlOutputFunctions'
+        pmf_ctor = 'HtmlOutputFunctions()'
+        transform_config_extra = ''
+
     return f'''#!/usr/bin/env python3
 """
 Auto-generated TEI processing model ({output_mode} output).
@@ -476,11 +492,11 @@ from lxml import etree
 
 from tei_publisher_py.output_functions import (
     XML_ID,
-    HtmlOutputFunctions,
     map_rend_to_class,
     child_nodes,
     reset_counters,
 )
+{pmf_import}
 from tei_publisher_py.pm_runtime import (
     apply as _apply_impl,
     apply_children as apply_children_impl,
@@ -494,6 +510,14 @@ from tei_publisher_py.pm_runtime import (
 
 def xpath_content(node, expr, params=None):
     return xpath_select_nodes(node, expr, params)
+
+
+def transform_output_channels():
+    """Return ODD processing-model output channel(s) for this module.
+
+    Same values as ``teipublisher compile --mode`` and the ``output`` key in ``transform()`` config.
+    """
+    return ['{output_mode}']
 
 
 ODD_GENERATED_CSS = {odd_css_literal}
@@ -517,14 +541,16 @@ def transform(root, options=None):
     config = {{
         'output':         [{output_mode!r}],
         'parameters':    options or {{}},
-        'pmf':           HtmlOutputFunctions(),
+        'pmf':           {pmf_ctor},
         'apply':         apply,
         'apply_children': apply_children_impl,
         'dispatch':      _dispatch,
         'odd_css':       ODD_GENERATED_CSS,
-        'footnotes':     [],
+        'footnotes':     [],{transform_config_extra}
     }}
-    return inject_cached_footnotes(apply(config, [root]), config)
+    result = apply(config, [root])
+    result = config['pmf'].finish(config, result)
+    return inject_cached_footnotes(result, config)
 '''
 
 

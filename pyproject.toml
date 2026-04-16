@@ -12,6 +12,7 @@ dependencies = [
     "lxml>=5.0",
     "elementpath>=4.8",
     "typer>=0.24.1",
+    "rich>=13.0",
 ]
 
 [dependency-groups]
