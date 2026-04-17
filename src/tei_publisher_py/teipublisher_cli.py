@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 import tempfile
 import webbrowser
 from pathlib import Path
@@ -76,7 +77,15 @@ def _preview_markdown_terminal(md: str) -> None:
     from rich.console import Console
     from rich.markdown import Markdown
 
-    Console().print(Markdown(md))
+    console = Console()
+    # Rich's pager keeps ANSI styles (bold/italic) when handing off to the system pager
+    # (e.g. less). Piping plain output to `less` drops a TTY and strips styling unless
+    # FORCE_COLOR is set; using pager(styles=True) avoids that for interactive preview.
+    if sys.stdout.isatty():
+        with console.pager(styles=True):
+            console.print(Markdown(md))
+    else:
+        console.print(Markdown(md))
 
 
 def _preview_plain_terminal(text: str) -> None:
@@ -159,8 +168,8 @@ def transform_cmd(
             '--preview',
             '-v',
             help=(
-                'Preview output: channel web → browser, markdown → Rich in the terminal; '
-                'other channels (e.g. print) → plain text in the terminal.'
+                'Preview output: channel web → browser, markdown → Rich (paged in a TTY so '
+                'bold/italic survive); other channels (e.g. print) → plain text in the terminal.'
             ),
         ),
     ] = False,
