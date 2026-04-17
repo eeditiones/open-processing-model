@@ -538,9 +538,10 @@ def _dispatch(config, node, params):
 
 def transform(root, options=None):
     reset_counters()
+    runtime_options = options or {{}}
     config = {{
         'output':         [{output_mode!r}],
-        'parameters':    options or {{}},
+        'parameters':    runtime_options,
         'pmf':           {pmf_ctor},
         'apply':         apply,
         'apply_children': apply_children_impl,

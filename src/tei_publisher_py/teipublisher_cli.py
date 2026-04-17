@@ -16,6 +16,10 @@ from typer.main import get_command
 
 from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
 from tei_publisher_py.pm_runtime import resolve_context_element, serialize as default_serialize
+from tei_publisher_py.template_rendering import (
+    render_document_template,
+    resolve_template_path,
+)
 
 app = typer.Typer(
     name='teipublisher',
@@ -110,6 +114,14 @@ def _parameters_from_cli(param_list: list[str] | None) -> dict[str, str]:
     return out
 
 
+def _resolve_user_css(css_path: Path | None) -> str | None:
+    """Return CSS text from ``--css`` or default ``styles/default-styles.css`` if present."""
+    path = css_path if css_path is not None else Path('styles/default-styles.css')
+    if css_path is None and not path.is_file():
+        return None
+    return path.read_text(encoding='utf-8')
+
+
 @app.command('compile')
 def compile_cmd(
     odd: Annotated[Path, typer.Argument(help='Path to the .odd file')],
@@ -182,6 +194,20 @@ def transform_cmd(
             help='Runtime parameter for XPath $parameters (repeatable), e.g. -p mode=toc -p display=browse',
         ),
     ] = [],
+    css: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--css',
+            help='Optional external CSS file injected into <head> for full-document HTML output.',
+        ),
+    ] = None,
+    template: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--template',
+            help='Optional Jinja2 template path for full-document HTML output.',
+        ),
+    ] = None,
     xpath: Annotated[
         Optional[str],
         typer.Option(
@@ -205,6 +231,7 @@ def transform_cmd(
         tree = etree.parse(str(input_xml))
         doc_root = tree.getroot()
         opts = _parameters_from_cli(param if param else None)
+        user_css = _resolve_user_css(css)
         if xpath:
             root = resolve_context_element(
                 doc_root,
@@ -215,11 +242,24 @@ def transform_cmd(
             root = doc_root
 
         result = mod.transform(root, opts if opts else None)
+        is_document_result = any(
+            isinstance(item, etree._Element) and etree.QName(item).localname == 'html'
+            for item in result
+        )
         out = serialize(result)
+        kind = _preview_kind_from_module(mod)
+        if kind == 'html' and is_document_result:
+            tpl = resolve_template_path(template)
+            out = render_document_template(
+                serialized_html=out,
+                template_path=tpl,
+                odd_css=getattr(mod, 'ODD_GENERATED_CSS', ''),
+                user_css=user_css,
+                parameters=opts,
+            )
         if output:
             output.write_text(out, encoding='utf-8')
         if preview:
-            kind = _preview_kind_from_module(mod)
             if kind == 'html':
                 _preview_html_in_browser(out)
             elif kind == 'markdown':

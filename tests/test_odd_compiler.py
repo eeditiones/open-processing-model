@@ -148,7 +148,7 @@ def test_compile_odd_without_web_specs_emits_valid_python(tmp_path: Path) -> Non
 
 
 def test_teipublisher_web_injects_generated_css_in_head(tmp_path: Path) -> None:
-    """Compiled module passes ODD CSS into ``odd_css``; HTML ``head`` gets a ``style`` block."""
+    """Compiled module passes ODD CSS into ``odd_css``; HTML ``head`` gets a single style block."""
     from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
     from tei_publisher_py.pm_runtime import serialize
 
@@ -167,6 +167,7 @@ def test_teipublisher_web_injects_generated_css_in_head(tmp_path: Path) -> None:
     assert '<style' in out
     assert 'Model rendition styles' in m.ODD_GENERATED_CSS
     assert '.tei-del1' in out
+    assert out.count('/* Generated stylesheet. Do not edit. */') == 1
 
 
 def test_compile_inherited_odd_loads_parent_then_overwrites_child() -> None:

@@ -70,22 +70,30 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def _append_odd_css(self, config, head_el: etree._Element) -> None:
-        css = config.get('odd_css')
+    @staticmethod
+    def _append_style_once(head_el: etree._Element, css: str | None) -> None:
         if not css:
             return
+        for child in head_el.findall('style'):
+            if (child.text or '') == css:
+                return
         st = etree.SubElement(head_el, 'style')
         st.set('type', 'text/css')
         st.text = css
 
+    def _append_odd_css(self, config, head_el: etree._Element) -> None:
+        self._append_style_once(head_el, config.get('odd_css'))
+
     def document(self, config, node, cls, content) -> PMResult:
         el = self._el('html', cls, node)
         config['apply_children'](config, node, content, el)
-        css = config.get('odd_css')
-        if css and el.find('head') is None:
+        odd_css = config.get('odd_css')
+        head = el.find('head')
+        if odd_css and head is None:
             head = etree.Element('head')
-            self._append_odd_css(config, head)
             el.insert(0, head)
+        if head is not None:
+            self._append_odd_css(config, head)
         return [el]
 
     def pass_through(self, config, node, cls, content) -> PMResult:

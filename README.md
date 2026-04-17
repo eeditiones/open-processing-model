@@ -123,6 +123,8 @@ Arguments and options:
   - **`markdown`** — render with [Rich](https://rich.readthedocs.io/) as Markdown in the terminal.
   - **Other channels** (e.g. `print`) — print plain text in the terminal with Rich.
 - `-p, --param KEY=VALUE`: set runtime parameters passed as XPath `$parameters` (repeatable).
+- `--css PATH`: optional user stylesheet for full-document HTML output. If omitted, `styles/default-styles.css` is used when available.
+- `--template PATH`: optional Jinja2 template for full-document HTML output. If omitted, a packaged default template is used.
 - `-x, --xpath EXPR`: XPath 3.1 expression with the document root as context; the single selected element becomes the transform root (instead of the whole document). Unprefixed names use the document’s default element namespace.
 
 Examples:
@@ -140,9 +142,14 @@ uv run teipublisher transform modules/teipublisher-markdown.py input.xml --previ
 
 # Preview HTML in the browser and also save to a file
 uv run teipublisher transform modules/teipublisher-web.py input.xml -o out.html --preview
+
+# Use a custom document template and stylesheet
+uv run teipublisher transform modules/teipublisher-web.py input.xml \
+  --template templates/my-document.j2 --css styles/default-styles.css -o out.html
 ```
 
 Notes:
 
 - If you omit both `-o` and `--preview`, the serialized result is printed to stdout.
 - With `--preview` alone, nothing is printed to stdout (only the preview).
+- Template rendering and user CSS apply only when the transform returns a full HTML document (`document` behaviour). Fragment output (for example with `--xpath`) is not wrapped.

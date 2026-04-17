@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="{{ lang|default('en') }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- tufte-css template -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tufte-css@1.8.0/tufte.min.css">
+  {{ head_html | safe }}
+  <style type="text/css">
+    /* Keep TEI speaker labels visually aligned with paragraph text in Tufte layout. */
+    .tei-speaker {
+      font-size: 1.4rem;
+      line-height: 1.6;
+    }
+  </style>
+  {% if user_css %}
+  <style type="text/css">
+{{ user_css }}
+  </style>
+  {% endif %}
+</head>
+<body>
+  <article>
+    {{ content_html | safe }}
+  </article>
+</body>
+</html>

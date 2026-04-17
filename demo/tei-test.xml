@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="http://www.tei-c.org/release/xml/tei/custom/schema/relaxng/tei_all.rng" type="application/xml" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<?xml-model href="http://www.tei-c.org/release/xml/tei/custom/schema/relaxng/tei_all.rng" type="application/xml"
+	schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader>
+    <fileDesc>
+      <titleStmt>
+        <title>The Greatest Markup: A Recorded Podcast Transcript</title>
+        <title type="sub">Episode 47: <persName ref="#trump">Donald J. Trump</persName> and <persName ref="#putin">Vladimir V. Putin</persName> Discuss the TEI Processing Model</title>
+        <author>Transcribed by <orgName>Covfefe Media International</orgName></author>
+      </titleStmt>
+      <publicationStmt>
+        <p>Published on <date when="2026-04-01">April 1st, 2026</date> — the most appropriate date.</p>
+      </publicationStmt>
+      <sourceDesc>
+        <p>Live recording from the podcast <title level="s">Very Tremendous Texts</title>, Season 3, Episode 47.
+          Audio quality was, according to the host, <q>the best audio quality, maybe ever, in history.</q></p>
+      </sourceDesc>
+    </fileDesc>
+    <profileDesc>
+      <particDesc>
+        <listPerson>
+          <person xml:id="trump">
+            <persName>
+              <forename>Donald</forename>
+              <forename>John</forename>
+              <surname>Trump</surname>
+            </persName>
+            <note>Former and current US President; self-described <q>very stable genius</q> and newly converted TEI enthusiast.</note>
+          </person>
+          <person xml:id="putin">
+            <persName>
+              <forename>Vladimir</forename>
+              <forename>Vladimirovich</forename>
+              <surname>Putin</surname>
+            </persName>
+            <note>President of <placeName>Russia</placeName>; certified horseback rider; allegedly minored in XML Schema at <orgName>KGB Academy</orgName>.</note>
+          </person>
+          <person xml:id="host">
+            <persName>
+              <forename>Chad</forename>
+              <surname>Markupsen</surname>
+            </persName>
+            <note>Podcast host; holds a PhD in Digital Humanities from <orgName>Trump University</orgName> <supplied reason="irony">[accreditation pending]</supplied>.</note>
+          </person>
+        </listPerson>
+      </particDesc>
+    </profileDesc>
+  </teiHeader>
+  <text>
+    <front>
+      <div type="preface">
+        <p><hi rend="bold">DISCLAIMER:</hi> The following transcript has been lightly edited for
+          clarity. <sic>Covfefe</sic> has been left as spoken throughout. Any resemblance to actual
+          geopolitical events is purely intentional.</p>
+      </div>
+    </front>
+    <body>
+      <div type="podcast-episode" n="47">
+        <head>Episode 47: <title>The TEI Processing Model — Tremendous Markup for Tremendous People</title></head>
+
+        <div type="intro">
+          <sp who="#host">
+            <speaker>Chad Markupsen</speaker>
+            <p>Welcome back to <title level="s">Very Tremendous Texts</title>, the podcast where
+              big men talk about big data. I'm your host <persName ref="#host">Chad
+              Markupsen</persName>, coming to you <foreign xml:lang="lat">in medias res</foreign>
+              from our luxury studio in <placeName>Mar-a-Lago</placeName>. Today's guests need no
+              introduction, but I'll give them one anyway because we need the runtime. Please
+              welcome <persName ref="#trump">President Donald Trump</persName> and, joining us via
+              secure — allegedly — satellite from <placeName>Moscow</placeName>,
+              <persName ref="#putin">President Vladimir Putin</persName>!</p>
+          </sp>
+
+          <sp who="#trump">
+            <speaker>Donald Trump</speaker>
+            <p>Thank you, <persName ref="#host">Chad</persName>. Fantastic show. The best show. I
+              watch it all the time. Many people are saying this is the most important podcast about
+              <term>markup languages</term> ever produced. And I know about markup — believe me,
+              nobody marks up better than me. I once marked up a <hi rend="italic">beautiful</hi>
+              piece of <foreign xml:lang="la">vellum</foreign> <del rend="strikethrough">in a medieval
+              scriptorium</del> <add place="above">at Trump Tower</add>. Tremendous.</p>
+          </sp>
+
+          <sp who="#putin">
+            <speaker>Vladimir Putin</speaker>
+            <p><foreign xml:lang="ru">Privet</foreign>, <persName ref="#host">Chad</persName>. I am
+              very happy to be here. In <placeName>Russia</placeName>, we have long tradition of
+              encoding texts. <rs type="work">Entire archives</rs> were
+              once encoded in <seg type="euphemism">special way</seg> using only <term>physical
+              redaction</term> — what you in <placeName>West</placeName> call
+              <q>black marker</q>. The <term>TEI Processing Model</term> is, I must say,
+              <hi rend="underline">significant improvement</hi>.</p>
+          </sp>
+        </div>
+
+        <div type="main-discussion">
+          <head>Part I: What Even Is the TEI Processing Model?</head>
+
+          <sp who="#host">
+            <speaker>Chad Markupsen</speaker>
+            <p>So let's dive in. <persName ref="#trump">Mr. President</persName> — the first one,
+              the better one — can you explain to our listeners what the
+              <term>TEI Processing Model</term> actually <emph>is</emph>?</p>
+          </sp>
+
+          <sp who="#trump">
+            <speaker>Donald Trump</speaker>
+            <p>Great question, <persName ref="#host">Chad</persName>, really great. So — and I
+              understand this better than most people, I went to
+              <orgName>Wharton</orgName><note place="foot">He mentions this approximately once per
+              minute.</note> — the <term>TEI Processing Model</term> is essentially, you have your
+              <choice><abbr>XML</abbr><expan>Extensible Markup Language</expan></choice>, right, which is already very
+              beautiful, very strong markup, and then you say: how do we <emph>render</emph> this?
+              And the <term>ODD</term> — which stands for <expan>One Document Does-it-all</expan>,
+              very smart people came up with that name — it lets you define <hi rend="bold">behaviours</hi>.
+              Like, you say: this <gi>persName</gi> element? Make it
+              <hi rend="color(red)">red</hi>. Boom. Done. Nobody does behaviours better than
+              me, <persName ref="#host">Chad</persName>. My behaviours are incredible.</p>
+          </sp>
+
+          <sp who="#putin">
+            <speaker>Vladimir Putin</speaker>
+            <p>This is <del rend="strikethrough">mostly correct</del>
+              <add place="inline">accurate enough</add>. In <placeName>Russia</placeName>, we also
+              appreciate the concept of <term>model</term> in <term>processing</term>. When I was in
+              <orgName>KGB</orgName><note place="foot">He mentions this approximately never, officially.</note>,
+              we had very sophisticated processing model. Input: <foreign xml:lang="ru">donositel'</foreign>
+              <gloss>informant</gloss>. Process: <gap reason="classified"
+              unit="lines" quantity="3"/>. Output: <supplied reason="redacted" cert="low">positive
+              outcome</supplied>. Very efficient pipeline. The <term>TEI</term> model is similar but
+              with more <foreign xml:lang="de">Gemütlichkeit</foreign>.</p>
+          </sp>
+
+          <sp who="#host">
+            <speaker>Chad Markupsen</speaker>
+            <p>Right. Moving on. <persName ref="#putin">President Putin</persName>, your team has
+              reportedly been using <term>TEI Publisher</term> to encode historical documents.
+              Can you tell us about that?</p>
+          </sp>
+
+          <sp who="#putin">
+            <speaker>Vladimir Putin</speaker>
+            <p>Yes. We have been encoding the complete works of
+              <persName>Leo Tolstoy</persName> — <title level="m">War and Peace</title>,
+              <title level="m">Anna Karenina</title>, all of them. Very long texts. The
+              <term>processing model</term> allows us to render different editions differently with
+              same <term>ODD</term> file. This is very elegant. I am told even
+              <persName>Tolstoy</persName> himself would have approved, though of course he is dead,
+              so he has <choice><sic>no choise</sic>
+              <corr>no choice</corr></choice>.</p>
+          </sp>
+
+          <sp who="#trump">
+            <speaker>Donald Trump</speaker>
+            <p>I've read <title level="m">War and Peace</title>. Whole thing. Twice.
+              <add place="margin" hand="#editor">[Editor's note: no evidence supports this claim]
+              </add> Fantastic book, very long, some people say too long, I like it though. Very
+              much like my speeches, which are also very long and also have a <foreign xml:lang="fr">
+              dénouement</foreign>. Mine's better though. My <foreign xml:lang="fr">
+              dénouement</foreign> is the best.</p>
+          </sp>
+        </div>
+
+        <div type="technical-deep-dive">
+          <head>Part II: The Technical Details (Mostly Correct)</head>
+
+          <sp who="#host">
+            <speaker>Chad Markupsen</speaker>
+            <p>Let's get technical. The <term>TEI Processing Model</term> uses
+              <term>behaviours</term> defined in an <term>ODD</term> file to specify how elements
+              should be rendered. For example, a <gi>note</gi> element might have a behaviour of
+              <val>footnote</val> or <val>margin</val>. Can either of you give an example of a
+              behaviour you'd like to see applied to political discourse?</p>
+          </sp>
+
+          <sp who="#trump">
+            <speaker>Donald Trump</speaker>
+            <p>Great question. <hi rend="bold">Great</hi> question. If I were designing the
+              <choice><abbr>ODD</abbr><expan>One Document Does-it-all</expan></choice> for, let's say, the
+              <title level="j">New York Times</title> — which is <choice><sic>failing</sic>
+              <corr>thriving</corr></choice>, Fake News — I would give the <gi>persName</gi> behaviour of
+              <val>inline</val> for most people but for me, for
+              <persName ref="#trump">Donald J. Trump</persName>, I would use a custom behaviour:
+              <val>renderAsGold</val>. And it would be <hi rend="color(gold)">gold</hi>.
+              Real gold. The best gold rendering in the history of digital humanities.</p>
+          </sp>
+
+          <sp who="#putin">
+            <speaker>Vladimir Putin</speaker>
+            <p>This is interesting proposal. In my design, I would apply behaviour
+              <val>omit</val> selectively. Certain <gi>persName</gi> elements would simply
+              <gap reason="omitted" unit="chars" quantity="47"/>. You understand. It is a matter of
+              <foreign xml:lang="ru">gosudarstvennaya bezopasnost'</foreign>
+              <gloss>state security</gloss>. The <term>processing model</term> is very flexible
+              in this regard. I appreciate the <term>predicate</term> functionality — you can apply
+              different behaviours depending on <emph>context</emph>. Very useful.
+              <hi rend="italic">Very</hi> useful.</p>
+          </sp>
+
+          <sp who="#host">
+            <speaker>Chad Markupsen</speaker>
+            <p>That's... certainly one interpretation of <term>conditional behaviour application</term>.
+              <persName ref="#trump">Mr. Trump</persName>, what about the
+              <term>output modes</term> in TEI Publisher? You can render the same document as
+              <choice><abbr>HTML</abbr><expan>HyperText Markup Language</expan></choice>,
+              <choice><abbr>PDF</abbr><expan>Portable Document Format</expan></choice>,
+              even <choice><abbr>ePub</abbr><expan>Electronic Publication</expan></choice>. <ex>Does</ex> that resonate with
+              you?</p>
+          </sp>
+
+          <sp who="#trump">
+            <speaker>Donald Trump</speaker>
+            <p>Absolutely, <persName ref="#host">Chad</persName>, and I'll tell you why. I have
+              many <emph>output modes</emph> myself. There's rally mode — very high energy. There's
+              <foreign xml:lang="fr">tête-à-tête</foreign> mode, very intimate, very classy.
+              And there's <rs type="concept">executive order mode</rs> — one document, does it all,
+              everybody has to comply, very similar to the <term>ODD</term> concept now that I
+              think about it. I invented that, actually. The concept. Not the
+              <term>ODD</term> specifically, but the <emph>idea</emph> of one thing controlling
+              everything. That was me. People are saying that.</p>
+          </sp>
+        </div>
+
+        <div type="closing">
+          <head>Closing Remarks</head>
+
+          <sp who="#putin">
+            <speaker>Vladimir Putin</speaker>
+            <p>I would like to conclude by saying that the <term>TEI Processing Model</term>
+              represents a <hi rend="bold">triumph of structured thinking</hi> over chaos. In a
+              world of unvalidated documents and missing <term>schema</term> references, the
+              <term>ODD</term> provides certainty. Order. Control.
+              <hi rend="italic">Beautiful</hi> control. This is something I
+              <foreign xml:lang="ru">ценю</foreign> <gloss>value</gloss> deeply.</p>
+          </sp>
+
+          <sp who="#trump">
+            <speaker>Donald Trump</speaker>
+            <p>I agree with <persName ref="#putin">Vladimir</persName>, which I rarely do —
+              he's a tough negotiator, very tough — but on <term>TEI</term> we are totally aligned.
+              Totally. The <term>processing model</term> is, frankly, one of the great achievements
+              of the <date from="1987" to="2026">last forty years</date>. Maybe the greatest.
+              <add place="inline">Bigger than the moon landing. Many people are saying.</add>
+              And I want to tell everyone listening: get into <term>TEI</term>. Learn your
+              <term>behaviours</term>. Read your <term>ODD</term>. It's going to be so good.
+              <choice><sic>So so</sic> <corr>So very</corr></choice> tremendously good.</p>
+          </sp>
+
+          <sp who="#host">
+            <speaker>Chad Markupsen</speaker>
+            <p>Profound. Truly. Thank you both. This has been Episode 47 of
+              <title level="s">Very Tremendous Texts</title>. If you enjoyed today's episode,
+              please subscribe, leave a five-star review, and consider donating to the
+              <orgName>Digital Humanities Emergency Fund for Endangered Angle Brackets</orgName>
+              <note place="foot">A real organisation. Probably. We didn't check.</note>.
+              Until next time: encode responsibly, validate often, and remember —
+              <q>well-formed</q> is just the beginning.</p>
+          </sp>
+
+          <trailer>
+            <l><hi rend="bold">[END OF TRANSCRIPT]</hi></l>
+            <l>Total word count: <measure type="words" quantity="1024">approximately 1,024</measure>.
+              Total <term>XML</term> elements: <measure type="elements" quantity="0">very many</measure>.
+              Accuracy of technical claims: <measure type="accuracy" unit="percent" quantity="62">62%</measure>
+              <note place="foot">The 38% inaccuracy is distributed evenly between both guests.</note>.
+            </l>
+          </trailer>
+        </div>
+      </div>
+    </body>
+    <back>
+      <div type="glossary">
+        <head>Glossary of Terms (For Listeners New to Both TEI and Geopolitics)</head>
+        <list type="gloss">
+          <label><term xml:id="tei-pm">TEI Processing Model</term></label>
+          <item>A mechanism defined within an <term>ODD</term> file that specifies how
+            <choice><abbr>TEI</abbr><expan>Text Encoding Initiative</expan></choice> elements should be rendered in
+            various output formats. Not, despite what was implied above, invented by
+            <persName ref="#trump">Mr. Trump</persName>.</item>
+
+          <label><term xml:id="odd-def">ODD</term></label>
+          <item><expan>One Document Does-it-all</expan>. A <choice><abbr>TEI</abbr><expan>Text Encoding Initiative</expan></choice>
+            customisation file combining schema and documentation. Does <emph>not</emph>
+            grant executive powers.</item>
+
+          <label><term xml:id="behaviour-def">Behaviour</term></label>
+          <item>An instruction in the <term>processing model</term> specifying how an element
+            should be transformed. Common values include <val>inline</val>, <val>block</val>,
+            <val>footnote</val>, <val>omit</val>, and the newly proposed
+            <val>renderAsGold</val> <note place="inline">[not yet in the TEI Guidelines]</note>.
+          </item>
+
+          <label><term xml:id="informant-def">Informant</term></label>
+          <item>See <persName ref="#putin">Putin, V.</persName>, remarks passim. Not a TEI term.</item>
+        </list>
+      </div>
+    </back>
+  </text>
+</TEI>

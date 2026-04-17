@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="{{ lang|default('en') }}">
+<head>
+  <!-- teipublisher-default-template -->
+  {{ head_html | safe }}
+  {% if user_css %}
+  <style type="text/css">
+{{ user_css }}
+  </style>
+  {% endif %}
+</head>
+<body>
+  {{ content_html | safe }}
+</body>
+</html>
