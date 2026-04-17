@@ -6,6 +6,8 @@ import importlib.util
 import py_compile
 from pathlib import Path
 
+from lxml import etree
+
 ROOT = Path(__file__).resolve().parents[1]
 ODD = ROOT / 'odd' / 'teipublisher.odd'
 SHAKESPEARE_ODD = ROOT / 'odd' / 'shakespeare.odd'
@@ -147,8 +149,6 @@ def test_compile_odd_without_web_specs_emits_valid_python(tmp_path: Path) -> Non
 
 def test_teipublisher_web_injects_generated_css_in_head(tmp_path: Path) -> None:
     """Compiled module passes ODD CSS into ``odd_css``; HTML ``head`` gets a ``style`` block."""
-    from lxml import etree
-
     from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
     from tei_publisher_py.pm_runtime import serialize
 

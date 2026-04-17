@@ -112,6 +112,25 @@ def test_xpath_select_nodes_unwraps_singleton_count() -> None:
     assert isinstance(n, int)
 
 
+def test_xpath_select_nodes_returns_lxml_elements_not_wrappers() -> None:
+    """Element steps must yield lxml nodes so :func:`apply_children` can dispatch (e.g. ``alternate``)."""
+    xml = (
+        f'<TEI xmlns="{TEI_NS}"><text><body><p>'
+        f'<choice><abbr>XML</abbr><expan>Extensible</expan></choice>'
+        f'</p></body></text></TEI>'
+    )
+    root = etree.fromstring(xml.encode())
+    choice = root.find(f'.//{{{TEI_NS}}}choice')
+    assert choice is not None
+    expan = xpath_select_nodes(choice, 'expan[1]', {})
+    abbr = xpath_select_nodes(choice, 'abbr[1]', {})
+    assert isinstance(expan, etree._Element)
+    assert isinstance(abbr, etree._Element)
+    assert etree.QName(expan).localname == 'expan'
+    assert expan.text == 'Extensible'
+    assert abbr.text == 'XML'
+
+
 def test_resolve_context_element_selects_single_node() -> None:
     xml = f'''<TEI xmlns="{TEI_NS}"><text><body><p>x</p><p>y</p></body></text></TEI>'''
     root = etree.fromstring(xml.encode())
