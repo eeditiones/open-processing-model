@@ -16,6 +16,81 @@ from tei_publisher_py.output_functions import (
 
 MD_INDENT = '    '
 
+# CSS properties → markdown markers (checked in order; markers are stacked outermost-first)
+_CSS_TO_MD_MARKERS = [
+    # (property, value_substring_to_match, open_marker, close_marker)
+    ('font-weight',    'bold',         '**', '**'),
+    ('font-style',     'italic',       '_',  '_'),
+    ('text-decoration','line-through', '~~', '~~'),
+    ('text-decoration','underline',    '<u>', '</u>'),
+    ('font-family',    'monospace',    '`',  '`'),
+]
+
+
+def _parse_css_classes(css_text: str) -> dict:
+    """Parse *css_text* and return ``{class_name: {property: value}}`` for simple class selectors.
+
+    Only plain single-class selectors (e.g. ``.simple_bold``) are indexed;
+    complex selectors (combinators, pseudo-classes, attribute selectors) are skipped.
+    """
+    # Strip comments first so they don't contaminate selector strings between blocks.
+    css_text = re.sub(r'/\*.*?\*/', '', css_text, flags=re.DOTALL)
+    result: dict = {}
+    for block in re.finditer(r'([^{}]+)\{([^{}]*)\}', css_text):
+        selector_part = block.group(1).strip()
+        props_text = block.group(2)
+        props: dict = {}
+        for pm in re.finditer(r'([\w-]+)\s*:\s*([^;]+)', props_text):
+            props[pm.group(1).strip().lower()] = pm.group(2).strip().lower()
+        if not props:
+            continue
+        for sel in selector_part.split(','):
+            sel = sel.strip()
+            m = re.match(r'^\.([a-zA-Z0-9_-]+)$', sel)
+            if m:
+                cls_name = m.group(1)
+                result.setdefault(cls_name, {}).update(props)
+    return result
+
+
+def _get_css_map(config: dict) -> dict:
+    """Return (and cache) the parsed CSS class map from ``config['odd_css']``."""
+    if '_css_map' not in config:
+        config['_css_map'] = _parse_css_classes(config.get('odd_css', ''))
+    return config['_css_map']
+
+
+def _css_md_markers(config: dict, cls: list) -> tuple[str, str]:
+    """Return ``(prefix, suffix)`` markdown markers derived from the CSS classes in *cls*.
+
+    Looks up each class name against the ODD-generated CSS and converts recognised
+    styling properties (bold, italic, strikethrough, underline, monospace) to the
+    corresponding CommonMark markers.  Multiple properties are stacked in the order
+    defined by :data:`_CSS_TO_MD_MARKERS`.
+    """
+    css_map = _get_css_map(config)
+    # Flatten class names from the cls list (entries may be space-separated strings or None)
+    class_names: set[str] = set()
+    for item in cls:
+        if item:
+            for name in str(item).split():
+                class_names.add(name)
+    # Collect CSS properties for the matched classes
+    combined: dict = {}
+    for name in class_names:
+        if name in css_map:
+            combined.update(css_map[name])
+    if not combined:
+        return '', ''
+    prefix = ''
+    suffix = ''
+    for prop, val_fragment, open_m, close_m in _CSS_TO_MD_MARKERS:
+        css_val = combined.get(prop, '')
+        if val_fragment in css_val:
+            prefix += open_m
+            suffix = close_m + suffix
+    return prefix, suffix
+
 
 def normalize_markdown_xml_text(s: str) -> str:
     """Collapse pretty-print line breaks and indentation in XML text/tail nodes.
@@ -84,11 +159,18 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         out: list = []
         config['apply_children'](config, node, content, out)
         text = _join_buf(out)
+
+        # Explicit @rend attribute takes priority over CSS-derived formatting.
         rend = (node.get('rend') or '').split()
         if 'bold' in rend:
             return [f'**{text}**']
         if 'italic' in rend or 'italics' in rend:
             return [f'_{text}_']
+
+        # Fall back to CSS-based formatting derived from the element's class list.
+        prefix, suffix = _css_md_markers(config, cls)
+        if prefix:
+            return [f'{prefix}{text}{suffix}']
         return [text]
 
     def paragraph(self, config, node, cls, content) -> PMResult:
