@@ -45,12 +45,24 @@ uv run --group dev pytest -q
 
 ### 4) Typical first run
 
+The library compiles TEI Processing Model instructions from an ODD into a Python module, which can then be reused across transformations.
+
 ```bash
 # Generate transform module from ODD
-uv run teipublisher compile odd/teipublisher.odd -o teipublisher_web.py
+uv run teipublisher compile odd/teipublisher.odd
 
 # Apply transform to an XML file
-uv run teipublisher transform teipublisher_web.py input.xml -o output.html
+uv run teipublisher transform modules/teipublisher-web.py demo/tei-test.xml --preview --template templates/tufte.html.j2
+```
+
+The transform command will open a preview in your browser using the Tufte CSS library for nicer typography. If you would instead like to transform to markdown, use:
+
+```bash
+# Generate transform module from ODD
+uv run teipublisher compile odd/teipublisher.odd --mode markdown
+
+# Apply transform to an XML file
+uv run teipublisher transform modules/teipublisher-markdown.py demo/tei-test.xml --preview
 ```
 
 ## Running tests
@@ -90,7 +102,7 @@ Use `uv run teipublisher --help` to see global help.
 Compile an ODD file into a Python transform module.
 
 ```bash
-uv run teipublisher compile odd/teipublisher.odd -o teipublisher_web.py
+uv run teipublisher compile odd/teipublisher.odd -o modules/teipublisher-web.py
 ```
 
 Arguments and options:
