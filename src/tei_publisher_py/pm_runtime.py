@@ -154,17 +154,27 @@ def xpath_count(node: etree._Element, expr: str, params: dict | None = None) -> 
 
 
 def _unwrap_singleton_xpath_result(result: list):
-    """If *expr* yields one atomic (e.g. ``count(...)``), return it; else keep a list.
-
-    Node-like values (:class:`~elementpath.xpath_nodes.XPathNode`) stay wrapped so
-    ``xpath_content`` still receives ``[element]`` for single-node paths.
-    """
+    """If *expr* yields one atomic (e.g. ``count(...)``), return it; else keep a list."""
     if len(result) != 1:
         return result
-    item = result[0]
-    if isinstance(item, XPathNode):
-        return result
-    return item
+    return result[0]
+
+
+def _xpath_raw_to_pipeline_values(raw: list) -> list:
+    """Map elementpath results to values :func:`~tei_publisher_py.output_functions.normalize`
+    and :func:`apply_children` understand.
+
+    ``token.select`` returns :class:`~elementpath.xpath_nodes.XPathNode` wrappers around
+    elements; those must become lxml elements or text is dropped when building HTML.
+    Attribute and other XPath nodes unwrap to their Python ``.value``.
+    """
+    out: list = []
+    for item in raw:
+        if isinstance(item, XPathNode):
+            out.append(item.value)
+        else:
+            out.append(item)
+    return out
 
 
 def xpath_select_nodes(node: etree._Element, expr: str, params: dict | None = None):
@@ -176,6 +186,7 @@ def xpath_select_nodes(node: etree._Element, expr: str, params: dict | None = No
     try:
         token = _compiled_xpath(expr, _default_element_namespace_uri(node))
         raw = list(token.select(make_context(node, params)))
+        raw = _xpath_raw_to_pipeline_values(raw)
         return _unwrap_singleton_xpath_result(raw)
     except elementpath.ElementPathError:
         return []
