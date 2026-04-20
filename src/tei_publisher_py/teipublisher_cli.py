@@ -222,6 +222,17 @@ def transform_cmd(
             ),
         ),
     ] = None,
+    xpath_extensions: Annotated[
+        Optional[str],
+        typer.Option(
+            '--xpath-extensions',
+            help=(
+                'Dotted import path of a Python module whose public callables become XPath '
+                'functions in the tp: namespace (e.g. extensions.common). Importing the module '
+                'runs its top-level code: only use trusted code.'
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Load a transformation script and print the result (HTML, markdown, …) for an XML document."""
     try:
@@ -237,11 +248,15 @@ def transform_cmd(
                 doc_root,
                 xpath,
                 opts if opts else None,
+                xpath_extensions=xpath_extensions,
             )
         else:
             root = doc_root
 
-        result = mod.transform(root, opts if opts else None)
+        transform_opts = dict(opts)
+        if xpath_extensions:
+            transform_opts['xpath_extensions'] = xpath_extensions
+        result = mod.transform(root, transform_opts if transform_opts else None)
         is_document_result = any(
             isinstance(item, etree._Element) and etree.QName(item).localname == 'html'
             for item in result

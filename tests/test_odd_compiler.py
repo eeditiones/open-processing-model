@@ -19,6 +19,8 @@ def test_compile_teipublisher_odd_emits_valid_python(tmp_path: Path) -> None:
     src = compile_odd_to_python(str(ODD))
     assert 'def _dispatch' in src
     assert 'def transform' in src
+    assert "'xpath_extensions'" in src
+    assert 'xpath_extensions=config.get("xpath_extensions")' in src
     assert 'pass_through' in src
     assert 'ODD_GENERATED_CSS' in src
     assert 'odd_css' in src

@@ -138,6 +138,7 @@ Arguments and options:
 - `--css PATH`: optional user stylesheet for full-document HTML output. If omitted, `styles/default-styles.css` is used when available.
 - `--template PATH`: optional Jinja2 template for full-document HTML output. If omitted, a packaged default template is used.
 - `-x, --xpath EXPR`: XPath 3.1 expression with the document root as context; the single selected element becomes the transform root (instead of the whole document). Unprefixed names use the document’s default element namespace.
+- `--xpath-extensions MODULE`: dotted import path of a Python module whose **public** callables (names not starting with ``_``) are registered as XPath functions in the ``tp:`` namespace, for example ``tp:format_label(.)``. The module is imported once per run; importing it executes its top-level code, so only load **trusted** code. The same value is passed to ``transform()`` as the ``xpath_extensions`` option (it is **not** part of XPath ``$parameters``).
 
 Examples:
 

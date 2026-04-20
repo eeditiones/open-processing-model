@@ -6,7 +6,9 @@ Used by ODD-generated modules and runtime helpers.
 Performance:
 
 - **Compiled XPath** and **``$parameters`` maps** are cached (see :func:`_compiled_xpath`,
-  :func:`_cached_parameters_map`). XPath is parsed with the context element’s namespace URI
+  :func:`_cached_parameters_map`, and :func:`_loaded_extension_callables`). Parsed
+  expressions are keyed by (*expr*, default element namespace, extension-module fingerprint).
+  XPath is parsed with the context element’s namespace URI
   as **default element namespace** so ODD-style steps like ``parent::div`` match TEI/JATS
   namespaced elements (unprefixed names are not in “no namespace”).
 - **Document tree**: elementpath’s wrapper from :func:`get_node_tree` is cached per
@@ -25,6 +27,11 @@ from elementpath.xpath31.xpath31_parser import XPath31Parser
 from lxml import etree
 
 from .output_functions import child_nodes, normalize
+from .xpath_extensions import (
+    build_extension_parser,
+    fingerprint_for_module,
+    load_extension_callables,
+)
 
 # One elementpath tree wrapper per document (key: id(document root element)).
 # Reusing it avoids build_lxml_node_tree() on every xpath_test / xpath_select_nodes.
@@ -83,12 +90,30 @@ def _default_element_namespace_uri(node: etree._Element) -> str:
     return uri or ''
 
 
+def _parse_xpath(expr: str, default_element_ns: str, ext_fp: str):
+    """Parse *expr*; *ext_fp* is ``fingerprint_for_module(...)`` or ``''``."""
+    if ext_fp:
+        callables = _loaded_extension_callables(ext_fp)
+        parser = build_extension_parser(default_element_ns, callables)
+    elif default_element_ns:
+        parser = XPath31Parser(default_namespace=default_element_ns)
+    else:
+        parser = XPath31Parser()
+    return parser.parse(expr)
+
+
+@lru_cache(maxsize=64)
+def _loaded_extension_callables(ext_fp: str) -> dict:
+    """Map fingerprint string to callables dict (cached per loaded module)."""
+    # ext_fp is "\0"-joined module path and mtime; split to recover dotted path
+    module_path = ext_fp.split('\0', 1)[0]
+    return load_extension_callables(module_path)
+
+
 @lru_cache(maxsize=8192)
-def _compiled_xpath(expr: str, default_element_ns: str = ''):
-    """Parse each distinct (*expr*, *default_element_ns*) pair once."""
-    if default_element_ns:
-        return XPath31Parser(default_namespace=default_element_ns).parse(expr)
-    return XPath31Parser().parse(expr)
+def _compiled_xpath(expr: str, default_element_ns: str = '', ext_fp: str = ''):
+    """Parse each distinct (*expr*, *default_element_ns*, *ext_fp*) tuple once."""
+    return _parse_xpath(expr, default_element_ns, ext_fp)
 
 
 def _xpath_root_wrapped(root: etree._Element):
@@ -111,6 +136,7 @@ def clear_xpath_document_cache() -> None:
     """Drop cached elementpath document trees (e.g. between tests or documents)."""
     _document_xpath_roots.clear()
     _compiled_xpath.cache_clear()
+    _loaded_extension_callables.cache_clear()
     _cached_parameters_map.cache_clear()
 
 
@@ -130,10 +156,27 @@ def make_context(node: etree._Element, params: dict | None = None) -> XPathConte
     )
 
 
-def xpath_test(node: etree._Element, expr: str, params: dict | None = None) -> bool:
+def _extension_fingerprint(xpath_extensions: str | None) -> str:
+    if not xpath_extensions:
+        return ''
+    return fingerprint_for_module(xpath_extensions.strip())
+
+
+def xpath_test(
+    node: etree._Element,
+    expr: str,
+    params: dict | None = None,
+    *,
+    xpath_extensions: str | None = None,
+) -> bool:
     """Boolean XPath 3.1 test against *node* (ODD @predicate strings)."""
     try:
-        token = _compiled_xpath(expr, _default_element_namespace_uri(node))
+        ext_fp = _extension_fingerprint(xpath_extensions)
+        token = _compiled_xpath(
+            expr,
+            _default_element_namespace_uri(node),
+            ext_fp,
+        )
         result = list(token.select(make_context(node, params)))
         if not result:
             return False
@@ -144,10 +187,21 @@ def xpath_test(node: etree._Element, expr: str, params: dict | None = None) -> b
         return False
 
 
-def xpath_count(node: etree._Element, expr: str, params: dict | None = None) -> int:
+def xpath_count(
+    node: etree._Element,
+    expr: str,
+    params: dict | None = None,
+    *,
+    xpath_extensions: str | None = None,
+) -> int:
     """Count nodes matched by *expr* from *node* (sequence length), not ``count()`` in XPath."""
     try:
-        token = _compiled_xpath(expr, _default_element_namespace_uri(node))
+        ext_fp = _extension_fingerprint(xpath_extensions)
+        token = _compiled_xpath(
+            expr,
+            _default_element_namespace_uri(node),
+            ext_fp,
+        )
         return len(list(token.select(make_context(node, params))))
     except elementpath.ElementPathError:
         return 0
@@ -177,14 +231,25 @@ def _xpath_raw_to_pipeline_values(raw: list) -> list:
     return out
 
 
-def xpath_select_nodes(node: etree._Element, expr: str, params: dict | None = None):
+def xpath_select_nodes(
+    node: etree._Element,
+    expr: str,
+    params: dict | None = None,
+    *,
+    xpath_extensions: str | None = None,
+):
     """Evaluate XPath *expr* with *node* as context.
 
     Returns a list of nodes (possibly one) for path expressions, or a single atomic
     for expressions like ``count(ancestor::div)`` / ``string(.)``.
     """
     try:
-        token = _compiled_xpath(expr, _default_element_namespace_uri(node))
+        ext_fp = _extension_fingerprint(xpath_extensions)
+        token = _compiled_xpath(
+            expr,
+            _default_element_namespace_uri(node),
+            ext_fp,
+        )
         raw = list(token.select(make_context(node, params)))
         raw = _xpath_raw_to_pipeline_values(raw)
         return _unwrap_singleton_xpath_result(raw)
@@ -196,6 +261,8 @@ def resolve_context_element(
     document_root: etree._Element,
     xpath_expr: str,
     params: dict | None = None,
+    *,
+    xpath_extensions: str | None = None,
 ) -> etree._Element:
     """Evaluate *xpath_expr* with *document_root* as the context item; return that element.
 
@@ -208,9 +275,11 @@ def resolve_context_element(
             element node.
     """
     try:
+        ext_fp = _extension_fingerprint(xpath_extensions)
         token = _compiled_xpath(
             xpath_expr,
             _default_element_namespace_uri(document_root),
+            ext_fp,
         )
         raw = list(token.select(make_context(document_root, params)))
     except elementpath.ElementPathError as e:

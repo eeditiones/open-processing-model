@@ -190,7 +190,10 @@ def _param_to_expr(value: str) -> str:
     m = re.match(r'^"([^"]*)"$', v)
     if m:
         return repr(m.group(1))
-    return f'xpath_content(node, {repr(v)}, params)'
+    return (
+        'xpath_content(node, '
+        f'{repr(v)}, params, xpath_extensions=config.get("xpath_extensions"))'
+    )
 
 
 def _gather_params(model_el) -> dict[str, str]:
@@ -404,7 +407,10 @@ def _emit_process_models(
         pred = m.get('predicate', '')
         inner = _emit_model_or_sequence(ident, m, spec_el, indent + '    ', output_mode)
         kw = 'if' if i == 0 else 'elif'
-        lines.append(f'{indent}{kw} xpath_test(node, {repr(pred)}, params):')
+        lines.append(
+            f'{indent}{kw} xpath_test(node, {repr(pred)}, params, '
+            'xpath_extensions=config.get("xpath_extensions")):'
+        )
         lines.extend(_desc_comment_lines(m, indent + '    '))
         if '\n' in inner:
             lines.append(inner)
@@ -508,8 +514,13 @@ from tei_publisher_py.pm_runtime import (
 )
 
 
-def xpath_content(node, expr, params=None):
-    return xpath_select_nodes(node, expr, params)
+def xpath_content(node, expr, params=None, xpath_extensions=None):
+    return xpath_select_nodes(
+        node,
+        expr,
+        params,
+        xpath_extensions=xpath_extensions,
+    )
 
 
 def transform_output_channels():
@@ -539,9 +550,14 @@ def _dispatch(config, node, params):
 def transform(root, options=None):
     reset_counters()
     runtime_options = options or {{}}
+    xpath_extensions = runtime_options.get('xpath_extensions')
+    parameters = {{
+        k: v for k, v in runtime_options.items() if k != 'xpath_extensions'
+    }}
     config = {{
         'output':         [{output_mode!r}],
-        'parameters':    runtime_options,
+        'parameters':    parameters,
+        'xpath_extensions': xpath_extensions,
         'pmf':           {pmf_ctor},
         'apply':         apply,
         'apply_children': apply_children_impl,
