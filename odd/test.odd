@@ -1,0 +1,60 @@
+<?xml-model href="teipublisher_odds.xsd"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:pb="http://teipublisher.com/1.0" xml:lang="en">
+    <teiHeader>
+        <fileDesc>
+            <titleStmt>
+                <title>Person-Note Customization
+                    <desc>Derived from teipublisher.odd, showing person notes for persName references</desc>
+                </title>
+            </titleStmt>
+            <publicationStmt>
+                <publisher>eXistSolutions GmbH</publisher>
+                <availability>
+                    <licence target="https://www.gnu.org/licenses/gpl-3.0.en.html">Distributed under GNU General Public License</licence>
+                </availability>
+            </publicationStmt>
+            <sourceDesc>
+                <p>Derived from <ref target="teipublisher.odd">teipublisher.odd</ref>.</p>
+            </sourceDesc>
+        </fileDesc>
+        <revisionDesc>
+            <change when="2026-04-20">Add persName rule resolving @ref/@key to person note without pb-popover.</change>
+        </revisionDesc>
+    </teiHeader>
+    <text>
+        <body>
+            <schemaSpec start="TEI teiCorpus" ident="test" source="teipublisher.odd">
+                <elementSpec ident="persName" mode="change">
+                    <model output="fo" behaviour="inline"/>
+                    <model output="print" behaviour="inline"/>
+                    <model predicate="(@key or @ref) and $parameters?mode='register-details'" behaviour="link">
+                        <param name="uri" value="head((@key, @ref))"/>
+                        <param name="target" value="'_blank'"/>
+                    </model>
+                    <model predicate="$parameters?display='browse' or $parameters?mode='breadcrumb' or $parameters?mode='toc'" behaviour="inline"/>
+                    <model predicate="$parameters?mode='register'" behaviour="pass-through">
+                        <param name="content" value="."/>
+                        <param name="alternate" value="parent::person/note"/>
+                        <param name="uri" value="$parameters?context-path || '/people/' || parent::person/@xml:id"/>
+                        <pb:template xmlns="" xml:space="preserve"><a href="[[uri]]" class="persName">
+                        <pb-popover>
+                            <span slot="default">[[content]]</span>
+                            <template slot="alternate">[[alternate]]</template>
+                        </pb-popover>
+                        </a></pb:template>
+                    </model>
+                    <model predicate="$parameters?mode='register-overview'" behaviour="inline"/>
+                    <model predicate="@type='variant'" behaviour="inline" cssClass="name variant"/>
+                    <model predicate="parent::person" behaviour="inline"/>
+                    <model predicate="ancestor::correspContext" behaviour="inline"/>
+                    <model predicate="@key or @ref" behaviour="alternate" cssClass="persName context">
+                        <desc>Resolve @ref/@key to the corresponding person in the same TEI and show its note as alternate content.</desc>
+                        <param name="default" value="."/>
+                        <param name="alternate" value="id(replace(string((@ref, @key)[1]), '^#', ''), root(.))[self::person][1]/note/string()"/>
+                    </model>
+                    <model behaviour="inline"/>
+                </elementSpec>
+            </schemaSpec>
+        </body>
+    </text>
+</TEI>

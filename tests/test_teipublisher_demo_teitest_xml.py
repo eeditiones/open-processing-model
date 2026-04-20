@@ -22,7 +22,7 @@ def test_teipublisher_odd_teitest_xml_choice_abbr_expan_alternate_html(tmp_path:
     """Compile ``odd/teipublisher.odd``, transform ``demo/tei-test.xml``, check ``choice``/``alternate`` HTML.
 
     Catches regressions where XPath results stayed as elementpath wrappers so ``apply_children``
-    skipped content (empty ``alternate`` spans).
+    skipped content (empty ``alternate`` containers).
     """
     from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
     from tei_publisher_py.pm_runtime import serialize
@@ -45,4 +45,4 @@ def test_teipublisher_odd_teitest_xml_choice_abbr_expan_alternate_html(tmp_path:
         r'<span>Extensible Markup Language</span>'
         r'<span class="altcontent">XML</span></span>',
         compact,
-    ), 'expected expan in the first span and abbr in .altcontent'
+    ), 'expected expan in the first container and abbr in .altcontent'
