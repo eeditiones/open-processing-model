@@ -3,6 +3,9 @@
 <head>
   <!-- teipublisher-default-template -->
   {{ head_html | safe }}
+  {% if webcomponents_url %}
+  <script type="module" src="{{ webcomponents_url }}"></script>
+  {% endif %}
   {% if user_css %}
   <style type="text/css">
 {{ user_css }}

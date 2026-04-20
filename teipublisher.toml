@@ -1,0 +1,8 @@
+[webcomponents]
+enabled = true
+version = "3.0.5"
+cdn = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@{version}/dist/pb-components-bundle.js"
+
+[document]
+# template = "templates/tufte.html.j2"
+# css = "styles/default-styles.css"

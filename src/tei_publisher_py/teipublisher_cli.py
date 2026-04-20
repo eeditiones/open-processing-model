@@ -14,6 +14,7 @@ from click.exceptions import NoArgsIsHelpError, UsageError
 from lxml import etree
 from typer.main import get_command
 
+from tei_publisher_py.config import DEFAULT_CDN_TEMPLATE, DEFAULT_VERSION, load_project_config
 from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
 from tei_publisher_py.pm_runtime import resolve_context_element, serialize as default_serialize
 from tei_publisher_py.template_rendering import (
@@ -233,16 +234,32 @@ def transform_cmd(
             ),
         ),
     ] = None,
+    webcomponents: Annotated[
+        Optional[bool],
+        typer.Option(
+            '--webcomponents/--no-webcomponents',
+            help=(
+                'Enable/disable tei-publisher web components mode: alternate behaviours emit '
+                '<pb-alternate> and the document template loads tei-publisher-components. '
+                'Falls back to the webcomponents.enabled setting in teipublisher.toml.'
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Load a transformation script and print the result (HTML, markdown, …) for an XML document."""
     try:
+        cfg = load_project_config()
+        effective_webcomponents = webcomponents if webcomponents is not None else (cfg.webcomponents_enabled or False)
+        effective_template = template if template is not None else cfg.document_template
+        effective_css = css if css is not None else cfg.document_css
+
         mod = load_transform_module(transform_script)
         serialize = getattr(mod, 'serialize', default_serialize)
 
         tree = etree.parse(str(input_xml))
         doc_root = tree.getroot()
         opts = _parameters_from_cli(param if param else None)
-        user_css = _resolve_user_css(css)
+        user_css = _resolve_user_css(effective_css)
         if xpath:
             root = resolve_context_element(
                 doc_root,
@@ -256,6 +273,8 @@ def transform_cmd(
         transform_opts = dict(opts)
         if xpath_extensions:
             transform_opts['xpath_extensions'] = xpath_extensions
+        if effective_webcomponents:
+            transform_opts['webcomponents'] = True
         result = mod.transform(root, transform_opts if transform_opts else None)
         is_document_result = any(
             isinstance(item, etree._Element) and etree.QName(item).localname == 'html'
@@ -264,13 +283,17 @@ def transform_cmd(
         out = serialize(result)
         kind = _preview_kind_from_module(mod)
         if kind == 'html' and is_document_result:
-            tpl = resolve_template_path(template)
+            tpl = resolve_template_path(effective_template)
+            webcomponents_url = None
+            if effective_webcomponents:
+                webcomponents_url = cfg.webcomponents_cdn or DEFAULT_CDN_TEMPLATE.replace('{version}', DEFAULT_VERSION)
             out = render_document_template(
                 serialized_html=out,
                 template_path=tpl,
                 odd_css=getattr(mod, 'ODD_GENERATED_CSS', ''),
                 user_css=user_css,
                 parameters=opts,
+                webcomponents_url=webcomponents_url,
             )
         if output:
             output.write_text(out, encoding='utf-8')

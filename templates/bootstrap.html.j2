@@ -16,6 +16,9 @@
 {{ user_css }}
   </style>
   {% endif %}
+  {% if webcomponents_url %}
+  <script type="module" src="{{ webcomponents_url }}"></script>
+  {% endif %}
 </head>
 <body>
   <header class="border-bottom mb-4">

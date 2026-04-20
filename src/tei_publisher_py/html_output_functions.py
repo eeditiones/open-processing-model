@@ -272,6 +272,18 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         return [el]
 
     def alternate(self, config, node, cls, content, default, alternate, optional=None) -> PMResult:
+        if config.get('webcomponents'):
+            outer = etree.Element('pb-popover')
+            if cls:
+                outer.set('class', classes(*cls))
+            d = etree.SubElement(outer, 'span')
+            d.set('slot', 'default')
+            config['apply_children'](config, node, default, d)
+            if alternate is not None:
+                a = etree.SubElement(outer, 'template')
+                a.set('slot', 'alternate')
+                config['apply_children'](config, node, alternate, a)
+            return [outer]
         alt_parts = list(cls) + ['alternate'] if cls is not None else ['alternate']
         outer = self._el('span', alt_parts, node)
         d = etree.SubElement(outer, 'span')

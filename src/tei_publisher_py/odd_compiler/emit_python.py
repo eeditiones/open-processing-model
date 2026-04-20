@@ -551,13 +551,15 @@ def transform(root, options=None):
     reset_counters()
     runtime_options = options or {{}}
     xpath_extensions = runtime_options.get('xpath_extensions')
+    webcomponents = runtime_options.get('webcomponents', False)
     parameters = {{
-        k: v for k, v in runtime_options.items() if k != 'xpath_extensions'
+        k: v for k, v in runtime_options.items() if k not in ('xpath_extensions', 'webcomponents')
     }}
     config = {{
         'output':         [{output_mode!r}],
         'parameters':    parameters,
         'xpath_extensions': xpath_extensions,
+        'webcomponents': webcomponents,
         'pmf':           {pmf_ctor},
         'apply':         apply,
         'apply_children': apply_children_impl,

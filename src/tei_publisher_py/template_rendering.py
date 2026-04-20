@@ -53,6 +53,7 @@ def render_document_template(
     odd_css: str | None,
     user_css: str | None,
     parameters: dict[str, str],
+    webcomponents_url: str | None = None,
 ) -> str:
     """Render a full HTML document through the selected Jinja2 template."""
     html_root = _first_html_root(serialized_html)
@@ -76,4 +77,5 @@ def render_document_template(
         user_css=user_css or '',
         parameters=parameters or {},
         lang=html_root.get('lang', ''),
+        webcomponents_url=webcomponents_url,
     )
