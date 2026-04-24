@@ -34,6 +34,7 @@ BEHAVIOUR_METHOD = {
     'title': 'title',
     'match': 'match',
     'template': 'template',
+    'code': 'code',
 }
 
 

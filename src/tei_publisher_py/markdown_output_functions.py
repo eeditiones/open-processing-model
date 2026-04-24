@@ -225,8 +225,8 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
                 result.extend(sub)
         return result
 
-    def list(self, config, node, cls, content, list_type=None) -> PMResult:
-        effective = list_type or node.get('type')
+    def list(self, config, node, cls, content, type=None) -> PMResult:
+        effective = type or node.get('type')
         sub = {**config}
         sub['listType'] = 'ordered' if effective == 'ordered' else 'unordered'
         out: list = []
@@ -275,7 +275,8 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
                 out.append('|' + '|'.join([' --- '] * n) + '|\n')
         return out
 
-    def cell(self, config, node, cls, content, cell_type=None) -> PMResult:
+    def cell(self, config, node, cls, content, type=None) -> PMResult:
+        _ = type
         out: list = [' ']
         config['apply_children'](config, node, content, out)
         out.append(' |')
@@ -293,10 +294,13 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         out.append('\n\n')
         return out
 
-    def graphic(self, config, node, cls, content, url_node,
+    def graphic(self, config, node, cls, content, url,
                 width, height, scale, title) -> PMResult:
         _ = content, width, height, scale
-        href = url_node.get(XLINK_HREF) if url_node is not None else ''
+        if isinstance(url, etree._Element):
+            href = url.get(XLINK_HREF) or ''
+        else:
+            href = str(url) if url else ''
         tit = str(title) if title else ''
         return [f'![{tit}]({href})']
 
@@ -338,11 +342,12 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
     def omit(self, config, node, cls, content) -> PMResult:
         return []
 
-    def index(self, config, node, cls, content, index_type=None) -> PMResult:
+    def index(self, config, node, cls, content, type=None) -> PMResult:
+        _ = type
         return []
 
-    def break_(self, config, node, cls, content, break_type=None, label=None) -> PMResult:
-        if (break_type or '').lower() == 'page':
+    def break_(self, config, node, cls, content, type=None, label=None) -> PMResult:
+        if (type or '').lower() == 'page':
             lb = _join_buf(normalize(label)) if label is not None else ''
             return [f'|{lb}|']
         return ['  \n']
@@ -389,7 +394,7 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         return apply_pb_template(template_str, params, config)
 
     def code(self, config, node, cls, content, language=None) -> PMResult:
-        out: list = [f'```{language}']
+        out: list = [f'```{language}\n']
         config['apply_children'](config, node, content, out)
-        out.append('```')
+        out.append('\n```')
         return out

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import inspect
+import keyword
 import re
 from pathlib import Path
 
@@ -281,12 +283,58 @@ def _classes_expr(ident: str, model_el, spec_el) -> str:
     return '[' + ', '.join(parts) + ']'
 
 
+_RESERVED_PARAM_ALIASES: dict[str, str] = {}
+
+
+def _normalize_param_name(name: str) -> str:
+    """Map ODD parameter names to Python-safe keyword names."""
+    normalized = _RESERVED_PARAM_ALIASES.get(name, name).replace('-', '_')
+    if keyword.iskeyword(normalized) or not normalized.isidentifier():
+        return f'{normalized}_'
+    return normalized
+
+
+def _pmf_class_for_output_mode(output_mode: str):
+    if output_mode == 'markdown':
+        from tei_publisher_py.markdown_output_functions import MarkdownOutputFunctions
+
+        return MarkdownOutputFunctions
+    from tei_publisher_py.html_output_functions import HtmlOutputFunctions
+
+    return HtmlOutputFunctions
+
+
+def _accepted_method_kwargs(
+    output_mode: str,
+    method: str,
+) -> tuple[dict[str, inspect.Parameter], bool]:
+    """Return accepted keyword params for pmf.<method> after content."""
+    cls = _pmf_class_for_output_mode(output_mode)
+    fn = getattr(cls, method)
+    sig = inspect.signature(fn)
+    allowed: dict[str, inspect.Parameter] = {}
+    allows_var_kw = False
+    for p in sig.parameters.values():
+        if p.name in ('self', 'config', 'node', 'cls', 'content'):
+            continue
+        if p.kind is inspect.Parameter.VAR_KEYWORD:
+            allows_var_kw = True
+            continue
+        if p.kind in (
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+        ):
+            allowed[p.name] = p
+    return allowed, allows_var_kw
+
+
 def _emit_pmf_call(
     ident: str,
     behaviour: str,
     model_el,
     spec_el,
     pm: dict[str, str],
+    output_mode: str,
     *,
     content_expr: str | None = None,
 ) -> str:
@@ -297,82 +345,26 @@ def _emit_pmf_call(
     else:
         c = _param_to_expr(pm.get('content', '.'))
 
-    def P(name: str, default: str = 'None') -> str:
-        if name not in pm:
-            return default
-        return _param_to_expr(pm[name])
-
-    if behaviour in ('inline', 'block', 'paragraph', 'omit', 'pass-through', 'body', 'document',
-                     'section', 'table', 'row', 'metadata', 'text', 'match', 'template'):
-        return f'pmf.{method}(config, node, {cls_e}, {c})'
-
-    if behaviour == 'heading':
-        return f'pmf.{method}(config, node, {cls_e}, {c}, level={P("level")})'
-
-    if behaviour == 'list':
-        return f'pmf.{method}(config, node, {cls_e}, {c}, list_type={P("type")})'
-
-    if behaviour == 'listItem':
-        return f'pmf.{method}(config, node, {cls_e}, {c}, n={P("n")})'
-
-    if behaviour == 'index':
-        return f'pmf.{method}(config, node, {cls_e}, {c}, index_type={P("type")})'
-
-    if behaviour == 'break':
-        return (
-            f'pmf.{method}(config, node, {cls_e}, {c}, '
-            f'break_type={P("type")}, label={P("label")})'
-        )
-
-    if behaviour == 'cell':
-        return f'pmf.{method}(config, node, {cls_e}, {c}, cell_type={P("type")})'
-
-    if behaviour == 'cit':
-        return f'pmf.{method}(config, node, {cls_e}, {c}, source={P("source")})'
-
-    if behaviour == 'figure':
-        return f'pmf.{method}(config, node, {cls_e}, {c}, title={P("title")})'
-
-    if behaviour == 'link':
-        return (
-            f'pmf.{method}(config, node, {cls_e}, {c}, '
-            f'uri={P("uri")}, target={P("target")}, optional={P("optional")})'
-        )
-
-    if behaviour == 'note':
-        return (
-            f'pmf.{method}(config, node, {cls_e}, {c}, '
-            f'place={P("place")}, label={P("label")})'
-        )
-
-    if behaviour == 'graphic':
-        return (
-            f'pmf.{method}(config, node, {cls_e}, {c}, '
-            f'{P("url_node")}, {P("width")}, {P("height")}, {P("scale")}, {P("title")})'
-        )
-
-    if behaviour == 'webcomponent':
-        return (
-            f'pmf.{method}(config, node, {cls_e}, {c}, '
-            f'name={P("name")}, optional={P("optional")})'
-        )
-
-    if behaviour == 'alternate':
-        return (
-            f'pmf.{method}(config, node, {cls_e}, {c}, '
-            f'{P("default")}, {P("alternate")}, optional={P("optional")})'
-        )
-
-    if behaviour == 'anchor':
-        return f'pmf.{method}(config, node, {cls_e}, {c}, id={P("id")})'
-
-    if behaviour == 'glyph':
-        return f'pmf.{method}(config, node, {cls_e}, {c})'
-
-    if behaviour == 'title':
-        return f'pmf.{method}(config, node, {cls_e}, {c})'
-
-    return f'pmf.{method}(config, node, {cls_e}, {c})'
+    allowed, allows_var_kw = _accepted_method_kwargs(output_mode, method)
+    emitted: set[str] = set()
+    kw_parts: list[str] = []
+    for name, value in pm.items():
+        if name == 'content':
+            continue
+        py_name = _normalize_param_name(name)
+        if not allows_var_kw and py_name not in allowed:
+            continue
+        kw_parts.append(f'{py_name}={_param_to_expr(value)}')
+        emitted.add(py_name)
+    # Keep legacy behaviour: for required kwargs not provided by the ODD model,
+    # pass None explicitly (old emitter always provided defaults via P(..., None)).
+    for name, param in allowed.items():
+        if name in emitted:
+            continue
+        if param.default is inspect.Parameter.empty:
+            kw_parts.append(f'{name}=None')
+    kwargs_src = ', ' + ', '.join(kw_parts) if kw_parts else ''
+    return f'pmf.{method}(config, node, {cls_e}, {c}{kwargs_src})'
 
 
 def _emit_template_params_dict_expr(pm: dict[str, str], *, pretty: bool = False) -> str:
@@ -516,6 +508,7 @@ def _emit_behaviour_with_template(
     model_el,
     spec_el,
     behaviour: str,
+    output_mode: str,
     helpers: _TemplateHelperRegistry,
 ) -> str:
     """Generate ``pmf.<behaviour>(..., _odd_template_*(...))`` using a registered helper.
@@ -534,27 +527,44 @@ def _emit_behaviour_with_template(
         model_el,
         default_content=_default_content_for_template_combo(_serialize_template_content(tmpl_el)),
     )
-    return _emit_pmf_call(ident, behaviour, model_el, spec_el, pm, content_expr=inner)
+    return _emit_pmf_call(
+        ident,
+        behaviour,
+        model_el,
+        spec_el,
+        pm,
+        output_mode,
+        content_expr=inner,
+    )
 
 
 def _emit_leaf_model(
     ident: str,
     model_el,
     spec_el,
+    output_mode: str,
     helpers: _TemplateHelperRegistry,
 ) -> str:
     tmpl = _pb_template(model_el)
     beh = model_el.get('behaviour')
     if tmpl is not None:
         if beh and beh != 'template':
-            return _emit_behaviour_with_template(ident, tmpl, model_el, spec_el, beh, helpers)
+            return _emit_behaviour_with_template(
+                ident,
+                tmpl,
+                model_el,
+                spec_el,
+                beh,
+                output_mode,
+                helpers,
+            )
         return _emit_template_call(ident, tmpl, model_el, spec_el, helpers)
     if not beh:
         return 'apply(config, child_nodes(node))'
     if beh not in BEHAVIOUR_METHOD:
         return 'apply(config, child_nodes(node))'
     pm = _gather_params(model_el)
-    return _emit_pmf_call(ident, beh, model_el, spec_el, pm)
+    return _emit_pmf_call(ident, beh, model_el, spec_el, pm, output_mode)
 
 
 def _emit_model_or_sequence(
@@ -587,7 +597,7 @@ def _emit_model_or_sequence(
             return parts[0]
         return ' + '.join(parts)
     if loc == 'model':
-        expr = _emit_leaf_model(ident, el, spec_el, helpers)
+        expr = _emit_leaf_model(ident, el, spec_el, output_mode, helpers)
         return expr
     return 'apply(config, child_nodes(node))'
 

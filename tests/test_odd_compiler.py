@@ -61,6 +61,31 @@ def test_compile_web_mode_emits_transform_output_channels() -> None:
     assert "return ['web']" in src
 
 
+def test_compile_code_behaviour_emits_language_kwarg_for_markdown(tmp_path: Path) -> None:
+    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+
+    odd = tmp_path / 'code_behaviour.odd'
+    odd.write_text(
+        '<?xml version="1.0"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0">'
+        '<teiHeader><fileDesc><titleStmt><title>t</title></titleStmt>'
+        '<publicationStmt><p>p</p></publicationStmt>'
+        '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
+        '<text><body>'
+        '<schemaSpec ident="x" ns="http://www.tei-c.org/ns/1.0">'
+        '<elementSpec ident="code" mode="change">'
+        '<model output="markdown" behaviour="code">'
+        '<param name="language" value="\'python\'"/>'
+        '</model>'
+        '</elementSpec>'
+        '</schemaSpec>'
+        '</body></text></TEI>',
+        encoding='utf-8',
+    )
+    src = compile_odd_to_python(str(odd), output_mode='markdown')
+    assert "pmf.code(config, node, ['tei-code', 'tei-code1', r], node, language='python')" in src
+
+
 def test_generated_transform_calls_pmf_finish() -> None:
     from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
 

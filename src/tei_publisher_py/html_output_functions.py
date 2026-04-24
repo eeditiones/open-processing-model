@@ -110,8 +110,8 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
                 result.extend(sub)
         return result
 
-    def list(self, config, node, cls, content, list_type=None) -> PMResult:
-        effective = list_type or node.get('type')
+    def list(self, config, node, cls, content, type=None) -> PMResult:
+        effective = type or node.get('type')
         tag = 'ol' if effective == 'ordered' else 'ul'
         el = self._el(tag, cls, node)
         config['apply_children'](config, node, content, el)
@@ -147,8 +147,8 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def cell(self, config, node, cls, content, cell_type=None) -> PMResult:
-        el = etree.Element('th' if cell_type == 'head' else 'td')
+    def cell(self, config, node, cls, content, type=None) -> PMResult:
+        el = etree.Element('th' if type == 'head' else 'td')
         el.set('class', classes(*cls))
         if node.get('cols'):
             el.set('colspan', node.get('cols'))
@@ -168,12 +168,15 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
             config['apply_children'](config, node, title, cap)
         return [el]
 
-    def graphic(self, config, node, cls, content, url_node,
+    def graphic(self, config, node, cls, content, url,
                 width, height, scale, title) -> PMResult:
         _ = content
         el = etree.Element('img')
         el.set('class', classes(*cls))
-        href = url_node.get(XLINK_HREF) if url_node is not None else None
+        if isinstance(url, etree._Element):
+            href = url.get(XLINK_HREF)
+        else:
+            href = str(url) if url else None
         if href:
             el.set('src', href)
         style = '; '.join(filter(None, [
@@ -252,11 +255,11 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
     def omit(self, config, node, cls, content) -> PMResult:
         return []
 
-    def index(self, config, node, cls, content, index_type=None) -> PMResult:
+    def index(self, config, node, cls, content, type=None) -> PMResult:
         return []
 
-    def break_(self, config, node, cls, content, break_type=None, label=None) -> PMResult:
-        if (break_type or '').lower() == 'page':
+    def break_(self, config, node, cls, content, type=None, label=None) -> PMResult:
+        if (type or '').lower() == 'page':
             el = self._el('span', cls, node)
             config['apply_children'](config, node, label if label is not None else [], el)
             return [el]
