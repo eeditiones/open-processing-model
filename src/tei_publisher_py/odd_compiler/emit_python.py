@@ -15,6 +15,14 @@ from .parse_odd import ParsedOdd, iter_element_specs, load_odd
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
 PB_NS = 'http://teipublisher.com/1.0'
 
+# When combining @behaviour with pb:template, default ``content`` for [[content]] substitution:
+# use ``.`` (process children) only if the template references that placeholder; otherwise ``()``.
+_TEMPLATE_HAS_CONTENT_PLACEHOLDER = re.compile(r'\[\[\s*content\s*\]\]')
+
+
+def _default_content_for_template_combo(template_str: str) -> str:
+    return '.' if _TEMPLATE_HAS_CONTENT_PLACEHOLDER.search(template_str) else '()'
+
 
 def _local(tag: str) -> str:
     return etree.QName(tag).localname
@@ -29,6 +37,25 @@ def _pb_template(parent) -> etree._Element | None:
         if child.tag == f'{{{PB_NS}}}template':
             return child
     return None
+
+
+def _serialize_template_content(tmpl_el) -> str:
+    """Return the inner XML content of a pb:template element as a plain string.
+
+    Namespace declarations from the ODD parent scope are stripped so the embedded
+    string stays compact and readable; the template engine does not need them.
+    """
+    parts = []
+    if tmpl_el.text:
+        parts.append(tmpl_el.text)
+    for child in tmpl_el:
+        s = etree.tostring(child, encoding='unicode')
+        # Strip all xmlns declarations lxml inherits from the ODD parent scope
+        s = re.sub(r'\s*xmlns(?::\w+)?="[^"]*"', '', s)
+        parts.append(s)
+        if child.tail:
+            parts.append(child.tail)
+    return ''.join(parts)
 
 
 def _all_models_in_spec(spec_el) -> list:
@@ -196,7 +223,7 @@ def _param_to_expr(value: str) -> str:
     )
 
 
-def _gather_params(model_el) -> dict[str, str]:
+def _gather_params(model_el, *, default_content: str = '.') -> dict[str, str]:
     out: dict[str, str] = {}
     for p in model_el.findall(f'{{{TEI_NS}}}param'):
         name = p.get('name')
@@ -206,7 +233,7 @@ def _gather_params(model_el) -> dict[str, str]:
         if val is not None:
             out[name] = val
     if 'content' not in out:
-        out['content'] = '.'
+        out['content'] = default_content
     return out
 
 
@@ -254,10 +281,21 @@ def _classes_expr(ident: str, model_el, spec_el) -> str:
     return '[' + ', '.join(parts) + ']'
 
 
-def _emit_pmf_call(ident: str, behaviour: str, model_el, spec_el, pm: dict[str, str]) -> str:
+def _emit_pmf_call(
+    ident: str,
+    behaviour: str,
+    model_el,
+    spec_el,
+    pm: dict[str, str],
+    *,
+    content_expr: str | None = None,
+) -> str:
     method = method_for_behaviour(behaviour)
     cls_e = _classes_expr(ident, model_el, spec_el)
-    c = _param_to_expr(pm.get('content', '.'))
+    if content_expr is not None:
+        c = content_expr
+    else:
+        c = _param_to_expr(pm.get('content', '.'))
 
     def P(name: str, default: str = 'None') -> str:
         if name not in pm:
@@ -337,11 +375,180 @@ def _emit_pmf_call(ident: str, behaviour: str, model_el, spec_el, pm: dict[str, 
     return f'pmf.{method}(config, node, {cls_e}, {c})'
 
 
-def _emit_leaf_model(ident: str, model_el, spec_el) -> str:
-    if _pb_template(model_el) is not None:
-        cls_e = _classes_expr(ident, model_el, spec_el)
-        return f'pmf.pass_through(config, node, {cls_e}, child_nodes(node))'
+def _emit_template_params_dict_expr(pm: dict[str, str], *, pretty: bool = False) -> str:
+    """Build the Python dict expression for ``pb:template`` ``[[param]]`` substitution."""
+    param_items = []
+    for name, val in pm.items():
+        expr = _param_to_expr(val)
+        if expr == 'node':
+            # 'content' with default '.' processes children; other node-fallbacks pass raw.
+            if name == 'content':
+                param_items.append(f"'content': apply(config, child_nodes(node))")
+            else:
+                param_items.append(f"{name!r}: {expr}")
+        elif expr.startswith('xpath_content('):
+            # XPath may return elements or strings; wrap in apply() so elements are
+            # dispatched through the ODD and strings pass through unchanged.
+            param_items.append(f"{name!r}: apply(config, normalize({expr}))")
+        else:
+            # String literals and attribute accesses are already scalars.
+            param_items.append(f"{name!r}: {expr}")
+    inner = ', '.join(param_items)
+    if not pretty:
+        return '{' + inner + '}'
+    return '{\n        ' + ',\n        '.join(param_items) + '\n    }'
+
+
+class _TemplateHelperRegistry:
+    """Collect ``def _odd_template_*`` helpers so ``pmf.template(...)`` is not inlined in ``_dispatch``."""
+
+    def __init__(self) -> None:
+        self._blocks: list[str] = []
+
+    def register(
+        self,
+        ident: str,
+        tmpl_el,
+        model_el,
+        spec_el,
+        *,
+        combo: bool,
+    ) -> str:
+        """Append helper source and return the function name."""
+        name = _template_helper_name(ident, spec_el, model_el)
+        block = _emit_template_helper_function(
+            name, ident, tmpl_el, model_el, spec_el, combo=combo,
+        )
+        self._blocks.append(block)
+        return name
+
+    @property
+    def functions_block(self) -> str:
+        if not self._blocks:
+            return ''
+        return (
+            '\n\n# pb:template helpers (keeps dispatch readable)\n'
+            + '\n\n'.join(self._blocks)
+        )
+
+
+def _template_helper_name(ident: str, spec_el, model_el) -> str:
+    san = _sanitize_ident(ident)
+    n = _model_ordinal(spec_el, model_el)
+    return f'_odd_template_{san}_{n}'
+
+
+def _emit_template_helper_function(
+    name: str,
+    ident: str,
+    tmpl_el,
+    model_el,
+    spec_el,
+    *,
+    combo: bool,
+) -> str:
+    """Full ``def name(...): return pmf.template(...)`` source for one model."""
+    template_str = _serialize_template_content(tmpl_el)
+    if combo:
+        pm = _gather_params(
+            model_el,
+            default_content=_default_content_for_template_combo(template_str),
+        )
+        cls_e = '[]'
+        params_line = _emit_template_params_dict_expr(pm, pretty=True)
+        sig = f'def {name}(config, node, pmf, params, xpath_extensions)'
+        tmpl_lit = _python_triple_quoted(template_str)
+        return (
+            f'{sig}:\n'
+            f'    return pmf.template(\n'
+            f'        config,\n'
+            f'        node,\n'
+            f'        {cls_e},\n'
+            f'        {tmpl_lit},\n'
+            f'        {params_line},\n'
+            f'    )'
+        )
+
+    pm = _gather_params(model_el)
+    cls_e = _classes_expr(ident, model_el, spec_el)
+    params_line = _emit_template_params_dict_expr(pm, pretty=True)
+    tmpl_lit = _python_triple_quoted(template_str)
+    sig = f'def {name}(config, node, pmf, params, xpath_extensions, r)'
+    return (
+        f'{sig}:\n'
+        f'    return pmf.template(\n'
+        f'        config,\n'
+        f'        node,\n'
+        f'        {cls_e},\n'
+        f'        {tmpl_lit},\n'
+        f'        {params_line},\n'
+        f'    )'
+    )
+
+
+def _template_helper_call(name: str, *, combo: bool) -> str:
+    if combo:
+        return (
+            f'{name}(config, node, pmf, params, '
+            f'xpath_extensions=config.get("xpath_extensions"))'
+        )
+    return (
+        f'{name}(config, node, pmf, params, '
+        f'xpath_extensions=config.get("xpath_extensions"), r=r)'
+    )
+
+
+def _emit_template_call(
+    ident: str,
+    tmpl_el,
+    model_el,
+    spec_el,
+    helpers: _TemplateHelperRegistry,
+) -> str:
+    """Generate a call to a module-level helper that runs ``pmf.template`` (template-only model)."""
+    name = helpers.register(ident, tmpl_el, model_el, spec_el, combo=False)
+    return _template_helper_call(name, combo=False)
+
+
+def _emit_behaviour_with_template(
+    ident: str,
+    tmpl_el,
+    model_el,
+    spec_el,
+    behaviour: str,
+    helpers: _TemplateHelperRegistry,
+) -> str:
+    """Generate ``pmf.<behaviour>(..., _odd_template_*(...))`` using a registered helper.
+
+    Used whenever a model has both ``@behaviour`` (other than ``template``) and ``pb:template``:
+    the template is evaluated first; the resulting nodes are passed as ``content`` to the
+    behaviour (e.g. ``pass-through`` forwards the fragment; ``listItem`` wraps it in ``<li>``).
+
+    Default ``content`` for ``[[content]]`` is ``.`` only if the template text contains that
+    placeholder; otherwise ``()`` so named placeholders (e.g. ``[[date]]``) do not also run
+    ``apply`` on all element children.
+    """
+    name = helpers.register(ident, tmpl_el, model_el, spec_el, combo=True)
+    inner = _template_helper_call(name, combo=True)
+    pm = _gather_params(
+        model_el,
+        default_content=_default_content_for_template_combo(_serialize_template_content(tmpl_el)),
+    )
+    return _emit_pmf_call(ident, behaviour, model_el, spec_el, pm, content_expr=inner)
+
+
+def _emit_leaf_model(
+    ident: str,
+    model_el,
+    spec_el,
+    helpers: _TemplateHelperRegistry,
+) -> str:
+    tmpl = _pb_template(model_el)
     beh = model_el.get('behaviour')
+    if tmpl is not None:
+        if beh and beh != 'template':
+            return _emit_behaviour_with_template(ident, tmpl, model_el, spec_el, beh, helpers)
+        return _emit_template_call(ident, tmpl, model_el, spec_el, helpers)
     if not beh:
         return 'apply(config, child_nodes(node))'
     if beh not in BEHAVIOUR_METHOD:
@@ -351,18 +558,28 @@ def _emit_leaf_model(ident: str, model_el, spec_el) -> str:
 
 
 def _emit_model_or_sequence(
-    ident: str, el, spec_el, indent: str, output_mode: str,
+    ident: str,
+    el,
+    spec_el,
+    indent: str,
+    output_mode: str,
+    helpers: _TemplateHelperRegistry,
 ) -> str:
     loc = _local(el.tag)
     if loc == 'modelGrp':
         return _emit_process_models(
-            ident, _model_children(el, output_mode), spec_el, indent,
-            in_sequence=False, output_mode=output_mode,
+            ident,
+            _model_children(el, output_mode),
+            spec_el,
+            indent,
+            in_sequence=False,
+            output_mode=output_mode,
+            helpers=helpers,
         )
     if loc == 'modelSequence':
         parts = []
         for child in _model_children(el, output_mode):
-            part = _emit_model_or_sequence(ident, child, spec_el, indent, output_mode)
+            part = _emit_model_or_sequence(ident, child, spec_el, indent, output_mode, helpers)
             parts.append(f'({part})')
         if not parts:
             return f'{indent}apply(config, child_nodes(node))'
@@ -370,7 +587,7 @@ def _emit_model_or_sequence(
             return parts[0]
         return ' + '.join(parts)
     if loc == 'model':
-        expr = _emit_leaf_model(ident, el, spec_el)
+        expr = _emit_leaf_model(ident, el, spec_el, helpers)
         return expr
     return 'apply(config, child_nodes(node))'
 
@@ -383,13 +600,14 @@ def _emit_process_models(
     *,
     in_sequence: bool,
     output_mode: str,
+    helpers: _TemplateHelperRegistry,
 ) -> str:
     models = _filter_by_output_mode(models, output_mode)
     if not models:
         return f'{indent}return apply(config, child_nodes(node))'
 
     if not models[0].get('predicate'):
-        inner = _emit_model_or_sequence(ident, models[0], spec_el, indent, output_mode)
+        inner = _emit_model_or_sequence(ident, models[0], spec_el, indent, output_mode, helpers)
         lines = []
         lines.extend(_desc_comment_lines(models[0], indent))
         if '\n' in inner:
@@ -405,7 +623,9 @@ def _emit_process_models(
     lines = []
     for i, m in enumerate(conds):
         pred = m.get('predicate', '')
-        inner = _emit_model_or_sequence(ident, m, spec_el, indent + '    ', output_mode)
+        inner = _emit_model_or_sequence(
+            ident, m, spec_el, indent + '    ', output_mode, helpers,
+        )
         kw = 'if' if i == 0 else 'elif'
         lines.append(
             f'{indent}{kw} xpath_test(node, {repr(pred)}, params, '
@@ -418,7 +638,7 @@ def _emit_process_models(
             lines.append(f'{indent}    return {inner}')
     if unconds:
         u = unconds[0] if len(unconds) > 1 and not in_sequence else unconds[0]
-        inner = _emit_model_or_sequence(ident, u, spec_el, indent + '    ', output_mode)
+        inner = _emit_model_or_sequence(ident, u, spec_el, indent + '    ', output_mode, helpers)
         lines.append(f'{indent}else:')
         lines.extend(_desc_comment_lines(u, indent + '    '))
         if '\n' in inner:
@@ -442,6 +662,7 @@ def generate_python_module(
     odd_css = collect_odd_generated_css(parsed, output_mode=output_mode)
     odd_css_literal = _python_triple_quoted(odd_css)
 
+    helpers = _TemplateHelperRegistry()
     cases = []
     for spec in iter_element_specs(parsed):
         if not spec.findall(f'.//{{{TEI_NS}}}model'):
@@ -453,7 +674,13 @@ def generate_python_module(
         if not tops:
             continue  # spec has models but none target this output mode
         block = _emit_process_models(
-            ident, tops, spec, '            ', in_sequence=False, output_mode=output_mode,
+            ident,
+            tops,
+            spec,
+            '            ',
+            in_sequence=False,
+            output_mode=output_mode,
+            helpers=helpers,
         )
         cases.append(f"        case {ident!r}:\n{block}")
 
@@ -484,14 +711,13 @@ def generate_python_module(
         pmf_ctor = 'HtmlOutputFunctions()'
         transform_config_extra = ''
 
+    template_helpers_block = helpers.functions_block
+
     return f'''#!/usr/bin/env python3
-"""
-Auto-generated TEI processing model ({output_mode} output).
+"""Auto-generated TEI processing model ({output_mode} output).
 
 Source ODD: {odd_path}
 schema namespace: {schema_ns}
-
-pb:template models are replaced with pass-through placeholders.
 """
 
 from lxml import etree
@@ -500,6 +726,7 @@ from tei_publisher_py.output_functions import (
     XML_ID,
     map_rend_to_class,
     child_nodes,
+    normalize,
     reset_counters,
 )
 {pmf_import}
@@ -521,6 +748,7 @@ def xpath_content(node, expr, params=None, xpath_extensions=None):
         params,
         xpath_extensions=xpath_extensions,
     )
+{template_helpers_block}
 
 
 def transform_output_channels():

@@ -10,6 +10,7 @@ from tei_publisher_py.output_functions import (
     XLINK_HREF,
     XML_ID,
     ProcessingModelFunctions,
+    apply_pb_template,
     child_nodes,
     normalize,
 )
@@ -384,5 +385,11 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         out.append('==')
         return out
 
-    def template(self, config, node, cls, content) -> PMResult:
-        return self.block(config, node, cls, content)
+    def template(self, config, node, cls, template_str: str, params: dict) -> PMResult:
+        return apply_pb_template(template_str, params, config)
+
+    def code(self, config, node, cls, content, language=None) -> PMResult:
+        out: list = [f'```{language}']
+        config['apply_children'](config, node, content, out)
+        out.append('```')
+        return out

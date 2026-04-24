@@ -46,3 +46,26 @@ def test_teipublisher_odd_teitest_xml_choice_abbr_expan_alternate_html(tmp_path:
         r'<span class="altcontent">XML</span></span>',
         compact,
     ), 'expected expan in the first container and abbr in .altcontent'
+
+
+@pytest.mark.skipif(
+    not DEMO_TEI_TEST_XML.is_file(),
+    reason='Fixture demo/tei-test.xml not found',
+)
+def test_teipublisher_odd_teitest_xml_register_mode_people_list_names(tmp_path: Path) -> None:
+    """``mode=register`` list items must show a name when ``persName`` has no @type (see teiHeader listPerson)."""
+    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+    from tei_publisher_py.pm_runtime import serialize
+
+    path = tmp_path / 'teipublisher_web.py'
+    path.write_text(compile_odd_to_python(str(ODD)), encoding='utf-8')
+    spec = importlib.util.spec_from_file_location('teipublisher_web_register', str(path))
+    assert spec and spec.loader
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+
+    root = etree.parse(str(DEMO_TEI_TEST_XML)).getroot()
+    html = serialize(m.transform(root, {'mode': 'register'}))
+    compact = re.sub(r'\s+', ' ', html)
+    assert '<h3>People</h3>' in compact
+    assert 'Donald' in compact and 'Vladimir' in compact

@@ -12,6 +12,7 @@ from tei_publisher_py.output_functions import (
     XML_ID,
     ProcessingModelFunctions,
     add_lang_attrs,
+    apply_pb_template,
     classes,
     normalize,
     child_nodes,
@@ -336,7 +337,5 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         config['apply_children'](config, node, content, el)
         return [el]
 
-    def template(self, config, node, cls, content) -> PMResult:
-        el = self._el('div', cls, node)
-        config['apply_children'](config, node, content, el)
-        return [el]
+    def template(self, config, node, cls, template_str: str, params: dict) -> PMResult:
+        return apply_pb_template(template_str, params, config)
