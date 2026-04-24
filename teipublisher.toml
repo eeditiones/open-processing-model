@@ -6,3 +6,8 @@ cdn = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@{version}/dist/p
 [document]
 # template = "templates/tufte.html.j2"
 # css = "styles/default-styles.css"
+
+[transform]
+xpath_extensions = [
+  "tei_publisher_py.common_xpath_functions"
+]

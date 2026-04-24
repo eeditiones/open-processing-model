@@ -6,7 +6,7 @@
   <teiHeader>
     <fileDesc>
       <titleStmt>
-        <title>The Greatest Markup: A Recorded Podcast Transcript</title>
+        <title>The Greatest Markup: A Podcast Transcript</title>
         <title type="sub">Episode 47: <persName ref="#trump">Donald J. Trump</persName> and <persName ref="#putin">Vladimir V. Putin</persName> Discuss the TEI Processing Model</title>
         <author>Transcribed by <orgName>Covfefe Media International</orgName></author>
       </titleStmt>
@@ -27,6 +27,7 @@
               <forename>John</forename>
               <surname>Trump</surname>
             </persName>
+            <birth when="1946-06-14"><placeName>Queens, New York, USA</placeName></birth>
             <note>Former and current US President; self-described <q>very stable genius</q> and newly converted TEI enthusiast.</note>
           </person>
           <person xml:id="putin">
@@ -35,6 +36,7 @@
               <forename>Vladimirovich</forename>
               <surname>Putin</surname>
             </persName>
+            <birth when="1952-10-07"><placeName>Leningrad, Russian SFSR, USSR</placeName></birth>
             <note>President of <placeName>Russia</placeName>; certified horseback rider; allegedly minored in XML Schema at <orgName>KGB Academy</orgName>.</note>
           </person>
           <person xml:id="host">
@@ -43,6 +45,33 @@
               <surname>Markupsen</surname>
             </persName>
             <note>Podcast host; holds a PhD in Digital Humanities from <orgName>Trump University</orgName> <supplied reason="irony">[accreditation pending]</supplied>.</note>
+          </person>
+          <person xml:id="tolstoy">
+            <persName>
+              <forename>Leo</forename>
+              <surname>Tolstoy</surname>
+            </persName>
+            <birth when="1828-09-09"><placeName>Yasnaya Polyana, Russia</placeName></birth>
+            <death when="1910-11-20"><placeName>Astapovo, Russia</placeName></death>
+            <note>Russian novelist and moral philosopher; author of <title level="m">War and Peace</title> and <title level="m">Anna Karenina</title>. Pioneer of free indirect discourse and, had he lived, presumably a vocal critic of JSON.</note>
+          </person>
+          <person xml:id="stalin">
+            <persName>
+              <forename>Joseph</forename>
+              <surname>Stalin</surname>
+            </persName>
+            <birth when="1878-12-18"><placeName>Gori, Russian Empire</placeName></birth>
+            <death when="1953-03-05"><placeName>Kuntsevo, USSR</placeName></death>
+            <note>Soviet leader; believed every <gi>choice</gi> should resolve to exactly one Party-approved reading. Unpopular with dissenting encoders, popular with anyone who enjoys <q>robust</q> merge conflicts.</note>
+          </person>
+          <person xml:id="mao">
+            <persName>
+              <forename>Zedong</forename>
+              <surname>Mao</surname>
+            </persName>
+            <birth when="1893-12-26"><placeName>Shaoshan, China</placeName></birth>
+            <death when="1976-09-09"><placeName>Beijing, China</placeName></death>
+            <note>Chairman of the Communist Party of China; launched <q>Let a hundred flowers bloom</q> — an ambitious pilot of pluralistic <term>namespace</term> prefixes, followed by a memorable <term>schema</term> consolidation sprint.</note>
           </person>
         </listPerson>
       </particDesc>
@@ -143,23 +172,32 @@
           <sp who="#putin">
             <speaker>Vladimir Putin</speaker>
             <p>Yes. We have been encoding the complete works of
-              <persName>Leo Tolstoy</persName> — <title level="m">War and Peace</title>,
+              <persName ref="#tolstoy">Leo Tolstoy</persName> — <title level="m">War and Peace</title>,
               <title level="m">Anna Karenina</title>, all of them. Very long texts. The
               <term>processing model</term> allows us to render different editions differently with
               same <term>ODD</term> file. This is very elegant. I am told even
-              <persName>Tolstoy</persName> himself would have approved, though of course he is dead,
+              <persName ref="#tolstoy">Tolstoy</persName> himself would have approved, though of course he is dead,
               so he has <choice><sic>no choise</sic>
-              <corr>no choice</corr></choice>.</p>
+              <corr>no choice</corr></choice>. We are also encoding
+              <persName ref="#stalin">Joseph Stalin</persName> — the footnotes keep
+              <emph>disappearing</emph> between editions, so we model them with <term>subst</term>
+              and a <att>hand</att> attribute that basically means <q>history reviewed itself</q> —
+              and <persName ref="#mao">Mao Zedong</persName>, whose <title level="m">Little Red Book</title>
+              was the original <term>mobile-first</term> anthology, though <term>responsive layout</term>
+              was not yet an <orgName>W3C</orgName> priority.</p>
           </sp>
 
           <sp who="#trump">
             <speaker>Donald Trump</speaker>
             <p>I've read <title level="m">War and Peace</title>. Whole thing. Twice.
-              <add place="margin" hand="#editor">[Editor's note: no evidence supports this claim]
-              </add> Fantastic book, very long, some people say too long, I like it though. Very
+              <note place="margin" hand="#editor">[Editor's note: no evidence supports this claim]
+              </note> Fantastic book, very long, some people say too long, I like it though. Very
               much like my speeches, which are also very long and also have a <foreign xml:lang="fr">
               dénouement</foreign>. Mine's better though. My <foreign xml:lang="fr">
-              dénouement</foreign> is the best.</p>
+              dénouement</foreign> is the best. <persName ref="#stalin">Stalin</persName> was tough on
+              editors — very tough — I respect that. And <persName ref="#mao">Mao</persName> wrote many
+              little books; I wrote <title level="m">The Art of the Deal</title>. Bigger pages. Better
+              margins. <note place="margin" hand="#editor">[Editor's note: Stalin died in 1953; guest born 1946]</note></p>
           </sp>
         </div>
 
@@ -202,6 +240,10 @@
           <sp who="#host">
             <speaker>Chad Markupsen</speaker>
             <p>That's... certainly one interpretation of <term>conditional behaviour application</term>.
+              Our researchers remind listeners that <persName ref="#stalin">Stalin</persName> and
+              <persName ref="#mao">Mao</persName> are <emph>not</emph> in the TEI Guidelines as
+              default <val>behaviour</val> presets — you have to bring your own <term>ODD</term> and,
+              ideally, your own therapist.
               <persName ref="#trump">Mr. Trump</persName>, what about the
               <term>output modes</term> in TEI Publisher? You can render the same document as
               <choice><abbr>HTML</abbr><expan>HyperText Markup Language</expan></choice>,
@@ -245,7 +287,7 @@
               <add place="inline">Bigger than the moon landing. Many people are saying.</add>
               And I want to tell everyone listening: get into <term>TEI</term>. Learn your
               <term>behaviours</term>. Read your <term>ODD</term>. It's going to be so good.
-              <choice><sic>So so</sic> <corr>So very</corr></choice> tremendously good.</p>
+              <choice><sic>So so</sic> <corr>So very</corr></choice> tremendously <supplied reason="coughing">good</supplied>.</p>
           </sp>
 
           <sp who="#host">
@@ -294,6 +336,13 @@
 
           <label><term xml:id="informant-def">Informant</term></label>
           <item>See <persName ref="#putin">Putin, V.</persName>, remarks passim. Not a TEI term.</item>
+
+          <label><term xml:id="five-year-plan-def">Five-Year Plan</term></label>
+          <item>Not a TEI element. A reminder that some projects schedule <emph>multiple</emph>
+            major releases per decade; others schedule <emph>one</emph> major release per five years
+            and call it a personality. Compare <persName ref="#stalin">Stalin, J.</persName>,
+            industrial output; compare <persName ref="#mao">Mao, Z.</persName>, agricultural
+            <term>XPath</term> experiments.</item>
         </list>
       </div>
     </back>

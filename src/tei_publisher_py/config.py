@@ -21,6 +21,7 @@ class ProjectConfig:
     webcomponents_cdn: str | None = None
     document_template: Path | None = None
     document_css: Path | None = None
+    xpath_extensions: tuple[str, ...] = ()
 
 
 def load_project_config(path: Path | None = None) -> ProjectConfig:
@@ -34,6 +35,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
 
     wc = data.get('webcomponents', {})
     doc = data.get('document', {})
+    transform = data.get('transform', {})
 
     cdn_template = wc.get('cdn', DEFAULT_CDN_TEMPLATE)
     version = wc.get('version', DEFAULT_VERSION)
@@ -41,10 +43,23 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
 
     template = doc.get('template')
     css_file = doc.get('css')
+    raw_xpath_extensions = transform.get('xpath_extensions')
+    xpath_extensions: tuple[str, ...]
+    if raw_xpath_extensions is None:
+        xpath_extensions = ()
+    elif isinstance(raw_xpath_extensions, str):
+        xpath_extensions = (raw_xpath_extensions,)
+    elif isinstance(raw_xpath_extensions, list):
+        xpath_extensions = tuple(str(item) for item in raw_xpath_extensions)
+    else:
+        raise ValueError(
+            'teipublisher.toml: transform.xpath_extensions must be a string or list of strings',
+        )
 
     return ProjectConfig(
         webcomponents_enabled=wc.get('enabled'),
         webcomponents_cdn=resolved_cdn,
         document_template=Path(template) if template else None,
         document_css=Path(css_file) if css_file else None,
+        xpath_extensions=xpath_extensions,
     )

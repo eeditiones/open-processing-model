@@ -7,7 +7,7 @@ import sys
 import tempfile
 import webbrowser
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, Any, Optional
 
 import typer
 from click.exceptions import NoArgsIsHelpError, UsageError
@@ -224,13 +224,14 @@ def transform_cmd(
         ),
     ] = None,
     xpath_extensions: Annotated[
-        Optional[str],
+        Optional[list[str]],
         typer.Option(
             '--xpath-extensions',
             help=(
-                'Dotted import path of a Python module whose public callables become XPath '
-                'functions in the tp: namespace (e.g. extensions.common). Importing the module '
-                'runs its top-level code: only use trusted code.'
+                'Dotted import path(s) of Python module(s) whose public callables become XPath '
+                'functions in the tp: namespace (repeat option to add modules; e.g. '
+                '--xpath-extensions extensions.common --xpath-extensions extensions.dates). '
+                'Importing these modules runs top-level code: only use trusted code.'
             ),
         ),
     ] = None,
@@ -260,19 +261,22 @@ def transform_cmd(
         doc_root = tree.getroot()
         opts = _parameters_from_cli(param if param else None)
         user_css = _resolve_user_css(effective_css)
+        effective_xpath_extensions: tuple[str, ...] = (
+            tuple(xpath_extensions) if xpath_extensions else cfg.xpath_extensions
+        )
         if xpath:
             root = resolve_context_element(
                 doc_root,
                 xpath,
                 opts if opts else None,
-                xpath_extensions=xpath_extensions,
+                xpath_extensions=effective_xpath_extensions,
             )
         else:
             root = doc_root
 
-        transform_opts = dict(opts)
-        if xpath_extensions:
-            transform_opts['xpath_extensions'] = xpath_extensions
+        transform_opts: dict[str, Any] = dict(opts)
+        if effective_xpath_extensions:
+            transform_opts['xpath_extensions'] = list(effective_xpath_extensions)
         if effective_webcomponents:
             transform_opts['webcomponents'] = True
         result = mod.transform(root, transform_opts if transform_opts else None)

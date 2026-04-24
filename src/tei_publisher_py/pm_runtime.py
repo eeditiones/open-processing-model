@@ -104,10 +104,13 @@ def _parse_xpath(expr: str, default_element_ns: str, ext_fp: str):
 
 @lru_cache(maxsize=64)
 def _loaded_extension_callables(ext_fp: str) -> dict:
-    """Map fingerprint string to callables dict (cached per loaded module)."""
-    # ext_fp is "\0"-joined module path and mtime; split to recover dotted path
-    module_path = ext_fp.split('\0', 1)[0]
-    return load_extension_callables(module_path)
+    """Map fingerprint string to merged callables dict (cached per module set)."""
+    merged: dict = {}
+    # ext_fp is one or more module fingerprints joined by '\x1f'.
+    for item in ext_fp.split('\x1f'):
+        module_path = item.split('\0', 1)[0]
+        merged.update(load_extension_callables(module_path))
+    return merged
 
 
 @lru_cache(maxsize=8192)
@@ -156,10 +159,26 @@ def make_context(node: etree._Element, params: dict | None = None) -> XPathConte
     )
 
 
-def _extension_fingerprint(xpath_extensions: str | None) -> str:
+def _normalize_xpath_extensions(xpath_extensions: str | list[str] | tuple[str, ...] | None) -> tuple[str, ...]:
     if not xpath_extensions:
+        return ()
+    if isinstance(xpath_extensions, str):
+        mod = xpath_extensions.strip()
+        return (mod,) if mod else ()
+    out: list[str] = []
+    for mod in xpath_extensions:
+        cleaned = str(mod).strip()
+        if cleaned:
+            out.append(cleaned)
+    return tuple(out)
+
+
+def _extension_fingerprint(xpath_extensions: str | list[str] | tuple[str, ...] | None) -> str:
+    modules = _normalize_xpath_extensions(xpath_extensions)
+    if not modules:
         return ''
-    return fingerprint_for_module(xpath_extensions.strip())
+    # Separator does not appear in module paths; each item keeps its own mtime fingerprint.
+    return '\x1f'.join(fingerprint_for_module(module) for module in modules)
 
 
 def xpath_test(
@@ -167,7 +186,7 @@ def xpath_test(
     expr: str,
     params: dict | None = None,
     *,
-    xpath_extensions: str | None = None,
+    xpath_extensions: str | list[str] | tuple[str, ...] | None = None,
 ) -> bool:
     """Boolean XPath 3.1 test against *node* (ODD @predicate strings)."""
     try:
@@ -192,7 +211,7 @@ def xpath_count(
     expr: str,
     params: dict | None = None,
     *,
-    xpath_extensions: str | None = None,
+    xpath_extensions: str | list[str] | tuple[str, ...] | None = None,
 ) -> int:
     """Count nodes matched by *expr* from *node* (sequence length), not ``count()`` in XPath."""
     try:
@@ -236,7 +255,7 @@ def xpath_select_nodes(
     expr: str,
     params: dict | None = None,
     *,
-    xpath_extensions: str | None = None,
+    xpath_extensions: str | list[str] | tuple[str, ...] | None = None,
 ):
     """Evaluate XPath *expr* with *node* as context.
 
@@ -262,7 +281,7 @@ def resolve_context_element(
     xpath_expr: str,
     params: dict | None = None,
     *,
-    xpath_extensions: str | None = None,
+    xpath_extensions: str | list[str] | tuple[str, ...] | None = None,
 ) -> etree._Element:
     """Evaluate *xpath_expr* with *document_root* as the context item; return that element.
 
