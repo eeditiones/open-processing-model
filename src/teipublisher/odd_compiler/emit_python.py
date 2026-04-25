@@ -9,7 +9,7 @@ from pathlib import Path
 
 from lxml import etree
 
-from tei_publisher_py.output_functions import XML_ID
+from teipublisher.output_functions import XML_ID
 
 from .behaviour_map import BEHAVIOUR_METHOD, method_for_behaviour
 from .parse_odd import ParsedOdd, iter_element_specs, load_odd
@@ -296,10 +296,10 @@ def _normalize_param_name(name: str) -> str:
 
 def _pmf_class_for_output_mode(output_mode: str):
     if output_mode == 'markdown':
-        from tei_publisher_py.markdown_output_functions import MarkdownOutputFunctions
+        from teipublisher.markdown_output_functions import MarkdownOutputFunctions
 
         return MarkdownOutputFunctions
-    from tei_publisher_py.html_output_functions import HtmlOutputFunctions
+    from teipublisher.html_output_functions import HtmlOutputFunctions
 
     return HtmlOutputFunctions
 
@@ -709,7 +709,7 @@ def generate_python_module(
 
     if output_mode == 'markdown':
         pmf_import = (
-            'from tei_publisher_py.markdown_output_functions import (\n'
+            'from teipublisher.markdown_output_functions import (\n'
             '    MarkdownOutputFunctions,\n'
             '    normalize_markdown_xml_text,\n'
             ')'
@@ -717,7 +717,7 @@ def generate_python_module(
         pmf_ctor = 'MarkdownOutputFunctions()'
         transform_config_extra = "\n        'normalize_text': normalize_markdown_xml_text,"
     else:
-        pmf_import = 'from tei_publisher_py.html_output_functions import HtmlOutputFunctions'
+        pmf_import = 'from teipublisher.html_output_functions import HtmlOutputFunctions'
         pmf_ctor = 'HtmlOutputFunctions()'
         transform_config_extra = ''
 
@@ -732,7 +732,7 @@ schema namespace: {schema_ns}
 
 from lxml import etree
 
-from tei_publisher_py.output_functions import (
+from teipublisher.output_functions import (
     XML_ID,
     map_rend_to_class,
     child_nodes,
@@ -740,7 +740,7 @@ from tei_publisher_py.output_functions import (
     reset_counters,
 )
 {pmf_import}
-from tei_publisher_py.pm_runtime import (
+from teipublisher.pm_runtime import (
     apply as _apply_impl,
     apply_children as apply_children_impl,
     inject_cached_footnotes,

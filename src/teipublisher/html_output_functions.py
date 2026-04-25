@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from lxml import etree
 
-from tei_publisher_py.output_functions import (
+from teipublisher.output_functions import (
     PMResult,
     TEI_NS,
     XLINK_HREF,
@@ -193,7 +193,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
 
     def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
         """Emit inline call marker; append the ``dl.footnote`` body to ``config['footnotes']``."""
-        from tei_publisher_py import output_functions as of
+        from teipublisher import output_functions as of
 
         of._note_counter += 1
         nr = of._note_counter

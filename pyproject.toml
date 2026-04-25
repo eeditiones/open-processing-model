@@ -24,15 +24,15 @@ dev = [
 ]
 
 [project.scripts]
-teipublisher = "tei_publisher_py.teipublisher_cli:main"
+teipublisher = "teipublisher.teipublisher_cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/tei_publisher_py"]
+packages = ["src/teipublisher"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"src/tei_publisher_py/templates/default_document.html.j2" = "tei_publisher_py/templates/default_document.html.j2"
+"src/teipublisher/templates/default_document.html.j2" = "teipublisher/templates/default_document.html.j2"
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "src/tei_publisher_py/templates/default_document.html.j2",
+    "src/teipublisher/templates/default_document.html.j2",
 ]

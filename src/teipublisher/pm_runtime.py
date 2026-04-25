@@ -234,7 +234,7 @@ def _unwrap_singleton_xpath_result(result: list):
 
 
 def _xpath_raw_to_pipeline_values(raw: list) -> list:
-    """Map elementpath results to values :func:`~tei_publisher_py.output_functions.normalize`
+    """Map elementpath results to values :func:`~teipublisher.output_functions.normalize`
     and :func:`apply_children` understand.
 
     ``token.select`` returns :class:`~elementpath.xpath_nodes.XPathNode` wrappers around
@@ -422,7 +422,7 @@ def _footnote_injection_target(element_roots: list[etree._Element]) -> etree._El
 def inject_cached_footnotes(nodes: list, config: dict) -> list:
     """Append footnote bodies collected in ``config['footnotes']`` after the main flow.
 
-    HTML: :class:`~tei_publisher_py.html_output_functions.HtmlOutputFunctions` stores
+    HTML: :class:`~teipublisher.html_output_functions.HtmlOutputFunctions` stores
     ``dl.footnote`` elements. Markdown: stores reference-definition strings.
     """
     footnotes = config.get('footnotes')

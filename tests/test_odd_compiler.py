@@ -14,7 +14,7 @@ SHAKESPEARE_ODD = ROOT / 'odd' / 'shakespeare.odd'
 
 
 def test_compile_teipublisher_odd_emits_valid_python(tmp_path: Path) -> None:
-    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
 
     src = compile_odd_to_python(str(ODD))
     assert 'def _dispatch' in src
@@ -42,7 +42,7 @@ def test_compile_teipublisher_odd_emits_valid_python(tmp_path: Path) -> None:
 
 
 def test_compile_markdown_mode_imports_markdown_output_functions() -> None:
-    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
 
     src = compile_odd_to_python(str(ODD), output_mode='markdown')
     assert 'MarkdownOutputFunctions' in src
@@ -54,7 +54,7 @@ def test_compile_markdown_mode_imports_markdown_output_functions() -> None:
 
 
 def test_compile_web_mode_emits_transform_output_channels() -> None:
-    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
 
     src = compile_odd_to_python(str(ODD), output_mode='web')
     assert 'def transform_output_channels' in src
@@ -62,7 +62,7 @@ def test_compile_web_mode_emits_transform_output_channels() -> None:
 
 
 def test_compile_code_behaviour_emits_language_kwarg_for_markdown(tmp_path: Path) -> None:
-    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
 
     odd = tmp_path / 'code_behaviour.odd'
     odd.write_text(
@@ -87,7 +87,7 @@ def test_compile_code_behaviour_emits_language_kwarg_for_markdown(tmp_path: Path
 
 
 def test_generated_transform_calls_pmf_finish() -> None:
-    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
 
     src = compile_odd_to_python(str(ODD))
     assert "config['pmf'].finish(config, result)" in src
@@ -96,7 +96,7 @@ def test_generated_transform_calls_pmf_finish() -> None:
 def test_load_odd_tolerates_duplicate_xml_id(tmp_path: Path) -> None:
     """Real-world ODDs (e.g. tei_simplePrint.odd) carry duplicate xml:id values;
     the loader must not reject them, since xml:id is not used for spec lookup."""
-    from tei_publisher_py.odd_compiler.parse_odd import load_odd
+    from teipublisher.odd_compiler.parse_odd import load_odd
 
     odd = tmp_path / 'dup_id.odd'
     odd.write_text(
@@ -119,7 +119,7 @@ def test_load_odd_tolerates_duplicate_xml_id(tmp_path: Path) -> None:
 def test_emit_skips_xml_comments_inside_elementSpec(tmp_path: Path) -> None:
     """XML comments are legitimate children of elementSpec / modelGrp and must
     not reach _local(tag) — their .tag is a cyfunction, not a string."""
-    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
 
     odd = tmp_path / 'with_comment.odd'
     odd.write_text(
@@ -147,7 +147,7 @@ def test_compile_odd_without_web_specs_emits_valid_python(tmp_path: Path) -> Non
     must still yield a syntactically valid Python module — the previous
     emitter produced a bare ``match`` with no ``case`` lines, which is a
     SyntaxError."""
-    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
 
     odd = tmp_path / 'print_only.odd'
     odd.write_text(
@@ -176,8 +176,8 @@ def test_compile_odd_without_web_specs_emits_valid_python(tmp_path: Path) -> Non
 
 def test_teipublisher_web_injects_generated_css_in_head(tmp_path: Path) -> None:
     """Compiled module passes ODD CSS into ``odd_css``; HTML ``head`` gets a single style block."""
-    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
-    from tei_publisher_py.pm_runtime import serialize
+    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.pm_runtime import serialize
 
     path = tmp_path / 'teipublisher_web.py'
     path.write_text(compile_odd_to_python(str(ODD)), encoding='utf-8')
@@ -199,7 +199,7 @@ def test_teipublisher_web_injects_generated_css_in_head(tmp_path: Path) -> None:
 
 def test_compile_inherited_odd_loads_parent_then_overwrites_child() -> None:
     """Child ODD inherits elementSpec from source ODD and overwrites duplicate idents."""
-    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
 
     src = compile_odd_to_python(str(SHAKESPEARE_ODD))
 

@@ -8,8 +8,8 @@ target (HTML, Markdown, …).  The generated transformation module
 calls methods on ``config['pmf']`` and never imports a format-specific
 module directly.
 
-HTML and Markdown implementations live in :mod:`tei_publisher_py.html_output_functions` and
-:mod:`tei_publisher_py.markdown_output_functions`; they are re-exported here for convenience.
+HTML and Markdown implementations live in :mod:`teipublisher.html_output_functions` and
+:mod:`teipublisher.markdown_output_functions`; they are re-exported here for convenience.
 """
 
 import re
@@ -350,7 +350,7 @@ class ProcessingModelFunctions(ABC):
         return self.pass_through(config, node, cls, content)
 
     def finish(self, config, nodes: list) -> list:
-        """Post-process output after :func:`~tei_publisher_py.pm_runtime.apply`, before footnotes.
+        """Post-process output after :func:`~teipublisher.pm_runtime.apply`, before footnotes.
 
         Equivalent to ``pmf:finish`` in ``markdown-functions.xql`` / HTML siblings.
         Default: return *nodes* unchanged.
@@ -358,8 +358,8 @@ class ProcessingModelFunctions(ABC):
         return nodes
 
 
-from tei_publisher_py.html_output_functions import HtmlOutputFunctions
-from tei_publisher_py.markdown_output_functions import MarkdownOutputFunctions
+from teipublisher.html_output_functions import HtmlOutputFunctions
+from teipublisher.markdown_output_functions import MarkdownOutputFunctions
 
 __all__ = [
     'HtmlOutputFunctions',

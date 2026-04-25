@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from tei_publisher_py.template_rendering import default_template_path
-from tei_publisher_py.template_rendering import resolve_template_path
+from teipublisher.template_rendering import default_template_path
+from teipublisher.template_rendering import resolve_template_path
 
 
 def test_default_template_is_packaged_and_resolvable() -> None:

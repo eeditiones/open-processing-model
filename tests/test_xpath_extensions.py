@@ -5,8 +5,8 @@ from __future__ import annotations
 from lxml import etree
 import pytest
 
-from tei_publisher_py.pm_runtime import resolve_context_element, xpath_select_nodes, xpath_test
-from tei_publisher_py.xpath_extensions import expect_string, expect_text
+from teipublisher.pm_runtime import resolve_context_element, xpath_select_nodes, xpath_test
+from teipublisher.xpath_extensions import expect_string, expect_text
 
 
 def test_tp_function_in_xpath_select() -> None:

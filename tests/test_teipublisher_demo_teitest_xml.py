@@ -24,8 +24,8 @@ def test_teipublisher_odd_teitest_xml_choice_abbr_expan_alternate_html(tmp_path:
     Catches regressions where XPath results stayed as elementpath wrappers so ``apply_children``
     skipped content (empty ``alternate`` containers).
     """
-    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
-    from tei_publisher_py.pm_runtime import serialize
+    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.pm_runtime import serialize
 
     path = tmp_path / 'teipublisher_web.py'
     path.write_text(compile_odd_to_python(str(ODD)), encoding='utf-8')
@@ -54,8 +54,8 @@ def test_teipublisher_odd_teitest_xml_choice_abbr_expan_alternate_html(tmp_path:
 )
 def test_teipublisher_odd_teitest_xml_register_mode_people_list_names(tmp_path: Path) -> None:
     """``mode=register`` list items must show a name when ``persName`` has no @type (see teiHeader listPerson)."""
-    from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
-    from tei_publisher_py.pm_runtime import serialize
+    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.pm_runtime import serialize
 
     path = tmp_path / 'teipublisher_web.py'
     path.write_text(compile_odd_to_python(str(ODD)), encoding='utf-8')

@@ -7,7 +7,7 @@ from typing import Any
 from datetime import date, datetime
 
 from babel.dates import format_date as babel_format_date
-from tei_publisher_py.xpath_extensions import expect_string
+from teipublisher.xpath_extensions import expect_string
 
 
 def format_date(when: Any, locale: Any = 'en') -> str:

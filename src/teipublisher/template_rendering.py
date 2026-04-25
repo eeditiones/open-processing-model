@@ -13,7 +13,7 @@ DEFAULT_TEMPLATE_NAME = 'default_document.html.j2'
 
 def default_template_path() -> Path:
     """Return the packaged default document template path."""
-    return Path(resources.files('tei_publisher_py').joinpath(f'templates/{DEFAULT_TEMPLATE_NAME}'))
+    return Path(resources.files('teipublisher').joinpath(f'templates/{DEFAULT_TEMPLATE_NAME}'))
 
 
 def resolve_template_path(template_path: Path | None) -> Path:

@@ -14,10 +14,10 @@ from click.exceptions import NoArgsIsHelpError, UsageError
 from lxml import etree
 from typer.main import get_command
 
-from tei_publisher_py.config import DEFAULT_CDN_TEMPLATE, DEFAULT_VERSION, load_project_config
-from tei_publisher_py.odd_compiler.emit_python import compile_odd_to_python
-from tei_publisher_py.pm_runtime import resolve_context_element, serialize as default_serialize
-from tei_publisher_py.template_rendering import (
+from teipublisher.config import DEFAULT_CDN_TEMPLATE, DEFAULT_VERSION, load_project_config
+from teipublisher.odd_compiler.emit_python import compile_odd_to_python
+from teipublisher.pm_runtime import resolve_context_element, serialize as default_serialize
+from teipublisher.template_rendering import (
     render_document_template,
     resolve_template_path,
 )

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tei_publisher_py.teipublisher_cli import _preview_kind_from_module
-from tei_publisher_py.teipublisher_cli import _resolve_user_css
-from tei_publisher_py.teipublisher_cli import main
+from teipublisher.teipublisher_cli import _preview_kind_from_module
+from teipublisher.teipublisher_cli import _resolve_user_css
+from teipublisher.teipublisher_cli import main
 
 
 def test_preview_kind_from_transform_output_channels() -> None:
