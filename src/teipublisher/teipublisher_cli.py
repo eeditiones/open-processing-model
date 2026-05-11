@@ -2,25 +2,22 @@
 
 from __future__ import annotations
 
-import importlib.util
 import sys
 import tempfile
 import webbrowser
 from pathlib import Path
-from typing import Annotated, Any, Optional
+from typing import Annotated, Optional
 
 import typer
 from click.exceptions import NoArgsIsHelpError, UsageError
-from lxml import etree
 from typer.main import get_command
 
+from lxml import etree
+
 from teipublisher.config import DEFAULT_CDN_TEMPLATE, DEFAULT_VERSION, load_project_config
-from teipublisher.odd_compiler.emit_python import compile_odd_to_python
-from teipublisher.pm_runtime import resolve_context_element, serialize as default_serialize
-from teipublisher.template_rendering import (
-    render_document_template,
-    resolve_template_path,
-)
+from teipublisher.odd_compiler import compile_odd, PythonGenerator
+from teipublisher.runtime.pm_runtime import resolve_context_element
+from teipublisher.transform import load_transform_module, run_transform
 
 app = typer.Typer(
     name='teipublisher',
@@ -30,30 +27,8 @@ app = typer.Typer(
 )
 
 
-def load_transform_module(script_path: Path):
-    """Load a Python file that defines ``transform()`` and ``transform_output_channels()``."""
-    path = script_path.resolve()
-    if not path.is_file():
-        raise FileNotFoundError(f'Not a file: {path}')
-    name = f'tei_transform_{path.stem}'
-    spec = importlib.util.spec_from_file_location(name, path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f'Could not load module from {path}')
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    if not hasattr(mod, 'transform'):
-        raise AttributeError(
-            f'{path} has no transform() — expected a TEI Publisher transform module',
-        )
-    if not hasattr(mod, 'transform_output_channels'):
-        raise AttributeError(
-            f'{path} has no transform_output_channels() — expected a module emitted by teipublisher compile',
-        )
-    return mod
-
-
 def _preview_kind_from_module(mod) -> str:
-    """Return ``'html'``, ``'markdown'``, or ``'text'`` (plain terminal) from ``transform_output_channels()``."""
+    """Return ``'html'``, ``'markdown'``, or ``'text'`` based on ``transform_output_channels()``."""
     raw = mod.transform_output_channels()
     if not raw:
         return 'text'
@@ -116,7 +91,7 @@ def _parameters_from_cli(param_list: list[str] | None) -> dict[str, str]:
 
 
 def _resolve_user_css(css_path: Path | None) -> str | None:
-    """Return CSS text from ``--css`` or default ``styles/default-styles.css`` if present."""
+    """Return CSS text from ``--css`` or ``styles/default-styles.css`` if that file exists."""
     path = css_path if css_path is not None else Path('styles/default-styles.css')
     if css_path is None and not path.is_file():
         return None
@@ -132,8 +107,8 @@ def compile_cmd(
             '--output',
             '-o',
             help=(
-                'Write generated Python to this file (default: '
-                'modules/<odd-basename>-<mode>.py below the current working directory)'
+                'Write generated code to this file (default: '
+                'modules/<odd-basename>-<mode>.<ext> below the current working directory)'
             ),
         ),
     ] = None,
@@ -149,13 +124,22 @@ def compile_cmd(
             help='ODD processing-model output channel: web (HTML), markdown, print, … (@output on models; default: web).',
         ),
     ] = 'web',
+    target: Annotated[
+        str,
+        typer.Option(
+            '--target',
+            '-t',
+            help='Target language for code generation (currently only python).',
+        ),
+    ] = 'python',
 ) -> None:
-    """Emit a Python transformation module from a TEI Publisher ODD."""
-    src = compile_odd_to_python(str(odd), module_name=module_name, output_mode=mode)
+    """Emit a transformation module from a TEI Publisher ODD."""
+    src = compile_odd(str(odd), target=target, module_name=module_name, output_mode=mode)
     if output is not None:
         dest = output
     else:
-        dest = Path('modules') / f'{odd.stem}-{mode}.py'
+        ext = PythonGenerator().file_extension if target == 'python' else f'.{target}'
+        dest = Path('modules') / f'{odd.stem}-{mode}{ext}'
         dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(src, encoding='utf-8')
 
@@ -253,55 +237,46 @@ def transform_cmd(
         effective_webcomponents = webcomponents if webcomponents is not None else (cfg.webcomponents_enabled or False)
         effective_template = template if template is not None else cfg.document_template
         effective_css = css if css is not None else cfg.document_css
+        effective_extensions: tuple[str, ...] = (
+            tuple(xpath_extensions) if xpath_extensions else cfg.xpath_extensions
+        )
 
         mod = load_transform_module(transform_script)
-        serialize = getattr(mod, 'serialize', default_serialize)
+        parameters = _parameters_from_cli(param if param else None)
+        user_css = _resolve_user_css(effective_css)
 
         tree = etree.parse(str(input_xml))
         doc_root = tree.getroot()
-        opts = _parameters_from_cli(param if param else None)
-        user_css = _resolve_user_css(effective_css)
-        effective_xpath_extensions: tuple[str, ...] = (
-            tuple(xpath_extensions) if xpath_extensions else cfg.xpath_extensions
-        )
-        if xpath:
-            root = resolve_context_element(
+        root = (
+            resolve_context_element(
                 doc_root,
                 xpath,
-                opts if opts else None,
-                xpath_extensions=effective_xpath_extensions,
+                parameters or None,
+                xpath_extensions=effective_extensions,
             )
-        else:
-            root = doc_root
-
-        transform_opts: dict[str, Any] = dict(opts)
-        if effective_xpath_extensions:
-            transform_opts['xpath_extensions'] = list(effective_xpath_extensions)
-        if effective_webcomponents:
-            transform_opts['webcomponents'] = True
-        result = mod.transform(root, transform_opts if transform_opts else None)
-        is_document_result = any(
-            isinstance(item, etree._Element) and etree.QName(item).localname == 'html'
-            for item in result
+            if xpath
+            else doc_root
         )
-        out = serialize(result)
-        kind = _preview_kind_from_module(mod)
-        if kind == 'html' and is_document_result:
-            tpl = resolve_template_path(effective_template)
-            webcomponents_url = None
-            if effective_webcomponents:
-                webcomponents_url = cfg.webcomponents_cdn or DEFAULT_CDN_TEMPLATE.replace('{version}', DEFAULT_VERSION)
-            out = render_document_template(
-                serialized_html=out,
-                template_path=tpl,
-                odd_css=getattr(mod, 'ODD_GENERATED_CSS', ''),
-                user_css=user_css,
-                parameters=opts,
-                webcomponents_url=webcomponents_url,
-            )
+
+        webcomponents_url: str | None = None
+        if effective_webcomponents:
+            webcomponents_url = cfg.webcomponents_cdn or DEFAULT_CDN_TEMPLATE.replace('{version}', DEFAULT_VERSION)
+
+        out = run_transform(
+            mod,
+            root,
+            parameters=parameters,
+            xpath_extensions=effective_extensions,
+            webcomponents=effective_webcomponents,
+            template_path=effective_template,
+            user_css=user_css,
+            webcomponents_url=webcomponents_url,
+        )
+
         if output:
             output.write_text(out, encoding='utf-8')
         if preview:
+            kind = _preview_kind_from_module(mod)
             if kind == 'html':
                 _preview_html_in_browser(out)
             elif kind == 'markdown':

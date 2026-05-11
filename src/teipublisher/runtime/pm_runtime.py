@@ -396,6 +396,34 @@ def apply(config, nodes, dispatch):
     return result
 
 
+def apply_template_param_value(config, source_node, raw):
+    """Normalize and dispatch *raw* for ``pb:template`` ``[[param]]`` substitution.
+
+    XPath (or a literal ``.`` param) may yield the context element itself. Passing
+    that element through :func:`apply` would re-dispatch the same TEI node and, in
+    templates, often stringifies it. When an item **is** *source_node*, recurse on
+    ``child_nodes(source_node)`` instead (same rule as :func:`apply_children`).
+    """
+    dispatch = config['dispatch']
+    params = config.get('parameters', {})
+    norm = config.get('normalize_text')
+    result = []
+    for item in normalize(raw):
+        if isinstance(item, (str, etree._ElementUnicodeResult)):
+            s = str(item)
+            if norm:
+                s = norm(s)
+            result.append(s)
+        elif isinstance(item, etree._Element):
+            if item is source_node:
+                result.extend(apply(config, child_nodes(source_node), dispatch))
+            else:
+                result.extend(apply(config, [item], dispatch))
+        else:
+            result.append(str(item))
+    return result
+
+
 def serialize(nodes) -> str:
     parts = []
     for item in nodes:

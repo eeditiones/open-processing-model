@@ -9,5 +9,5 @@ cdn = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@{version}/dist/p
 
 [transform]
 xpath_extensions = [
-  "teipublisher.common_xpath_functions"
+  "teipublisher.runtime.common_xpath_functions"
 ]

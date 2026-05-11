@@ -5,8 +5,8 @@ from __future__ import annotations
 from lxml import etree
 import pytest
 
-from teipublisher.pm_runtime import resolve_context_element, xpath_select_nodes, xpath_test
-from teipublisher.xpath_extensions import expect_string, expect_text
+from teipublisher.runtime.pm_runtime import resolve_context_element, xpath_select_nodes, xpath_test
+from teipublisher.runtime.xpath_extensions import expect_string, expect_text
 
 
 def test_tp_function_in_xpath_select() -> None:
@@ -79,3 +79,21 @@ def test_expect_string_and_text_helpers() -> None:
 
     with pytest.raises(ValueError, match='single XPath item'):
         expect_string([1, 2])
+
+
+def test_heading_number_matches_ext_common_heading_number() -> None:
+    """``tp:heading_number`` matches ``pmf:heading-number`` from ``ext-common.xql``."""
+    TEI = 'http://www.tei-c.org/ns/1.0'
+    root = etree.fromstring(
+        f'<TEI xmlns="{TEI}"><text><body>'
+        '<div xml:id="d1"><div xml:id="d1a"/><div xml:id="d1b"/></div>'
+        '<div xml:id="d2"><div xml:id="d2a"/></div>'
+        '</body></text></TEI>',
+    )
+    body = root[0][0]
+    result = xpath_select_nodes(
+        body,
+        'for $d in div/div return tp:heading_number($d)',
+        xpath_extensions='teipublisher.runtime.common_xpath_functions',
+    )
+    assert result == ['1.1', '1.2', '2.1']

@@ -5,8 +5,9 @@ from __future__ import annotations
 import pytest
 from lxml import etree
 
-from teipublisher.output_functions import normalize
-from teipublisher.pm_runtime import (
+from teipublisher.runtime.output_functions import normalize
+from teipublisher.runtime.pm_runtime import (
+    apply_template_param_value,
     inject_cached_footnotes,
     resolve_context_element,
     serialize,
@@ -15,6 +16,34 @@ from teipublisher.pm_runtime import (
 )
 
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
+
+
+def test_apply_template_param_value_expands_context_element_to_children() -> None:
+    """When XPath (or ``.``) yields the node being processed, recurse on children."""
+    xml = (
+        f'<TEI xmlns="{TEI_NS}"><seg xml:id="s1">a<hi>b</hi></seg></TEI>'.encode()
+    )
+    root = etree.fromstring(xml)
+    seg = root[0]
+
+    def dispatch(config, node, params):
+        if etree.QName(node).localname == 'hi':
+            em = etree.Element('em')
+            em.text = ''.join(node.itertext()) or 'b'
+            return [em]
+        return [etree.Element('span')]
+
+    config = {'dispatch': dispatch, 'parameters': {}}
+
+    out = apply_template_param_value(config, seg, seg)
+    assert out[0] == 'a'
+    assert etree.QName(out[1]).localname == 'em'
+
+    hi = seg.find(f'{{{TEI_NS}}}hi')
+    assert hi is not None
+    out2 = apply_template_param_value(config, seg, hi)
+    assert len(out2) == 1
+    assert etree.QName(out2[0]).localname == 'em'
 
 
 def test_inject_cached_footnotes_appends_to_body_end() -> None:
@@ -59,7 +88,7 @@ def test_inject_cached_footnotes_noop_when_empty() -> None:
 
 
 def test_apply_markdown_finish_regexes_matches_pmf_finish() -> None:
-    from teipublisher.markdown_output_functions import apply_markdown_finish_regexes
+    from teipublisher.runtime.markdown_output_functions import apply_markdown_finish_regexes
 
     assert apply_markdown_finish_regexes('a\n\n\n\nb') == 'a\n\nb'
     assert apply_markdown_finish_regexes('_  word  _') == '_word_'
@@ -67,7 +96,7 @@ def test_apply_markdown_finish_regexes_matches_pmf_finish() -> None:
 
 
 def test_normalize_markdown_xml_text_collapses_pretty_print() -> None:
-    from teipublisher.markdown_output_functions import normalize_markdown_xml_text
+    from teipublisher.runtime.markdown_output_functions import normalize_markdown_xml_text
 
     assert normalize_markdown_xml_text('hello\n              world') == 'hello world'
     assert normalize_markdown_xml_text('\n        ') == ''
@@ -76,7 +105,7 @@ def test_normalize_markdown_xml_text_collapses_pretty_print() -> None:
 
 
 def test_markdown_output_finish_serializes_then_cleans() -> None:
-    from teipublisher.markdown_output_functions import MarkdownOutputFunctions
+    from teipublisher.runtime.markdown_output_functions import MarkdownOutputFunctions
 
     pmf = MarkdownOutputFunctions()
     out = pmf.finish({}, ['x', '**  y  **', 'z'])
@@ -87,7 +116,7 @@ def test_tag_and_ns_on_comment_do_not_use_qname_on_factory_tag() -> None:
     """Comments use a non-string ``.tag``; :func:`tag` / :func:`ns` must not call ``QName``."""
     from lxml import etree
 
-    from teipublisher.pm_runtime import ns, tag
+    from teipublisher.runtime.pm_runtime import ns, tag
 
     c = etree.Comment('note')
     assert tag(c) == 'comment'

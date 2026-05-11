@@ -6,7 +6,7 @@ import re
 from datetime import datetime
 
 import lxml.etree as ET
-from teipublisher.xpath_extensions import expect_element
+from teipublisher.runtime.xpath_extensions import expect_element
 
 _MONTH_NAMES = {
     '01': 'January',

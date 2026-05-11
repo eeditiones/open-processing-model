@@ -14,9 +14,9 @@ SHAKESPEARE_ODD = ROOT / 'odd' / 'shakespeare.odd'
 
 
 def test_compile_teipublisher_odd_emits_valid_python(tmp_path: Path) -> None:
-    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.odd_compiler import compile_odd
 
-    src = compile_odd_to_python(str(ODD))
+    src = compile_odd(str(ODD))
     assert 'def _dispatch' in src
     assert 'def transform' in src
     assert "'xpath_extensions'" in src
@@ -42,9 +42,9 @@ def test_compile_teipublisher_odd_emits_valid_python(tmp_path: Path) -> None:
 
 
 def test_compile_markdown_mode_imports_markdown_output_functions() -> None:
-    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.odd_compiler import compile_odd
 
-    src = compile_odd_to_python(str(ODD), output_mode='markdown')
+    src = compile_odd(str(ODD), output_mode='markdown')
     assert 'MarkdownOutputFunctions' in src
     assert 'normalize_markdown_xml_text' in src
     assert "'normalize_text': normalize_markdown_xml_text" in src
@@ -54,15 +54,15 @@ def test_compile_markdown_mode_imports_markdown_output_functions() -> None:
 
 
 def test_compile_web_mode_emits_transform_output_channels() -> None:
-    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.odd_compiler import compile_odd
 
-    src = compile_odd_to_python(str(ODD), output_mode='web')
+    src = compile_odd(str(ODD), output_mode='web')
     assert 'def transform_output_channels' in src
     assert "return ['web']" in src
 
 
 def test_compile_code_behaviour_emits_language_kwarg_for_markdown(tmp_path: Path) -> None:
-    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.odd_compiler import compile_odd
 
     odd = tmp_path / 'code_behaviour.odd'
     odd.write_text(
@@ -82,14 +82,14 @@ def test_compile_code_behaviour_emits_language_kwarg_for_markdown(tmp_path: Path
         '</body></text></TEI>',
         encoding='utf-8',
     )
-    src = compile_odd_to_python(str(odd), output_mode='markdown')
+    src = compile_odd(str(odd), output_mode='markdown')
     assert "pmf.code(config, node, ['tei-code', 'tei-code1', r], node, language='python')" in src
 
 
 def test_generated_transform_calls_pmf_finish() -> None:
-    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.odd_compiler import compile_odd
 
-    src = compile_odd_to_python(str(ODD))
+    src = compile_odd(str(ODD))
     assert "config['pmf'].finish(config, result)" in src
 
 
@@ -119,7 +119,7 @@ def test_load_odd_tolerates_duplicate_xml_id(tmp_path: Path) -> None:
 def test_emit_skips_xml_comments_inside_elementSpec(tmp_path: Path) -> None:
     """XML comments are legitimate children of elementSpec / modelGrp and must
     not reach _local(tag) — their .tag is a cyfunction, not a string."""
-    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.odd_compiler import compile_odd
 
     odd = tmp_path / 'with_comment.odd'
     odd.write_text(
@@ -138,8 +138,71 @@ def test_emit_skips_xml_comments_inside_elementSpec(tmp_path: Path) -> None:
         '</body></text></TEI>',
         encoding='utf-8',
     )
-    src = compile_odd_to_python(str(odd))
+    src = compile_odd(str(odd))
     assert "case 'p':" in src
+
+
+def test_hyphen_in_element_ident_emits_valid_template_helper_name(tmp_path: Path) -> None:
+    """elementSpec @ident may contain hyphens (e.g. ref-cell); helper defs must be valid Python."""
+    from teipublisher.odd_compiler import compile_odd
+
+    odd = tmp_path / 'hyphen_ident.odd'
+    odd.write_text(
+        '<?xml version="1.0"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:pb="http://teipublisher.com/1.0">'
+        '<teiHeader><fileDesc><titleStmt><title>t</title></titleStmt>'
+        '<publicationStmt><p>p</p></publicationStmt>'
+        '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
+        '<text><body>'
+        '<schemaSpec ident="x" ns="http://www.tei-c.org/ns/1.0">'
+        '<elementSpec ident="ref-cell" mode="change">'
+        '<model behaviour="paragraph">'
+        '<pb:template xmlns="" xml:space="preserve"><span>[[content]]</span></pb:template>'
+        '</model>'
+        '</elementSpec>'
+        '</schemaSpec>'
+        '</body></text></TEI>',
+        encoding='utf-8',
+    )
+    src = compile_odd(str(odd))
+    assert 'def _odd_template_ref_cell_1(' in src
+    assert "'tei-ref-cell'" in src
+    assert "'tei-ref-cell1'" in src
+
+    out = tmp_path / 'gen.py'
+    out.write_text(src, encoding='utf-8')
+    py_compile.compile(str(out), doraise=True)
+
+
+def test_emit_template_params_use_apply_template_param_value(tmp_path: Path) -> None:
+    """Literal ``.`` and XPath params must not inject raw context TEI into templates."""
+    from teipublisher.odd_compiler import compile_odd
+
+    odd = tmp_path / 'tpl_param_ctx.odd'
+    odd.write_text(
+        '<?xml version="1.0"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:pb="http://teipublisher.com/1.0">'
+        '<teiHeader><fileDesc><titleStmt><title>t</title></titleStmt>'
+        '<publicationStmt><p>p</p></publicationStmt>'
+        '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
+        '<text><body>'
+        '<schemaSpec ident="x" ns="http://www.tei-c.org/ns/1.0">'
+        '<elementSpec ident="seg" mode="change">'
+        '<model behaviour="inline">'
+        '<param name="inner" value="."/>'
+        '<param name="label" value="string(.)"/>'
+        '<pb:template xmlns="" xml:space="preserve">'
+        '<span>[[label]]:[[inner]]</span></pb:template>'
+        '</model>'
+        '</elementSpec>'
+        '</schemaSpec>'
+        '</body></text></TEI>',
+        encoding='utf-8',
+    )
+    src = compile_odd(str(odd))
+    assert 'apply_template_param_value,' in src
+    assert 'apply_template_param_value(config, node, node)' in src
+    assert 'apply_template_param_value(config, node, xpath_content(node,' in src
 
 
 def test_compile_odd_without_web_specs_emits_valid_python(tmp_path: Path) -> None:
@@ -147,7 +210,7 @@ def test_compile_odd_without_web_specs_emits_valid_python(tmp_path: Path) -> Non
     must still yield a syntactically valid Python module — the previous
     emitter produced a bare ``match`` with no ``case`` lines, which is a
     SyntaxError."""
-    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.odd_compiler import compile_odd
 
     odd = tmp_path / 'print_only.odd'
     odd.write_text(
@@ -165,7 +228,7 @@ def test_compile_odd_without_web_specs_emits_valid_python(tmp_path: Path) -> Non
         '</body></text></TEI>',
         encoding='utf-8',
     )
-    src = compile_odd_to_python(str(odd))
+    src = compile_odd(str(odd))
     out = tmp_path / 'gen.py'
     out.write_text(src, encoding='utf-8')
     py_compile.compile(str(out), doraise=True)
@@ -176,11 +239,11 @@ def test_compile_odd_without_web_specs_emits_valid_python(tmp_path: Path) -> Non
 
 def test_teipublisher_web_injects_generated_css_in_head(tmp_path: Path) -> None:
     """Compiled module passes ODD CSS into ``odd_css``; HTML ``head`` gets a single style block."""
-    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
-    from teipublisher.pm_runtime import serialize
+    from teipublisher.odd_compiler import compile_odd
+    from teipublisher.runtime.pm_runtime import serialize
 
     path = tmp_path / 'teipublisher_web.py'
-    path.write_text(compile_odd_to_python(str(ODD)), encoding='utf-8')
+    path.write_text(compile_odd(str(ODD)), encoding='utf-8')
     spec = importlib.util.spec_from_file_location('teipublisher_web', str(path))
     assert spec and spec.loader
     m = importlib.util.module_from_spec(spec)
@@ -199,9 +262,9 @@ def test_teipublisher_web_injects_generated_css_in_head(tmp_path: Path) -> None:
 
 def test_compile_inherited_odd_loads_parent_then_overwrites_child() -> None:
     """Child ODD inherits elementSpec from source ODD and overwrites duplicate idents."""
-    from teipublisher.odd_compiler.emit_python import compile_odd_to_python
+    from teipublisher.odd_compiler import compile_odd
 
-    src = compile_odd_to_python(str(SHAKESPEARE_ODD))
+    src = compile_odd(str(SHAKESPEARE_ODD))
 
     # Inherited from teipublisher.odd (not declared in shakespeare.odd).
     assert "case 'ab':" in src
