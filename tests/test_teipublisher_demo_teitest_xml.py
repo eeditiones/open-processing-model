@@ -69,3 +69,31 @@ def test_teipublisher_odd_teitest_xml_register_mode_people_list_names(tmp_path: 
     compact = re.sub(r'\s+', ' ', html)
     assert '<h3>People</h3>' in compact
     assert 'Donald' in compact and 'Vladimir' in compact
+
+
+@pytest.mark.skipif(
+    not DEMO_TEI_TEST_XML.is_file(),
+    reason='Fixture demo/tei-test.xml not found',
+)
+def test_teipublisher_odd_teitest_xml_glossary_list_renders_as_definition_list(tmp_path: Path) -> None:
+    """Glossary ``list`` with ``label`` children must render as ``<dl>`` with ``<dt>/<dd>`` pairs."""
+    from teipublisher.odd_compiler import compile_odd
+    from teipublisher.runtime.pm_runtime import serialize
+
+    path = tmp_path / 'teipublisher_web.py'
+    path.write_text(compile_odd(str(ODD)), encoding='utf-8')
+    spec = importlib.util.spec_from_file_location('teipublisher_web_glossary', str(path))
+    assert spec and spec.loader
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+
+    root = etree.parse(str(DEMO_TEI_TEST_XML)).getroot()
+    html = serialize(m.transform(root))
+    compact = re.sub(r'\s+', ' ', html)
+
+    # Glossary section should render as <dl> with <dt>/<dd> pairs
+    assert '<dl class="tei-list tei-list1">' in compact, 'glossary list should render as <dl>'
+    assert '<dt class="tei-item tei-item1">TEI Processing Model</dt>' in compact, 'label should render as <dt>'
+    assert '<dd class="tei-item tei-item1">A mechanism defined within an' in compact, 'item should render as <dd>'
+    assert '<dt class="tei-item tei-item1">ODD</dt>' in compact, 'second label should render as <dt>'
+    assert '<dt class="tei-item tei-item1">Behaviour</dt>' in compact, 'third label should render as <dt>'

@@ -110,7 +110,14 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
                 result.extend(sub)
         return result
 
+    NSMAP = {'tei': TEI_NS}
+
     def list(self, config, node, cls, content, type=None) -> PMResult:
+        # Output <dl> if node has tei:label children, else <ul>/<ol>
+        if node.xpath('tei:label', namespaces=self.NSMAP):
+            el = self._el('dl', cls, node)
+            config['apply_children'](config, node, content, el)
+            return [el]
         effective = type or node.get('type')
         tag = 'ol' if effective == 'ordered' else 'ul'
         el = self._el(tag, cls, node)
@@ -118,6 +125,19 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         return [el]
 
     def list_item(self, config, node, cls, content, n=None) -> PMResult:
+        # Output <dt>/<dd> if parent has labels and this item has a preceding label
+        parent = node.getparent()
+        if parent is not None and parent.xpath('tei:label', namespaces=self.NSMAP):
+            label = node.xpath('preceding-sibling::*[1][self::tei:label]', namespaces=self.NSMAP)
+            if label or n is not None:
+                dt = self._el('dt', cls, node)
+                if label:
+                    config['apply_children'](config, label[0], [label[0]], dt)
+                elif n is not None:
+                    dt.text = str(n)
+                dd = self._el('dd', cls, node)
+                config['apply_children'](config, node, content, dd)
+                return [dt, dd]
         el = self._el('li', cls, node)
         config['apply_children'](config, node, content, el)
         return [el]
