@@ -212,14 +212,39 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         return [el]
 
     def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
-        """Emit inline call marker; append the ``dl.footnote`` body to ``config['footnotes']``."""
+        """Emit note - margin notes as inline spans, others as footnotes."""
         from . import output_functions as of
 
-        of._note_counter += 1
-        nr = of._note_counter
-
-        node_id = node.get(XML_ID) or node.get('id') or str(nr)
+        node_id = node.get(XML_ID) or node.get('id') or str(of._note_counter + 1)
         safe_id = re.sub(r'[-.]', '_', node_id)
+
+        # Margin notes: output inline span(s), not footnotes
+        if place == 'margin':
+            result = []
+            if label:
+                # Label reference span
+                ref_span = self._el('span', list(cls) + ['margin-note-ref'], node)
+                config['apply_children'](config, node, [label], ref_span)
+                result.append(ref_span)
+                # Margin note content with label
+                note_span = self._el('span', list(cls) + ['margin-note'], node)
+                n_span = etree.SubElement(note_span, 'span')
+                n_span.set('class', 'n')
+                n_span.text = label if isinstance(label, str) else str(label)
+                n_span.tail = ' '
+                config['apply_children'](config, node, content, note_span)
+                result.append(note_span)
+            else:
+                # Margin note without label
+                note_span = self._el('span', list(cls) + ['margin-note'], node)
+                note_span.set('id', f'margin_ref_{safe_id}')
+                config['apply_children'](config, node, content, note_span)
+                result.append(note_span)
+            return result
+
+        # Footnote handling (default)
+        of._note_counter += 1
+        nr = label if label is not None else of._note_counter
 
         ref_span = etree.Element('span')
         ref_span.set('id', f'fnref_{safe_id}')

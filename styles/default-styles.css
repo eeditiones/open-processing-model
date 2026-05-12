@@ -23,3 +23,25 @@
 .alternate:focus-within .altcontent {
     display: block;
 }
+
+@media (min-width: 769px) {
+    .content:has(.margin-note) {
+        margin-right: 200px;
+    }
+
+    .margin-note {
+        background: rgba(153, 153, 153, 0.2);
+        display: block;
+        font-size: small;
+        margin-right: -200px;
+        margin-bottom: 5px;
+        padding: 5px 0;
+        float: right;
+        clear: both;
+        width: 180px;
+    }
+
+    .margin-note .n {
+        color: #777777;
+    }
+}
