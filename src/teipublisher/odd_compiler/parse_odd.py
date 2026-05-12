@@ -22,6 +22,7 @@ class ParsedOdd:
     odd_path: str
     element_specs: list
     odd_chain: list[str]
+    nsmap: dict[str, str]  # prefix -> namespace URI from ODD root
 
 
 def _schema_spec(root) -> etree._Element:
@@ -99,15 +100,20 @@ def load_odd(path: str | Path) -> ParsedOdd:
     tree = etree.parse(str(p), _PARSER)
     root = tree.getroot()
     spec = _schema_spec(root)
-    ns = spec.get('ns') or TEI_NS
+    # Respect explicit empty ns="" (no namespace) vs missing ns (default to TEI_NS)
+    ns_attr = spec.get('ns')
+    ns = TEI_NS if ns_attr is None else ns_attr
     odd_chain = _collect_odd_chain(p, set())
     element_specs = _collect_element_specs(p, set())
+    # Collect namespace mappings from ODD root element (for XPath expressions)
+    nsmap = {k: v for k, v in root.nsmap.items() if k is not None}  # exclude default namespace
     return ParsedOdd(
         tree=tree,
         schema_ns=ns,
         odd_path=str(p),
         element_specs=element_specs,
         odd_chain=[str(x) for x in odd_chain],
+        nsmap=nsmap,
     )
 
 

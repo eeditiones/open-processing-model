@@ -103,9 +103,12 @@ def load_extension_callables(module_dotted_path: str) -> dict[str, Callable[...,
 def build_extension_parser(
     default_element_ns: str,
     callables: dict[str, Callable[..., Any]],
+    namespaces: dict[str, str] | None = None,
 ) -> XPath31Parser:
     """Create an :class:`~elementpath.xpath31.xpath31_parser.XPath31Parser` with ``tp:`` external functions."""
     ns = extension_namespace_map()
+    if namespaces:
+        ns = {**namespaces, **ns}  # ODD namespaces take precedence over tp: prefix
     kwargs: dict[str, Any] = {'namespaces': ns}
     if default_element_ns:
         kwargs['default_namespace'] = default_element_ns

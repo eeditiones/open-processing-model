@@ -90,13 +90,14 @@ def _default_element_namespace_uri(node: etree._Element) -> str:
     return uri or ''
 
 
-def _parse_xpath(expr: str, default_element_ns: str, ext_fp: str):
+def _parse_xpath(expr: str, default_element_ns: str, ext_fp: str, namespaces: dict[str, str] | None = None):
     """Parse *expr*; *ext_fp* is ``fingerprint_for_module(...)`` or ``''``."""
+    ns = namespaces or {}
     if ext_fp:
         callables = _loaded_extension_callables(ext_fp)
-        parser = build_extension_parser(default_element_ns, callables)
-    elif default_element_ns:
-        parser = XPath31Parser(default_namespace=default_element_ns)
+        parser = build_extension_parser(default_element_ns, callables, namespaces=ns)
+    elif default_element_ns or ns:
+        parser = XPath31Parser(default_namespace=default_element_ns or None, namespaces=ns)
     else:
         parser = XPath31Parser()
     return parser.parse(expr)
@@ -114,9 +115,10 @@ def _loaded_extension_callables(ext_fp: str) -> dict:
 
 
 @lru_cache(maxsize=8192)
-def _compiled_xpath(expr: str, default_element_ns: str = '', ext_fp: str = ''):
-    """Parse each distinct (*expr*, *default_element_ns*, *ext_fp*) tuple once."""
-    return _parse_xpath(expr, default_element_ns, ext_fp)
+def _compiled_xpath(expr: str, default_element_ns: str = '', ext_fp: str = '', namespaces: frozenset[tuple[str, str]] | None = None):
+    """Parse each distinct (*expr*, *default_element_ns*, *ext_fp*, *namespaces*) tuple once."""
+    ns_dict = dict(namespaces) if namespaces else None
+    return _parse_xpath(expr, default_element_ns, ext_fp, ns_dict)
 
 
 def _xpath_root_wrapped(root: etree._Element):
@@ -187,14 +189,17 @@ def xpath_test(
     params: dict | None = None,
     *,
     xpath_extensions: str | list[str] | tuple[str, ...] | None = None,
+    namespaces: dict[str, str] | None = None,
 ) -> bool:
     """Boolean XPath 3.1 test against *node* (ODD @predicate strings)."""
     try:
         ext_fp = _extension_fingerprint(xpath_extensions)
+        ns_key = frozenset((namespaces or {}).items()) if namespaces else None
         token = _compiled_xpath(
             expr,
             _default_element_namespace_uri(node),
             ext_fp,
+            ns_key,
         )
         result = list(token.select(make_context(node, params)))
         if not result:
@@ -212,14 +217,17 @@ def xpath_count(
     params: dict | None = None,
     *,
     xpath_extensions: str | list[str] | tuple[str, ...] | None = None,
+    namespaces: dict[str, str] | None = None,
 ) -> int:
     """Count nodes matched by *expr* from *node* (sequence length), not ``count()`` in XPath."""
     try:
         ext_fp = _extension_fingerprint(xpath_extensions)
+        ns_key = frozenset((namespaces or {}).items()) if namespaces else None
         token = _compiled_xpath(
             expr,
             _default_element_namespace_uri(node),
             ext_fp,
+            ns_key,
         )
         return len(list(token.select(make_context(node, params))))
     except elementpath.ElementPathError:

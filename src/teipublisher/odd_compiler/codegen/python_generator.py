@@ -60,6 +60,8 @@ class PythonGenerator(CodeGenerator):
         odd_path = parsed.odd_path
         odd_css = collect_odd_generated_css(parsed, output_mode=output_mode)
         odd_css_literal = self._python_triple_quoted(odd_css)
+        # Generate NSMAP from ODD namespace declarations for XPath expressions
+        nsmap_literal = self._python_nsmap_literal(parsed.nsmap)
 
         helpers = self._TemplateHelperRegistry()
         cases = []
@@ -121,6 +123,9 @@ schema namespace: {schema_ns}
 
 from lxml import etree
 
+# Namespace mappings from ODD root element (for XPath expressions)
+NSMAP = {nsmap_literal}
+
 from teipublisher.runtime.output_functions import (
     XML_ID,
     map_rend_to_class,
@@ -139,6 +144,11 @@ from teipublisher.runtime.pm_runtime import (
     xpath_test,
     xpath_select_nodes,
 )
+
+# Helper to pass NSMAP to xpath functions
+def _xpath_with_ns(xpath_func, node, expr, params=None, xpath_extensions=None):
+    """Call xpath_func with namespace mappings from ODD."""
+    return xpath_func(node, expr, params, xpath_extensions=xpath_extensions, namespaces=NSMAP)
 
 
 def xpath_content(node, expr, params=None, xpath_extensions=None):
@@ -208,6 +218,14 @@ def transform(root, options=None):
         return '"""' + s.replace('"""', '\\"""') + '"""'
 
     @staticmethod
+    def _python_nsmap_literal(nsmap: dict[str, str]) -> str:
+        """Return namespace mappings as a Python dict literal for generated code."""
+        if not nsmap:
+            return '{}'
+        items = ', '.join(f'{k!r}: {v!r}' for k, v in sorted(nsmap.items()))
+        return '{' + items + '}'
+
+    @staticmethod
     def _python_ident_fragment_for_helpers(ident: str) -> str:
         """Sanitize elementSpec @ident for generated ``def _odd_template_*`` names.
 
@@ -246,6 +264,10 @@ def transform(root, options=None):
             attr = v[1:]
             if attr == 'xml:id':
                 return 'node.get(XML_ID)'
+            # Handle namespaced attributes (e.g., @xlink:href -> node.get('{http://...}href'))
+            if ':' in attr:
+                prefix, local = attr.split(':', 1)
+                return f"node.get('{{' + NSMAP.get({prefix!r}, '') + '}}{local}')"
             return f'node.get({attr!r})'
         # XPath string literals as used in ODD param @value (e.g. 'toc', 'column')
         m = re.match(r"^'([^']*)'$", v)
