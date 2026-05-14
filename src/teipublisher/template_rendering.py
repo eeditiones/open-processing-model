@@ -13,7 +13,7 @@ DEFAULT_TEMPLATE_NAME = 'default_document.html.j2'
 
 def default_template_path() -> Path:
     """Return the packaged default document template path."""
-    return Path(resources.files('teipublisher').joinpath(f'templates/{DEFAULT_TEMPLATE_NAME}'))
+    return Path(str(resources.files('teipublisher').joinpath(f'templates/{DEFAULT_TEMPLATE_NAME}')))
 
 
 def resolve_template_path(template_path: Path | None) -> Path:
@@ -29,12 +29,12 @@ def _inner_html(el: etree._Element | None) -> str:
         return ''
     parts: list[str] = [el.text or '']
     for child in el:
-        parts.append(etree.tostring(child, encoding='unicode', method='html'))
+        parts.append(etree.tostring(child, encoding='unicode', method='html'))  # type: ignore[arg-type]
     return ''.join(parts)
 
 
 def _first_html_root(serialized_html: str) -> etree._Element | None:
-    parser = etree.HTMLParser()
+    parser = etree.HTMLParser(encoding='utf-8')
     root = etree.fromstring(serialized_html.encode('utf-8'), parser=parser)
     if etree.QName(root).localname == 'html':
         return root

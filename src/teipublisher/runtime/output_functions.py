@@ -48,10 +48,10 @@ def reset_counters():
 # ── CSS helpers (equivalent to css.xql) ───────────────────────────────────────
 
 def map_rend_to_class(node):
-    """Map @rend attribute tokens to CSS class names, e.g. 'bold' → 'rend-bold'."""
+    """Map @rend attribute tokens directly to CSS class names, e.g. 'bold' → 'bold'."""
     rend = node.get('rend')
     if rend:
-        return ' '.join(f'rend-{r}' for r in rend.split())
+        return ' '.join(rend.split())
     return None
 
 
@@ -113,12 +113,21 @@ def _to_str_param(val) -> str:
     if val is None:
         return ''
     if isinstance(val, etree._Element):
-        return etree.tostring(val, encoding='unicode')
+        result = etree.tostring(val, encoding='utf-8')
+        if isinstance(result, bytes):
+            result = result.decode('utf-8')
+        return result
     if isinstance(val, list):
-        return ''.join(
-            etree.tostring(v, encoding='unicode') if isinstance(v, etree._Element) else str(v)
-            for v in val
-        )
+        result_parts = []
+        for v in val:
+            if isinstance(v, etree._Element):
+                result = etree.tostring(v, encoding='utf-8')
+                if isinstance(result, bytes):
+                    result = result.decode('utf-8')
+                result_parts.append(result)
+            else:
+                result_parts.append(str(v))
+        return ''.join(result_parts)
     return str(val)
 
 
@@ -143,7 +152,9 @@ def _substitute_mixed(
     params: dict,
 ) -> None:
     """Replace [[param]] in a text or tail node; inserts element-valued params into the tree."""
-    text = parent.text if is_text else ref_child.tail
+    text = parent.text if is_text else (ref_child.tail if ref_child is not None else None)
+    if text is None:
+        text = ""
     parts = _PLACEHOLDER_RE.split(text)
     # parts: [literal0, name1, literal1, name2, literal2, ...]
 
@@ -154,7 +165,7 @@ def _substitute_mixed(
 
     if not has_elements:
         result = _PLACEHOLDER_RE.sub(
-            lambda m: _to_str_param(params.get(m.group(1))), text
+            lambda m: _to_str_param(params.get(m.group(1))), text or ""
         )
         if is_text:
             parent.text = result or None
@@ -342,10 +353,10 @@ class ProcessingModelFunctions(ABC):
     def title(self, config, node, cls, content) -> PMResult: ...
 
     @abstractmethod
-    def match(self, config, node, cls, content) -> PMResult: ...
+    def match(self, config, node, cls, content) -> PMResult: ...  # type: ignore[override]
 
     @abstractmethod
-    def template(self, config, node, cls, template_str: str, params: dict) -> PMResult: ...
+    def template(self, config, node, cls, template_str: str, params: dict) -> PMResult: ...  # type: ignore[override]
 
     def code(self, config, node, cls, content, language=None) -> PMResult:
         """Fallback code behaviour for output modes without dedicated formatting."""

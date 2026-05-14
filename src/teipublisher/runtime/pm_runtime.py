@@ -40,8 +40,8 @@ _document_xpath_roots: dict[int, object] = {}
 # Minimal tree used only to parse ``map{{...}}`` into an XPathMap for ``$parameters``.
 _PARAM_PARSE_ROOT = etree.fromstring(b'<e/>')
 _PARAM_PARSE_CTX = XPathContext(
-    root=_PARAM_PARSE_ROOT,
-    item=_PARAM_PARSE_ROOT,
+    root=_PARAM_PARSE_ROOT,  # type: ignore[arg-type]
+    item=_PARAM_PARSE_ROOT,  # type: ignore[arg-type]
 )
 
 
@@ -122,17 +122,17 @@ def _compiled_xpath(expr: str, default_element_ns: str = '', ext_fp: str = '', n
 
 
 def _xpath_root_wrapped(root: etree._Element):
-    """Return cached elementpath root (ElementNode / DocumentNode) for *root*.
+    """Return cached elementpath ``EtreeDocumentNode`` for *root*.
 
-    ``XPathContext`` passes this to :func:`get_node_tree`, which returns the same
-    instance without calling :func:`build_lxml_node_tree` again. Context items are
-    then resolved via ``root.elements[lxml_element]``.
+    Wraps the ``_ElementTree`` so that ``root()`` returns the document node per
+    the XPath spec, making ``root(.)/TEI/text/back`` style paths work correctly.
+    Context items are resolved via ``wrapped.elements[lxml_element]``.
     """
     key = id(root)
     hit = _document_xpath_roots.get(key)
     if hit is not None:
         return hit
-    wrapped = get_node_tree(root)
+    wrapped = get_node_tree(root.getroottree())  # type: ignore[arg-type]
     _document_xpath_roots[key] = wrapped
     return wrapped
 
@@ -150,13 +150,16 @@ def make_context(node: etree._Element, params: dict | None = None) -> XPathConte
 
     Runtime options are passed as an XPath 3.1 map via ``variables`` so predicate
     strings from the ODD can use ``$parameters?key`` without rewriting the expression.
+
+    The document node tree and parameters map are cached; only XPathContext itself is
+    constructed fresh each call (it is lightweight — the expensive parts are cached).
     """
     root = node.getroottree().getroot()
     pmap = _cached_parameters_map(_params_cache_key(params))
     wrapped = _xpath_root_wrapped(root)
     return XPathContext(
-        root=wrapped,
-        item=node,
+        root=wrapped,  # type: ignore[arg-type]
+        item=wrapped.elements[node],  # type: ignore[union-attr,index]
         variables={'parameters': pmap},
     )
 
@@ -194,7 +197,7 @@ def xpath_test(
     """Boolean XPath 3.1 test against *node* (ODD @predicate strings)."""
     try:
         ext_fp = _extension_fingerprint(xpath_extensions)
-        ns_key = frozenset((namespaces or {}).items()) if namespaces else None
+        ns_key = frozenset(namespaces.items()) if namespaces else None
         token = _compiled_xpath(
             expr,
             _default_element_namespace_uri(node),
@@ -359,7 +362,10 @@ def append_to(parent_el: etree._Element | list, item) -> None:
         if isinstance(item, str):
             parent_el.append(item)
         elif isinstance(item, etree._Element):
-            parent_el.append(etree.tostring(item, encoding='unicode', method='html'))
+            result = etree.tostring(item, encoding='utf-8', method='html')
+            if isinstance(result, bytes):
+                result = result.decode('utf-8')
+            parent_el.append(result)
         return
     if isinstance(item, str):
         if len(parent_el) == 0:
@@ -438,7 +444,10 @@ def serialize(nodes) -> str:
         if isinstance(item, str):
             parts.append(item)
         elif isinstance(item, etree._Element):
-            parts.append(etree.tostring(item, encoding='unicode', method='html'))
+            result = etree.tostring(item, encoding='utf-8', method='html')
+            if isinstance(result, bytes):
+                result = result.decode('utf-8')
+            parts.append(result)
     return '\n'.join(parts)
 
 
