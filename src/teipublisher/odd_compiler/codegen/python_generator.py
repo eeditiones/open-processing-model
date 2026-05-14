@@ -248,9 +248,8 @@ def transform(root, options=None):
         v = value.strip()
         if not v or v == '.':
             return True
-        if v.startswith('let ') or 'util:' in v or '$global' in v or 'collection(' in v:
-            return False
-        if 'return ' in v and v.index('return ') < 8:
+        # Reject legacy XQuery util: and eXist-db specific functions
+        if 'util:' in v or '$global' in v or 'collection(' in v:
             return False
         return True
 

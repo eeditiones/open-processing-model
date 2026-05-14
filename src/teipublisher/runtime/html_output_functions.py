@@ -87,13 +87,15 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
 
     def document(self, config, node, cls, content) -> PMResult:
         el = self._el('html', cls, node)
-        config['apply_children'](config, node, content, el)
+        # Create proper HTML structure with head and body
+        head = etree.Element('head')
+        meta = etree.SubElement(head, 'meta')
+        meta.set('charset', 'utf-8')
+        el.append(head)
+        body = etree.SubElement(el, 'body')
+        config['apply_children'](config, node, content, body)
         odd_css = config.get('odd_css')
-        head = el.find('head')
-        if odd_css and head is None:
-            head = etree.Element('head')
-            el.insert(0, head)
-        if head is not None:
+        if odd_css:
             self._append_odd_css(config, head)
         return [el]
 

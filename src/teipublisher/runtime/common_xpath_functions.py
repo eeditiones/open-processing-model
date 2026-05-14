@@ -72,3 +72,42 @@ def heading_number(div: Any) -> str:
         cur = parent
     parts.reverse()
     return '.'.join(parts)
+
+
+XML_ID = '{http://www.w3.org/XML/1998/namespace}id'
+
+
+# Alphabet for apparatus labels (a-z, excluding j) - matches ec:roman-fn
+_APP_CHARS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'k', 'l', 'm',
+              'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
+
+
+def _to_app_label(n: int) -> str:
+    """Convert 1-based index to apparatus label (cycles through a-z, no j).
+
+    Matches ec:roman-fn from ext-common.xql: $chars[($n mod 25) + 1]
+    """
+    if n <= 0:
+        return str(n)
+    return _APP_CHARS[(n - 1) % 25]
+
+
+def roman_fn(n: Any) -> str:
+    """XPath-accessible version of ec:roman-fn.
+
+    Takes an integer (1-based count) and returns a letter (a-z, no j),
+    cycling through the alphabet using mod 25 arithmetic.
+
+    Example: 1 -> 'a', 25 -> 'z', 26 -> 'a', etc.
+    """
+    if isinstance(n, (list, tuple)):
+        if len(n) != 1:
+            raise ValueError('roman_fn() expects a single integer')
+        n = n[0]
+    try:
+        num = int(n)
+    except (TypeError, ValueError):
+        return str(n)
+    return _to_app_label(num)
+
+
