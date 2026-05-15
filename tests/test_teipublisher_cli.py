@@ -93,7 +93,7 @@ def test_transform_uses_packaged_default_template_for_full_html(tmp_path: Path, 
     out = tmp_path / 'out.html'
     monkeypatch.chdir(tmp_path)
 
-    rc = main(['transform', str(script), str(xml), '--output', str(out)])
+    rc = main(['transform', str(xml), '--module', str(script), '--output', str(out)])
     assert rc == 0
     rendered = out.read_text(encoding='utf-8')
     assert '<!-- teipublisher-default-template -->' in rendered
@@ -127,7 +127,7 @@ def test_transform_uses_template_override_for_full_html(tmp_path: Path, monkeypa
     out = tmp_path / 'out.html'
     monkeypatch.chdir(tmp_path)
 
-    rc = main(['transform', str(script), str(xml), '--template', str(template), '--output', str(out)])
+    rc = main(['transform', str(xml), '--module', str(script), '--template', str(template), '--output', str(out)])
     assert rc == 0
     rendered = out.read_text(encoding='utf-8')
     assert "name='x'" in rendered
@@ -156,7 +156,7 @@ def test_transform_fragment_output_skips_template_shell(tmp_path: Path, monkeypa
     monkeypatch.chdir(tmp_path)
 
     rc = main(
-        ['transform', str(script), str(xml), '--xpath', '/doc/item', '--template', str(template), '--output', str(out)],
+        ['transform', str(xml), '--module', str(script), '--xpath', '/doc/item', '--template', str(template), '--output', str(out)],
     )
     assert rc == 0
     rendered = out.read_text(encoding='utf-8')

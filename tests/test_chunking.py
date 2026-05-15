@@ -135,7 +135,6 @@ def _write_chunking_fixture_xml(path: Path) -> None:
 
 def _chunking_config(output_dir: str, link_pattern: str | None = None) -> ChunkingConfig:
     return ChunkingConfig(
-        enabled=True,
         xpath="//body/div[@type='chunk']",
         output_dir=output_dir,
         link_pattern=link_pattern,

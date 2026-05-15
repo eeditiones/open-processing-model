@@ -22,11 +22,11 @@ class FragmentConfig:
     scope: str  # "global" or "per-chunk"
     xpath: str
     params: dict[str, Any] | None = None
+    module: Path | None = None
 
 
 @dataclass
 class ChunkingConfig:
-    enabled: bool = False
     xpath: str = "//text/body/div"
     selector: str | None = None
     depth: int = 1
@@ -34,6 +34,7 @@ class ChunkingConfig:
     template: Path | None = None
     fragments: list[FragmentConfig] | None = None
     link_pattern: str | None = None
+    module: Path | None = None
     """Optional URL template for cross-chunk links.
 
     Placeholders:
@@ -58,6 +59,7 @@ class ProjectConfig:
     xpath_extensions: tuple[str, ...] = ()
     chunking: ChunkingConfig | None = None
     pythonpath: tuple[Path, ...] = ()
+    transform_module: Path | None = None
 
 
 def load_project_config(path: Path | None = None) -> ProjectConfig:
@@ -81,6 +83,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
 
     template = doc.get('template')
     css_file = doc.get('css')
+    raw_transform_module = transform.get('module')
     raw_xpath_extensions = transform.get('xpath_extensions')
     xpath_extensions: tuple[str, ...]
     if raw_xpath_extensions is None:
@@ -101,18 +104,20 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         for frag_data in chunking_data.get('fragments', []):
             if not isinstance(frag_data, dict):
                 continue
+            raw_frag_module = frag_data.get('module')
             fragment = FragmentConfig(
                 name=frag_data.get('name', ''),
                 scope=frag_data.get('scope', 'per-chunk'),
                 xpath=frag_data.get('xpath', '.'),
-                params=frag_data.get('params')
+                params=frag_data.get('params'),
+                module=config_path.parent / raw_frag_module if raw_frag_module else None,
             )
             if fragment.name and fragment.scope in ('global', 'per-chunk'):
                 fragments.append(fragment)
 
         chunking_template = chunking_data.get('template')
+        raw_chunking_module = chunking_data.get('module')
         chunking = ChunkingConfig(
-            enabled=chunking_data.get('enabled', False),
             xpath=chunking_data.get('xpath', '//text/body/div'),
             selector=chunking_data.get('selector'),
             depth=chunking_data.get('depth', 1),
@@ -120,6 +125,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
             template=Path(chunking_template) if chunking_template else None,
             fragments=fragments if fragments else None,
             link_pattern=chunking_data.get('link_pattern'),
+            module=config_path.parent / raw_chunking_module if raw_chunking_module else None,
         )
 
     raw_pythonpath = project_data.get('pythonpath', [])
@@ -135,4 +141,5 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         xpath_extensions=xpath_extensions,
         chunking=chunking,
         pythonpath=pythonpath,
+        transform_module=config_path.parent / raw_transform_module if raw_transform_module else None,
     )

@@ -56,6 +56,13 @@ class ChunkProcessor:
         xpath_extensions: tuple[str, ...] | None = None,
     ):
         self.module = load_transform_module(module_path)
+        self._fragment_modules: dict[str, Any] = {}
+        if config.fragments:
+            for frag in config.fragments:
+                if frag.module:
+                    key = str(frag.module)
+                    if key not in self._fragment_modules:
+                        self._fragment_modules[key] = load_transform_module(frag.module)
         self.xml_root = xml_root
         self.config = config
         self.project_root = project_root
@@ -245,19 +252,24 @@ class ChunkProcessor:
             fragment_content = fragment_content[0]
 
         if isinstance(fragment_content, etree._Element):
+            mod = (
+                self._fragment_modules[str(fragment.module)]
+                if fragment.module
+                else self.module
+            )
             params_key = frozenset((fragment.params or {}).items())
-            if _cache is not None:
+            if _cache is not None and mod is self.module:
                 cache_key = (id(fragment_content), params_key)
                 if cache_key in _cache:
                     return _cache[cache_key]
             result = run_transform(
-                self.module,
+                mod,
                 fragment_content,
                 parameters=fragment.params or {},
                 xpath_extensions=self.xpath_extensions or None,
                 apply_template=False,
             )
-            if _cache is not None:
+            if _cache is not None and mod is self.module:
                 _cache[(id(fragment_content), params_key)] = result
             return result
         elif isinstance(fragment_content, str):
@@ -543,7 +555,7 @@ class ChunkProcessor:
 
 
 def chunk_document(
-    module_path: Path,
+    module_path: Path | None,
     xml_path: Path,
     config: ChunkingConfig,
     project_root: Path,
@@ -555,13 +567,17 @@ def chunk_document(
     output_format: str = 'html',
 ) -> None:
     """Chunk a document using the specified configuration."""
-    # Parse XML using the same method as regular transform command
+    resolved_module = module_path or config.module
+    if resolved_module is None:
+        raise ValueError(
+            'No transform module specified. Pass a module path or set chunking.module in your config.'
+        )
+
     tree = etree.parse(str(xml_path))
     root = tree.getroot()
-    
-    # Process chunks
+
     processor = ChunkProcessor(
-        module_path, root, config, project_root,
+        resolved_module, root, config, project_root,
         project_config=project_config,
         webcomponents=webcomponents,
         xpath_extensions=xpath_extensions,
