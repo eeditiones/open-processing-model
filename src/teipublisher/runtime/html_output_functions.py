@@ -370,7 +370,6 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
             t.text = ''.join(title_el.itertext())
         meta = etree.SubElement(el, 'meta')
         meta.set('charset', 'utf-8')
-        self._append_odd_css(config, el)
         return [el]
 
     def title(self, config, node, cls, content) -> PMResult:

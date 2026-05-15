@@ -133,11 +133,12 @@ def _write_chunking_fixture_xml(path: Path) -> None:
     )
 
 
-def _chunking_config(output_dir: str) -> ChunkingConfig:
+def _chunking_config(output_dir: str, link_pattern: str | None = None) -> ChunkingConfig:
     return ChunkingConfig(
         enabled=True,
         xpath="//body/div[@type='chunk']",
         output_dir=output_dir,
+        link_pattern=link_pattern,
         fragments=[
             FragmentConfig(
                 name='toc',
@@ -202,6 +203,55 @@ def test_chunk_document_rewrites_same_document_links_in_html_output(tmp_path: Pa
 
     assert 'href="001.html#a"' in toc_html
     assert 'href="002.html#b"' in toc_html
+
+
+def test_link_pattern_stem_anchor(tmp_path: Path) -> None:
+    """link_pattern = '/{stem}#{anchor}' produces absolute paths without extension."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=_chunking_config('lp-stem-chunks', link_pattern='/{stem}#{anchor}'),
+        project_root=tmp_path,
+        output_format='json',
+    )
+
+    chunk_one = json.loads((tmp_path / 'lp-stem-chunks' / '001.json').read_text(encoding='utf-8'))
+
+    # Same-chunk link must stay as plain anchor
+    assert 'href="#a"' in chunk_one['content']
+    # Cross-chunk link must use the pattern (stem = "002", anchor = "b")
+    assert 'href="/002#b"' in chunk_one['content']
+    assert 'data-target="/002#b"' in chunk_one['content']
+
+    toc = chunk_one['fragments']['toc']
+    assert 'href="#a"' not in toc or 'href="/001#a"' in toc or 'href="#a"' in toc
+    assert 'href="/002#b"' in toc
+
+
+def test_link_pattern_full_url(tmp_path: Path) -> None:
+    """link_pattern with a full base URL produces absolute URLs."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=_chunking_config('lp-url-chunks', link_pattern='http://localhost:8080/{stem}#{anchor}'),
+        project_root=tmp_path,
+        output_format='json',
+    )
+
+    chunk_one = json.loads((tmp_path / 'lp-url-chunks' / '001.json').read_text(encoding='utf-8'))
+
+    assert 'href="#a"' in chunk_one['content']
+    assert 'href="http://localhost:8080/002#b"' in chunk_one['content']
 
 
 @pytest.mark.skipif(not WIBORADA_ODD.is_file(), reason='Fixture odd/wiborada.odd not found')
