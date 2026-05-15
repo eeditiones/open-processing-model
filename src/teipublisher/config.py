@@ -33,6 +33,20 @@ class ChunkingConfig:
     output_dir: str = "chunks"
     template: Path | None = None
     fragments: list[FragmentConfig] | None = None
+    link_pattern: str | None = None
+    """Optional URL template for cross-chunk links.
+
+    Placeholders:
+      ``{file}``   – full filename, e.g. ``002.html``
+      ``{stem}``   – stem without extension, e.g. ``002``
+      ``{anchor}`` – the fragment identifier, e.g. ``Pers``
+
+    When *None* (default) the rewriter falls back to the relative form
+    ``{file}#{anchor}``.  Example values::
+
+        link_pattern = "/{stem}#{anchor}"           # absolute path, no extension
+        link_pattern = "http://localhost:8080/{stem}#{anchor}"
+    """
 
 
 @dataclass
@@ -102,7 +116,8 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
             depth=chunking_data.get('depth', 1),
             output_dir=chunking_data.get('output_dir', 'chunks'),
             template=Path(chunking_template) if chunking_template else None,
-            fragments=fragments if fragments else None
+            fragments=fragments if fragments else None,
+            link_pattern=chunking_data.get('link_pattern'),
         )
 
     return ProjectConfig(

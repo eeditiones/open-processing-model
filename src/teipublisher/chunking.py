@@ -155,7 +155,12 @@ class ChunkProcessor:
         *,
         current_file: str | None = None,
     ) -> str | None:
-        """Rewrite ``#id`` links to the owning chunk file when needed."""
+        """Rewrite ``#id`` links to the owning chunk file when needed.
+
+        When ``config.link_pattern`` is set the cross-chunk URL is built by
+        substituting ``{file}``, ``{stem}``, and ``{anchor}`` into the pattern.
+        Otherwise the default relative form ``{file}#{anchor}`` is used.
+        """
         if not target or not target.startswith('#') or target == '#':
             return target
 
@@ -165,6 +170,11 @@ class ChunkProcessor:
             return target
         if current_file is not None and target_file == current_file:
             return f'#{anchor}'
+
+        pattern = self.config.link_pattern
+        if pattern:
+            stem = Path(target_file).stem
+            return pattern.format(file=target_file, stem=stem, anchor=anchor)
         return f'{target_file}#{anchor}'
 
     def _rewrite_html_fragment(
