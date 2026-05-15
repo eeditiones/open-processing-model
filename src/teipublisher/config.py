@@ -57,6 +57,7 @@ class ProjectConfig:
     document_css: Path | None = None
     xpath_extensions: tuple[str, ...] = ()
     chunking: ChunkingConfig | None = None
+    pythonpath: tuple[Path, ...] = ()
 
 
 def load_project_config(path: Path | None = None) -> ProjectConfig:
@@ -72,6 +73,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     doc = data.get('document', {})
     transform = data.get('transform', {})
     chunking_data = data.get('chunking', {})
+    project_data = data.get('project', {})
 
     cdn_template = wc.get('cdn', DEFAULT_CDN_TEMPLATE)
     version = wc.get('version', DEFAULT_VERSION)
@@ -120,6 +122,11 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
             link_pattern=chunking_data.get('link_pattern'),
         )
 
+    raw_pythonpath = project_data.get('pythonpath', [])
+    if isinstance(raw_pythonpath, str):
+        raw_pythonpath = [raw_pythonpath]
+    pythonpath = tuple(config_path.parent / p for p in raw_pythonpath)
+
     return ProjectConfig(
         webcomponents_enabled=wc.get('enabled'),
         webcomponents_cdn=resolved_cdn,
@@ -127,4 +134,5 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         document_css=Path(css_file) if css_file else None,
         xpath_extensions=xpath_extensions,
         chunking=chunking,
+        pythonpath=pythonpath,
     )

@@ -1,24 +1,10 @@
 [transform]
-xpath_extensions = ["teipublisher.runtime.common_xpath_functions"]
+xpath_extensions = [
+    "teipublisher.runtime.common_xpath_functions"
+]
+
+# [project]
+# pythonpath = ["extensions"]
 
 [webcomponents]
 enabled = false
-
-[chunking]
-enabled = true
-selector = "teipublisher.navigation.tei_div_chunks"
-depth = 2
-output_dir = "chunks"
-template = "templates/wiborada.html.j2"
-
-[[chunking.fragments]]
-name = "toc"
-scope = "global"
-xpath = "id('main-contents')"
-
-[[chunking.fragments]]
-name = "breadcrumbs"
-scope = "per-chunk"
-xpath = "ancestor::div"
-params = { view = "breadcrumbs" }
-

@@ -143,6 +143,7 @@ def compile_cmd(
         dest = Path('modules') / f'{odd.stem}-{mode}{ext}'
         dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(src, encoding='utf-8')
+    typer.echo(f'Compiled {odd} → {typer.style(str(dest), fg=typer.colors.GREEN, bold=True)}')
 
 
 @app.command('transform')
@@ -231,10 +232,22 @@ def transform_cmd(
             ),
         ),
     ] = None,
+    config: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--config',
+            '-c',
+            help='Path to a TOML configuration file (default: teipublisher.toml in the current directory).',
+        ),
+    ] = None,
 ) -> None:
     """Load a transformation script and print the result (HTML, markdown, …) for an XML document."""
     try:
-        cfg = load_project_config()
+        cfg = load_project_config(config)
+        for p in cfg.pythonpath:
+            entry = str(p.resolve())
+            if entry not in sys.path:
+                sys.path.insert(0, entry)
         effective_webcomponents = webcomponents if webcomponents is not None else (cfg.webcomponents_enabled or False)
         effective_template = template if template is not None else cfg.document_template
         effective_css = css if css is not None else cfg.document_css
@@ -367,11 +380,23 @@ def chunk(
             ),
         ),
     ] = 'html',
+    config: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--config',
+            '-c',
+            help='Path to a TOML configuration file (default: teipublisher.toml in the current directory).',
+        ),
+    ] = None,
 ) -> None:
     """Chunk a large XML document into smaller HTML pages or JSON data files."""
     try:
-        cfg = load_project_config()
-        
+        cfg = load_project_config(config)
+        for p in cfg.pythonpath:
+            entry = str(p.resolve())
+            if entry not in sys.path:
+                sys.path.insert(0, entry)
+
         # Check if chunking is enabled in config
         if not cfg.chunking or not cfg.chunking.enabled:
             typer.echo(
