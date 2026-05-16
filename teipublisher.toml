@@ -1,10 +1,22 @@
+[project]
+pythonpath = ["extensions"]
+
 [transform]
+module = "modules/docbook-web.py"
 xpath_extensions = [
     "teipublisher.runtime.common_xpath_functions"
 ]
 
-# [project]
-# pythonpath = ["extensions"]
-
 [webcomponents]
 enabled = false
+
+[chunking]
+module = "modules/docbook-web.py"
+selector = "teipublisher.navigation.dbk_section_chunks"
+depth = 2
+output_dir = "chunks"
+template = "templates/bootstrap.html.j2"
+# Cross-chunk link pattern. Placeholders: {file}, {stem}, {anchor}.
+# Default (omitted): relative form, e.g. "002.html#Pers"
+# Uncomment and adjust to match your server's URL scheme:
+link_pattern = "/{stem}/"

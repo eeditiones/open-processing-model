@@ -228,7 +228,7 @@ def transform_cmd(
             help=(
                 'Enable/disable tei-publisher web components mode: alternate behaviours emit '
                 '<pb-alternate> and the document template loads tei-publisher-components. '
-                'Falls back to the webcomponents.enabled setting in teipublisher.toml.'
+                'Falls back to the webcomponents.enabled setting in default.toml.'
             ),
         ),
     ] = None,
@@ -237,7 +237,7 @@ def transform_cmd(
         typer.Option(
             '--config',
             '-c',
-            help='Path to a TOML configuration file (default: teipublisher.toml in the current directory).',
+            help='Path to a TOML configuration file (default: default.toml in the current directory).',
         ),
     ] = None,
 ) -> None:
@@ -364,7 +364,7 @@ def chunk(
             '--webcomponents/--no-webcomponents',
             help=(
                 'Enable/disable tei-publisher web components mode. '
-                'Falls back to the webcomponents.enabled setting in teipublisher.toml.'
+                'Falls back to the webcomponents.enabled setting in default.toml.'
             ),
         ),
     ] = None,
@@ -375,7 +375,7 @@ def chunk(
             help=(
                 'Dotted import path(s) of Python module(s) whose public callables become XPath '
                 'functions in the tp: namespace (repeatable). '
-                'Falls back to transform.xpath_extensions in teipublisher.toml.'
+                'Falls back to transform.xpath_extensions in default.toml.'
             ),
         ),
     ] = None,
@@ -395,7 +395,7 @@ def chunk(
         typer.Option(
             '--config',
             '-c',
-            help='Path to a TOML configuration file (default: teipublisher.toml in the current directory).',
+            help='Path to a TOML configuration file (default: default.toml in the current directory).',
         ),
     ] = None,
 ) -> None:
@@ -488,6 +488,57 @@ def chunk(
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
         typer.echo(f'teipublisher: error: {e}', err=True)
         raise SystemExit(1) from e
+
+
+@app.command('serve')
+def serve_cmd(
+    port: Annotated[
+        int,
+        typer.Option('--port', '-p', help='Port to listen on (default: 8080).'),
+    ] = 8080,
+    directory: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--directory',
+            '-d',
+            help='Directory to serve (default: chunking.output_dir from config, or "chunks").',
+        ),
+    ] = None,
+    config: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--config',
+            '-c',
+            help='Path to a TOML configuration file (default: default.toml in the current directory).',
+        ),
+    ] = None,
+) -> None:
+    """Start a local HTTP server rooted at the chunks output directory."""
+    import http.server
+    import functools
+
+    cfg = load_project_config(config)
+    if directory is not None:
+        root = directory.resolve()
+    elif cfg.chunking:
+        root = (Path.cwd() / cfg.chunking.output_dir).resolve()
+    else:
+        root = (Path.cwd() / 'chunks').resolve()
+
+    if not root.is_dir():
+        typer.echo(f'teipublisher: error: directory {root} does not exist.', err=True)
+        raise SystemExit(1)
+
+    handler = functools.partial(
+        http.server.SimpleHTTPRequestHandler,
+        directory=str(root),
+    )
+    with http.server.HTTPServer(('', port), handler) as httpd:
+        typer.echo(f'Serving {root} at http://localhost:{port}/ — press Ctrl-C to stop.')
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            pass
 
 
 def main(argv: list[str] | None = None) -> int:

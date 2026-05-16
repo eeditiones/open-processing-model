@@ -29,6 +29,20 @@
   <main class="container my-4 content">
     {{ content_html | safe }}
   </main>
+  {% if chunk is defined and (chunk.prev or chunk.next) %}
+  <footer class="border-top mt-4 py-3">
+    <nav class="container d-flex justify-content-between">
+      {% if chunk.prev %}
+      <a href="{{ chunk.prev }}.html" class="btn btn-outline-secondary">&lsaquo; Previous</a>
+      {% else %}
+      <span></span>
+      {% endif %}
+      {% if chunk.next %}
+      <a href="{{ chunk.next }}.html" class="btn btn-outline-secondary">Next &rsaquo;</a>
+      {% endif %}
+    </nav>
+  </footer>
+  {% endif %}
   <script
     src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
     integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"

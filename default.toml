@@ -1,0 +1,10 @@
+[transform]
+xpath_extensions = [
+    "teipublisher.runtime.common_xpath_functions"
+]
+
+# [project]
+# pythonpath = ["extensions"]
+
+[webcomponents]
+enabled = false

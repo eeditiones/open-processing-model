@@ -1,6 +1,6 @@
-"""Built-in chunk-selection algorithms for TEI documents.
+"""Built-in chunk-selection algorithms for TEI and DocBook documents.
 
-Functions here can be referenced in ``teipublisher.toml`` via the
+Functions here can be referenced in ``default.toml`` via the
 ``chunking.selector`` key, e.g.::
 
     [chunking]
@@ -13,6 +13,8 @@ Each selector callable has the signature::
 """
 
 from __future__ import annotations
+
+import copy
 
 from lxml import etree
 
@@ -60,5 +62,65 @@ def tei_div_chunks(root: etree._Element, config: ChunkingConfig) -> list[etree._
         )
         if not has_child_chunk:
             chunks.append(div)
+
+    return chunks
+
+
+DBK_NS = 'http://docbook.org/ns/docbook'
+
+
+def dbk_section_chunks(root: etree._Element, config: ChunkingConfig) -> list[etree._Element]:
+    """Return chunk elements by walking DocBook ``section`` elements up to *config.depth*.
+
+    Mirrors ``nav:next-page`` / ``nav:fill`` in ``navigation-dbk.xql``:
+
+    * Sections with no child sections within the depth limit are leaf chunks
+      and are included as-is.
+    * Sections whose child sections are themselves separate chunks are skipped
+      — UNLESS they have content (elements or text) before their first child
+      section.  In that case a shallow copy of the parent section containing
+      only that pre-subsection content is inserted as an extra chunk immediately
+      before the child-section chunks.  This mirrors the ``nav:fill`` logic
+      (without the fill-size threshold).
+    """
+    depth = max(1, config.depth)
+    section_tag = f'{{{DBK_NS}}}section'
+    ns_map = {'dbk': DBK_NS}
+
+    candidates: list[etree._Element] = root.xpath(
+        f'//dbk:section[count(ancestor-or-self::dbk:section) <= {depth}]',
+        namespaces=ns_map,
+    )
+
+    candidate_set = set(id(el) for el in candidates)
+    chunks = []
+    for section in candidates:
+        # Direct section children that are themselves separate chunks.
+        child_section_chunks = [
+            child for child in section
+            if child.tag == section_tag and id(child) in candidate_set
+        ]
+
+        if not child_section_chunks:
+            chunks.append(section)
+        else:
+            # Collect elements before the first child-section chunk.
+            first_child = child_section_chunks[0]
+            intro_elements = []
+            for child in section:
+                if child is first_child:
+                    break
+                intro_elements.append(child)
+
+            has_intro = bool(intro_elements) or bool(section.text and section.text.strip())
+            if has_intro:
+                # Build a section element containing only the intro content,
+                # mirroring the element construction in nav:fill.
+                # copy.copy() in lxml includes children, so construct explicitly.
+                intro = etree.Element(section.tag, attrib=dict(section.attrib), nsmap=section.nsmap)
+                intro.text = section.text
+                for el in intro_elements:
+                    intro.append(copy.deepcopy(el))
+                chunks.append(intro)
 
     return chunks

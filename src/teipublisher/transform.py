@@ -31,7 +31,7 @@ Three entry points at increasing levels of abstraction:
         )
 
 ``transform_file(module_path, xml_path, *, xpath=None, ...)``
-    Highest level. Also parses the XML file and reads ``teipublisher.toml``
+    Highest level. Also parses the XML file and reads ``default.toml``
     for defaults (extensions, webcomponents, template)::
 
         from teipublisher.transform import transform_file
@@ -260,7 +260,7 @@ def transform_file(
 ) -> str:
     """Transform *xml_path* (or an XPath-selected element within it) and return the result string.
 
-    Reads ``teipublisher.toml`` from the current directory for defaults unless
+    Reads ``default.toml`` from the current directory for defaults unless
     *config* is supplied explicitly.
 
     Args:
@@ -276,7 +276,7 @@ def transform_file(
         template: Jinja2 template override for full-document HTML output.
         user_css: CSS string for full-document HTML output.
         config: Pre-loaded :class:`~teipublisher.config.ProjectConfig`.
-            When ``None``, ``teipublisher.toml`` is loaded from the CWD.
+            When ``None``, ``default.toml`` is loaded from the CWD.
     """
     cfg = config if config is not None else load_project_config()
 
