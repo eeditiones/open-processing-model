@@ -68,8 +68,8 @@ def _compile_docx_module(tmp_path: Path) -> object:
 
 
 @pytest.fixture(scope='module')
-def docx_parts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, etree._Element]:
-    """Compile ODD, transform test-docx.xml with teipublisher.toml, return parsed parts."""
+def docx_bytes(tmp_path_factory: pytest.TempPathFactory) -> bytes:
+    """Compile ODD, transform test-docx.xml with teipublisher.toml, return raw .docx bytes."""
     from teipublisher.config import load_project_config
     from teipublisher.transform import run_transform
 
@@ -81,10 +81,17 @@ def docx_parts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, etree._Ele
     result = run_transform(
         mod,
         root,
+        parameters={'input_path': str(TEST_XML)},
         docx_template=cfg.document_docx_template,
     )
     assert isinstance(result, bytes), 'transform must return bytes for docx mode'
-    return _parse_docx(result)
+    return result
+
+
+@pytest.fixture(scope='module')
+def docx_parts(docx_bytes: bytes) -> dict[str, etree._Element]:
+    """Parsed XML parts from :func:`docx_bytes`."""
+    return _parse_docx(docx_bytes)
 
 
 def test_docx_contains_required_parts(docx_parts):
@@ -319,9 +326,9 @@ def test_docx_image_relationship_in_rels(docx_parts):
     assert images, 'no Image relationship found in document.xml.rels'
 
 
-def test_docx_image_file_present(docx_data):
+def test_docx_image_file_present(docx_bytes):
     """The image file must be present in the DOCX package."""
-    with zipfile.ZipFile(BytesIO(docx_data)) as z:
+    with zipfile.ZipFile(BytesIO(docx_bytes)) as z:
         image_files = [f for f in z.namelist() if f.startswith('word/media/')]
         assert image_files, 'no image files found in word/media/ directory'
         # Check that at least one image file exists
