@@ -74,6 +74,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
 
     wc = data.get('webcomponents', {})
     doc = data.get('document', {})
+    docx_data = data.get('docx', {})
     transform = data.get('transform', {})
     chunking_data = data.get('chunking', {})
     project_data = data.get('project', {})
@@ -84,7 +85,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
 
     template = doc.get('template')
     css_file = doc.get('css')
-    docx_template_file = doc.get('docx_template')
+    docx_template_file = docx_data.get('template')
     raw_transform_module = transform.get('module')
     raw_xpath_extensions = transform.get('xpath_extensions')
     xpath_extensions: tuple[str, ...]

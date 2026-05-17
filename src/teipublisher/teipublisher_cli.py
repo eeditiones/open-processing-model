@@ -194,7 +194,7 @@ def transform_cmd(
         Optional[Path],
         typer.Option(
             '--template',
-            help='Optional Jinja2 template path for full-document HTML output.',
+            help='Template path: Jinja2 template for HTML output, or .docx file for DOCX output.',
         ),
     ] = None,
     xpath: Annotated[
@@ -265,6 +265,7 @@ def transform_cmd(
 
         effective_webcomponents = webcomponents if webcomponents is not None else (cfg.webcomponents_enabled or False)
         effective_template = template if template is not None else cfg.document_template
+        effective_docx_template = template if template is not None else cfg.document_docx_template
         effective_css = css if css is not None else cfg.document_css
         effective_extensions: tuple[str, ...] = (
             tuple(xpath_extensions) if xpath_extensions else cfg.xpath_extensions
@@ -300,7 +301,7 @@ def transform_cmd(
             template_path=effective_template,
             user_css=user_css,
             webcomponents_url=webcomponents_url,
-            docx_template=cfg.document_docx_template,
+            docx_template=effective_docx_template,
         )
 
         if isinstance(out, bytes):

@@ -337,7 +337,26 @@ class DocxOutputFunctions(ProcessingModelFunctions):
     def _collect(self, config: dict, node, content) -> list:
         items: list = []
         config['apply_children'](config, node, content, items)
-        return items
+        return self._filter_ooxml(items)
+
+    _ALLOWED_NS = {W, 'http://www.tei-c.org/ns/docx'}
+
+    def _filter_ooxml(self, items: list) -> list:
+        """Remove any lxml elements that are not in a recognised OOXML namespace.
+
+        HTML elements (span, pb-popover, template, …) leak in when the pm runtime
+        parses webcomponent / alternate HTML template strings.  They must not reach
+        the DOCX body or any w:p content.
+        """
+        result = []
+        for item in items:
+            if isinstance(item, str):
+                result.append(item)
+            elif isinstance(item, etree._Element) and not callable(item.tag):
+                ns = etree.QName(item.tag).namespace
+                if ns in self._ALLOWED_NS:
+                    result.append(item)
+        return result
 
     def _items_to_runs(
         self,
@@ -356,8 +375,9 @@ class DocxOutputFunctions(ProcessingModelFunctions):
                         item, bold=bold, italic=italic,
                         underline=underline, char_style=char_style,
                     ))
-            elif isinstance(item, etree._Element):
-                result.append(item)
+            elif isinstance(item, etree._Element) and not callable(item.tag):
+                if etree.QName(item.tag).namespace in self._ALLOWED_NS:
+                    result.append(item)
         return result
 
     def _wrap_in_para(self, items: list, style_id: str = 'Normal') -> etree._Element | None:
@@ -374,8 +394,9 @@ class DocxOutputFunctions(ProcessingModelFunctions):
                     p.append(self._make_run(item))
                     has_content = True
             elif isinstance(item, etree._Element) and not callable(item.tag):
-                p.append(item)
-                has_content = True
+                if etree.QName(item.tag).namespace in self._ALLOWED_NS:
+                    p.append(item)
+                    has_content = True
         return p if has_content else None
 
     def _blockify(self, items: list, para_style: str = 'Normal') -> list:
@@ -747,7 +768,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
 
     def webcomponent(self, config, node, cls, content, name=None, optional=None) -> PMResult:
         self._ensure_styles(config)
-        return self._collect(config, node, content)
+        return self._collect(config, node, node)
 
     def omit(self, config, node, cls, content) -> PMResult:
         return []
@@ -803,17 +824,19 @@ class DocxOutputFunctions(ProcessingModelFunctions):
     # ── finish() ───────────────────────────────────────────────────────────────
 
     def _inject_missing_builtin_styles(self, doc) -> None:
-        """Inject built-in character styles (Hyperlink, …) absent from the template.
+        """Inject built-in styles (Hyperlink, FootnoteText, FootnoteReference) absent from the template.
 
         Mirrors the XQuery pmf:ensure-builtin-styles logic so templates that
         don't ship these styles still produce correctly formatted output.
         """
         WP = f'{{{W}}}'
         styles_el = doc.part.styles._element
-        existing_ids = {el.get(f'{WP}styleId') for el in styles_el.findall(f'{WP}style')}
-
-        if 'Hyperlink' in existing_ids:
-            return
+        existing_ids = (
+            {el.get(f'{WP}styleId') for el in styles_el.findall(f'{WP}style')}
+            | {el.find(f'{WP}name').get(f'{WP}val', '')
+               for el in styles_el.findall(f'{WP}style')
+               if el.find(f'{WP}name') is not None}
+        )
 
         default_char = 'DefaultParagraphFont'
         for style_el in styles_el.findall(f'{WP}style'):
@@ -824,22 +847,87 @@ class DocxOutputFunctions(ProcessingModelFunctions):
                     default_char = sid
                     break
 
-        hl = etree.SubElement(styles_el, f'{WP}style')
-        hl.set(f'{WP}type', 'character')
-        hl.set(f'{WP}styleId', 'Hyperlink')
-        name_el = etree.SubElement(hl, f'{WP}name')
-        name_el.set(f'{WP}val', 'Hyperlink')
-        based_on = etree.SubElement(hl, f'{WP}basedOn')
-        based_on.set(f'{WP}val', default_char)
-        ui_pri = etree.SubElement(hl, f'{WP}uiPriority')
-        ui_pri.set(f'{WP}val', '99')
-        etree.SubElement(hl, f'{WP}unhideWhenUsed')
-        rPr = etree.SubElement(hl, f'{WP}rPr')
-        color = etree.SubElement(rPr, f'{WP}color')
-        color.set(f'{WP}val', '0563C1')
-        color.set(f'{WP}themeColor', 'hyperlink')
-        u_el = etree.SubElement(rPr, f'{WP}u')
-        u_el.set(f'{WP}val', 'single')
+        if 'Hyperlink' not in existing_ids and 'hyperlink' not in existing_ids:
+            hl = etree.SubElement(styles_el, f'{WP}style')
+            hl.set(f'{WP}type', 'character')
+            hl.set(f'{WP}styleId', 'Hyperlink')
+            name_el = etree.SubElement(hl, f'{WP}name')
+            name_el.set(f'{WP}val', 'Hyperlink')
+            based_on = etree.SubElement(hl, f'{WP}basedOn')
+            based_on.set(f'{WP}val', default_char)
+            ui_pri = etree.SubElement(hl, f'{WP}uiPriority')
+            ui_pri.set(f'{WP}val', '99')
+            etree.SubElement(hl, f'{WP}unhideWhenUsed')
+            rPr = etree.SubElement(hl, f'{WP}rPr')
+            color = etree.SubElement(rPr, f'{WP}color')
+            color.set(f'{WP}val', '0563C1')
+            color.set(f'{WP}themeColor', 'hyperlink')
+            u_el = etree.SubElement(rPr, f'{WP}u')
+            u_el.set(f'{WP}val', 'single')
+
+        if 'FootnoteText' not in existing_ids and 'footnote text' not in existing_ids:
+            default_para = 'Normal'
+            for style_el in styles_el.findall(f'{WP}style'):
+                if (style_el.get(f'{WP}type') == 'paragraph'
+                        and style_el.get(f'{WP}default') == '1'):
+                    sid = style_el.get(f'{WP}styleId')
+                    if sid:
+                        default_para = sid
+                    break
+            ft = etree.SubElement(styles_el, f'{WP}style')
+            ft.set(f'{WP}type', 'paragraph')
+            ft.set(f'{WP}styleId', 'footnote text')
+            name_el = etree.SubElement(ft, f'{WP}name')
+            name_el.set(f'{WP}val', 'footnote text')
+            based_on = etree.SubElement(ft, f'{WP}basedOn')
+            based_on.set(f'{WP}val', default_para)
+            ui_pri = etree.SubElement(ft, f'{WP}uiPriority')
+            ui_pri.set(f'{WP}val', '99')
+            etree.SubElement(ft, f'{WP}semiHidden')
+            etree.SubElement(ft, f'{WP}unhideWhenUsed')
+            pPr = etree.SubElement(ft, f'{WP}pPr')
+            sp = etree.SubElement(pPr, f'{WP}spacing')
+            sp.set(f'{WP}after', '0')
+            sp.set(f'{WP}line', '240')
+            sp.set(f'{WP}lineRule', 'auto')
+            rPr = etree.SubElement(ft, f'{WP}rPr')
+            sz = etree.SubElement(rPr, f'{WP}sz')
+            sz.set(f'{WP}val', '20')
+            szCs = etree.SubElement(rPr, f'{WP}szCs')
+            szCs.set(f'{WP}val', '20')
+
+        if 'FootnoteReference' not in existing_ids and 'footnote reference' not in existing_ids:
+            fr = etree.SubElement(styles_el, f'{WP}style')
+            fr.set(f'{WP}type', 'character')
+            fr.set(f'{WP}styleId', 'footnote reference')
+            name_el = etree.SubElement(fr, f'{WP}name')
+            name_el.set(f'{WP}val', 'footnote reference')
+            based_on = etree.SubElement(fr, f'{WP}basedOn')
+            based_on.set(f'{WP}val', default_char)
+            ui_pri = etree.SubElement(fr, f'{WP}uiPriority')
+            ui_pri.set(f'{WP}val', '99')
+            etree.SubElement(fr, f'{WP}semiHidden')
+            etree.SubElement(fr, f'{WP}unhideWhenUsed')
+            rPr = etree.SubElement(fr, f'{WP}rPr')
+            etree.SubElement(rPr, f'{WP}vertAlign').set(f'{WP}val', 'superscript')
+
+        if 'footnote text' not in self._para_styles:
+            self._para_styles['footnote text'] = 'footnote text'
+        if 'footnote reference' not in self._char_styles:
+            self._char_styles['footnote reference'] = 'footnote reference'
+
+    def _drop_custom_xml_rels(self, doc) -> None:
+        """Remove customXml relationships from the document part.
+
+        Template/bibliography customXml is a frequent source of Word 'unreadable content'
+        when merged with generated body content. TEI → DOCX does not need it.
+        Mirrors the XQuery pmf:make-document-rels which omits customXml deliberately.
+        """
+        CUSTOM_XML_RT = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml'
+        rels = doc.part.rels
+        to_drop = [rId for rId, rel in list(rels.items()) if rel.reltype == CUSTOM_XML_RT]
+        for rId in to_drop:
+            rels.pop(rId)
 
     def finish(self, config: dict, nodes: list) -> list:
         """Assemble body elements into a ``.docx`` and return ``[bytes]``."""
@@ -890,9 +978,15 @@ class DocxOutputFunctions(ProcessingModelFunctions):
             if etree.QName(child).localname != 'sectPr':
                 body.remove(child)
 
-        body_elements = [item for item in nodes if isinstance(item, etree._Element)]
-        self._replace_footnote_sentinels(body_elements)
-        self._replace_hyperlink_sentinels(body_elements, doc)
+        body_elements = [
+            item for item in nodes
+            if isinstance(item, etree._Element)
+            and not callable(item.tag)
+            and etree.QName(item.tag).namespace in self._ALLOWED_NS
+        ]
+        doc_nsmap = doc.element.nsmap
+        self._replace_footnote_sentinels(body_elements, doc_nsmap)
+        self._replace_hyperlink_sentinels(body_elements, doc, doc_nsmap)
 
         for el in body_elements:
             if sectPr is not None:
@@ -902,6 +996,13 @@ class DocxOutputFunctions(ProcessingModelFunctions):
 
         footnotes_data = config.get('_docx_footnotes', {})
         if footnotes_data:
+            # Drop any existing footnotes part from the template to avoid duplicates.
+            existing_fn_rids = [
+                rId for rId, rel in list(doc.part.rels.items())
+                if rel.reltype == FOOTNOTES_RT
+            ]
+            for rId in existing_fn_rids:
+                doc.part.rels.pop(rId)
             xml_bytes = self._build_footnotes_xml(footnotes_data)
             footnotes_part = Part(
                 PackURI('/word/footnotes.xml'),
@@ -911,36 +1012,113 @@ class DocxOutputFunctions(ProcessingModelFunctions):
             )
             doc.part.relate_to(footnotes_part, FOOTNOTES_RT)
 
+        self._drop_custom_xml_rels(doc)
+
         buf = BytesIO()
         doc.save(buf)
+
+        buf = self._normalize_document_xml(buf)
+
+        if footnotes_data:
+            buf = self._inject_footnotes_rels(buf)
+
         return [buf.getvalue()]
 
-    def _replace_footnote_sentinels(self, elements: list) -> None:
-        for el in elements:
-            self._replace_sentinels_in(el)
+    # Parts we rewrite to hoist namespace declarations to the root element.
+    # Word's strict XML parser rejects inline xmlns: redeclarations on child
+    # elements even though they are technically valid XML.
+    _NORMALIZE_PARTS = {
+        'word/document.xml',
+        'word/styles.xml',
+        'word/numbering.xml',
+        'word/footnotes.xml',
+    }
 
-    def _replace_sentinels_in(self, el: etree._Element) -> None:
+    def _normalize_document_xml(self, buf: BytesIO) -> BytesIO:
+        """Rewrite modified XML parts so all namespace declarations sit on the root.
+
+        Our generated elements are created as standalone lxml trees and then
+        appended to python-docx's document body / styles element.  When
+        python-docx serialises the package each injected child carries its own
+        redundant xmlns: declarations.  Word's strict XML parser rejects this
+        with XMLParseError {"Element":""}.  A round-trip through lxml's
+        serialiser consolidates all namespace declarations on the root element.
+        """
+        import zipfile as _zipfile  # noqa: PLC0415
+        buf.seek(0)
+        src = _zipfile.ZipFile(buf, 'r')
+        out = BytesIO()
+        with _zipfile.ZipFile(out, 'w', _zipfile.ZIP_DEFLATED) as dst:
+            for item in src.infolist():
+                data = src.read(item.filename)
+                if item.filename in self._NORMALIZE_PARTS:
+                    root = etree.fromstring(data)
+                    MC = 'http://schemas.openxmlformats.org/markup-compatibility/2006'
+                    mc_ign = f'{{{MC}}}Ignorable'
+                    if mc_ign in root.attrib:
+                        del root.attrib[mc_ign]
+                    data = etree.tostring(
+                        root,
+                        xml_declaration=True,
+                        encoding='UTF-8',
+                        standalone=True,
+                    )
+                dst.writestr(item, data)
+        src.close()
+        out.seek(0)
+        return out
+
+    def _inject_footnotes_rels(self, buf: BytesIO) -> BytesIO:
+        """Add an empty word/_rels/footnotes.xml.rels to the zip.
+
+        python-docx does not auto-generate a .rels file for raw Part instances.
+        The XQuery always emits this file; Word may reject a package that has
+        word/footnotes.xml with no corresponding .rels entry.
+        """
+        import zipfile as _zipfile  # noqa: PLC0415
+        RELS_NAME = 'word/_rels/footnotes.xml.rels'
+        EMPTY_RELS = (
+            b"<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\r\n"
+            b'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>'
+        )
+        buf.seek(0)
+        src = _zipfile.ZipFile(buf, 'r')
+        out = BytesIO()
+        with _zipfile.ZipFile(out, 'w', _zipfile.ZIP_DEFLATED) as dst:
+            for item in src.infolist():
+                dst.writestr(item, src.read(item.filename))
+            if RELS_NAME not in src.namelist():
+                dst.writestr(RELS_NAME, EMPTY_RELS)
+        src.close()
+        out.seek(0)
+        return out
+
+    def _replace_footnote_sentinels(self, elements: list, nsmap: dict) -> None:
+        for el in elements:
+            self._replace_sentinels_in(el, nsmap)
+
+    def _replace_sentinels_in(self, el: etree._Element, nsmap: dict) -> None:
         to_replace = [(i, child) for i, child in enumerate(el) if child.tag == FOOTNOTE_SENTINEL_TAG]
         offset = 0
         for orig_idx, sentinel in to_replace:
             fn_id = int(sentinel.get('id', '0'))
-            ref_run = _w('r')
-            rPr = _wsub(ref_run, 'rPr')
-            rStyle = _wsub(rPr, 'rStyle')
-            _wset(rStyle, 'val', 'FootnoteReference')
-            fn_ref = _wsub(ref_run, 'footnoteReference')
+            ref_run = etree.Element(f'{{{W}}}r', nsmap=nsmap)
+            rPr = etree.SubElement(ref_run, f'{{{W}}}rPr')
+            rStyle = etree.SubElement(rPr, f'{{{W}}}rStyle')
+            _wset(rStyle, 'val', 'footnote reference')
+            fn_ref = etree.SubElement(ref_run, f'{{{W}}}footnoteReference')
             _wset(fn_ref, 'id', str(fn_id))
             el.remove(sentinel)
             el.insert(orig_idx + offset, ref_run)
             offset += 1 - 1  # remove + insert → net 0
         for child in el:
-            self._replace_sentinels_in(child)
+            self._replace_sentinels_in(child, nsmap)
 
-    def _replace_hyperlink_sentinels(self, body_elements: list, doc) -> None:
+    def _replace_hyperlink_sentinels(self, body_elements: list, doc, nsmap: dict) -> None:
         for el in body_elements:
-            self._replace_hyperlinks_in(el, doc)
+            self._replace_hyperlinks_in(el, doc, nsmap)
 
-    def _replace_hyperlinks_in(self, el: etree._Element, doc) -> None:
+    def _replace_hyperlinks_in(self, el: etree._Element, doc, nsmap: dict) -> None:
         to_replace = [
             (i, child) for i, child in enumerate(el)
             if child.tag == HYPERLINK_SENTINEL_TAG
@@ -949,17 +1127,17 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         for orig_idx, sentinel in to_replace:
             href = sentinel.get('href', '')
             r_id = doc.part.relate_to(href, HYPERLINK_RT, is_external=True)
-            hl = _w('hyperlink')
+            hl = etree.Element(f'{{{W}}}hyperlink', nsmap=nsmap)
             hl.set(f'{{{R_NS}}}id', r_id)
             for child in list(sentinel):
                 hl.append(child)
             el.remove(sentinel)
             el.insert(orig_idx + offset, hl)
         for child in el:
-            self._replace_hyperlinks_in(child, doc)
+            self._replace_hyperlinks_in(child, doc, nsmap)
 
     def _build_footnotes_xml(self, footnotes_data: dict) -> bytes:
-        nsmap = {'w': W}
+        nsmap = {'w': W, 'r': R_NS}
         root = etree.Element(f'{{{W}}}footnotes', nsmap=nsmap)
 
         for fn_type, fn_id_str, sep_tag in [
@@ -985,13 +1163,13 @@ class DocxOutputFunctions(ProcessingModelFunctions):
             para = _wsub(fn_el, 'p')
             pPr = _wsub(para, 'pPr')
             pStyle = _wsub(pPr, 'pStyle')
-            _wset(pStyle, 'val', self._para_styles.get('footnote text', 'FootnoteText'))
+            _wset(pStyle, 'val', self._para_styles.get('footnote text', 'footnote text'))
 
             marker_r = _wsub(para, 'r')
             marker_rPr = _wsub(marker_r, 'rPr')
             marker_rStyle = _wsub(marker_rPr, 'rStyle')
             _wset(marker_rStyle, 'val',
-                  self._char_styles.get('footnote reference', 'FootnoteReference'))
+                  self._char_styles.get('footnote reference', 'footnote reference'))
             _wsub(marker_r, 'footnoteRef')
 
             space_r = _wsub(para, 'r')
