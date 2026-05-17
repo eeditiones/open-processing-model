@@ -1,7 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?xml-model href="http://www.tei-c.org/release/xml/tei/custom/schema/relaxng/tei_all.rng" type="application/xml" schematypens="http://relaxng.org/ns/structure/1.0"?>
-<?xml-model href="http://www.tei-c.org/release/xml/tei/custom/schema/relaxng/tei_all.rng" type="application/xml"
-	schematypens="http://purl.oclc.org/dsdl/schematron"?>
 <TEI xmlns="http://www.tei-c.org/ns/1.0">
   <teiHeader>
       <fileDesc>
@@ -19,6 +16,10 @@
   <text>
       <body>
          <p>Some text here with a <ref target="https://example.com">link</ref>.</p>
+         <figure>
+            <graphic corresp="test_images/test_image.svg"/>
+            <head>Test Image</head>
+         </figure>
          <list>
             <item>AAA</item>
             <item>BBB</item>

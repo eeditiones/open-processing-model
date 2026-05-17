@@ -121,6 +121,7 @@ class PythonGenerator(CodeGenerator):
                 "\n        'docx_template': runtime_options.get('docx_template'),"
                 "\n        'apply_children': docx_apply_children,"
                 "\n        'normalize_text': normalize_markdown_xml_text,"
+                "\n        'input_path': runtime_options.get('input_path'),"
             )
             transform_opts_exclude = "('xpath_extensions', 'webcomponents', 'docx_template')"
         else:

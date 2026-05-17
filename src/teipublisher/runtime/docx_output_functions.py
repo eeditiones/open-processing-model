@@ -29,10 +29,12 @@ XML_SPACE = '{http://www.w3.org/XML/1998/namespace}space'
 _DOCX_NS = 'http://www.tei-c.org/ns/docx'
 FOOTNOTE_SENTINEL_TAG = f'{{{_DOCX_NS}}}footnote-sentinel'
 HYPERLINK_SENTINEL_TAG = f'{{{_DOCX_NS}}}hyperlink-sentinel'
+IMAGE_SENTINEL_TAG = f'{{{_DOCX_NS}}}image-sentinel'
 
 FOOTNOTES_RT = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes'
 FOOTNOTES_CT = 'application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml'
 HYPERLINK_RT = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink'
+IMAGE_RT = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image'
 R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
 
 
@@ -141,6 +143,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         self._bullet_abstract_id: int = 8   # python-docx default abstract for bullet
         self._ordered_abstract_id: int = 7  # python-docx default abstract for ordered
         self._needs_numbering: bool = False
+        self._current_template: str | None = None  # Store template path globally
 
     # ── Style index ────────────────────────────────────────────────────────────
 
@@ -149,6 +152,8 @@ class DocxOutputFunctions(ProcessingModelFunctions):
             return
         from docx import Document  # noqa: PLC0415
         template = config.get('docx_template')
+        if template:
+            self._current_template = template
         doc = Document(template) if template else Document()
         self._load_style_index(doc)
 
@@ -162,18 +167,14 @@ class DocxOutputFunctions(ProcessingModelFunctions):
                 continue
             sid = style.style_id
             name_key = style.name.lower()
-            id_key = sid.lower()
             if style.type == WD_STYLE_TYPE.PARAGRAPH:
-                target = self._para_styles
+                self._para_styles[name_key] = sid
             elif style.type == WD_STYLE_TYPE.CHARACTER:
-                target = self._char_styles
+                self._char_styles[name_key] = sid
             elif style.type == WD_STYLE_TYPE.TABLE:
-                target = self._table_styles
+                self._table_styles[name_key] = sid
             else:
                 continue
-            target[name_key] = sid
-            if id_key != name_key:
-                target[id_key] = sid
         try:
             np = doc.part.numbering_part
             b_num, o_num, b_abs, o_abs = self._find_list_numids(np._element)
@@ -593,7 +594,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
     def heading(self, config, node, cls, content, level=None) -> PMResult:
         self._ensure_styles(config)
         items = self._collect(config, node, content)
-        lvl = max(1, min(9, int(level) if level else 1))
+        lvl = max(1, min(9, int(level) if level and str(level).isdigit() else 1))
         style_id = self._para_styles.get(f'heading {lvl}', f'Heading{lvl}')
         p = self._wrap_in_para(items, style_id)
         return [p] if p is not None else []
@@ -744,13 +745,69 @@ class DocxOutputFunctions(ProcessingModelFunctions):
 
     def figure(self, config, node, cls, content, title=None) -> PMResult:
         self._ensure_styles(config)
-        return self._collect(config, node, content)
+        items = self._collect(config, node, content)
+        title_items = self._collect(config, node, title) if title is not None else []
+        has_caption = any(
+            (isinstance(i, str) and i.strip()) or
+            (isinstance(i, etree._Element) and not callable(i.tag))
+            for i in title_items
+        )
+
+        figure_style_id = self._para_styles.get('figure', 'Figure')
+        figure_items = self._blockify(items, figure_style_id)
+
+        if not has_caption:
+            return figure_items
+
+        # Mirror XQuery pmf:p-add-keep-next: add keepNext to each figure paragraph
+        for item in figure_items:
+            if isinstance(item, etree._Element) and item.tag == f'{{{W}}}p':
+                ppr = item.find(f'{{{W}}}pPr')
+                if ppr is None:
+                    ppr = _w('pPr')
+                    item.insert(0, ppr)
+                if ppr.find(f'{{{W}}}keepNext') is None:
+                    ppr.insert(0, _w('keepNext'))
+
+        caption_style_id = self._para_styles.get('caption', 'Caption')
+        caption_para = etree.Element(f'{{{W}}}p')
+        caption_ppr = etree.SubElement(caption_para, f'{{{W}}}pPr')
+        etree.SubElement(caption_ppr, f'{{{W}}}pStyle').set(f'{{{W}}}val', caption_style_id)
+
+        # Delegate content processing to the transform pipeline (mirrors pmf:apply-runs)
+        for item in title_items:
+            if isinstance(item, str):
+                if item:
+                    caption_para.append(self._make_run(item))
+            elif isinstance(item, etree._Element) and not callable(item.tag):
+                caption_para.append(item)
+
+        return figure_items + [caption_para]
 
     def graphic(self, config, node, cls, content, url=None,
                 width=None, height=None, scale=None, title=None) -> PMResult:
         self._ensure_styles(config)
-        # Images deferred — emit a placeholder run
-        return [self._make_run(f'[Image: {url or ""}]')]
+        # Handle TEI graphic elements - check for corresp attribute first
+        image_url = url
+        if node is not None and image_url is None:
+            image_url = node.get('corresp')
+        
+        if not image_url:
+            return [self._make_run('[Image: missing URL]')]
+        
+        # Create sentinel for later processing
+        sentinel = etree.Element(IMAGE_SENTINEL_TAG)
+        sentinel.set('url', image_url)
+        if width:
+            sentinel.set('width', str(width))
+        if height:
+            sentinel.set('height', str(height))
+        if scale:
+            sentinel.set('scale', str(scale))
+        if title:
+            sentinel.set('title', title)
+        
+        return [sentinel]
 
     def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
         self._ensure_styles(config)
@@ -838,6 +895,33 @@ class DocxOutputFunctions(ProcessingModelFunctions):
                if el.find(f'{WP}name') is not None}
         )
 
+        if not {'Caption', 'caption'} & existing_ids:
+            caption_style = etree.SubElement(styles_el, f'{WP}style')
+            caption_style.set(f'{WP}type', 'paragraph')
+            caption_style.set(f'{WP}styleId', 'Caption')
+            caption_style.set(f'{WP}customStyle', '1')
+            name_el = etree.SubElement(caption_style, f'{WP}name')
+            name_el.set(f'{WP}val', 'caption')
+            based_on = etree.SubElement(caption_style, f'{WP}basedOn')
+            based_on.set(f'{WP}val', 'Normal')
+            next_el = etree.SubElement(caption_style, f'{WP}next')
+            next_el.set(f'{WP}val', 'Normal')
+            ui_pri = etree.SubElement(caption_style, f'{WP}uiPriority')
+            ui_pri.set(f'{WP}val', '35')
+            etree.SubElement(caption_style, f'{WP}qFormat')
+            rpr = etree.SubElement(caption_style, f'{WP}rPr')
+            etree.SubElement(rpr, f'{WP}i')
+            etree.SubElement(rpr, f'{WP}iCs')
+
+        default_para = 'Normal'
+        for style_el in styles_el.findall(f'{WP}style'):
+            if (style_el.get(f'{WP}type') == 'paragraph'
+                    and style_el.get(f'{WP}default') == '1'):
+                sid = style_el.get(f'{WP}styleId')
+                if sid:
+                    default_para = sid
+                break
+
         default_char = 'DefaultParagraphFont'
         for style_el in styles_el.findall(f'{WP}style'):
             if (style_el.get(f'{WP}type') == 'character'
@@ -866,14 +950,6 @@ class DocxOutputFunctions(ProcessingModelFunctions):
             u_el.set(f'{WP}val', 'single')
 
         if 'FootnoteText' not in existing_ids and 'footnote text' not in existing_ids:
-            default_para = 'Normal'
-            for style_el in styles_el.findall(f'{WP}style'):
-                if (style_el.get(f'{WP}type') == 'paragraph'
-                        and style_el.get(f'{WP}default') == '1'):
-                    sid = style_el.get(f'{WP}styleId')
-                    if sid:
-                        default_para = sid
-                    break
             ft = etree.SubElement(styles_el, f'{WP}style')
             ft.set(f'{WP}type', 'paragraph')
             ft.set(f'{WP}styleId', 'footnote text')
@@ -915,6 +991,26 @@ class DocxOutputFunctions(ProcessingModelFunctions):
             self._para_styles['footnote text'] = 'footnote text'
         if 'footnote reference' not in self._char_styles:
             self._char_styles['footnote reference'] = 'footnote reference'
+        
+        # Inject Figure style if missing — mirrors XQuery pmf:ensure-builtin-styles
+        if 'figure' not in self._para_styles:
+            self._para_styles['figure'] = 'Figure'
+            figure_style = etree.SubElement(styles_el, f'{WP}style')
+            _wset(figure_style, 'type', 'paragraph')
+            _wset(figure_style, 'styleId', 'Figure')
+            name = etree.SubElement(figure_style, f'{WP}name')
+            _wset(name, 'val', 'Figure')
+            basedOn = etree.SubElement(figure_style, f'{WP}basedOn')
+            _wset(basedOn, 'val', default_para)
+            next_el = etree.SubElement(figure_style, f'{WP}next')
+            _wset(next_el, 'val', 'Caption')
+            ui_pri = etree.SubElement(figure_style, f'{WP}uiPriority')
+            _wset(ui_pri, 'val', '99')
+            pPr = etree.SubElement(figure_style, f'{WP}pPr')
+            etree.SubElement(pPr, f'{WP}jc').set(f'{WP}val', 'center')
+            spacing = etree.SubElement(pPr, f'{WP}spacing')
+            _wset(spacing, 'before', '120')
+            _wset(spacing, 'after', '0')
 
     def _drop_custom_xml_rels(self, doc) -> None:
         """Remove customXml relationships from the document part.
@@ -948,8 +1044,9 @@ class DocxOutputFunctions(ProcessingModelFunctions):
             _default_doc = Document(_default_path)
             _np = _default_doc.part.numbering_part
             from docx.opc.constants import RELATIONSHIP_TYPE as _RT  # noqa: PLC0415
-            _new_np = type(_np)(_np.partname, _np.content_type, _np._element, doc.part.package)
-            doc.part.relate_to(_new_np, _RT.NUMBERING)
+            if doc.part.package:
+                _new_np = type(_np)(_np.partname, _np.content_type, _np._element, doc.part.package)
+                doc.part.relate_to(_new_np, _RT.NUMBERING)
 
         # Add per-list w:num instances so each list gets its own counter
         instances = config.get('_docx_num_instances', [])
@@ -987,6 +1084,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         doc_nsmap = doc.element.nsmap
         self._replace_footnote_sentinels(body_elements, doc_nsmap)
         self._replace_hyperlink_sentinels(body_elements, doc, doc_nsmap)
+        self._replace_image_sentinels(body_elements, doc, doc_nsmap, config)
 
         for el in body_elements:
             if sectPr is not None:
@@ -1033,6 +1131,18 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         'word/numbering.xml',
         'word/footnotes.xml',
     }
+    
+    # Supported image formats and their MIME types
+    _IMAGE_MIME_TYPES = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.bmp': 'image/bmp',
+        '.tiff': 'image/tiff',
+        '.tif': 'image/tiff',
+        '.svg': 'image/svg+xml',
+    }
 
     def _normalize_document_xml(self, buf: BytesIO) -> BytesIO:
         """Rewrite modified XML parts so all namespace declarations sit on the root.
@@ -1057,12 +1167,51 @@ class DocxOutputFunctions(ProcessingModelFunctions):
                     mc_ign = f'{{{MC}}}Ignorable'
                     if mc_ign in root.attrib:
                         del root.attrib[mc_ign]
-                    data = etree.tostring(
-                        root,
-                        xml_declaration=True,
-                        encoding='UTF-8',
-                        standalone=True,
-                    )
+                    
+                    # For styles.xml, merge: use template as base and add any styles
+                    # injected at runtime (Hyperlink, FootnoteText, Figure, …) that
+                    # the template does not already define.
+                    if item.filename == 'word/styles.xml' and self._current_template:
+                        try:
+                            with _zipfile.ZipFile(self._current_template, 'r') as template_zip:
+                                template_styles_xml = template_zip.read('word/styles.xml')
+                                template_styles = etree.fromstring(template_styles_xml)
+
+                                # IDs already present in the template — don't duplicate them
+                                template_ids = {
+                                    el.get(f'{{{W}}}styleId')
+                                    for el in template_styles.findall(f'{{{W}}}style')
+                                }
+
+                                # Start with template styles, then append injected extras
+                                merged_styles = template_styles
+                                for style_el in list(root.findall(f'{{{W}}}style')):
+                                    style_id = style_el.get(f'{{{W}}}styleId')
+                                    if style_id and style_id not in template_ids:
+                                        import copy  # noqa: PLC0415
+                                        merged_styles.append(copy.deepcopy(style_el))
+
+                                data = etree.tostring(
+                                    merged_styles,
+                                    xml_declaration=True,
+                                    encoding='UTF-8',
+                                    standalone=True,
+                                )
+                        except Exception:
+                            # If template merging fails, use original styles
+                            data = etree.tostring(
+                                root,
+                                xml_declaration=True,
+                                encoding='UTF-8',
+                                standalone=True,
+                            )
+                    else:
+                        data = etree.tostring(
+                            root,
+                            xml_declaration=True,
+                            encoding='UTF-8',
+                            standalone=True,
+                        )
                 dst.writestr(item, data)
         src.close()
         out.seek(0)
@@ -1101,14 +1250,14 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         to_replace = [(i, child) for i, child in enumerate(el) if child.tag == FOOTNOTE_SENTINEL_TAG]
         offset = 0
         for orig_idx, sentinel in to_replace:
-            fn_id = int(sentinel.get('id', '0'))
+            fn_id = int(sentinel.get('id') or '0')
             ref_run = etree.Element(f'{{{W}}}r', nsmap=nsmap)
             rPr = etree.SubElement(ref_run, f'{{{W}}}rPr')
             rStyle = etree.SubElement(rPr, f'{{{W}}}rStyle')
             _wset(rStyle, 'val', 'footnote reference')
             fn_ref = etree.SubElement(ref_run, f'{{{W}}}footnoteReference')
             _wset(fn_ref, 'id', str(fn_id))
-            el.remove(sentinel)
+            el.remove(sentinel)  # type: ignore
             el.insert(orig_idx + offset, ref_run)
             offset += 1 - 1  # remove + insert → net 0
         for child in el:
@@ -1131,7 +1280,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
             hl.set(f'{{{R_NS}}}id', r_id)
             for child in list(sentinel):
                 hl.append(child)
-            el.remove(sentinel)
+            el.remove(sentinel)  # type: ignore
             el.insert(orig_idx + offset, hl)
         for child in el:
             self._replace_hyperlinks_in(child, doc, nsmap)
@@ -1191,4 +1340,333 @@ class DocxOutputFunctions(ProcessingModelFunctions):
                     else:
                         para.append(item)
 
-        return etree.tostring(root, xml_declaration=True, encoding='UTF-8', standalone=True)
+        result = etree.tostring(root, xml_declaration=True, encoding='UTF-8', standalone=True)
+        return result if isinstance(result, bytes) else result.encode('utf-8')
+
+    def _replace_image_sentinels(self, body_elements: list, doc, nsmap: dict, config: dict) -> None:
+        """Replace image sentinels with actual OOXML drawing elements using XQuery-compatible approach."""
+        # Initialize image counter for unique filenames
+        if '_docx_image_counter' not in config:
+            config['_docx_image_counter'] = 0
+        
+        # Collect all image sentinels first
+        image_sentinels = []
+        
+        for el in body_elements:
+            self._collect_image_sentinels(el, image_sentinels)
+        
+        # Build image package like XQuery pmf:build-image-package
+        if image_sentinels:
+            self._build_image_package(config, image_sentinels, doc)
+        
+        # Replace sentinels with drawing elements
+        for el in body_elements:
+            self._replace_image_sentinels_in_element(el, config)
+    
+    def _collect_image_sentinels(self, el: etree._Element, sentinels: list) -> None:
+        """Collect all image sentinels in the document."""
+        if el.tag == IMAGE_SENTINEL_TAG:
+            sentinels.append(el)
+        
+        for child in el:
+            self._collect_image_sentinels(child, sentinels)
+    
+    def _build_image_package(self, config: dict, sentinels: list, doc) -> None:
+        """Build image package like XQuery pmf:build-image-package."""
+        import os  # noqa: PLC0415
+        
+        # Store mapping of rId to actual relationship
+        if '_docx_image_rid_map' not in config:
+            config['_docx_image_rid_map'] = {}
+        
+        for i, sentinel in enumerate(sentinels):
+            config['_docx_image_counter'] += 1
+            r_id_num = 10 + config['_docx_image_counter']  # Start from rId10 like XQuery
+            r_id = f'rId{r_id_num}'
+            
+            # Store the rId on the sentinel for later use
+            sentinel.set('rId', r_id)
+            
+            # Get image URL
+            image_url = sentinel.get('url')
+            if not image_url:
+                continue
+            
+            # Resolve image path
+            input_path = config.get('input_path')
+            if not input_path:
+                continue
+            
+            input_dir = os.path.dirname(os.path.abspath(input_path))
+            image_path = os.path.join(input_dir, image_url)
+            
+            if not os.path.exists(image_path):
+                continue
+            
+            # Determine MIME type and extension
+            _, ext = os.path.splitext(image_path.lower())
+            mime_type = self._IMAGE_MIME_TYPES.get(ext)
+            if not mime_type:
+                ext = '.png'
+                mime_type = 'image/png'
+            
+            # Read image data
+            try:
+                with open(image_path, 'rb') as f:
+                    image_data = f.read()
+            except Exception:
+                continue
+            
+            # Create image part
+            image_filename = f'media/image{r_id_num}{ext}'
+            
+            try:
+                from docx.opc.packuri import PackURI  # noqa: PLC0415
+                from docx.opc.part import Part  # noqa: PLC0415
+                
+                image_part = Part(
+                    PackURI(f'/word/{image_filename}'),
+                    mime_type,
+                    image_data,
+                    doc.part.package
+                )
+                
+                # Create relationship and store the actual rId
+                actual_rid = doc.part.relate_to(image_part, IMAGE_RT)
+                config['_docx_image_rid_map'][r_id] = actual_rid
+                
+            except Exception:
+                continue
+    
+    def _replace_image_sentinels_in_element(self, el: etree._Element, config: dict) -> None:
+        """Replace image sentinels with drawing elements in an element."""
+        to_replace = [
+            (i, child) for i, child in enumerate(el)
+            if child.tag == IMAGE_SENTINEL_TAG
+        ]
+        
+        for orig_idx, sentinel in reversed(to_replace):  # Reverse to maintain indices
+            r_id = sentinel.get('rId')
+            if not r_id:
+                continue
+            
+            # Get actual relationship ID from map
+            actual_rid = config.get('_docx_image_rid_map', {}).get(r_id)
+            if not actual_rid:
+                continue
+            
+            # Get image dimensions
+            width = sentinel.get('width')
+            height = sentinel.get('height')
+            scale = sentinel.get('scale')
+            
+            # Create drawing element
+            drawing_run = self._create_image_drawing_element(actual_rid, width, height, scale)
+            if drawing_run is not None:
+                el.remove(sentinel)  # type: ignore
+                el.insert(orig_idx, drawing_run)
+            else:
+                # Replace with placeholder if drawing creation fails
+                placeholder = self._make_run(f'[Image: {sentinel.get("url", "")}]')
+                el.remove(sentinel)  # type: ignore
+                el.insert(orig_idx, placeholder)
+        
+        # Recursively process child elements
+        for child in el:
+            if isinstance(child, etree._Element):
+                self._replace_image_sentinels_in_element(child, config)
+
+    def _create_image_drawing_element(self, actual_rid: str, width: str | None, height: str | None, 
+                                     scale: str | None) -> etree._Element | None:
+        """Create a drawing element using the actual relationship ID."""
+        # Namespace constants for drawing elements
+        A = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+        WP = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing'
+        PIC = 'http://schemas.openxmlformats.org/drawingml/2006/picture'
+        
+        # Calculate dimensions in EMU (like XQuery)
+        if width and height:
+            cx = str(int(float(width) * 9525))
+            cy = str(int(float(height) * 9525))
+        elif scale:
+            cx = str(int(3600000 * float(scale) / 100))  # 4 inches default
+            cy = str(int(2743200 * float(scale) / 100))  # 3 inches default
+        else:
+            cx = '3600000'  # 4 inches in EMU
+            cy = '2743200'  # 3 inches in EMU
+        
+        # Create XQuery-compatible w:r element with proper namespace map
+        nsmap = {
+            'w': W,
+            'wp': WP,
+            'a': A,
+            'pic': PIC,
+            'r': R_NS
+        }
+        
+        run = etree.Element(f'{{{W}}}r', nsmap=nsmap)
+        
+        # Create drawing element
+        drawing = etree.SubElement(run, f'{{{W}}}drawing')
+        
+        # Create inline drawing
+        inline = etree.SubElement(drawing, f'{{{WP}}}inline')
+        inline.set('distT', '0')
+        inline.set('distB', '0')
+        inline.set('distL', '0')
+        inline.set('distR', '0')
+        
+        # Extent
+        extent = etree.SubElement(inline, f'{{{WP}}}extent')
+        extent.set('cx', cx)
+        extent.set('cy', cy)
+        
+        # DocPr
+        doc_pr = etree.SubElement(inline, f'{{{WP}}}docPr')
+        doc_pr.set('id', '1')  # Use simple ID
+        doc_pr.set('name', 'Image')
+        doc_pr.set('descr', 'Image')
+        
+        # cNvGraphicFramePr
+        cnv_frame_pr = etree.SubElement(inline, f'{{{WP}}}cNvGraphicFramePr')
+        frame_locks = etree.SubElement(cnv_frame_pr, f'{{{A}}}graphicFrameLocks')
+        frame_locks.set('noChangeAspect', '1')
+        
+        # Graphic
+        graphic = etree.SubElement(inline, f'{{{A}}}graphic')
+        graphic_data = etree.SubElement(graphic, f'{{{A}}}graphicData')
+        graphic_data.set('uri', 'http://schemas.openxmlformats.org/drawingml/2006/picture')
+        
+        # Picture
+        pic = etree.SubElement(graphic_data, f'{{{PIC}}}pic')
+        
+        # Non-visual picture properties
+        nv_pic_pr = etree.SubElement(pic, f'{{{PIC}}}nvPicPr')
+        c_nv_pr = etree.SubElement(nv_pic_pr, f'{{{PIC}}}cNvPr')
+        c_nv_pr.set('id', '0')  # Use simple ID
+        c_nv_pr.set('name', '')
+        c_nv_pic_pr = etree.SubElement(nv_pic_pr, f'{{{PIC}}}cNvPicPr')
+        
+        # Blip fill
+        blip_fill = etree.SubElement(pic, f'{{{PIC}}}blipFill')
+        blip = etree.SubElement(blip_fill, f'{{{A}}}blip')
+        blip.set(f'{{{R_NS}}}embed', actual_rid)  # Use actual relationship ID
+        
+        # Stretch
+        stretch = etree.SubElement(blip_fill, f'{{{A}}}stretch')
+        fill_rect = etree.SubElement(stretch, f'{{{A}}}fillRect')
+        
+        # Shape properties
+        sp_pr = etree.SubElement(pic, f'{{{PIC}}}spPr')
+        xfrm = etree.SubElement(sp_pr, f'{{{A}}}xfrm')
+        
+        # Offset
+        off = etree.SubElement(xfrm, f'{{{A}}}off')
+        off.set('x', '0')
+        off.set('y', '0')
+        
+        # Extent
+        ext = etree.SubElement(xfrm, f'{{{A}}}ext')
+        ext.set('cx', cx)
+        ext.set('cy', cy)
+        
+        # Geometry
+        prst_geom = etree.SubElement(sp_pr, f'{{{A}}}prstGeom')
+        prst_geom.set('prst', 'rect')
+        av_lst = etree.SubElement(prst_geom, f'{{{A}}}avLst')
+        
+        return run
+
+    def _create_drawing_element(self, r_id: str, width: str | None, height: str | None, 
+                               scale: str | None, nsmap: dict) -> etree._Element:
+        """Create the w:drawing element with proper sizing."""
+        # Namespace constants for drawing
+        A = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+        WP = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing'
+        PIC = 'http://schemas.openxmlformats.org/drawingml/2006/picture'
+        
+        # Use the exact structure that python-docx uses for images
+        from docx.shared import Emu  # noqa: PLC0415
+        
+        # Create drawing element with minimal namespaces
+        drawing = etree.Element(f'{{{W}}}drawing')
+        
+        # Create inline drawing
+        inline = etree.SubElement(drawing, f'{{{WP}}}inline')
+        inline.set(f'{{{WP}}}distT', '0')
+        inline.set(f'{{{WP}}}distB', '0')
+        inline.set(f'{{{WP}}}distL', '0')
+        inline.set(f'{{{WP}}}distR', '0')
+        
+        # Calculate dimensions
+        if width and height:
+            cx = str(int(float(width) * 9525))  # Convert to EMU
+            cy = str(int(float(height) * 9525))
+        elif scale:
+            cx = str(int(2000000 * float(scale) / 100))  # 200px default
+            cy = str(int(1500000 * float(scale) / 100))  # 150px default
+        else:
+            cx = '2000000'  # 200px in EMU
+            cy = '1500000'  # 150px in EMU
+        
+        # Extent
+        extent = etree.SubElement(inline, f'{{{WP}}}extent')
+        extent.set(f'{{{A}}}cx', cx)
+        extent.set(f'{{{A}}}cy', cy)
+        
+        # Effect extent
+        effect_extent = etree.SubElement(inline, f'{{{WP}}}effectExtent')
+        effect_extent.set(f'{{{A}}}l', '0')
+        effect_extent.set(f'{{{A}}}t', '0')
+        effect_extent.set(f'{{{A}}}r', '0')
+        effect_extent.set(f'{{{A}}}b', '0')
+        
+        # DocPr
+        doc_pr = etree.SubElement(inline, f'{{{WP}}}docPr')
+        doc_pr.set(f'{{{A}}}id', '1')
+        doc_pr.set(f'{{{A}}}name', 'Picture')
+        doc_pr.set(f'{{{A}}}descr', '')
+        
+        # Graphic
+        graphic = etree.SubElement(inline, f'{{{A}}}graphic')
+        graphic_data = etree.SubElement(graphic, f'{{{A}}}graphicData')
+        graphic_data.set(f'{{{A}}}uri', PIC)
+        
+        # Picture
+        pic = etree.SubElement(graphic_data, f'{{{PIC}}}pic')
+        
+        # Non-visual properties
+        nv_pic_pr = etree.SubElement(pic, f'{{{PIC}}}nvPicPr')
+        c_nv_pr = etree.SubElement(nv_pic_pr, f'{{{PIC}}}cNvPr')
+        c_nv_pr.set(f'{{{A}}}id', '0')
+        c_nv_pr.set(f'{{{A}}}name', 'Picture')
+        c_nv_pic_pr = etree.SubElement(nv_pic_pr, f'{{{PIC}}}cNvPicPr')
+        
+        # Blip (image data)
+        blip_fill = etree.SubElement(pic, f'{{{PIC}}}blipFill')
+        blip = etree.SubElement(blip_fill, f'{{{A}}}blip')
+        blip.set(f'{{{R_NS}}}embed', r_id)
+        
+        # Stretch
+        stretch = etree.SubElement(blip_fill, f'{{{A}}}stretch')
+        fill_rect = etree.SubElement(stretch, f'{{{A}}}fillRect')
+        
+        # Shape properties
+        sp_pr = etree.SubElement(pic, f'{{{PIC}}}spPr')
+        xfrm = etree.SubElement(sp_pr, f'{{{A}}}xfrm')
+        
+        # Offset
+        off = etree.SubElement(xfrm, f'{{{A}}}off')
+        off.set(f'{{{A}}}x', '0')
+        off.set(f'{{{A}}}y', '0')
+        
+        # Extent
+        ext = etree.SubElement(xfrm, f'{{{A}}}ext')
+        ext.set(f'{{{A}}}cx', cx)
+        ext.set(f'{{{A}}}cy', cy)
+        
+        # Geometry
+        prst_geom = etree.SubElement(sp_pr, f'{{{A}}}prstGeom')
+        prst_geom.set(f'{{{A}}}prst', 'rect')
+        
+        return drawing

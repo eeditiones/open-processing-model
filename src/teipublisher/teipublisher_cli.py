@@ -273,6 +273,10 @@ def transform_cmd(
 
         mod = load_transform_module(effective_script)
         parameters = _parameters_from_cli(param if param else None)
+        # Add input_path to parameters for image processing in DOCX output
+        if parameters is None:
+            parameters = {}
+        parameters['input_path'] = str(input_xml)
         user_css = _resolve_user_css(effective_css)
 
         tree = etree.parse(str(input_xml))

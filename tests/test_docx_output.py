@@ -37,7 +37,8 @@ def _parse_docx(data: bytes) -> dict[str, etree._Element]:
 def _list_paras(doc_root: etree._Element) -> list[dict]:
     """Return all paragraphs that carry w:numPr, with their key properties."""
     results = []
-    for p in doc_root.iter(f'{{{W}}}p'):
+    # Use xpath instead of iter for better type compatibility
+    for p in doc_root.xpath('.//w:p', namespaces={'w': W}):
         pPr = p.find(f'{{{W}}}pPr')
         if pPr is None:
             continue
@@ -253,14 +254,16 @@ HYPERLINK_RT = 'http://schemas.openxmlformats.org/officeDocument/2006/relationsh
 def test_docx_hyperlink_element_present(docx_parts):
     """External links must be wrapped in w:hyperlink elements (not just styled runs)."""
     doc = docx_parts['word/document.xml']
-    hl_els = list(doc.iter(f'{{{W}}}hyperlink'))
+    # Use xpath instead of iter for better type compatibility
+    hl_els = doc.xpath('.//w:hyperlink', namespaces={'w': W})
     assert hl_els, 'at least one w:hyperlink element must be present in word/document.xml'
 
 
 def test_docx_hyperlink_has_relationship_id(docx_parts):
     """Each w:hyperlink must carry an r:id attribute pointing to an OPC relationship."""
     doc = docx_parts['word/document.xml']
-    for hl in doc.iter(f'{{{W}}}hyperlink'):
+    # Use xpath instead of iter for better type compatibility
+    for hl in doc.xpath('.//w:hyperlink', namespaces={'w': W}):
         r_id = hl.get(f'{{{R_NS}}}id')
         assert r_id, f'w:hyperlink missing r:id attribute: {etree.tostring(hl)}'
 
@@ -279,3 +282,49 @@ def test_docx_hyperlink_relationship_in_rels(docx_parts):
     targets = [el.get('Target', '') for el in hyperlinks]
     assert any('example.com' in t for t in targets), \
         f'expected example.com in hyperlink targets; got: {targets}'
+
+
+def test_docx_image_element_present(docx_parts):
+    """Images must be wrapped in w:drawing elements within paragraphs."""
+    doc = docx_parts['word/document.xml']
+    # Use xpath instead of iter for better type compatibility
+    drawing_els = doc.xpath('.//w:drawing', namespaces={'w': W})
+    assert drawing_els, 'at least one w:drawing element must be present in word/document.xml'
+
+
+def test_docx_image_has_relationship_id(docx_parts):
+    """Each w:drawing must reference an image relationship."""
+    doc = docx_parts['word/document.xml']
+    # Use xpath instead of iter for better type compatibility
+    for drawing in doc.xpath('.//w:drawing', namespaces={'w': W}):
+        # Look for blip element with r:embed attribute
+        A = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+        blip = drawing.find(f'.//{{{A}}}blip')
+        if blip is not None:
+            r_id = blip.get(f'{{{R_NS}}}embed')
+            assert r_id, f'w:drawing blip missing r:embed attribute: {etree.tostring(drawing)}'
+
+
+def test_docx_image_relationship_in_rels(docx_parts):
+    """The relationship file must contain an Image relationship."""
+    rels_key = 'word/_rels/document.xml.rels'
+    assert rels_key in docx_parts, f'{rels_key} not found in docx parts'
+    rels_root = docx_parts[rels_key]
+    RELS_NS = 'http://schemas.openxmlformats.org/package/2006/relationships'
+    IMAGE_RT = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image'
+    images = [
+        el for el in rels_root.iter(f'{{{RELS_NS}}}Relationship')
+        if el.get('Type') == IMAGE_RT
+    ]
+    assert images, 'no Image relationship found in document.xml.rels'
+
+
+def test_docx_image_file_present(docx_data):
+    """The image file must be present in the DOCX package."""
+    with zipfile.ZipFile(BytesIO(docx_data)) as z:
+        image_files = [f for f in z.namelist() if f.startswith('word/media/')]
+        assert image_files, 'no image files found in word/media/ directory'
+        # Check that at least one image file exists
+        for img_file in image_files:
+            assert img_file.endswith('.svg') or img_file.endswith('.png') or img_file.endswith('.jpg'), \
+                f'unexpected image file extension: {img_file}'
