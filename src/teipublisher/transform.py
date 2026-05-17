@@ -141,12 +141,15 @@ def run_transform(
     template_path: Path | None = None,
     user_css: str | None = None,
     webcomponents_url: str | None = None,
-) -> str:
-    """Run *mod* against *root* and return the serialized output string.
+    docx_template: Path | None = None,
+) -> str | bytes:
+    """Run *mod* against *root* and return the serialized output.
 
     For HTML output, if the result contains a full ``<html>`` document and
     *apply_template* is ``True``, the result is wrapped in the Jinja2 document
     template.  Fragment transforms (e.g. a single ``<div>``) skip this step.
+
+    For DOCX output, returns raw ``bytes`` (the ``.docx`` file content).
 
     Args:
         mod: A loaded transform module (from :func:`load_transform_module`).
@@ -158,6 +161,7 @@ def run_transform(
         template_path: Override Jinja2 template (default: packaged template).
         user_css: CSS string injected into ``<head>`` of full-document output.
         webcomponents_url: CDN URL for ``pb-components`` script tag.
+        docx_template: Path to a ``.docx`` file used as the Word style template.
     """
     serialize = getattr(mod, 'serialize', _default_serialize)
 
@@ -166,8 +170,14 @@ def run_transform(
         transform_opts['xpath_extensions'] = list(xpath_extensions)
     if webcomponents:
         transform_opts['webcomponents'] = True
+    if docx_template is not None:
+        transform_opts['docx_template'] = docx_template
 
     result = mod.transform(root, transform_opts if transform_opts else None)
+
+    # Binary output (e.g. docx) — finish() already packaged everything
+    if result and isinstance(result[0], bytes):
+        return result[0]
 
     is_document = any(
         isinstance(item, etree._Element) and etree.QName(item).localname == 'html'
@@ -204,7 +214,8 @@ def transform_node(
     template_path: Path | None = None,
     user_css: str | None = None,
     webcomponents_url: str | None = None,
-) -> str:
+    docx_template: Path | None = None,
+) -> str | bytes:
     """Load *script_path* as a transform module and apply it to *root*.
 
     If *xpath* is given it is evaluated against *root* via
@@ -243,6 +254,7 @@ def transform_node(
         template_path=template_path,
         user_css=user_css,
         webcomponents_url=webcomponents_url,
+        docx_template=docx_template,
     )
 
 
@@ -257,8 +269,8 @@ def transform_file(
     template: Path | None = None,
     user_css: str | None = None,
     config: ProjectConfig | None = None,
-) -> str:
-    """Transform *xml_path* (or an XPath-selected element within it) and return the result string.
+) -> str | bytes:
+    """Transform *xml_path* (or an XPath-selected element within it) and return the result.
 
     Reads ``default.toml`` from the current directory for defaults unless
     *config* is supplied explicitly.
@@ -277,6 +289,9 @@ def transform_file(
         user_css: CSS string for full-document HTML output.
         config: Pre-loaded :class:`~teipublisher.config.ProjectConfig`.
             When ``None``, ``default.toml`` is loaded from the CWD.
+
+    Returns ``str`` for text output modes (HTML, Markdown) and ``bytes`` for
+    binary modes (DOCX).
     """
     cfg = config if config is not None else load_project_config()
 
@@ -300,4 +315,5 @@ def transform_file(
         template_path=template if template is not None else cfg.document_template,
         user_css=user_css,
         webcomponents_url=webcomponents_url,
+        docx_template=cfg.document_docx_template,
     )

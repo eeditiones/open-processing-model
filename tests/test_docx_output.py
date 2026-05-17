@@ -1,0 +1,281 @@
+"""Integration tests for DOCX output mode.
+
+Compiles ``odd/teipublisher.odd`` for docx mode, transforms ``tests/test-docx.xml``
+using the project config from ``teipublisher.toml``, and asserts the structural
+properties of the resulting Word document.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import re
+import zipfile
+from io import BytesIO
+from pathlib import Path
+
+import pytest
+from lxml import etree
+
+ROOT = Path(__file__).resolve().parents[1]
+ODD = ROOT / 'odd' / 'teipublisher.odd'
+TEST_XML = ROOT / 'tests' / 'test-docx.xml'
+CONFIG_TOML = ROOT / 'teipublisher.toml'
+
+W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+
+
+def _parse_docx(data: bytes) -> dict[str, etree._Element]:
+    """Open a docx byte string and return parsed XML roots keyed by part name."""
+    parts: dict[str, etree._Element] = {}
+    with zipfile.ZipFile(BytesIO(data)) as z:
+        for name in z.namelist():
+            if name.endswith('.xml') or name.endswith('.rels'):
+                parts[name] = etree.fromstring(z.read(name))
+    return parts
+
+
+def _list_paras(doc_root: etree._Element) -> list[dict]:
+    """Return all paragraphs that carry w:numPr, with their key properties."""
+    results = []
+    for p in doc_root.iter(f'{{{W}}}p'):
+        pPr = p.find(f'{{{W}}}pPr')
+        if pPr is None:
+            continue
+        numPr = pPr.find(f'{{{W}}}numPr')
+        if numPr is None:
+            continue
+        ilvl_el = numPr.find(f'{{{W}}}ilvl')
+        numId_el = numPr.find(f'{{{W}}}numId')
+        ilvl = int(ilvl_el.get(f'{{{W}}}val', '0')) if ilvl_el is not None else 0
+        numid = int(numId_el.get(f'{{{W}}}val', '0')) if numId_el is not None else 0
+        text = ''.join(t.text or '' for t in p.iter(f'{{{W}}}t'))
+        results.append({'ilvl': ilvl, 'numid': numid, 'text': text})
+    return results
+
+
+def _compile_docx_module(tmp_path: Path) -> object:
+    from teipublisher.odd_compiler import compile_odd
+
+    src = compile_odd(str(ODD), output_mode='docx')
+    path = tmp_path / 'teipublisher_docx.py'
+    path.write_text(src, encoding='utf-8')
+    spec = importlib.util.spec_from_file_location('teipublisher_docx_fixture', str(path))
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+@pytest.fixture(scope='module')
+def docx_parts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, etree._Element]:
+    """Compile ODD, transform test-docx.xml with teipublisher.toml, return parsed parts."""
+    from teipublisher.config import load_project_config
+    from teipublisher.transform import run_transform
+
+    tmp = tmp_path_factory.mktemp('docx')
+    mod = _compile_docx_module(tmp)
+
+    cfg = load_project_config(CONFIG_TOML)
+    root = etree.parse(str(TEST_XML)).getroot()
+    result = run_transform(
+        mod,
+        root,
+        docx_template=cfg.document_docx_template,
+    )
+    assert isinstance(result, bytes), 'transform must return bytes for docx mode'
+    return _parse_docx(result)
+
+
+def test_docx_contains_required_parts(docx_parts):
+    assert 'word/document.xml' in docx_parts
+    assert 'word/numbering.xml' in docx_parts
+
+
+def test_docx_list_items_have_numpr(docx_parts):
+    """Every list item (AAA, BBB, One, Two, Three) must have a w:numPr."""
+    paras = _list_paras(docx_parts['word/document.xml'])
+    texts = [p['text'] for p in paras]
+    for expected in ('AAA', 'BBB', 'One', 'Two', 'Three'):
+        assert any(expected in t for t in texts), f'list item "{expected}" has no w:numPr'
+
+
+def test_docx_outer_list_items_at_ilvl_0(docx_parts):
+    paras = _list_paras(docx_parts['word/document.xml'])
+    for label in ('AAA', 'BBB'):
+        matches = [p for p in paras if label in p['text']]
+        assert matches, f'paragraph "{label}" not found'
+        assert matches[0]['ilvl'] == 0, f'"{label}" should be at ilvl=0, got {matches[0]["ilvl"]}'
+
+
+def test_docx_outer_list_items_share_numid(docx_parts):
+    """AAA and BBB belong to the same list and must share the same numId."""
+    paras = _list_paras(docx_parts['word/document.xml'])
+    aaa = next(p for p in paras if 'AAA' in p['text'])
+    bbb = next(p for p in paras if 'BBB' in p['text'])
+    assert aaa['numid'] == bbb['numid'], 'AAA and BBB must share the same numId'
+
+
+def test_docx_inner_ordered_items_use_different_numid(docx_parts):
+    """The inner ordered list (One/Two/Three) must use a different numId than the outer bullet list."""
+    paras = _list_paras(docx_parts['word/document.xml'])
+    outer_numid = next(p['numid'] for p in paras if 'AAA' in p['text'])
+    inner_numid = next(p['numid'] for p in paras if 'One' in p['text'])
+    assert inner_numid != outer_numid, 'inner ordered list must have its own numId'
+
+
+def test_docx_inner_ordered_items_share_numid(docx_parts):
+    """One, Two, Three belong to the same list and must share a numId."""
+    paras = _list_paras(docx_parts['word/document.xml'])
+    one = next(p for p in paras if 'One' in p['text'])
+    two = next(p for p in paras if 'Two' in p['text'])
+    three = next(p for p in paras if 'Three' in p['text'])
+    assert one['numid'] == two['numid'] == three['numid'], \
+        'One/Two/Three must share the same numId'
+
+
+def test_docx_numbering_abstracts_are_multilevel(docx_parts):
+    """The injected abstract definitions must cover at least levels 0-2."""
+    num_root = docx_parts['word/numbering.xml']
+    abstracts = num_root.findall(f'{{{W}}}abstractNum')
+    multilevel = [
+        a for a in abstracts
+        if len(a.findall(f'{{{W}}}lvl')) >= 3
+    ]
+    assert multilevel, 'at least one multilevel abstract (≥3 levels) must be present'
+
+
+def test_docx_num_instances_have_start_override(docx_parts):
+    """Each per-list w:num (numId ≥ 100) must carry a lvlOverride/startOverride for restart."""
+    num_root = docx_parts['word/numbering.xml']
+    for num_el in num_root.findall(f'{{{W}}}num'):
+        numid = int(num_el.get(f'{{{W}}}numId', '0'))
+        if numid < 100:
+            continue
+        override = num_el.find(f'{{{W}}}lvlOverride')
+        assert override is not None, f'numId={numid} missing lvlOverride'
+        start = override.find(f'{{{W}}}startOverride')
+        assert start is not None, f'numId={numid} missing startOverride'
+        assert start.get(f'{{{W}}}val') == '1', f'numId={numid} startOverride must be 1'
+
+
+def test_docx_outer_list_uses_bullet_abstract(docx_parts):
+    """The outer (bullet) list numId must reference an abstract with bullet numFmt at level 0."""
+    num_root = docx_parts['word/numbering.xml']
+    paras = _list_paras(docx_parts['word/document.xml'])
+    outer_numid = next(p['numid'] for p in paras if 'AAA' in p['text'])
+
+    # Find the abstractNumId that outer_numid references
+    abstract_id = None
+    for num_el in num_root.findall(f'{{{W}}}num'):
+        if int(num_el.get(f'{{{W}}}numId', '0')) == outer_numid:
+            ref = num_el.find(f'{{{W}}}abstractNumId')
+            if ref is not None:
+                abstract_id = ref.get(f'{{{W}}}val')
+    assert abstract_id is not None, f'numId={outer_numid} not found in numbering.xml'
+
+    # Find that abstract and check its level-0 numFmt
+    for abs_el in num_root.findall(f'{{{W}}}abstractNum'):
+        if abs_el.get(f'{{{W}}}abstractNumId') == abstract_id:
+            lvl0 = abs_el.find(f'{{{W}}}lvl[@{{{W}}}ilvl="0"]')
+            if lvl0 is None:
+                lvl0 = abs_el.find(f'{{{W}}}lvl')
+            fmt = lvl0.find(f'{{{W}}}numFmt') if lvl0 is not None else None
+            assert fmt is not None and fmt.get(f'{{{W}}}val') == 'bullet', \
+                f'outer list abstract (id={abstract_id}) must use bullet numFmt'
+            return
+    pytest.fail(f'abstractNumId={abstract_id} not found')
+
+
+def test_docx_inner_list_uses_decimal_abstract(docx_parts):
+    """The inner ordered list numId must reference an abstract with decimal numFmt at level 0."""
+    num_root = docx_parts['word/numbering.xml']
+    paras = _list_paras(docx_parts['word/document.xml'])
+    inner_numid = next(p['numid'] for p in paras if 'One' in p['text'])
+
+    abstract_id = None
+    for num_el in num_root.findall(f'{{{W}}}num'):
+        if int(num_el.get(f'{{{W}}}numId', '0')) == inner_numid:
+            ref = num_el.find(f'{{{W}}}abstractNumId')
+            if ref is not None:
+                abstract_id = ref.get(f'{{{W}}}val')
+    assert abstract_id is not None
+
+    for abs_el in num_root.findall(f'{{{W}}}abstractNum'):
+        if abs_el.get(f'{{{W}}}abstractNumId') == abstract_id:
+            lvl0 = abs_el.find(f'{{{W}}}lvl[@{{{W}}}ilvl="0"]')
+            if lvl0 is None:
+                lvl0 = abs_el.find(f'{{{W}}}lvl')
+            fmt = lvl0.find(f'{{{W}}}numFmt') if lvl0 is not None else None
+            assert fmt is not None and fmt.get(f'{{{W}}}val') == 'decimal', \
+                f'inner list abstract (id={abstract_id}) must use decimal numFmt'
+            return
+    pytest.fail(f'abstractNumId={abstract_id} not found (inner decimal)')
+
+
+def test_docx_hyperlink_style_in_styles_xml(docx_parts):
+    """word/styles.xml must define a Hyperlink character style (injected if absent from template)."""
+    styles_root = docx_parts['word/styles.xml']
+    hl_styles = styles_root.findall(
+        f'.//{{{W}}}style[@{{{W}}}styleId="Hyperlink"][@{{{W}}}type="character"]'
+    )
+    assert hl_styles, 'Hyperlink character style must be present in word/styles.xml'
+    rPr = hl_styles[0].find(f'{{{W}}}rPr')
+    assert rPr is not None, 'Hyperlink style must have w:rPr'
+    color = rPr.find(f'{{{W}}}color')
+    assert color is not None and color.get(f'{{{W}}}val') == '0563C1', \
+        'Hyperlink style must carry the standard blue color'
+    u_el = rPr.find(f'{{{W}}}u')
+    assert u_el is not None and u_el.get(f'{{{W}}}val') == 'single', \
+        'Hyperlink style must be underlined'
+
+
+def test_docx_link_run_uses_hyperlink_style(docx_parts):
+    """Runs inside a hyperlink must reference the Hyperlink character style."""
+    doc = docx_parts['word/document.xml']
+    hl_runs = []
+    for r in doc.iter(f'{{{W}}}r'):
+        rPr = r.find(f'{{{W}}}rPr')
+        if rPr is None:
+            continue
+        rStyle = rPr.find(f'{{{W}}}rStyle')
+        if rStyle is not None and rStyle.get(f'{{{W}}}val') == 'Hyperlink':
+            hl_runs.append(r)
+    assert hl_runs, 'at least one run must reference the Hyperlink character style'
+    texts = [''.join(t.text or '' for t in r.iter(f'{{{W}}}t')) for r in hl_runs]
+    assert any('link' in t for t in texts), \
+        f'run with Hyperlink style must contain the link text; found: {texts}'
+
+
+R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+HYPERLINK_RT = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink'
+
+
+def test_docx_hyperlink_element_present(docx_parts):
+    """External links must be wrapped in w:hyperlink elements (not just styled runs)."""
+    doc = docx_parts['word/document.xml']
+    hl_els = list(doc.iter(f'{{{W}}}hyperlink'))
+    assert hl_els, 'at least one w:hyperlink element must be present in word/document.xml'
+
+
+def test_docx_hyperlink_has_relationship_id(docx_parts):
+    """Each w:hyperlink must carry an r:id attribute pointing to an OPC relationship."""
+    doc = docx_parts['word/document.xml']
+    for hl in doc.iter(f'{{{W}}}hyperlink'):
+        r_id = hl.get(f'{{{R_NS}}}id')
+        assert r_id, f'w:hyperlink missing r:id attribute: {etree.tostring(hl)}'
+
+
+def test_docx_hyperlink_relationship_in_rels(docx_parts):
+    """The relationship file must contain a Hyperlink relationship pointing to example.com."""
+    rels_key = 'word/_rels/document.xml.rels'
+    assert rels_key in docx_parts, f'{rels_key} not found in docx parts'
+    rels_root = docx_parts[rels_key]
+    RELS_NS = 'http://schemas.openxmlformats.org/package/2006/relationships'
+    hyperlinks = [
+        el for el in rels_root.iter(f'{{{RELS_NS}}}Relationship')
+        if el.get('Type') == HYPERLINK_RT
+    ]
+    assert hyperlinks, 'no Hyperlink relationship found in document.xml.rels'
+    targets = [el.get('Target', '') for el in hyperlinks]
+    assert any('example.com' in t for t in targets), \
+        f'expected example.com in hyperlink targets; got: {targets}'

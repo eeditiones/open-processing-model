@@ -111,12 +111,14 @@ def _model_ordinal(spec_el, model_el) -> int:
 
 
 def _model_matches_output_mode(el, output_mode: str) -> bool:
-    """Whether *el* participates in the given ODD output channel (``@output`` on models)."""
+    """Whether *el* participates in the given ODD output channel (``@output`` on models).
+
+    Models without ``@output`` are generic and apply to all modes.  Mode-specific
+    models override them via the predicate/ordering rules in ``_top_level_models``.
+    """
     o = el.get('output')
-    if output_mode == 'web':
-        return o is None or o == 'web'
-    if output_mode == 'markdown':
-        return o is None or o == 'markdown'
+    if o is None:
+        return True
     return o == output_mode
 
 

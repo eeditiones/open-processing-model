@@ -29,7 +29,7 @@ app = typer.Typer(
 
 
 def _preview_kind_from_module(mod) -> str:
-    """Return ``'html'``, ``'markdown'``, or ``'text'`` based on ``transform_output_channels()``."""
+    """Return ``'html'``, ``'markdown'``, ``'docx'``, or ``'text'`` based on output channels."""
     raw = mod.transform_output_channels()
     if not raw:
         return 'text'
@@ -38,6 +38,8 @@ def _preview_kind_from_module(mod) -> str:
         return 'markdown'
     if primary == 'web':
         return 'html'
+    if primary == 'docx':
+        return 'docx'
     return 'text'
 
 
@@ -298,20 +300,29 @@ def transform_cmd(
             template_path=effective_template,
             user_css=user_css,
             webcomponents_url=webcomponents_url,
+            docx_template=cfg.document_docx_template,
         )
 
-        if output:
-            output.write_text(out, encoding='utf-8')
-        if preview:
-            kind = _preview_kind_from_module(mod)
-            if kind == 'html':
-                _preview_html_in_browser(out)
-            elif kind == 'markdown':
-                _preview_markdown_terminal(out)
+        if isinstance(out, bytes):
+            if output:
+                output.write_bytes(out)
+            elif preview:
+                typer.echo('DOCX output cannot be previewed in the terminal. Use --output to write a .docx file.')
             else:
-                _preview_plain_terminal(out)
-        elif not output:
-            print(out)
+                sys.stdout.buffer.write(out)
+        else:
+            if output:
+                output.write_text(out, encoding='utf-8')
+            elif preview:
+                kind = _preview_kind_from_module(mod)
+                if kind == 'html':
+                    _preview_html_in_browser(out)
+                elif kind == 'markdown':
+                    _preview_markdown_terminal(out)
+                else:
+                    _preview_plain_terminal(out)
+            else:
+                print(out)
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
         typer.echo(f'teipublisher: error: {e}', err=True)
         raise SystemExit(1) from e

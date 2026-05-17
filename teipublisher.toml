@@ -7,6 +7,9 @@ xpath_extensions = [
     "teipublisher.runtime.common_xpath_functions"
 ]
 
+[docx]
+template = "templates/default.docx"
+
 [webcomponents]
 enabled = false
 

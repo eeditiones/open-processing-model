@@ -107,10 +107,27 @@ class PythonGenerator(CodeGenerator):
             )
             pmf_ctor = 'MarkdownOutputFunctions()'
             transform_config_extra = "\n        'normalize_text': normalize_markdown_xml_text,"
+            transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
+        elif output_mode == 'docx':
+            pmf_import = (
+                'from teipublisher.runtime.docx_output_functions import (\n'
+                '    DocxOutputFunctions,\n'
+                '    docx_apply_children,\n'
+                ')\n'
+                'from teipublisher.runtime.markdown_output_functions import normalize_markdown_xml_text'
+            )
+            pmf_ctor = 'DocxOutputFunctions()'
+            transform_config_extra = (
+                "\n        'docx_template': runtime_options.get('docx_template'),"
+                "\n        'apply_children': docx_apply_children,"
+                "\n        'normalize_text': normalize_markdown_xml_text,"
+            )
+            transform_opts_exclude = "('xpath_extensions', 'webcomponents', 'docx_template')"
         else:
             pmf_import = 'from teipublisher.runtime.html_output_functions import HtmlOutputFunctions'
             pmf_ctor = 'HtmlOutputFunctions()'
             transform_config_extra = ''
+            transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
 
         template_helpers_block = helpers.functions_block
 
@@ -145,18 +162,13 @@ from teipublisher.runtime.pm_runtime import (
     xpath_select_nodes,
 )
 
-# Helper to pass NSMAP to xpath functions
-def _xpath_with_ns(xpath_func, node, expr, params=None, xpath_extensions=None):
-    """Call xpath_func with namespace mappings from ODD."""
-    return xpath_func(node, expr, params, xpath_extensions=xpath_extensions, namespaces=NSMAP)
-
-
 def xpath_content(node, expr, params=None, xpath_extensions=None):
     return xpath_select_nodes(
         node,
         expr,
         params,
         xpath_extensions=xpath_extensions,
+        namespaces=NSMAP,
     )
 {template_helpers_block}
 
@@ -191,7 +203,7 @@ def transform(root, options=None):
     xpath_extensions = runtime_options.get('xpath_extensions')
     webcomponents = runtime_options.get('webcomponents', False)
     parameters = {{
-        k: v for k, v in runtime_options.items() if k not in ('xpath_extensions', 'webcomponents')
+        k: v for k, v in runtime_options.items() if k not in {transform_opts_exclude}
     }}
     config = {{
         'output':         [{output_mode!r}],
@@ -255,6 +267,8 @@ def transform(root, options=None):
 
     def _param_to_expr(self, value: str) -> str:
         v = (value or '').strip()
+        # $get(x) is an XQuery indirection that is always identity in Python
+        v = re.sub(r'\$get\(([^()]+)\)', r'\1', v)
         if not v or v == '.':
             return 'node'
         if not self._param_tier_ok(v):
@@ -294,6 +308,10 @@ def transform(root, options=None):
             from teipublisher.runtime.markdown_output_functions import MarkdownOutputFunctions
 
             return MarkdownOutputFunctions
+        if output_mode == 'docx':
+            from teipublisher.runtime.docx_output_functions import DocxOutputFunctions
+
+            return DocxOutputFunctions
         from teipublisher.runtime.html_output_functions import HtmlOutputFunctions
 
         return HtmlOutputFunctions
@@ -625,7 +643,7 @@ def transform(root, options=None):
                     # False predicate means: contribute no output for this sequence slot.
                     part = (
                         f'(({part}) if xpath_test(node, {repr(pred)}, params, '
-                        'xpath_extensions=config.get("xpath_extensions")) else [])'
+                        'xpath_extensions=config.get("xpath_extensions"), namespaces=NSMAP) else [])'
                     )
                 parts.append(f'({part})')
             if not parts:
@@ -676,7 +694,7 @@ def transform(root, options=None):
             kw = 'if' if i == 0 else 'elif'
             lines.append(
                 f'{indent}{kw} xpath_test(node, {repr(pred)}, params, '
-                'xpath_extensions=config.get("xpath_extensions")):'
+                'xpath_extensions=config.get("xpath_extensions"), namespaces=NSMAP):'
             )
             lines.extend(self._desc_comment_lines(m, indent + '    '))
             if '\n' in inner:

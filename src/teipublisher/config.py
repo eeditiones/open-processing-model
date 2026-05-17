@@ -56,6 +56,7 @@ class ProjectConfig:
     webcomponents_cdn: str | None = None
     document_template: Path | None = None
     document_css: Path | None = None
+    document_docx_template: Path | None = None
     xpath_extensions: tuple[str, ...] = ()
     chunking: ChunkingConfig | None = None
     pythonpath: tuple[Path, ...] = ()
@@ -83,6 +84,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
 
     template = doc.get('template')
     css_file = doc.get('css')
+    docx_template_file = doc.get('docx_template')
     raw_transform_module = transform.get('module')
     raw_xpath_extensions = transform.get('xpath_extensions')
     xpath_extensions: tuple[str, ...]
@@ -138,6 +140,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         webcomponents_cdn=resolved_cdn,
         document_template=Path(template) if template else None,
         document_css=Path(css_file) if css_file else None,
+        document_docx_template=config_path.parent / docx_template_file if docx_template_file else None,
         xpath_extensions=xpath_extensions,
         chunking=chunking,
         pythonpath=pythonpath,

@@ -267,6 +267,7 @@ def xpath_select_nodes(
     params: dict | None = None,
     *,
     xpath_extensions: str | list[str] | tuple[str, ...] | None = None,
+    namespaces: dict[str, str] | None = None,
 ):
     """Evaluate XPath *expr* with *node* as context.
 
@@ -275,10 +276,12 @@ def xpath_select_nodes(
     """
     try:
         ext_fp = _extension_fingerprint(xpath_extensions)
+        ns_key = frozenset(namespaces.items()) if namespaces else None
         token = _compiled_xpath(
             expr,
             _default_element_namespace_uri(node),
             ext_fp,
+            ns_key,
         )
         raw = list(token.select(make_context(node, params)))
         raw = _xpath_raw_to_pipeline_values(raw)
