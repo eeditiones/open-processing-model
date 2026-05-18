@@ -446,6 +446,9 @@ font-style: italic;
                 </elementSpec>
                 <elementSpec ident="programlisting">
                     <model output="docx" behaviour="block" cssClass="Code"/>
+                    <model output="typst" behaviour="code">
+                        <param name="language" value="@language" />
+                    </model>
                     <model output="markdown" behaviour="code">
             <param name="language" value="@language"/>
         </model>
@@ -496,6 +499,9 @@ white-space: pre-wrap;
                     <model output="markdown" behaviour="code">
             <param name="language" value="@language"/>
         </model>
+                    <model output="typst" behaviour="code">
+                        <param name="language" value="@language" />
+                    </model>
                     <model output="epub" behaviour="block">
             <param name="content" value="text()"/>
             <outputRendition xml:space="preserve">
@@ -589,6 +595,15 @@ padding: 1em 0 1em .5em;
                     <model output="web" behaviour="block" cssClass="note">
             <param name="content" value="(title, *[not(self::title)])"/>
         </model>
+                    <model output="typst" behaviour="block">
+                        <param name="content" value="*[not(self::title)]"/>
+                        <param name="title" value="title"/>
+                        <pb:template xml:space="preserve">#note[
+[[title]]
+
+[[content]]
+]</pb:template>
+                    </model>
                     <model behaviour="block"/>
                 </elementSpec>
                 <elementSpec ident="tag">
