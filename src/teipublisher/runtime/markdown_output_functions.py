@@ -7,12 +7,17 @@ from lxml import etree
 
 from teipublisher.runtime.output_functions import (
     PMResult,
+    TemplateOutput,
     XLINK_HREF,
     XML_ID,
     ProcessingModelFunctions,
+    apply_children_without_normalization,
     apply_pb_template,
+    literal_code_body,
     child_nodes,
+    maybe_normalize_text,
     normalize,
+    should_preserve_whitespace,
 )
 
 MD_INDENT = '    '
@@ -152,7 +157,10 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         ind = config.get('indent', '')
         if ind:
             out.append(ind)
-        config['apply_children'](config, node, content, out)
+        if should_preserve_whitespace(cls):
+            apply_children_without_normalization(config, node, content, out)
+        else:
+            config['apply_children'](config, node, content, out)
         out.append('\n\n')
         return out
 
@@ -215,7 +223,7 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         result: list = []
         for item in normalize(content):
             if isinstance(item, str):
-                result.append(norm(item) if norm else item)
+                result.append(maybe_normalize_text(item, norm))
             elif isinstance(item, etree._Element):
                 sub = (
                     config['apply'](config, child_nodes(node))
@@ -371,7 +379,7 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         out = []
         for item in normalize(content):
             if isinstance(item, str):
-                out.append(norm(item) if norm else item)
+                out.append(maybe_normalize_text(item, norm))
             else:
                 out.append(str(item))
         return out
@@ -394,7 +402,6 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         return apply_pb_template(template_str, params, config)
 
     def code(self, config, node, cls, content, language=None) -> PMResult:
-        out: list = [f'```{language}\n']
-        config['apply_children'](config, node, content, out)
-        out.append('\n```')
-        return out
+        lang = language or ''
+        body = literal_code_body(node, content)
+        return [TemplateOutput(f'```{lang}\n{body}\n```')]

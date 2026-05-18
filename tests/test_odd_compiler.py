@@ -41,6 +41,27 @@ def test_compile_teipublisher_odd_emits_valid_python(tmp_path: Path) -> None:
     assert 'def main()' not in src
 
 
+def test_compile_typst_mode_imports_typst_output_functions(tmp_path: Path) -> None:
+    from teipublisher.odd_compiler import compile_odd
+
+    src = compile_odd(str(ODD), output_mode='typst')
+    assert 'TypstOutputFunctions' in src
+    assert 'normalize_markdown_xml_text' in src
+    assert "'normalize_text': normalize_markdown_xml_text" in src
+    assert 'TypstOutputFunctions()' in src
+    assert 'ODD_GENERATED_TYPST' in src
+    assert 'ODD_GENERATED_CSS' not in src
+    assert 'TYPST_RENDITION_FUNCTIONS' in src
+    assert "'typst_functions': TYPST_RENDITION_FUNCTIONS" in src
+    assert "'odd_css':       ''" in src
+    assert "return ['typst']" in src
+
+    out = tmp_path / 'typst_gen.py'
+    out.write_text(src, encoding='utf-8')
+    py_compile.compile(str(out), doraise=True)
+    assert r'\[' in src or '\\[' in src  # backslashes escaped for Python source
+
+
 def test_compile_markdown_mode_imports_markdown_output_functions() -> None:
     from teipublisher.odd_compiler import compile_odd
 

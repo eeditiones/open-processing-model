@@ -9,16 +9,27 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from lxml import etree
 
 DEFAULT_TEMPLATE_NAME = 'default_document.html.j2'
+DEFAULT_TYPST_TEMPLATE_NAME = 'default_document.typ.j2'
 
 
-def default_template_path() -> Path:
-    """Return the packaged default document template path."""
-    return Path(str(resources.files('teipublisher').joinpath(f'templates/{DEFAULT_TEMPLATE_NAME}')))
+def default_template_path(template_name: str = DEFAULT_TEMPLATE_NAME) -> Path:
+    """Return the path to a packaged default document template."""
+    return Path(
+        str(resources.files('teipublisher').joinpath(f'templates/{template_name}'))
+    )
 
 
-def resolve_template_path(template_path: Path | None) -> Path:
+def resolve_template_path(
+    template_path: Path | None,
+    *,
+    default_name: str = DEFAULT_TEMPLATE_NAME,
+) -> Path:
     """Resolve override template path or packaged default template."""
-    path = template_path if template_path is not None else default_template_path()
+    path = (
+        template_path
+        if template_path is not None
+        else default_template_path(default_name)
+    )
     if not path.is_file():
         raise FileNotFoundError(f'Template not found: {path}')
     return path
@@ -78,4 +89,27 @@ def render_document_template(
         parameters=parameters or {},
         lang=html_root.get('lang', ''),
         webcomponents_url=webcomponents_url,
+    )
+
+
+def render_typst_document_template(
+    *,
+    content_typst: str,
+    template_path: Path,
+    odd_typst: str | None,
+    parameters: dict[str, str],
+) -> str:
+    """Render Typst body content through the selected Jinja2 document shell."""
+    env = Environment(
+        loader=FileSystemLoader(str(template_path.parent)),
+        autoescape=False,
+    )
+    try:
+        tpl = env.get_template(template_path.name)
+    except TemplateNotFound as e:
+        raise FileNotFoundError(f'Typst template not found: {template_path}') from e
+    return tpl.render(
+        content_typst=content_typst,
+        odd_typst=odd_typst or '',
+        parameters=parameters or {},
     )

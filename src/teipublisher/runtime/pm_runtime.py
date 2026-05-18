@@ -26,7 +26,7 @@ from elementpath.xpath_nodes import XPathNode
 from elementpath.xpath31.xpath31_parser import XPath31Parser
 from lxml import etree
 
-from .output_functions import child_nodes, normalize
+from .output_functions import child_nodes, maybe_normalize_text, normalize
 from .xpath_extensions import (
     build_extension_parser,
     fingerprint_for_module,
@@ -384,8 +384,7 @@ def apply_children(config, source_node, content, parent_el) -> None:
     norm = config.get('normalize_text')
     for item in normalize(content):
         if isinstance(item, str):
-            s = norm(item) if norm else item
-            append_to(parent_el, s)
+            append_to(parent_el, maybe_normalize_text(item, norm))
         elif isinstance(item, etree._Element):
             dispatch = config['dispatch']
             sub = (
@@ -404,10 +403,7 @@ def apply(config, nodes, dispatch):
     result = []
     for node in nodes:
         if isinstance(node, (str, etree._ElementUnicodeResult)):
-            s = str(node)
-            if norm:
-                s = norm(s)
-            result.append(s)
+            result.append(maybe_normalize_text(str(node), norm))
         elif isinstance(node, etree._Element):
             result.extend(dispatch(config, node, params))
     return result
@@ -427,10 +423,7 @@ def apply_template_param_value(config, source_node, raw):
     result = []
     for item in normalize(raw):
         if isinstance(item, (str, etree._ElementUnicodeResult)):
-            s = str(item)
-            if norm:
-                s = norm(s)
-            result.append(s)
+            result.append(maybe_normalize_text(str(item), norm))
         elif isinstance(item, etree._Element):
             if item is source_node:
                 result.extend(apply(config, child_nodes(source_node), dispatch))

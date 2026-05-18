@@ -40,6 +40,8 @@ def _preview_kind_from_module(mod) -> str:
         return 'html'
     if primary == 'docx':
         return 'docx'
+    if primary == 'typst':
+        return 'typst'
     return 'text'
 
 
@@ -124,7 +126,7 @@ def compile_cmd(
         typer.Option(
             '--mode',
             '-m',
-            help='ODD processing-model output channel: web (HTML), markdown, print, … (@output on models; default: web).',
+            help='ODD processing-model output channel: web (HTML), markdown, typst, docx, … (@output on models; default: web).',
         ),
     ] = 'web',
     target: Annotated[
@@ -194,7 +196,7 @@ def transform_cmd(
         Optional[Path],
         typer.Option(
             '--template',
-            help='Template path: Jinja2 template for HTML output, or .docx file for DOCX output.',
+            help='Template path: Jinja2 for HTML/Typst output, or .docx for DOCX output.',
         ),
     ] = None,
     xpath: Annotated[
@@ -264,14 +266,28 @@ def transform_cmd(
             raise SystemExit(1)
 
         effective_webcomponents = webcomponents if webcomponents is not None else (cfg.webcomponents_enabled or False)
-        effective_template = template if template is not None else cfg.document_template
-        effective_docx_template = template if template is not None else cfg.document_docx_template
+        mod = load_transform_module(effective_script)
+        channels = mod.transform_output_channels()
+        primary = channels[0] if channels else ''
+        if isinstance(channels, (list, tuple)) and channels:
+            primary = channels[0]
+        elif not isinstance(channels, (list, tuple)):
+            primary = channels
+
+        if primary == 'typst':
+            effective_template = template if template is not None else cfg.typst_template
+            effective_docx_template = None
+        elif primary == 'docx':
+            effective_template = None
+            effective_docx_template = template if template is not None else cfg.document_docx_template
+        else:
+            effective_template = template if template is not None else cfg.document_template
+            effective_docx_template = None
         effective_css = css if css is not None else cfg.document_css
         effective_extensions: tuple[str, ...] = (
             tuple(xpath_extensions) if xpath_extensions else cfg.xpath_extensions
         )
 
-        mod = load_transform_module(effective_script)
         parameters = _parameters_from_cli(param if param else None)
         # Add input_path to parameters for image processing in DOCX output
         if parameters is None:
@@ -306,6 +322,7 @@ def transform_cmd(
             user_css=user_css,
             webcomponents_url=webcomponents_url,
             docx_template=effective_docx_template,
+            typst_template_path=effective_template if primary == 'typst' else None,
         )
 
         if isinstance(out, bytes):
@@ -324,6 +341,8 @@ def transform_cmd(
                     _preview_html_in_browser(out)
                 elif kind == 'markdown':
                     _preview_markdown_terminal(out)
+                elif kind == 'typst':
+                    _preview_plain_terminal(out)
                 else:
                     _preview_plain_terminal(out)
             else:

@@ -108,6 +108,130 @@ def child_nodes(node):
 _PLACEHOLDER_RE = re.compile(r'\[\[\s*([\w-]+)\s*\]\]')
 
 
+class TemplateOutput(str):
+    """Preformatted or template text; skip prose normalisation that collapses line breaks."""
+
+
+_PRESERVE_WHITESPACE_CLASS_NAMES = frozenset({
+    'code',
+    'programlisting',
+    'Code',
+    'Preformatted',
+    'CodeChar',
+    'tei-code',
+    'tei-tag',
+})
+
+
+def should_preserve_whitespace(cls: list) -> bool:
+    """Return True when dispatch classes indicate preformatted / code content."""
+    for item in cls:
+        if not item:
+            continue
+        for name in str(item).split():
+            if name in _PRESERVE_WHITESPACE_CLASS_NAMES:
+                return True
+    return False
+
+
+def apply_children_without_normalization(
+    config: dict,
+    source_node,
+    content,
+    parent_el,
+) -> None:
+    """Call ``config['apply_children']`` with ``normalize_text`` temporarily disabled."""
+    saved = config.pop('normalize_text', None)
+    try:
+        config['apply_children'](config, source_node, content, parent_el)
+    finally:
+        if saved is not None:
+            config['normalize_text'] = saved
+
+
+_CLARK_TAG_RE = re.compile(r'^\{[^}]+\}')
+
+
+def _qname_local(name: str) -> str:
+    if name.startswith('{'):
+        return _CLARK_TAG_RE.sub('', name)
+    return etree.QName(name).localname
+
+
+def _serialize_xml_element_local(el: etree._Element, *, with_tail: bool) -> str:
+    """Serialize one element as literal XML using local names (no PM dispatch)."""
+    if not isinstance(el.tag, str):
+        raw = etree.tostring(el, encoding='unicode')
+        return raw.decode('utf-8') if isinstance(raw, bytes) else raw
+    name = _qname_local(el.tag)
+    attr_bits: list[str] = []
+    for key, val in el.attrib.items():
+        attr_bits.append(f' {_qname_local(str(key))}="{val}"')
+    parts = [f'<{name}{"".join(attr_bits)}>']
+    if el.text:
+        parts.append(el.text)
+    for child in el:
+        if isinstance(child.tag, str):
+            parts.append(_serialize_xml_element_local(child, with_tail=True))
+        else:
+            raw = etree.tostring(child, encoding='unicode')
+            if isinstance(raw, bytes):
+                raw = raw.decode('utf-8')
+            parts.append(raw)
+            if child.tail:
+                parts.append(child.tail)
+    parts.append(f'</{name}>')
+    if with_tail and el.tail:
+        parts.append(el.tail)
+    return ''.join(parts)
+
+
+def serialize_element_content_literal(el: etree._Element) -> str:
+    """Serialize the mixed content inside *el* as literal XML/text."""
+    parts: list[str] = []
+    if el.text:
+        parts.append(el.text)
+    for child in el:
+        if isinstance(child.tag, str):
+            parts.append(_serialize_xml_element_local(child, with_tail=True))
+        else:
+            raw = etree.tostring(child, encoding='unicode')
+            if isinstance(raw, bytes):
+                raw = raw.decode('utf-8')
+            parts.append(raw)
+            if child.tail:
+                parts.append(child.tail)
+    return ''.join(parts)
+
+
+def literal_code_body(node: etree._Element, content) -> str:
+    """Build a code-block body without running child elements through the PM."""
+    items = normalize(content)
+    if len(items) == 1 and isinstance(items[0], etree._Element) and items[0] is node:
+        return serialize_element_content_literal(node)
+    parts: list[str] = []
+    for item in items:
+        if isinstance(item, str):
+            parts.append(item)
+        elif isinstance(item, etree._Element):
+            parts.append(_serialize_xml_element_local(item, with_tail=True))
+    return ''.join(parts)
+
+
+def maybe_normalize_text(s: str, norm) -> str:
+    """Apply *norm* unless *s* is template output that must keep ``\\n``."""
+    if norm and not isinstance(s, TemplateOutput):
+        return norm(s)
+    return s
+
+
+def _coerce_template_strings(nodes: list) -> list:
+    return [
+        TemplateOutput(item) if isinstance(item, str) and item else item
+        for item in nodes
+    ]
+
+
 def _to_str_param(val) -> str:
     """Stringify a param value for use in attribute values or plain text nodes."""
     if val is None:
@@ -244,7 +368,7 @@ def apply_pb_template(template_str: str, params: dict, config: dict | None = Non
         result.append(child)
         if tail:
             result.append(tail)
-    return result
+    return _coerce_template_strings(result)
 
 
 # ── Abstract base class ────────────────────────────────────────────────────────
@@ -374,10 +498,12 @@ class ProcessingModelFunctions(ABC):
 
 from .html_output_functions import HtmlOutputFunctions
 from .markdown_output_functions import MarkdownOutputFunctions
+from .typst_output_functions import TypstOutputFunctions
 
 __all__ = [
     'HtmlOutputFunctions',
     'MarkdownOutputFunctions',
+    'TypstOutputFunctions',
     'ProcessingModelFunctions',
     'PMResult',
     'TEI_NS',

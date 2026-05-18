@@ -1,0 +1,10 @@
+// TEI Publisher default Typst document shell
+// Override via [typst] template in project config or --template
+
+{{ odd_typst }}
+
+#set document(
+  title: "{{ parameters.get('title', '') }}",
+)
+
+{{ content_typst }}

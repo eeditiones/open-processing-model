@@ -70,7 +70,12 @@ from teipublisher.config import (
 )
 from teipublisher.runtime.pm_runtime import resolve_context_element
 from teipublisher.runtime.pm_runtime import serialize as _default_serialize
-from teipublisher.template_rendering import render_document_template, resolve_template_path
+from teipublisher.template_rendering import (
+    DEFAULT_TYPST_TEMPLATE_NAME,
+    render_document_template,
+    render_typst_document_template,
+    resolve_template_path,
+)
 
 
 def load_transform_module(script_path: Path):
@@ -142,6 +147,7 @@ def run_transform(
     user_css: str | None = None,
     webcomponents_url: str | None = None,
     docx_template: Path | None = None,
+    typst_template_path: Path | None = None,
 ) -> str | bytes:
     """Run *mod* against *root* and return the serialized output.
 
@@ -162,6 +168,7 @@ def run_transform(
         user_css: CSS string injected into ``<head>`` of full-document output.
         webcomponents_url: CDN URL for ``pb-components`` script tag.
         docx_template: Path to a ``.docx`` file used as the Word style template.
+        typst_template_path: Jinja2 template for Typst document shell.
     """
     serialize = getattr(mod, 'serialize', _default_serialize)
 
@@ -185,19 +192,29 @@ def run_transform(
     )
     out = serialize(result)
 
-    if apply_template and is_document:
-        channels = mod.transform_output_channels()
-        primary = (channels[0] if channels else '') if isinstance(channels, (list, tuple)) else channels
-        if primary == 'web':
-            tpl = resolve_template_path(template_path)
-            out = render_document_template(
-                serialized_html=out,
-                template_path=tpl,
-                odd_css=getattr(mod, 'ODD_GENERATED_CSS', ''),
-                user_css=user_css or '',
-                parameters=parameters or {},
-                webcomponents_url=webcomponents_url,
-            )
+    channels = mod.transform_output_channels()
+    primary = (channels[0] if channels else '') if isinstance(channels, (list, tuple)) else channels
+
+    if apply_template and primary == 'typst':
+        tpl = resolve_template_path(
+            typst_template_path, default_name=DEFAULT_TYPST_TEMPLATE_NAME
+        )
+        out = render_typst_document_template(
+            content_typst=out,
+            template_path=tpl,
+            odd_typst=getattr(mod, 'ODD_GENERATED_TYPST', ''),
+            parameters=parameters or {},
+        )
+    elif apply_template and is_document and primary == 'web':
+        tpl = resolve_template_path(template_path)
+        out = render_document_template(
+            serialized_html=out,
+            template_path=tpl,
+            odd_css=getattr(mod, 'ODD_GENERATED_CSS', ''),
+            user_css=user_css or '',
+            parameters=parameters or {},
+            webcomponents_url=webcomponents_url,
+        )
 
     return out
 
@@ -215,6 +232,7 @@ def transform_node(
     user_css: str | None = None,
     webcomponents_url: str | None = None,
     docx_template: Path | None = None,
+    typst_template_path: Path | None = None,
 ) -> str | bytes:
     """Load *script_path* as a transform module and apply it to *root*.
 
@@ -255,6 +273,7 @@ def transform_node(
         user_css=user_css,
         webcomponents_url=webcomponents_url,
         docx_template=docx_template,
+        typst_template_path=typst_template_path,
     )
 
 
@@ -316,4 +335,5 @@ def transform_file(
         user_css=user_css,
         webcomponents_url=webcomponents_url,
         docx_template=cfg.document_docx_template,
+        typst_template_path=template if template is not None else cfg.typst_template,
     )

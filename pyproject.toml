@@ -32,8 +32,10 @@ packages = ["src/teipublisher"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "src/teipublisher/templates/default_document.html.j2" = "teipublisher/templates/default_document.html.j2"
+"src/teipublisher/templates/default_document.typ.j2" = "teipublisher/templates/default_document.typ.j2"
 
 [tool.hatch.build.targets.sdist]
 include = [
     "src/teipublisher/templates/default_document.html.j2",
+    "src/teipublisher/templates/default_document.typ.j2",
 ]

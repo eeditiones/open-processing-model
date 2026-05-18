@@ -30,6 +30,11 @@ def test_preview_kind_from_transform_output_channels() -> None:
         def transform_output_channels():
             return ['print']
 
+    class TypstMod:
+        @staticmethod
+        def transform_output_channels():
+            return ['typst']
+
     class EmptyChannels:
         @staticmethod
         def transform_output_channels():
@@ -39,6 +44,7 @@ def test_preview_kind_from_transform_output_channels() -> None:
     assert _preview_kind_from_module(WebMod) == 'html'
     assert _preview_kind_from_module(TupleMod) == 'markdown'
     assert _preview_kind_from_module(PrintMod) == 'text'
+    assert _preview_kind_from_module(TypstMod) == 'typst'
     assert _preview_kind_from_module(EmptyChannels) == 'text'
 
 

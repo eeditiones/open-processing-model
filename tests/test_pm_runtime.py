@@ -5,7 +5,14 @@ from __future__ import annotations
 import pytest
 from lxml import etree
 
-from teipublisher.runtime.output_functions import normalize
+from teipublisher.runtime.output_functions import (
+    TemplateOutput,
+    apply_children_without_normalization,
+    apply_pb_template,
+    normalize,
+)
+from teipublisher.runtime.markdown_output_functions import normalize_markdown_xml_text
+from teipublisher.runtime.pm_runtime import apply_children
 from teipublisher.runtime.pm_runtime import (
     apply_template_param_value,
     inject_cached_footnotes,
@@ -16,6 +23,43 @@ from teipublisher.runtime.pm_runtime import (
 )
 
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
+
+
+def test_apply_pb_template_preserves_line_breaks() -> None:
+    out = apply_pb_template(
+        '#note[\n[[title]]\n\n[[content]]\n]',
+        {'title': 'Note title', 'content': 'Body'},
+    )
+    text = ''.join(str(x) for x in out)
+    assert isinstance(out[0], TemplateOutput)
+    assert '#note[\nNote title\n\nBody\n]' == text
+
+
+def test_apply_children_skips_normalization_for_template_output() -> None:
+    buf: list = []
+    config = {
+        'normalize_text': normalize_markdown_xml_text,
+        'apply_children': apply_children,
+        'dispatch': lambda *a, **k: [],
+    }
+    apply_children(config, None, [TemplateOutput('line one\nline two')], buf)
+    assert buf == ['line one\nline two']
+
+
+def test_apply_children_without_normalization_preserves_newlines() -> None:
+    buf: list = []
+    config = {
+        'normalize_text': normalize_markdown_xml_text,
+        'apply_children': apply_children,
+        'dispatch': lambda *a, **k: [],
+    }
+    apply_children_without_normalization(
+        config,
+        None,
+        ['keep\n  indent\n'],
+        buf,
+    )
+    assert buf == ['keep\n  indent\n']
 
 
 def test_apply_template_param_value_expands_context_element_to_children() -> None:

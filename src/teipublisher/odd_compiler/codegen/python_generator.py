@@ -21,6 +21,7 @@ from . import (
 )
 from ..behaviour_map import BEHAVIOUR_METHOD, method_for_behaviour
 from ..css_generator import collect_odd_generated_css
+from ..typst_generator import collect_odd_generated_typst
 from ..parse_odd import ParsedOdd, iter_element_specs
 
 # When combining @behaviour with pb:template, default ``content`` for [[content]] substitution:
@@ -58,8 +59,28 @@ class PythonGenerator(CodeGenerator):
     ) -> str:
         schema_ns = parsed.schema_ns
         odd_path = parsed.odd_path
-        odd_css = collect_odd_generated_css(parsed, output_mode=output_mode)
-        odd_css_literal = self._python_triple_quoted(odd_css)
+        odd_typst_literal = ''
+        transform_config_extra = ''
+        if output_mode == 'typst':
+            odd_typst, typst_fn_names = collect_odd_generated_typst(parsed, output_mode=output_mode)
+            typst_fn_literal = self._python_frozenset_literal(typst_fn_names)
+            odd_typst_literal = (
+                f'\n\nODD_GENERATED_TYPST = {self._python_triple_quoted(odd_typst)}'
+                f'\n\nTYPST_RENDITION_FUNCTIONS = {typst_fn_literal}'
+            )
+            odd_generated_constants = odd_typst_literal
+            odd_css_config = "''"
+            transform_config_extra = (
+                "\n        'normalize_text': normalize_markdown_xml_text,"
+                "\n        'typst_functions': TYPST_RENDITION_FUNCTIONS,"
+            )
+        else:
+            odd_css = collect_odd_generated_css(parsed, output_mode=output_mode)
+            odd_generated_constants = (
+                f'\n\nODD_GENERATED_CSS = {self._python_triple_quoted(odd_css)}'
+                f'{odd_typst_literal}'
+            )
+            odd_css_config = 'ODD_GENERATED_CSS'
         # Generate NSMAP from ODD namespace declarations for XPath expressions
         nsmap_literal = self._python_nsmap_literal(parsed.nsmap)
 
@@ -124,6 +145,15 @@ class PythonGenerator(CodeGenerator):
                 "\n        'input_path': runtime_options.get('input_path'),"
             )
             transform_opts_exclude = "('xpath_extensions', 'webcomponents', 'docx_template')"
+        elif output_mode == 'typst':
+            pmf_import = (
+                'from teipublisher.runtime.typst_output_functions import (\n'
+                '    TypstOutputFunctions,\n'
+                ')\n'
+                'from teipublisher.runtime.markdown_output_functions import normalize_markdown_xml_text'
+            )
+            pmf_ctor = 'TypstOutputFunctions()'
+            transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
         else:
             pmf_import = 'from teipublisher.runtime.html_output_functions import HtmlOutputFunctions'
             pmf_ctor = 'HtmlOutputFunctions()'
@@ -182,7 +212,7 @@ def transform_output_channels():
     return ['{output_mode}']
 
 
-ODD_GENERATED_CSS = {odd_css_literal}
+{odd_generated_constants}
 
 
 def apply(config, nodes):
@@ -215,7 +245,7 @@ def transform(root, options=None):
         'apply':         apply,
         'apply_children': apply_children_impl,
         'dispatch':      _dispatch,
-        'odd_css':       ODD_GENERATED_CSS,
+        'odd_css':       {odd_css_config},
         'footnotes':     [],{transform_config_extra}
     }}
     result = apply(config, [root])
@@ -228,7 +258,16 @@ def transform(root, options=None):
     @staticmethod
     def _python_triple_quoted(s: str) -> str:
         """Return *s* as a Python triple-quoted literal preserving line breaks."""
-        return '"""' + s.replace('"""', '\\"""') + '"""'
+        # Escape backslashes first so Typst ``\[`` etc. are not invalid Python escapes.
+        escaped = s.replace('\\', '\\\\').replace('"""', '\\"""')
+        return '"""' + escaped + '"""'
+
+    @staticmethod
+    def _python_frozenset_literal(names: frozenset[str]) -> str:
+        if not names:
+            return 'frozenset()'
+        items = ', '.join(repr(n) for n in sorted(names))
+        return f'frozenset(({items}))'
 
     @staticmethod
     def _python_nsmap_literal(nsmap: dict[str, str]) -> str:
@@ -313,6 +352,10 @@ def transform(root, options=None):
             from teipublisher.runtime.docx_output_functions import DocxOutputFunctions
 
             return DocxOutputFunctions
+        if output_mode == 'typst':
+            from teipublisher.runtime.typst_output_functions import TypstOutputFunctions
+
+            return TypstOutputFunctions
         from teipublisher.runtime.html_output_functions import HtmlOutputFunctions
 
         return HtmlOutputFunctions

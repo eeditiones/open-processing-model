@@ -1,0 +1,38 @@
+// TEI Publisher default Typst document shell
+// Override via [typst] template in project config or --template
+
+#import "@preview/zebraw:0.6.3": *
+#show: zebraw.with(..zebraw-themes.zebra, lang: true, lang-color: color.mix((blue, 15%), (white, 85%)))
+
+{{ odd_typst }}
+
+#set document(
+  title: "{{ parameters.get('title', '') }}",
+)
+#set text(lang: "en")
+#set heading(numbering: "1.")
+#set par(justify: true)
+
+#let guilabel(body) = text(fill: blue)[#body]
+#let guibutton(body) = box(
+    stroke: 1pt,
+    inset: 2pt,
+    radius: 3pt,
+    baseline: 2pt
+)[ #text(size: 0.8em)[#body] ]
+
+#let code(body) = text(font: "DejaVu Sans Mono", size: 0.8em)[#body]
+
+#let guimenuitem(body) = box(
+  fill: color.mix((blue, 15%), (white, 85%)),
+  inset: (left: 0.2em, right: 0.2em, top: 0.1em, bottom: 0.1em),
+  radius: 3pt,
+)[#body]
+
+#let note(content) = box(
+  inset: (left: 0.8em, top: 0.3em, bottom: 0.3em),
+  stroke: ( left: (paint: rgb(246, 166, 35), thickness: 3pt) ),
+  radius: 0pt,
+)[ #content ]
+
+{{ content_typst }}

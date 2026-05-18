@@ -40,6 +40,8 @@ def _model_matches_output_mode(el, output_mode: str) -> bool:
         return o is None or o == 'web'
     if output_mode == 'markdown':
         return o is None or o == 'markdown'
+    if output_mode == 'typst':
+        return o is None or o == 'typst'
     return o == output_mode
 
 
