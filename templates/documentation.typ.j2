@@ -4,12 +4,24 @@
 #import "@preview/zebraw:0.6.3": *
 #show: zebraw.with(..zebraw-themes.zebra, lang: true, lang-color: color.mix((blue, 15%), (white, 85%)))
 
+#import "@preview/ilm:2.1.0": *
+
+#set text(lang: "en")
+
+{% set _authors = metadata.get('authors', []) -%}
+#show: ilm.with(
+  title: [{{ (metadata.get('title') or ['Your Title'])[0] }}],
+  authors: {% if _authors | length > 1 %}({% for a in _authors %}"{{ a }}"{% if not loop.last %}, {% endif %}{% endfor %}){% elif _authors %}"{{ _authors[0] }}"{% else %}""{% endif %},
+  abstract: [{{ (metadata.get('abstract') or [''])[0] }}],
+  figure-index: (enabled: true),
+  table-index: (enabled: true),
+  listing-index: (enabled: true)
+)
+#set text(font: ("New Computer Modern", "Times New Roman"))
+#show raw: set text(font: ("Iosevka", "DejaVu Sans Mono", "Courier New"))
+
 {{ odd_typst }}
 
-#set document(
-  title: "{{ parameters.get('title', '') }}",
-)
-#set text(lang: "en")
 #set heading(numbering: "1.")
 #set par(justify: true)
 

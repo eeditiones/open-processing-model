@@ -96,7 +96,7 @@ def _wrap_typst_styling(expr: str, props: dict[str, str]) -> str:
     if color:
         typst_color = _css_color_to_typst(color)
         if typst_color:
-            result = f'text(fill: {typst_color})[{result}]'
+            result = f'text(fill: {typst_color})[#{result}]'
     return result
 
 

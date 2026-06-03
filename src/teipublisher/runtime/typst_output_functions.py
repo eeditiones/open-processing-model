@@ -92,10 +92,25 @@ def css_length_to_typst(val: str | int | float | None) -> str | None:
     return num_s
 
 
+def escape_typst_text_node(text: str) -> str:
+    """Escape Typst special characters in a raw XML text node.
+
+    Only call on document-derived text — never on generated Typst markup.
+    No protect/restore is needed because these strings contain no pre-generated
+    Typst identifiers or markup.
+    """
+    text = text.replace('#', '\\#')
+    text = text.replace('$', '\\$')
+    text = text.replace('@', '\\@')
+    text = text.replace('*', '\\*')
+    text = text.replace('_', '\\_')
+    return text
+
+
 def escape_typst_underscores(text: str) -> str:
     """Escape lone ``_`` characters except paired ``_emphasis_`` spans from ``@rend``.
 
-    Preserves ``#tei_*`` / ``@tei-fn-*`` references and does not treat long spans
+    Preserves ``#tei_*`` identifiers and does not treat long spans
     crossing ``[``/``]`` as emphasis.
     """
     protected: list[str] = []
@@ -106,7 +121,6 @@ def escape_typst_underscores(text: str) -> str:
 
     t = text
     t = re.sub(r'#[A-Za-z][A-Za-z0-9_]*', protect, t)
-    t = re.sub(r'@tei-fn-[A-Za-z0-9_-]+', protect, t)
     emphasis = re.compile(r'(?<![\w\\])_([^_\n\[\]#:]+?)_(?![\w])')
     t = emphasis.sub(protect, t)
     t = t.replace('_', '\\_')
@@ -115,10 +129,10 @@ def escape_typst_underscores(text: str) -> str:
     return t
 
 
-def escape_typst_at_signs(text: str) -> str:
-    """Escape ``@`` so prose like ``@mode`` is not parsed as a label reference.
+def escape_typst_asterisks(text: str) -> str:
+    """Escape lone ``*`` so prose like ``foo * bar`` is not parsed as bold markup.
 
-    Preserves footnote references ``@tei-fn-*`` emitted by :meth:`TypstOutputFunctions.note`.
+    Preserves paired ``*bold*`` spans emitted by the pipeline.
     """
     protected: list[str] = []
 
@@ -126,11 +140,41 @@ def escape_typst_at_signs(text: str) -> str:
         protected.append(m.group(0))
         return f'\x00{len(protected) - 1}\x00'
 
-    t = re.sub(r'@tei-fn-[A-Za-z0-9_-]+', protect, text)
-    t = t.replace('@', '\\@')
+    t = text
+    t = re.sub(r'#[A-Za-z][A-Za-z0-9_]*', protect, t)
+    t = re.sub(r'(?<![\\*])\*([^*\n\[\]]+?)\*(?![*])', protect, t)
+    t = t.replace('*', '\\*')
     for i, orig in enumerate(protected):
         t = t.replace(f'\x00{i}\x00', orig)
     return t
+
+
+def escape_typst_hashes(text: str) -> str:
+    """Escape ``#`` not starting a valid Typst identifier.
+
+    Preserves ``#func[...]`` / ``#func(...)`` calls emitted by the pipeline.
+    """
+    protected: list[str] = []
+
+    def protect(m: re.Match) -> str:
+        protected.append(m.group(0))
+        return f'\x00{len(protected) - 1}\x00'
+
+    t = re.sub(r'#[A-Za-z_][A-Za-z0-9_]*', protect, text)
+    t = t.replace('#', '\\#')
+    for i, orig in enumerate(protected):
+        t = t.replace(f'\x00{i}\x00', orig)
+    return t
+
+
+def escape_typst_dollar_signs(text: str) -> str:
+    """Escape ``$`` so prose like ``$parameters`` is not parsed as math mode."""
+    return text.replace('$', '\\$')
+
+
+def escape_typst_at_signs(text: str) -> str:
+    """Escape ``@`` so prose like ``@mode`` is not parsed as a label reference."""
+    return text.replace('@', '\\@')
 
 
 def _get_typst_functions(config: dict) -> frozenset[str]:
@@ -141,12 +185,39 @@ def _get_typst_functions(config: dict) -> frozenset[str]:
     return config['_typst_functions']
 
 
+
+def _cls_without_names(cls: list, *skip: str) -> list:
+    """Return a dispatch class list with *skip* tokens removed from each entry."""
+    skip_set = frozenset(skip)
+    filtered: list = []
+    for item in cls:
+        if not item:
+            continue
+        kept = [n for n in str(item).split() if n and n not in skip_set]
+        if kept:
+            filtered.append(' '.join(kept))
+    return filtered
+
+
+def _wrap_buf_dispatch_classes(config: dict, cls: list, buf: list) -> None:
+    """Replace *buf* with Typst wrappers for ODD renditions and ``@cssClass`` names."""
+    if not buf:
+        return
+    defined = _get_typst_functions(config)
+    if not _typst_wrap_class_names(cls, defined):
+        return
+    buf[:] = [_wrap_typst_classes(config, cls, _join_buf(buf))]
+
+
 def _typst_wrap_class_names(cls: list, defined: frozenset[str]) -> list[str]:
     """Return class names to wrap as ``#ident[content]``, innermost first.
 
     - ``tei-*`` / ``simple_*`` with an ODD-generated ``#let`` (in *defined*)
     - any other dispatch class (from ``@cssClass``); the project Typst template
       must define matching ``#let`` functions
+
+    Tokens containing ``(`` (e.g. ``color(red)`` from ``@rend``) are skipped
+    because they are not valid Typst identifiers.
     """
     tei_and_simple: list[str] = []
     custom: list[str] = []
@@ -156,6 +227,8 @@ def _typst_wrap_class_names(cls: list, defined: frozenset[str]) -> list[str]:
             continue
         for name in str(item).split():
             if not name or name == 'r' or name in seen:
+                continue
+            if '(' in name:
                 continue
             seen.add(name)
             if name.startswith(('tei-', 'simple_')):
@@ -251,11 +324,14 @@ def _restore_fenced_code_blocks(text: str, protected: list[str]) -> str:
 
 
 def apply_typst_finish_cleanup(text: str) -> str:
-    """Post-process Typst body text after the transform tree is flattened."""
+    """Post-process Typst body text after the transform tree is flattened.
+
+    Character escaping (#, $, @, *, _) is handled at the text-node level via
+    ``config['text_escape']`` (see ``escape_typst_text_node``).  Only HTML tag
+    stripping and structural markdown normalisation are performed here.
+    """
     text, fenced = _protect_fenced_code_blocks(text)
     text = strip_html_markup(text)
-    text = escape_typst_underscores(text)
-    text = escape_typst_at_signs(text)
     text = apply_markdown_finish_regexes(text)
     return _restore_fenced_code_blocks(text, fenced)
 
@@ -263,6 +339,24 @@ def apply_typst_finish_cleanup(text: str) -> str:
 def _serialize_typst_pm_result(nodes: list) -> str:
     """Concatenate transform output without HTML serialization of elements."""
     return _flatten_nodes_to_text(nodes)
+
+
+_REND_FUNC_RE = re.compile(r'^(\w[\w-]*)\(([^)]*)\)$')
+
+
+def _apply_rend_func_styling(rend_tokens: list[str], text: str) -> str:
+    """Apply CSS-function-style ``@rend`` tokens (e.g. ``color(red)``) as Typst styling."""
+    from teipublisher.odd_compiler.typst_generator import _css_color_to_typst
+    for token in rend_tokens:
+        m = _REND_FUNC_RE.match(token)
+        if not m:
+            continue
+        fn, arg = m.group(1).lower(), m.group(2).strip()
+        if fn == 'color':
+            typst_color = _css_color_to_typst(arg)
+            if typst_color:
+                text = f'#text(fill: {typst_color})[{text}]'
+    return text
 
 
 def _apply_inline_styling(config, node, cls: list, text: str) -> str:
@@ -276,6 +370,7 @@ def _apply_inline_styling(config, node, cls: list, text: str) -> str:
         wrapped = _css_typst_wrap(config, css_cls, 'body')
         if wrapped != 'body':
             text = wrapped.replace('body', text, 1)
+    text = _apply_rend_func_styling(rend, text)
     return _wrap_typst_classes(config, cls, text)
 
 
@@ -287,14 +382,18 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         return [text]
 
     def block(self, config, node, cls, content) -> PMResult:
+        body: list = []
+        if should_preserve_whitespace(cls):
+            apply_children_without_normalization(config, node, content, body)
+        else:
+            config['apply_children'](config, node, content, body)
+        text = _wrap_typst_classes(config, cls, _join_buf(body))
         out: list = []
         ind = config.get('indent', '')
         if ind:
             out.append(ind)
-        if should_preserve_whitespace(cls):
-            apply_children_without_normalization(config, node, content, out)
-        else:
-            config['apply_children'](config, node, content, out)
+        if text:
+            out.append(text)
         out.append('\n\n')
         return out
 
@@ -305,13 +404,17 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         return [_apply_inline_styling(config, node, cls, text)]
 
     def paragraph(self, config, node, cls, content) -> PMResult:
+        body: list = []
+        config['apply_children'](config, node, content, body)
+        text = _wrap_typst_classes(config, cls, _join_buf(body))
         out: list = []
         if node.getprevious() is not None:
             out.append('\n')
         ind = config.get('indent', '')
         if ind:
             out.append(ind)
-        config['apply_children'](config, node, content, out)
+        if text:
+            out.append(text)
         out.append('\n\n')
         return out
 
@@ -322,10 +425,10 @@ class TypstOutputFunctions(ProcessingModelFunctions):
             lvl = 1
         lvl = max(1, min(6, lvl))
         hashes = '=' * lvl
-        out: list = ['\n', config.get('indent', ''), hashes, ' ']
-        config['apply_children'](config, node, content, out)
-        out.append('\n\n')
-        return out
+        body: list = []
+        config['apply_children'](config, node, content, body)
+        text = _wrap_typst_classes(config, cls, _join_buf(body))
+        return ['\n', config.get('indent', ''), hashes, ' ', text, '\n\n']
 
     def section(self, config, node, cls, content) -> PMResult:
         return self.block(config, node, cls, content)
@@ -342,10 +445,14 @@ class TypstOutputFunctions(ProcessingModelFunctions):
 
     def pass_through(self, config, node, cls, content) -> PMResult:
         norm = config.get('normalize_text')
+        text_escape = config.get('text_escape')
         result: list = []
         for item in normalize(content):
             if isinstance(item, str):
-                result.append(maybe_normalize_text(item, norm))
+                t = maybe_normalize_text(item, norm)
+                if text_escape and not isinstance(item, TemplateOutput):
+                    t = text_escape(t)
+                result.append(t)
             elif isinstance(item, etree._Element):
                 sub = (
                     config['apply'](config, child_nodes(node))
@@ -366,18 +473,15 @@ class TypstOutputFunctions(ProcessingModelFunctions):
 
     def list_item(self, config, node, cls, content, n=None) -> PMResult:
         _ = n
-        out: list = []
         ind = config.get('indent', '')
         list_type = config.get('listType', 'unordered')
         pos = len(list(node.itersiblings(preceding=True))) + 1
         marker = f'{pos}. ' if list_type == 'ordered' else '- '
-        out.append('\n')
-        out.append(ind)
-        out.append(marker)
+        body: list = []
         deeper = {**config, 'indent': ind + TYPST_INDENT}
-        config['apply_children'](deeper, node, content, out)
-        out.append('\n')
-        return out
+        config['apply_children'](deeper, node, content, body)
+        text = _wrap_typst_classes(config, cls, _join_buf(body))
+        return ['\n', ind, marker, text, '\n']
 
     def link(self, config, node, cls, content, uri, target, optional) -> PMResult:
         _ = target, optional
@@ -387,7 +491,9 @@ class TypstOutputFunctions(ProcessingModelFunctions):
             href = uri
         href_s = str(href) if href else ''
         out: list = [f'#link("{href_s}")[']
-        config['apply_children'](config, node, content, out)
+        body: list = []
+        config['apply_children'](config, node, content, body)
+        out.append(_wrap_typst_classes(config, _cls_without_names(cls, 'link'), _join_buf(body)))
         out.append(']')
         return out
 
@@ -429,7 +535,13 @@ class TypstOutputFunctions(ProcessingModelFunctions):
     def figure(self, config, node, cls, content, title=None) -> PMResult:
         body: list = []
         config['apply_children'](config, node, content, body)
-        body_text = _typst_code_mode_body(_join_buf(body).strip())
+        body_text = _typst_code_mode_body(
+            _wrap_typst_classes(
+                config,
+                _cls_without_names(cls, 'figure'),
+                _join_buf(body).strip(),
+            )
+        )
         parts = [f'\n#figure(\n  {body_text}']
         if title:
             tbuf: list = []
@@ -460,29 +572,21 @@ class TypstOutputFunctions(ProcessingModelFunctions):
 
     def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
         _ = place, label
-        from . import output_functions as of
-
-        of._note_counter += 1
-        nr = of._note_counter
-        node_id = node.get(XML_ID) or node.get('id') or str(nr)
-        safe_id = re.sub(r'[-.]', '_', node_id)
-        fn_label = f'tei-fn-{safe_id}'
         buf: list = []
         config['apply_children'](config, node, content, buf)
         body = _join_buf(buf).strip()
-        # Use @label references (not #footnote(<label>)) so HTML cleanup does not
-        # strip angle-bracket labels like <1>.
-        config.setdefault('footnotes', []).append(
-            f'#footnote[{body}] <{fn_label}>\n'
-        )
-        return [f'@{fn_label}']
+        return [f'#footnote[{body}]']
 
     def cit(self, config, node, cls, content, source=None) -> PMResult:
-        out: list = ['#quote(block: true)[\n']
-        config['apply_children'](config, node, content, out)
+        body: list = []
+        config['apply_children'](config, node, content, body)
+        main = _wrap_typst_classes(config, _cls_without_names(cls, 'quote'), _join_buf(body))
+        out: list = ['#quote(block: true)[\n', main]
         if source:
             out.append('\n---\n')
-            config['apply_children'](config, node, source, out)
+            src: list = []
+            config['apply_children'](config, node, source, src)
+            out.append(_join_buf(src))
         out.append('\n]')
         return out
 
@@ -490,6 +594,7 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         _ = name, optional
         out: list = []
         config['apply_children'](config, node, content, out)
+        _wrap_buf_dispatch_classes(config, cls, out)
         return out
 
     def omit(self, config, node, cls, content) -> PMResult:
@@ -525,27 +630,37 @@ class TypstOutputFunctions(ProcessingModelFunctions):
 
     def text(self, config, node, cls, content) -> PMResult:
         norm = config.get('normalize_text')
+        text_escape = config.get('text_escape')
         out = []
         for item in normalize(content):
             if isinstance(item, str):
-                out.append(maybe_normalize_text(item, norm))
+                t = maybe_normalize_text(item, norm)
+                if text_escape and not isinstance(item, TemplateOutput):
+                    t = text_escape(t)
+                out.append(t)
             else:
                 out.append(str(item))
         return out
 
-    def metadata(self, config, node, cls, content) -> PMResult:
+    def metadata(self, config, node, cls, content, key=None) -> PMResult:
+        if key:
+            buf: list = []
+            config['apply_children'](config, node, content, buf)
+            text = _join_buf(buf).strip()
+            config['parameters'].setdefault('metadata', {}).setdefault(str(key), []).append(text)
         return []
 
     def title(self, config, node, cls, content) -> PMResult:
         out: list = []
         config['apply_children'](config, node, content, out)
+        _wrap_buf_dispatch_classes(config, cls, out)
         return out
 
     def match(self, config, node, cls, content) -> PMResult:
-        out: list = ['#highlight[']
-        config['apply_children'](config, node, content, out)
-        out.append(']')
-        return out
+        body: list = []
+        config['apply_children'](config, node, content, body)
+        inner = _wrap_typst_classes(config, _cls_without_names(cls, 'highlight'), _join_buf(body))
+        return [f'#highlight[{inner}]']
 
     def template(self, config, node, cls, template_str: str, params: dict) -> PMResult:
         nodes = apply_pb_template(template_str, params, config)
@@ -558,3 +673,7 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         lang = language or ''
         body = literal_code_body(node, content)
         return [TemplateOutput(f'\n```{lang}\n{body}\n```\n')]
+
+    def code_inline(self, config, node, cls, content) -> PMResult:
+        body = literal_code_body(node, content)
+        return [TemplateOutput(f'`{body}`')]

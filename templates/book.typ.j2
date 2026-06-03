@@ -1,0 +1,38 @@
+// TEI Publisher default Typst document shell
+// Override via [typst] template in project config or --template
+#import "@preview/bookly:3.1.1": *
+
+#show: bookly.with(
+  title: "My document",
+  author: "Author Name",
+  theme: modern,
+  lang: "en",
+  tufte: false,
+  fonts: (
+    body: "Lato",
+    math: "Lete Sans Math"
+  ),
+  title-page: book-title-page(
+    series: "Typst book series",
+    institution: "Typst community"
+  ),
+  config-options: (
+    open-right: true,
+    alt-margins: false
+  )
+)
+
+#let bold(content) = content
+#let sic(content) = content
+#let italic(content) = content
+#let strikethrough(content) = content
+#let inline_quote(content) = content
+#let color(content) = content
+
+{{ odd_typst }}
+
+#set document(
+  title: "{{ parameters.get('title', '') }}",
+)
+
+{{ content_typst }}

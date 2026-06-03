@@ -26,7 +26,7 @@ from elementpath.xpath_nodes import XPathNode
 from elementpath.xpath31.xpath31_parser import XPath31Parser
 from lxml import etree
 
-from .output_functions import child_nodes, maybe_normalize_text, normalize
+from .output_functions import TemplateOutput, child_nodes, maybe_normalize_text, normalize
 from .xpath_extensions import (
     build_extension_parser,
     fingerprint_for_module,
@@ -382,9 +382,13 @@ def append_to(parent_el: etree._Element | list, item) -> None:
 
 def apply_children(config, source_node, content, parent_el) -> None:
     norm = config.get('normalize_text')
+    text_escape = config.get('text_escape')
     for item in normalize(content):
         if isinstance(item, str):
-            append_to(parent_el, maybe_normalize_text(item, norm))
+            text = maybe_normalize_text(item, norm)
+            if text_escape and not isinstance(item, TemplateOutput):
+                text = text_escape(text)
+            append_to(parent_el, text)
         elif isinstance(item, etree._Element):
             dispatch = config['dispatch']
             sub = (
@@ -400,11 +404,15 @@ def apply(config, nodes, dispatch):
     """Transform nodes via *dispatch(config, node, params)*."""
     params = config.get('parameters', {})
     norm = config.get('normalize_text')
+    text_escape = config.get('text_escape')
     result = []
     for node in nodes:
         if isinstance(node, (str, etree._ElementUnicodeResult)):
-            result.append(maybe_normalize_text(str(node), norm))
-        elif isinstance(node, etree._Element):
+            text = maybe_normalize_text(str(node), norm)
+            if text_escape and not isinstance(node, TemplateOutput):
+                text = text_escape(text)
+            result.append(text)
+        elif isinstance(node, etree._Element) and not callable(node.tag):
             result.extend(dispatch(config, node, params))
     return result
 
@@ -420,10 +428,14 @@ def apply_template_param_value(config, source_node, raw):
     dispatch = config['dispatch']
     params = config.get('parameters', {})
     norm = config.get('normalize_text')
+    text_escape = config.get('text_escape')
     result = []
     for item in normalize(raw):
         if isinstance(item, (str, etree._ElementUnicodeResult)):
-            result.append(maybe_normalize_text(str(item), norm))
+            text = maybe_normalize_text(str(item), norm)
+            if text_escape and not isinstance(item, TemplateOutput):
+                text = text_escape(text)
+            result.append(text)
         elif isinstance(item, etree._Element):
             if item is source_node:
                 result.extend(apply(config, child_nodes(source_node), dispatch))

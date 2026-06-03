@@ -8,7 +8,12 @@ xpath_extensions = [
 ]
 
 [docx]
+module = "modules/docbook-docx.py"
 template = "templates/default.docx"
+
+[typst]
+module = "modules/docbook-typst.py"
+template = "templates/documentation.typ.j2"
 
 [webcomponents]
 enabled = false

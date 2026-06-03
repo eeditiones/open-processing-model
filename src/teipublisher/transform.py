@@ -180,6 +180,13 @@ def run_transform(
     if docx_template is not None:
         transform_opts['docx_template'] = docx_template
 
+    channels = mod.transform_output_channels()
+    primary = (channels[0] if channels else '') if isinstance(channels, (list, tuple)) else channels
+
+    metadata: dict = {}
+    if primary == 'typst':
+        transform_opts['metadata'] = metadata
+
     result = mod.transform(root, transform_opts if transform_opts else None)
 
     # Binary output (e.g. docx) — finish() already packaged everything
@@ -192,9 +199,6 @@ def run_transform(
     )
     out = serialize(result)
 
-    channels = mod.transform_output_channels()
-    primary = (channels[0] if channels else '') if isinstance(channels, (list, tuple)) else channels
-
     if apply_template and primary == 'typst':
         tpl = resolve_template_path(
             typst_template_path, default_name=DEFAULT_TYPST_TEMPLATE_NAME
@@ -204,6 +208,7 @@ def run_transform(
             template_path=tpl,
             odd_typst=getattr(mod, 'ODD_GENERATED_TYPST', ''),
             parameters=parameters or {},
+            metadata=metadata,
         )
     elif apply_template and is_document and primary == 'web':
         tpl = resolve_template_path(template_path)

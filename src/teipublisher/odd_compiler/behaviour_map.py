@@ -35,6 +35,7 @@ BEHAVIOUR_METHOD = {
     'match': 'match',
     'template': 'template',
     'code': 'code',
+    'code-inline': 'code_inline',
 }
 
 

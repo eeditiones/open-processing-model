@@ -98,6 +98,7 @@ def render_typst_document_template(
     template_path: Path,
     odd_typst: str | None,
     parameters: dict[str, str],
+    metadata: dict | None = None,
 ) -> str:
     """Render Typst body content through the selected Jinja2 document shell."""
     env = Environment(
@@ -112,4 +113,5 @@ def render_typst_document_template(
         content_typst=content_typst,
         odd_typst=odd_typst or '',
         parameters=parameters or {},
+        metadata=metadata or {},
     )

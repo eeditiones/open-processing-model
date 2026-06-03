@@ -1,10 +1,17 @@
 // TEI Publisher default Typst document shell
 // Override via [typst] template in project config or --template
 
+#let bold(content) = content
+#let sic(content) = content
+#let italic(content) = content
+#let strikethrough(content) = content
+#let inline_quote(content) = content
+#let color(content) = content
+
 {{ odd_typst }}
 
 #set document(
-  title: "{{ parameters.get('title', '') }}",
+  title: "{{ (metadata.get('title') or [parameters.get('title', '')])[0] }}",
 )
 
 {{ content_typst }}

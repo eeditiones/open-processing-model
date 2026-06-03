@@ -405,3 +405,7 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         lang = language or ''
         body = literal_code_body(node, content)
         return [TemplateOutput(f'```{lang}\n{body}\n```')]
+
+    def code_inline(self, config, node, cls, content) -> PMResult:
+        body = literal_code_body(node, content)
+        return [TemplateOutput(f'`{body}`')]

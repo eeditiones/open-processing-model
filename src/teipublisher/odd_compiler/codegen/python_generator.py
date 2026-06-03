@@ -149,11 +149,13 @@ class PythonGenerator(CodeGenerator):
             pmf_import = (
                 'from teipublisher.runtime.typst_output_functions import (\n'
                 '    TypstOutputFunctions,\n'
+                '    escape_typst_text_node,\n'
                 ')\n'
                 'from teipublisher.runtime.markdown_output_functions import normalize_markdown_xml_text'
             )
             pmf_ctor = 'TypstOutputFunctions()'
             transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
+            transform_config_extra += "\n        'text_escape': escape_typst_text_node,"
         else:
             pmf_import = 'from teipublisher.runtime.html_output_functions import HtmlOutputFunctions'
             pmf_ctor = 'HtmlOutputFunctions()'

@@ -487,6 +487,10 @@ class ProcessingModelFunctions(ABC):
         _ = language
         return self.pass_through(config, node, cls, content)
 
+    def code_inline(self, config, node, cls, content) -> PMResult:
+        """Inline code span — raw text, no markup escaping applied to the body."""
+        return self.inline(config, node, cls, content)
+
     def finish(self, config, nodes: list) -> list:
         """Post-process output after :func:`~teipublisher.pm_runtime.apply`, before footnotes.
 

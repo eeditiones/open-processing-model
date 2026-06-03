@@ -5,7 +5,7 @@ from __future__ import annotations
 from lxml import etree
 
 from teipublisher.runtime.markdown_output_functions import normalize_markdown_xml_text
-from teipublisher.runtime.output_functions import TemplateOutput, reset_counters
+from teipublisher.runtime.output_functions import TemplateOutput
 from teipublisher.runtime.pm_runtime import apply_children
 from teipublisher.runtime.typst_output_functions import (
     TypstOutputFunctions,
@@ -21,6 +21,26 @@ def test_wrap_typst_classes_innermost_first() -> None:
     config = {'typst_functions': frozenset({'tei_pb', 'tei_pb2'})}
     wrapped = _wrap_typst_classes(config, ['tei-pb', 'tei-pb2'], inner)
     assert wrapped == '#tei_pb2[#tei_pb[text]]'
+
+
+def test_wrap_typst_classes_css_class_only() -> None:
+    config: dict = {'typst_functions': frozenset()}
+    wrapped = _wrap_typst_classes(
+        config,
+        ['tei-title', 'tei-title10', 'r', 'title'],
+        'Section',
+    )
+    assert wrapped == '#title[Section]'
+
+
+def test_wrap_typst_classes_output_rendition_and_css_class() -> None:
+    config = {'typst_functions': frozenset({'tei_emphasis1'})}
+    wrapped = _wrap_typst_classes(
+        config,
+        ['tei-emphasis', 'tei-emphasis1', 'r', 'customEmph'],
+        'text',
+    )
+    assert wrapped == '#customEmph[#tei_emphasis1[text]]'
 
 
 def test_wrap_typst_classes_skips_undefined_renditions() -> None:
@@ -42,7 +62,7 @@ def test_wrap_typst_classes_wraps_multiple_css_classes() -> None:
     assert wrapped == '#context[#persName[Name]]'
 
 
-def test_apply_inline_styling_skips_css_when_odd_typst_function_exists() -> None:
+def test_apply_inline_styling_wraps_output_rendition() -> None:
     config = {
         'typst_functions': frozenset({'tei_emphasis1'}),
         'odd_css': '.tei-emphasis1 { font-weight: bold; font-style: italic; }',
@@ -52,10 +72,28 @@ def test_apply_inline_styling_skips_css_when_odd_typst_function_exists() -> None
         def get(self, key):
             return None
 
-    result = _apply_inline_styling(config, Node(), ['tei-emphasis', 'tei-emphasis1'], 'Demo Collection')
+    result = _apply_inline_styling(
+        config, Node(), ['tei-emphasis', 'tei-emphasis1'], 'Demo Collection'
+    )
     assert result == '#tei_emphasis1[Demo Collection]'
     assert 'emph[' not in result
     assert 'strong[' not in result
+
+
+def test_apply_inline_styling_wraps_output_rendition_and_css_class() -> None:
+    config = {'typst_functions': frozenset({'tei_emphasis1'})}
+
+    class Node:
+        def get(self, key):
+            return None
+
+    result = _apply_inline_styling(
+        config,
+        Node(),
+        ['tei-emphasis', 'tei-emphasis1', 'r', 'customEmph'],
+        'Demo Collection',
+    )
+    assert result == '#customEmph[#tei_emphasis1[Demo Collection]]'
 
 
 def test_apply_inline_styling_rend_bold() -> None:
@@ -75,6 +113,50 @@ def test_typst_heading_and_finish() -> None:
     assert len(finished) == 1
     assert 'Title' in finished[0]
     assert 'Body text' in finished[0]
+
+
+def test_typst_heading_wraps_css_class() -> None:
+    pmf = TypstOutputFunctions()
+    config = {
+        'typst_functions': frozenset(),
+        'apply_children': lambda cfg, node, content, buf: buf.append('My Title'),
+    }
+
+    class Node:
+        def getprevious(self):
+            return None
+
+    result = pmf.heading(
+        config,
+        Node(),
+        ['tei-title', 'tei-title9', 'r', 'doc-title'],
+        [],
+        level=1,
+    )
+    text = ''.join(result)
+    assert text == '\n= #doc_title[My Title]\n\n'
+
+
+def test_typst_heading_wraps_output_rendition() -> None:
+    pmf = TypstOutputFunctions()
+    config = {
+        'typst_functions': frozenset({'tei_title9'}),
+        'apply_children': lambda cfg, node, content, buf: buf.append('My Title'),
+    }
+
+    class Node:
+        def getprevious(self):
+            return None
+
+    result = pmf.heading(
+        config,
+        Node(),
+        ['tei-title', 'tei-title9', 'r', 'doc-title'],
+        [],
+        level=1,
+    )
+    text = ''.join(result)
+    assert text == '\n= #doc_title[#tei_title9[My Title]]\n\n'
 
 
 def test_strip_html_markup_removes_tags_and_unescapes() -> None:
@@ -172,27 +254,62 @@ def test_typst_template_flattens_html_to_text() -> None:
     assert '<' not in result[0]
 
 
-def test_typst_note_uses_at_label_reference() -> None:
-    reset_counters()
+def test_metadata_stores_keyed_value() -> None:
+    class Node:
+        def get(self, key):
+            return None
 
+    pmf = TypstOutputFunctions()
+    params: dict = {}
+    config: dict = {
+        'parameters': params,
+        'apply_children': lambda cfg, node, content, buf: buf.extend(content),
+    }
+    result = pmf.metadata(config, Node(), [], ['TEI Publisher Docs'], key='title')
+    assert result == []
+    assert params['metadata'] == {'title': ['TEI Publisher Docs']}
+
+
+def test_metadata_accumulates_multiple_values_as_list() -> None:
+    class Node:
+        def get(self, key):
+            return None
+
+    pmf = TypstOutputFunctions()
+    params: dict = {}
+    config: dict = {
+        'parameters': params,
+        'apply_children': lambda cfg, node, content, buf: buf.extend(content),
+    }
+    pmf.metadata(config, Node(), [], ['Alice Smith'], key='authors')
+    pmf.metadata(config, Node(), [], ['Bob Jones'], key='authors')
+    assert params['metadata']['authors'] == ['Alice Smith', 'Bob Jones']
+
+
+def test_metadata_no_key_is_noop() -> None:
+    class Node:
+        def get(self, key):
+            return None
+
+    pmf = TypstOutputFunctions()
+    config: dict = {'parameters': {}, 'apply_children': lambda *a, **k: None}
+    result = pmf.metadata(config, Node(), [], [], key=None)
+    assert result == []
+    assert 'metadata' not in config['parameters']
+
+
+def test_typst_note_emits_inline_footnote() -> None:
     class Node:
         def get(self, key):
             return None
 
     pmf = TypstOutputFunctions()
     config: dict = {
-        'footnotes': [],
         'apply_children': lambda cfg, node, content, buf: buf.extend(content),
     }
     result = pmf.note(config, Node(), [], ['note text'], None, None)
-    assert result == ['@tei-fn-1']
-    assert config['footnotes'] == ['#footnote[note text] <tei-fn-1>\n']
-
-
-def test_apply_typst_finish_cleanup_preserves_at_footnote_refs() -> None:
-    raw = 'Wharton@tei-fn-1 and more text'
-    cleaned = apply_typst_finish_cleanup(raw)
-    assert '@tei-fn-1' in cleaned
+    assert result == ['#footnote[note text]']
+    assert 'footnotes' not in config
 
 
 def test_escape_typst_at_signs_escapes_attribute_mentions() -> None:
@@ -200,20 +317,31 @@ def test_escape_typst_at_signs_escapes_attribute_mentions() -> None:
 
     assert escape_typst_at_signs('the @mode attribute') == 'the \\@mode attribute'
     assert escape_typst_at_signs('the @ident attribute') == 'the \\@ident attribute'
-    assert escape_typst_at_signs('see @tei-fn-1') == 'see @tei-fn-1'
 
 
-def test_apply_typst_finish_cleanup_escapes_at_in_prose() -> None:
+def test_escape_typst_text_node_escapes_special_chars() -> None:
+    from teipublisher.runtime.typst_output_functions import escape_typst_text_node
+
+    assert escape_typst_text_node('the @mode attribute') == 'the \\@mode attribute'
+    assert escape_typst_text_node('pay #attention') == 'pay \\#attention'
+    assert escape_typst_text_node('cost $5') == 'cost \\$5'
+    assert escape_typst_text_node('foo * bar') == 'foo \\* bar'
+    assert escape_typst_text_node('foo_bar') == 'foo\\_bar'
+
+
+def test_apply_typst_finish_cleanup_does_not_escape_chars_in_prose() -> None:
+    """Character escaping is done at text-node level; cleanup must not add it."""
     raw = 'Pay attention to the @mode attribute on elementSpec.'
     cleaned = apply_typst_finish_cleanup(raw)
-    assert cleaned == 'Pay attention to the \\@mode attribute on elementSpec.'
+    assert '@mode' in cleaned
+    assert '\\@' not in cleaned
 
 
-def test_apply_typst_finish_cleanup_strips_old_footnote_label_syntax() -> None:
-    """#footnote(<1>) loses <1> to the HTML tag stripper and becomes invalid."""
-    raw = 'Wharton#footnote(<1>) text'
+def test_apply_typst_finish_cleanup_inline_footnote_preserved() -> None:
+    """Inline #footnote[body] survives finish cleanup intact."""
+    raw = 'text#footnote[He mentions this.] more text'
     cleaned = apply_typst_finish_cleanup(raw)
-    assert '#footnote()' in cleaned
+    assert '#footnote[He mentions this.]' in cleaned
 
 
 def test_css_length_to_typst_converts_px() -> None:
@@ -242,11 +370,46 @@ def test_escape_typst_underscores_with_tei_identifiers_on_line() -> None:
     assert 'tei\\_emphasis' not in fixed
 
 
+def test_escape_typst_asterisks_escapes_lone_asterisk() -> None:
+    from teipublisher.runtime.typst_output_functions import escape_typst_asterisks
+
+    assert escape_typst_asterisks('foo * bar') == 'foo \\* bar'
+    assert escape_typst_asterisks('param: *') == 'param: \\*'
+
+
+def test_escape_typst_asterisks_preserves_bold_pairs() -> None:
+    from teipublisher.runtime.typst_output_functions import escape_typst_asterisks
+
+    assert escape_typst_asterisks('*bold*') == '*bold*'
+    assert escape_typst_asterisks('*bold*: *') == '*bold*: \\*'
+
+
 def test_css_typst_wrap_uses_brackets() -> None:
     from teipublisher.runtime.typst_output_functions import _css_typst_wrap
 
     config = {'odd_css': '.simple_bold { font-weight: bold; }'}
     assert _css_typst_wrap(config, ['simple_bold'], 'NB:') == 'strong[NB:]'
+
+
+def test_typst_figure_skips_figure_css_class_wrap() -> None:
+    pmf = TypstOutputFunctions()
+    config = {
+        'typst_functions': frozenset(),
+        'apply_children': lambda cfg, node, content, buf: buf.extend(
+            pmf.graphic(cfg, node, [], [], 'demo.png', '512px', None, None, None)
+        ),
+    }
+    result = pmf.figure(
+        config,
+        None,
+        ['tei-figure', 'tei-figure2', 'r', 'figure'],
+        [],
+        title='Browsing Demo collection',
+    )
+    text = ''.join(result)
+    assert '#figure[\n  #figure(' not in text
+    assert 'image("demo.png", width: 384pt)' in text
+    assert 'caption:' in text
 
 
 def test_typst_figure_uses_code_mode_for_nested_image() -> None:
@@ -269,3 +432,37 @@ def test_typst_link() -> None:
     }
     result = pmf.link(config, None, [], [], 'http://example.com', None, None)
     assert ''.join(result) == '#link("http://example.com")[label]'
+
+
+def test_wrap_typst_classes_skips_rend_function_tokens() -> None:
+    """``color(red)`` from @rend must not become an invalid ``#color(red)[...]`` call."""
+    config: dict = {'typst_functions': frozenset()}
+    wrapped = _wrap_typst_classes(config, ['tei-hi', 'tei-hi1', 'color(red)'], 'text')
+    assert 'color(red)' not in wrapped
+    assert wrapped == 'text'
+
+
+def test_apply_inline_styling_rend_color() -> None:
+    from teipublisher.runtime.typst_output_functions import _apply_inline_styling
+
+    class Node:
+        def get(self, key):
+            return 'color(red)' if key == 'rend' else None
+
+    config: dict = {'typst_functions': frozenset()}
+    result = _apply_inline_styling(config, Node(), ['tei-hi', 'tei-hi1', 'color(red)'], 'red text')
+    assert 'color(red)' not in result
+    assert '#text(fill: red)[red text]' in result
+
+
+def test_apply_inline_styling_rend_unknown_function_is_ignored() -> None:
+    from teipublisher.runtime.typst_output_functions import _apply_inline_styling
+
+    class Node:
+        def get(self, key):
+            return 'unknown(value)' if key == 'rend' else None
+
+    config: dict = {'typst_functions': frozenset()}
+    result = _apply_inline_styling(config, Node(), ['tei-hi', 'tei-hi1', 'unknown(value)'], 'text')
+    assert 'unknown(value)' not in result
+    assert result == 'text'
