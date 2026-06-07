@@ -1,4 +1,4 @@
-"""Map ODD @behaviour names to :class:`~teipublisher.output_functions.ProcessingModelFunctions` method names."""
+"""Map ODD @behaviour names to :class:`~opm.output_functions.ProcessingModelFunctions` method names."""
 
 from __future__ import annotations
 

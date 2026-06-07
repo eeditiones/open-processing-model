@@ -123,7 +123,7 @@ class PythonGenerator(CodeGenerator):
 
         if output_mode == 'markdown':
             pmf_import = (
-                'from teipublisher.runtime.markdown_output_functions import (\n'
+                'from opm.runtime.markdown_output_functions import (\n'
                 '    MarkdownOutputFunctions,\n'
                 '    normalize_markdown_xml_text,\n'
                 ')'
@@ -133,11 +133,11 @@ class PythonGenerator(CodeGenerator):
             transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
         elif output_mode == 'docx':
             pmf_import = (
-                'from teipublisher.runtime.docx_output_functions import (\n'
+                'from opm.runtime.docx_output_functions import (\n'
                 '    DocxOutputFunctions,\n'
                 '    docx_apply_children,\n'
                 ')\n'
-                'from teipublisher.runtime.markdown_output_functions import normalize_markdown_xml_text'
+                'from opm.runtime.markdown_output_functions import normalize_markdown_xml_text'
             )
             pmf_ctor = 'DocxOutputFunctions()'
             transform_config_extra = (
@@ -149,17 +149,17 @@ class PythonGenerator(CodeGenerator):
             transform_opts_exclude = "('xpath_extensions', 'webcomponents', 'docx_template')"
         elif output_mode == 'typst':
             pmf_import = (
-                'from teipublisher.runtime.typst_output_functions import (\n'
+                'from opm.runtime.typst_output_functions import (\n'
                 '    TypstOutputFunctions,\n'
                 '    escape_typst_text_node,\n'
                 ')\n'
-                'from teipublisher.runtime.markdown_output_functions import normalize_markdown_xml_text'
+                'from opm.runtime.markdown_output_functions import normalize_markdown_xml_text'
             )
             pmf_ctor = 'TypstOutputFunctions()'
             transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
             transform_config_extra += "\n        'text_escape': escape_typst_text_node,"
         else:
-            pmf_import = 'from teipublisher.runtime.html_output_functions import HtmlOutputFunctions'
+            pmf_import = 'from opm.runtime.html_output_functions import HtmlOutputFunctions'
             pmf_ctor = 'HtmlOutputFunctions()'
             transform_config_extra = ''
             transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
@@ -178,7 +178,7 @@ from lxml import etree
 # Namespace mappings from ODD root element (for XPath expressions)
 NSMAP = {nsmap_literal}
 
-from teipublisher.runtime.output_functions import (
+from opm.runtime.output_functions import (
     XML_ID,
     map_rend_to_class,
     child_nodes,
@@ -186,7 +186,7 @@ from teipublisher.runtime.output_functions import (
     reset_counters,
 )
 {pmf_import}
-from teipublisher.runtime.pm_runtime import (
+from opm.runtime.pm_runtime import (
     apply as _apply_impl,
     apply_children as apply_children_impl,
     apply_template_param_value,
@@ -215,7 +215,7 @@ ODD_NAME = {odd_name!r}
 def transform_output_channels():
     """Return ODD processing-model output channel(s) for this module.
 
-    Same values as ``teipublisher compile --mode`` and the ``output`` key in ``transform()`` config.
+    Same values as ``opm compile --mode`` and the ``output`` key in ``transform()`` config.
     """
     return ['{output_mode}']
 
@@ -353,18 +353,18 @@ def transform(root, options=None):
     @staticmethod
     def _pmf_class_for_output_mode(output_mode: str):
         if output_mode == 'markdown':
-            from teipublisher.runtime.markdown_output_functions import MarkdownOutputFunctions
+            from opm.runtime.markdown_output_functions import MarkdownOutputFunctions
 
             return MarkdownOutputFunctions
         if output_mode == 'docx':
-            from teipublisher.runtime.docx_output_functions import DocxOutputFunctions
+            from opm.runtime.docx_output_functions import DocxOutputFunctions
 
             return DocxOutputFunctions
         if output_mode == 'typst':
-            from teipublisher.runtime.typst_output_functions import TypstOutputFunctions
+            from opm.runtime.typst_output_functions import TypstOutputFunctions
 
             return TypstOutputFunctions
-        from teipublisher.runtime.html_output_functions import HtmlOutputFunctions
+        from opm.runtime.html_output_functions import HtmlOutputFunctions
 
         return HtmlOutputFunctions
 

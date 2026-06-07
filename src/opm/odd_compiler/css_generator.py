@@ -6,7 +6,7 @@ from pathlib import Path
 
 from lxml import etree
 
-from teipublisher.runtime.output_functions import XML_ID
+from opm.runtime.output_functions import XML_ID
 
 from .parse_odd import ParsedOdd, iter_element_specs
 

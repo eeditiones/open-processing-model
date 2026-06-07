@@ -5,15 +5,15 @@ from __future__ import annotations
 import pytest
 from lxml import etree
 
-from teipublisher.runtime.output_functions import (
+from opm.runtime.output_functions import (
     TemplateOutput,
     apply_children_without_normalization,
     apply_pb_template,
     normalize,
 )
-from teipublisher.runtime.markdown_output_functions import normalize_markdown_xml_text
-from teipublisher.runtime.pm_runtime import apply_children
-from teipublisher.runtime.pm_runtime import (
+from opm.runtime.markdown_output_functions import normalize_markdown_xml_text
+from opm.runtime.pm_runtime import apply_children
+from opm.runtime.pm_runtime import (
     apply_template_param_value,
     inject_cached_footnotes,
     resolve_context_element,
@@ -132,7 +132,7 @@ def test_inject_cached_footnotes_noop_when_empty() -> None:
 
 
 def test_apply_markdown_finish_regexes_matches_pmf_finish() -> None:
-    from teipublisher.runtime.markdown_output_functions import apply_markdown_finish_regexes
+    from opm.runtime.markdown_output_functions import apply_markdown_finish_regexes
 
     assert apply_markdown_finish_regexes('a\n\n\n\nb') == 'a\n\nb'
     assert apply_markdown_finish_regexes('_  word  _') == '_word_'
@@ -140,7 +140,7 @@ def test_apply_markdown_finish_regexes_matches_pmf_finish() -> None:
 
 
 def test_normalize_markdown_xml_text_collapses_pretty_print() -> None:
-    from teipublisher.runtime.markdown_output_functions import normalize_markdown_xml_text
+    from opm.runtime.markdown_output_functions import normalize_markdown_xml_text
 
     assert normalize_markdown_xml_text('hello\n              world') == 'hello world'
     assert normalize_markdown_xml_text('\n        ') == ''
@@ -149,7 +149,7 @@ def test_normalize_markdown_xml_text_collapses_pretty_print() -> None:
 
 
 def test_markdown_output_finish_serializes_then_cleans() -> None:
-    from teipublisher.runtime.markdown_output_functions import MarkdownOutputFunctions
+    from opm.runtime.markdown_output_functions import MarkdownOutputFunctions
 
     pmf = MarkdownOutputFunctions()
     out = pmf.finish({}, ['x', '**  y  **', 'z'])
@@ -160,7 +160,7 @@ def test_tag_and_ns_on_comment_do_not_use_qname_on_factory_tag() -> None:
     """Comments use a non-string ``.tag``; :func:`tag` / :func:`ns` must not call ``QName``."""
     from lxml import etree
 
-    from teipublisher.runtime.pm_runtime import ns, tag
+    from opm.runtime.pm_runtime import ns, tag
 
     c = etree.Comment('note')
     assert tag(c) == 'comment'

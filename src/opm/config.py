@@ -1,4 +1,4 @@
-"""Project-level configuration loaded from ``default.toml``."""
+"""Project-level configuration loaded from ``opm.toml``."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ DEFAULT_CDN_TEMPLATE = (
 )
 DEFAULT_VERSION = '3.0.5'
 
-CONFIG_FILENAME = 'default.toml'
+CONFIG_FILENAME = 'opm.toml'
 
 
 @dataclass
@@ -83,7 +83,7 @@ class ProjectConfig:
 
 
 def load_project_config(path: Path | None = None) -> ProjectConfig:
-    """Load ``default.toml`` from *path* or CWD; return defaults if absent."""
+    """Load ``opm.toml`` from *path* or CWD; return defaults if absent."""
     config_path = path if path is not None else Path(CONFIG_FILENAME)
     if not config_path.is_file():
         return ProjectConfig()
@@ -118,7 +118,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         xpath_extensions = tuple(str(item) for item in raw_xpath_extensions)
     else:
         raise ValueError(
-            'default.toml: transform.xpath_extensions must be a string or list of strings',
+            'opm.toml: transform.xpath_extensions must be a string or list of strings',
         )
 
     # Parse chunking configuration

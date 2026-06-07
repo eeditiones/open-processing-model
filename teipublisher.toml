@@ -4,7 +4,7 @@ pythonpath = ["extensions"]
 [transform]
 module = "modules/docbook-web.py"
 xpath_extensions = [
-    "teipublisher.runtime.common_xpath_functions"
+    "opm.runtime.common_xpath_functions"
 ]
 
 [docx]
@@ -20,7 +20,7 @@ enabled = false
 
 [chunking]
 module = "modules/docbook-web.py"
-selector = "teipublisher.navigation.dbk_section_chunks"
+selector = "opm.navigation.dbk_section_chunks"
 depth = 2
 output_dir = "chunks"
 template = "templates/bootstrap.html.j2"

@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "tei-publisher-py"
+name = "open-processing-model"
 version = "0.1.0"
-description = "Python implementation of tei-publisher-lib transformations"
+description = "Open Processing Model — transform XML via ODD processing models"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -25,17 +25,17 @@ dev = [
 ]
 
 [project.scripts]
-teipublisher = "teipublisher.teipublisher_cli:main"
+opm = "opm.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/teipublisher"]
+packages = ["src/opm"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"src/teipublisher/templates/default_document.html.j2" = "teipublisher/templates/default_document.html.j2"
-"src/teipublisher/templates/default_document.typ.j2" = "teipublisher/templates/default_document.typ.j2"
+"src/opm/templates/default_document.html.j2" = "opm/templates/default_document.html.j2"
+"src/opm/templates/default_document.typ.j2" = "opm/templates/default_document.typ.j2"
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "src/teipublisher/templates/default_document.html.j2",
-    "src/teipublisher/templates/default_document.typ.j2",
+    "src/opm/templates/default_document.html.j2",
+    "src/opm/templates/default_document.typ.j2",
 ]

@@ -7,13 +7,13 @@ import re
 
 from lxml import etree
 
-from teipublisher.runtime.markdown_output_functions import (
+from opm.runtime.markdown_output_functions import (
     _get_css_map,
     _join_buf,
     apply_markdown_finish_regexes,
     normalize_markdown_xml_text,
 )
-from teipublisher.runtime.output_functions import (
+from opm.runtime.output_functions import (
     PMResult,
     TemplateOutput,
     XLINK_HREF,
@@ -346,7 +346,7 @@ _REND_FUNC_RE = re.compile(r'^(\w[\w-]*)\(([^)]*)\)$')
 
 def _apply_rend_func_styling(rend_tokens: list[str], text: str) -> str:
     """Apply CSS-function-style ``@rend`` tokens (e.g. ``color(red)``) as Typst styling."""
-    from teipublisher.odd_compiler.typst_generator import _css_color_to_typst
+    from opm.odd_compiler.typst_generator import _css_color_to_typst
     for token in rend_tokens:
         m = _REND_FUNC_RE.match(token)
         if not m:

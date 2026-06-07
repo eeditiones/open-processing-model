@@ -8,8 +8,8 @@ target (HTML, Markdown, …).  The generated transformation module
 calls methods on ``config['pmf']`` and never imports a format-specific
 module directly.
 
-HTML and Markdown implementations live in :mod:`teipublisher.html_output_functions` and
-:mod:`teipublisher.markdown_output_functions`; they are re-exported here for convenience.
+HTML and Markdown implementations live in :mod:`opm.html_output_functions` and
+:mod:`opm.markdown_output_functions`; they are re-exported here for convenience.
 """
 
 import re
@@ -350,7 +350,7 @@ def apply_pb_template(template_str: str, params: dict, config: dict | None = Non
     *config* is accepted for API symmetry but not currently used; element-valued params that
     appear in text positions are inserted directly into the result tree. The ODD compiler is
     expected to pass already-rendered output nodes (see
-    :func:`~teipublisher.pm_runtime.apply_template_param_value`, which expands a context node
+    :func:`~opm.pm_runtime.apply_template_param_value`, which expands a context node
     to processed children instead of raw TEI).
     """
     wrapped = f'<__w__>{template_str}</__w__>'
@@ -492,7 +492,7 @@ class ProcessingModelFunctions(ABC):
         return self.inline(config, node, cls, content)
 
     def finish(self, config, nodes: list) -> list:
-        """Post-process output after :func:`~teipublisher.pm_runtime.apply`, before footnotes.
+        """Post-process output after :func:`~opm.pm_runtime.apply`, before footnotes.
 
         Equivalent to ``pmf:finish`` in ``markdown-functions.xql`` / HTML siblings.
         Default: return *nodes* unchanged.

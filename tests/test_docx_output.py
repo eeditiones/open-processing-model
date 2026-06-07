@@ -55,7 +55,7 @@ def _list_paras(doc_root: etree._Element) -> list[dict]:
 
 
 def _compile_docx_module(tmp_path: Path) -> object:
-    from teipublisher.odd_compiler import compile_odd
+    from opm.odd_compiler import compile_odd
 
     src = compile_odd(str(ODD), output_mode='docx')
     path = tmp_path / 'teipublisher_docx.py'
@@ -70,8 +70,8 @@ def _compile_docx_module(tmp_path: Path) -> object:
 @pytest.fixture(scope='module')
 def docx_bytes(tmp_path_factory: pytest.TempPathFactory) -> bytes:
     """Compile ODD, transform test-docx.xml with teipublisher.toml, return raw .docx bytes."""
-    from teipublisher.config import load_project_config
-    from teipublisher.transform import run_transform
+    from opm.config import load_project_config
+    from opm.transform import run_transform
 
     tmp = tmp_path_factory.mktemp('docx')
     mod = _compile_docx_module(tmp)

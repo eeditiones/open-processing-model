@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from lxml import etree
 
-from teipublisher.runtime.markdown_output_functions import normalize_markdown_xml_text
-from teipublisher.runtime.output_functions import TemplateOutput
-from teipublisher.runtime.pm_runtime import apply_children
-from teipublisher.runtime.typst_output_functions import (
+from opm.runtime.markdown_output_functions import normalize_markdown_xml_text
+from opm.runtime.output_functions import TemplateOutput
+from opm.runtime.pm_runtime import apply_children
+from opm.runtime.typst_output_functions import (
     TypstOutputFunctions,
     _apply_inline_styling,
     _wrap_typst_classes,
@@ -230,7 +230,7 @@ def test_typst_finish_preserves_at_and_underscores_in_fenced_code() -> None:
 
 
 def test_typst_template_preserves_line_breaks() -> None:
-    from teipublisher.runtime.output_functions import TemplateOutput
+    from opm.runtime.output_functions import TemplateOutput
 
     pmf = TypstOutputFunctions()
     tpl = '#note[\n[[title]]\n\n[[content]]\n]'
@@ -313,14 +313,14 @@ def test_typst_note_emits_inline_footnote() -> None:
 
 
 def test_escape_typst_at_signs_escapes_attribute_mentions() -> None:
-    from teipublisher.runtime.typst_output_functions import escape_typst_at_signs
+    from opm.runtime.typst_output_functions import escape_typst_at_signs
 
     assert escape_typst_at_signs('the @mode attribute') == 'the \\@mode attribute'
     assert escape_typst_at_signs('the @ident attribute') == 'the \\@ident attribute'
 
 
 def test_escape_typst_text_node_escapes_special_chars() -> None:
-    from teipublisher.runtime.typst_output_functions import escape_typst_text_node
+    from opm.runtime.typst_output_functions import escape_typst_text_node
 
     assert escape_typst_text_node('the @mode attribute') == 'the \\@mode attribute'
     assert escape_typst_text_node('pay #attention') == 'pay \\#attention'
@@ -345,21 +345,21 @@ def test_apply_typst_finish_cleanup_inline_footnote_preserved() -> None:
 
 
 def test_css_length_to_typst_converts_px() -> None:
-    from teipublisher.runtime.typst_output_functions import css_length_to_typst
+    from opm.runtime.typst_output_functions import css_length_to_typst
 
     assert css_length_to_typst('512px') == '384pt'
     assert css_length_to_typst('10pt') == '10pt'
 
 
 def test_escape_typst_underscores_preserves_emphasis() -> None:
-    from teipublisher.runtime.typst_output_functions import escape_typst_underscores
+    from opm.runtime.typst_output_functions import escape_typst_underscores
 
     assert escape_typst_underscores('_italic_') == '_italic_'
     assert escape_typst_underscores("'_blank'") == "'\\_blank'"
 
 
 def test_escape_typst_underscores_with_tei_identifiers_on_line() -> None:
-    from teipublisher.runtime.typst_output_functions import escape_typst_underscores
+    from opm.runtime.typst_output_functions import escape_typst_underscores
 
     line = (
         '#tei_emphasis1[NB:]Abbreviation … underscore (_).'
@@ -371,21 +371,21 @@ def test_escape_typst_underscores_with_tei_identifiers_on_line() -> None:
 
 
 def test_escape_typst_asterisks_escapes_lone_asterisk() -> None:
-    from teipublisher.runtime.typst_output_functions import escape_typst_asterisks
+    from opm.runtime.typst_output_functions import escape_typst_asterisks
 
     assert escape_typst_asterisks('foo * bar') == 'foo \\* bar'
     assert escape_typst_asterisks('param: *') == 'param: \\*'
 
 
 def test_escape_typst_asterisks_preserves_bold_pairs() -> None:
-    from teipublisher.runtime.typst_output_functions import escape_typst_asterisks
+    from opm.runtime.typst_output_functions import escape_typst_asterisks
 
     assert escape_typst_asterisks('*bold*') == '*bold*'
     assert escape_typst_asterisks('*bold*: *') == '*bold*: \\*'
 
 
 def test_css_typst_wrap_uses_brackets() -> None:
-    from teipublisher.runtime.typst_output_functions import _css_typst_wrap
+    from opm.runtime.typst_output_functions import _css_typst_wrap
 
     config = {'odd_css': '.simple_bold { font-weight: bold; }'}
     assert _css_typst_wrap(config, ['simple_bold'], 'NB:') == 'strong[NB:]'
@@ -443,7 +443,7 @@ def test_wrap_typst_classes_skips_rend_function_tokens() -> None:
 
 
 def test_apply_inline_styling_rend_color() -> None:
-    from teipublisher.runtime.typst_output_functions import _apply_inline_styling
+    from opm.runtime.typst_output_functions import _apply_inline_styling
 
     class Node:
         def get(self, key):
@@ -456,7 +456,7 @@ def test_apply_inline_styling_rend_color() -> None:
 
 
 def test_apply_inline_styling_rend_unknown_function_is_ignored() -> None:
-    from teipublisher.runtime.typst_output_functions import _apply_inline_styling
+    from opm.runtime.typst_output_functions import _apply_inline_styling
 
     class Node:
         def get(self, key):

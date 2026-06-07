@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from teipublisher.odd_compiler.typst_generator import (
+from opm.odd_compiler.typst_generator import (
     collect_odd_generated_typst,
     css_body_to_typst_function,
     typst_ident_from_class,
@@ -20,14 +20,14 @@ def test_typst_ident_from_class_replaces_hyphens() -> None:
 
 
 def test_typst_content_fragment_escapes_brackets() -> None:
-    from teipublisher.odd_compiler.typst_generator import _typst_content_fragment
+    from opm.odd_compiler.typst_generator import _typst_content_fragment
 
     assert _typst_content_fragment(']') == r'[\]]'
     assert _typst_content_fragment('[') == r'[\[]'
 
 
 def test_renditions_to_typst_expr_merges_before_and_after() -> None:
-    from teipublisher.odd_compiler.typst_generator import renditions_to_typst_expr
+    from opm.odd_compiler.typst_generator import renditions_to_typst_expr
 
     expr = renditions_to_typst_expr([
         ("content: '[';", 'before'),
@@ -57,7 +57,7 @@ def test_css_body_to_typst_function_bold() -> None:
 
 
 def test_collect_odd_generated_typst_skips_models_without_rendition() -> None:
-    from teipublisher.odd_compiler.parse_odd import load_odd
+    from opm.odd_compiler.parse_odd import load_odd
 
     parsed = load_odd(ODD)
     typst, fn_names = collect_odd_generated_typst(parsed, output_mode='typst')
@@ -67,7 +67,7 @@ def test_collect_odd_generated_typst_skips_models_without_rendition() -> None:
 
 
 def test_collect_odd_generated_typst_from_teipublisher_odd() -> None:
-    from teipublisher.odd_compiler.parse_odd import load_odd
+    from opm.odd_compiler.parse_odd import load_odd
 
     parsed = load_odd(ODD)
     typst, _fn_names = collect_odd_generated_typst(parsed, output_mode='web')
@@ -77,7 +77,7 @@ def test_collect_odd_generated_typst_from_teipublisher_odd() -> None:
 
 
 def test_compile_typst_mode_emits_odd_generated_typst() -> None:
-    from teipublisher.odd_compiler import compile_odd
+    from opm.odd_compiler import compile_odd
 
     src = compile_odd(str(ODD), output_mode='typst')
     assert 'ODD_GENERATED_TYPST' in src

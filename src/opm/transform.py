@@ -7,7 +7,7 @@ Three entry points at increasing levels of abstraction:
     lxml element; the function serializes and optionally wraps the result in the
     Jinja2 document template::
 
-        from teipublisher.transform import load_transform_module, run_transform
+        from opm.transform import load_transform_module, run_transform
         from lxml import etree
 
         mod = load_transform_module(Path('modules/teipublisher-web.py'))
@@ -20,7 +20,7 @@ Three entry points at increasing levels of abstraction:
     Mid level. Loads the module from *script_path* and, if *xpath* is given,
     selects the target element before transforming::
 
-        from teipublisher.transform import transform_node
+        from opm.transform import transform_node
         from lxml import etree
 
         root = etree.parse('document.xml').getroot()
@@ -31,10 +31,10 @@ Three entry points at increasing levels of abstraction:
         )
 
 ``transform_file(module_path, xml_path, *, xpath=None, ...)``
-    Highest level. Also parses the XML file and reads ``default.toml``
+    Highest level. Also parses the XML file and reads ``opm.toml``
     for defaults (extensions, webcomponents, template)::
 
-        from teipublisher.transform import transform_file
+        from opm.transform import transform_file
 
         html = transform_file(
             Path('modules/teipublisher-web.py'),
@@ -47,7 +47,7 @@ Three entry points at increasing levels of abstraction:
     namespace bookkeeping — unprefixed names automatically match the
     document's namespace::
 
-        from teipublisher.transform import xpath_select
+        from opm.transform import xpath_select
         from lxml import etree
 
         root = etree.parse('document.xml').getroot()
@@ -62,15 +62,15 @@ from typing import Any, Sequence
 
 from lxml import etree
 
-from teipublisher.config import (
+from opm.config import (
     DEFAULT_CDN_TEMPLATE,
     DEFAULT_VERSION,
     ProjectConfig,
     load_project_config,
 )
-from teipublisher.runtime.pm_runtime import resolve_context_element
-from teipublisher.runtime.pm_runtime import serialize as _default_serialize
-from teipublisher.template_rendering import (
+from opm.runtime.pm_runtime import resolve_context_element
+from opm.runtime.pm_runtime import serialize as _default_serialize
+from opm.template_rendering import (
     DEFAULT_TYPST_TEMPLATE_NAME,
     render_document_template,
     render_typst_document_template,
@@ -95,7 +95,7 @@ def load_transform_module(script_path: Path):
         )
     if not hasattr(mod, 'transform_output_channels'):
         raise AttributeError(
-            f'{path} has no transform_output_channels() — expected a module emitted by teipublisher compile',
+            f'{path} has no transform_output_channels() — expected a module emitted by opm compile',
         )
     return mod
 
@@ -125,7 +125,7 @@ def xpath_select(
         params: Values bound as the XPath ``$parameters`` map.
         xpath_extensions: Dotted module paths for custom XPath functions in the ``tp:`` namespace.
     """
-    from teipublisher.runtime.pm_runtime import xpath_select_nodes  # noqa: PLC0415
+    from opm.runtime.pm_runtime import xpath_select_nodes  # noqa: PLC0415
 
     result = xpath_select_nodes(
         root, expr, params,
@@ -242,7 +242,7 @@ def transform_node(
     """Load *script_path* as a transform module and apply it to *root*.
 
     If *xpath* is given it is evaluated against *root* via
-    :func:`~teipublisher.pm_runtime.resolve_context_element` to select the
+    :func:`~opm.pm_runtime.resolve_context_element` to select the
     actual element to transform; unprefixed names use the document's default
     namespace.  Without *xpath*, *root* itself is the transform target.
 
@@ -296,7 +296,7 @@ def transform_file(
 ) -> str | bytes:
     """Transform *xml_path* (or an XPath-selected element within it) and return the result.
 
-    Reads ``default.toml`` from the current directory for defaults unless
+    Reads ``opm.toml`` from the current directory for defaults unless
     *config* is supplied explicitly.
 
     Args:
@@ -311,8 +311,8 @@ def transform_file(
             ``None`` uses ``[webcomponents] enabled`` from config.
         template: Jinja2 template override for full-document HTML output.
         user_css: CSS string for full-document HTML output.
-        config: Pre-loaded :class:`~teipublisher.config.ProjectConfig`.
-            When ``None``, ``default.toml`` is loaded from the CWD.
+        config: Pre-loaded :class:`~opm.config.ProjectConfig`.
+            When ``None``, ``opm.toml`` is loaded from the CWD.
 
     Returns ``str`` for text output modes (HTML, Markdown) and ``bytes`` for
     binary modes (DOCX).

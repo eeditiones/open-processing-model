@@ -13,11 +13,11 @@ from typing import Any, Callable
 
 from lxml import etree
 
-from teipublisher.config import ChunkingConfig, FragmentConfig, ProjectConfig, DEFAULT_CDN_TEMPLATE, DEFAULT_VERSION
-from teipublisher.transform import load_transform_module, run_transform, xpath_select
-from teipublisher.template_rendering import resolve_template_path, _inner_html
-from teipublisher.runtime.pm_runtime import serialize as _default_serialize, inject_cached_footnotes
-from teipublisher.runtime.output_functions import XML_ID, reset_counters
+from opm.config import ChunkingConfig, FragmentConfig, ProjectConfig, DEFAULT_CDN_TEMPLATE, DEFAULT_VERSION
+from opm.transform import load_transform_module, run_transform, xpath_select
+from opm.template_rendering import resolve_template_path, _inner_html
+from opm.runtime.pm_runtime import serialize as _default_serialize, inject_cached_footnotes
+from opm.runtime.output_functions import XML_ID, reset_counters
 
 
 @dataclass
@@ -297,15 +297,15 @@ class ChunkProcessor:
         pmf: Any
         normalize_text = None
         if primary == 'markdown':
-            from teipublisher.runtime.markdown_output_functions import MarkdownOutputFunctions, normalize_markdown_xml_text
+            from opm.runtime.markdown_output_functions import MarkdownOutputFunctions, normalize_markdown_xml_text
             pmf = MarkdownOutputFunctions()
             normalize_text = normalize_markdown_xml_text
         else:
-            from teipublisher.runtime.html_output_functions import HtmlOutputFunctions
+            from opm.runtime.html_output_functions import HtmlOutputFunctions
             pmf = HtmlOutputFunctions()
 
         # Generated modules export apply_children_impl; fall back to the runtime function.
-        from teipublisher.runtime.pm_runtime import apply_children as _apply_children_fallback
+        from opm.runtime.pm_runtime import apply_children as _apply_children_fallback
         apply_children = getattr(mod, 'apply_children_impl', _apply_children_fallback)
 
         cfg: dict[str, Any] = {

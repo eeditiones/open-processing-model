@@ -1,12 +1,12 @@
-"""Tests for ``teipublisher_cli`` helpers."""
+"""Tests for ``cli`` helpers."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from teipublisher.teipublisher_cli import _preview_kind_from_module
-from teipublisher.teipublisher_cli import _resolve_user_css
-from teipublisher.teipublisher_cli import main
+from opm.cli import _preview_kind_from_module
+from opm.cli import _resolve_user_css
+from opm.cli import main
 
 
 def test_preview_kind_from_transform_output_channels() -> None:
@@ -102,7 +102,7 @@ def test_transform_uses_packaged_default_template_for_full_html(tmp_path: Path, 
     rc = main(['transform', str(xml), '--module', str(script), '--output', str(out)])
     assert rc == 0
     rendered = out.read_text(encoding='utf-8')
-    assert '<!-- teipublisher-default-template -->' in rendered
+    assert '<!-- opm-default-template -->' in rendered
     assert '<p>content</p>' in rendered
 
 
@@ -138,7 +138,7 @@ def test_transform_uses_template_override_for_full_html(tmp_path: Path, monkeypa
     rendered = out.read_text(encoding='utf-8')
     assert "name='x'" in rendered
     assert '<div>X</div>' in rendered
-    assert 'teipublisher-default-template' not in rendered
+    assert 'opm-default-template' not in rendered
 
 
 def test_transform_fragment_output_skips_template_shell(tmp_path: Path, monkeypatch) -> None:

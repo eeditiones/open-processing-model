@@ -24,8 +24,8 @@ def test_teipublisher_odd_teitest_xml_choice_abbr_expan_alternate_html(tmp_path:
     Catches regressions where XPath results stayed as elementpath wrappers so ``apply_children``
     skipped content (empty ``alternate`` containers).
     """
-    from teipublisher.odd_compiler import compile_odd
-    from teipublisher.runtime.pm_runtime import serialize
+    from opm.odd_compiler import compile_odd
+    from opm.runtime.pm_runtime import serialize
 
     path = tmp_path / 'teipublisher_web.py'
     path.write_text(compile_odd(str(ODD)), encoding='utf-8')
@@ -54,8 +54,8 @@ def test_teipublisher_odd_teitest_xml_choice_abbr_expan_alternate_html(tmp_path:
 )
 def test_teipublisher_odd_teitest_xml_register_mode_people_list_names(tmp_path: Path) -> None:
     """``mode=register`` list items must show a name when ``persName`` has no @type (see teiHeader listPerson)."""
-    from teipublisher.odd_compiler import compile_odd
-    from teipublisher.runtime.pm_runtime import serialize
+    from opm.odd_compiler import compile_odd
+    from opm.runtime.pm_runtime import serialize
 
     path = tmp_path / 'teipublisher_web.py'
     path.write_text(compile_odd(str(ODD)), encoding='utf-8')
@@ -77,8 +77,8 @@ def test_teipublisher_odd_teitest_xml_register_mode_people_list_names(tmp_path: 
 )
 def test_teipublisher_odd_teitest_xml_glossary_list_renders_as_definition_list(tmp_path: Path) -> None:
     """Glossary ``list`` with ``label`` children must render as ``<dl>`` with ``<dt>/<dd>`` pairs."""
-    from teipublisher.odd_compiler import compile_odd
-    from teipublisher.runtime.pm_runtime import serialize
+    from opm.odd_compiler import compile_odd
+    from opm.runtime.pm_runtime import serialize
 
     path = tmp_path / 'teipublisher_web.py'
     path.write_text(compile_odd(str(ODD)), encoding='utf-8')

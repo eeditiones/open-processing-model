@@ -6,7 +6,7 @@ import re
 
 from lxml import etree
 
-from teipublisher.runtime.output_functions import XML_ID
+from opm.runtime.output_functions import XML_ID
 
 from .css_generator import (
     _all_models_in_spec,

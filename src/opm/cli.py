@@ -1,4 +1,4 @@
-"""Unified CLI: ``teipublisher compile`` and ``teipublisher transform``."""
+"""Unified CLI: ``opm compile``, ``opm transform``, and ``opm chunk``."""
 
 from __future__ import annotations
 
@@ -14,15 +14,15 @@ from typer.main import get_command
 
 from lxml import etree
 
-from teipublisher.config import DEFAULT_CDN_TEMPLATE, DEFAULT_VERSION, load_project_config
-from teipublisher.odd_compiler import compile_odd, PythonGenerator
-from teipublisher.runtime.pm_runtime import resolve_context_element
-from teipublisher.transform import load_transform_module, run_transform
-from teipublisher.chunking import chunk_document
+from opm.config import DEFAULT_CDN_TEMPLATE, DEFAULT_VERSION, load_project_config
+from opm.odd_compiler import compile_odd, PythonGenerator
+from opm.runtime.pm_runtime import resolve_context_element
+from opm.transform import load_transform_module, run_transform
+from opm.chunking import chunk_document
 
 app = typer.Typer(
-    name='teipublisher',
-    help='TEI Publisher Python tools: compile ODD to Python, or run a transform on XML.',
+    name='opm',
+    help='Open Processing Model: compile ODD to Python, or run a transform on XML.',
     no_args_is_help=True,
     context_settings={'help_option_names': ['-h', '--help']},
 )
@@ -51,7 +51,7 @@ def _preview_html_in_browser(html: str) -> None:
         encoding='utf-8',
         suffix='.html',
         delete=False,
-        prefix='teipublisher-preview-',
+        prefix='opm-preview-',
     ) as f:
         f.write(html)
         path = Path(f.name)
@@ -138,7 +138,7 @@ def compile_cmd(
         ),
     ] = 'python',
 ) -> None:
-    """Emit a transformation module from a TEI Publisher ODD."""
+    """Emit a transformation module from an ODD processing model."""
     src = compile_odd(str(odd), target=target, module_name=module_name, output_mode=mode)
     if output is not None:
         dest = output
@@ -232,7 +232,7 @@ def transform_cmd(
             help=(
                 'Enable/disable tei-publisher web components mode: alternate behaviours emit '
                 '<pb-alternate> and the document template loads tei-publisher-components. '
-                'Falls back to the webcomponents.enabled setting in default.toml.'
+                'Falls back to the webcomponents.enabled setting in opm.toml.'
             ),
         ),
     ] = None,
@@ -241,7 +241,7 @@ def transform_cmd(
         typer.Option(
             '--config',
             '-c',
-            help='Path to a TOML configuration file (default: default.toml in the current directory).',
+            help='Path to a TOML configuration file (default: opm.toml in the current directory).',
         ),
     ] = None,
 ) -> None:
@@ -256,13 +256,13 @@ def transform_cmd(
         effective_script = transform_script or cfg.transform_module
         if effective_script is None:
             typer.echo(
-                'teipublisher: error: transform script is required. '
+                'opm: error: transform script is required. '
                 'Pass it as an argument or set transform.module in your config.',
                 err=True,
             )
             raise SystemExit(1)
         if input_xml is None:
-            typer.echo('teipublisher: error: input XML file is required.', err=True)
+            typer.echo('opm: error: input XML file is required.', err=True)
             raise SystemExit(1)
 
         effective_webcomponents = webcomponents if webcomponents is not None else (cfg.webcomponents_enabled or False)
@@ -348,7 +348,7 @@ def transform_cmd(
             else:
                 print(out)
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
-        typer.echo(f'teipublisher: error: {e}', err=True)
+        typer.echo(f'opm: error: {e}', err=True)
         raise SystemExit(1) from e
 
 
@@ -399,7 +399,7 @@ def chunk(
             '--webcomponents/--no-webcomponents',
             help=(
                 'Enable/disable tei-publisher web components mode. '
-                'Falls back to the webcomponents.enabled setting in default.toml.'
+                'Falls back to the webcomponents.enabled setting in opm.toml.'
             ),
         ),
     ] = None,
@@ -410,7 +410,7 @@ def chunk(
             help=(
                 'Dotted import path(s) of Python module(s) whose public callables become XPath '
                 'functions in the tp: namespace (repeatable). '
-                'Falls back to transform.xpath_extensions in default.toml.'
+                'Falls back to transform.xpath_extensions in opm.toml.'
             ),
         ),
     ] = None,
@@ -443,7 +443,7 @@ def chunk(
         typer.Option(
             '--config',
             '-c',
-            help='Path to a TOML configuration file (default: default.toml in the current directory).',
+            help='Path to a TOML configuration file (default: opm.toml in the current directory).',
         ),
     ] = None,
 ) -> None:
@@ -456,12 +456,12 @@ def chunk(
                 sys.path.insert(0, entry)
 
         if input_xml is None:
-            typer.echo('teipublisher: error: input XML file is required.', err=True)
+            typer.echo('opm: error: input XML file is required.', err=True)
             raise SystemExit(1)
 
         if not cfg.chunking:
             typer.echo(
-                'teipublisher: error: no [chunking] section found in config.',
+                'opm: error: no [chunking] section found in config.',
                 err=True
             )
             raise SystemExit(1)
@@ -477,7 +477,7 @@ def chunk(
         out_dir = Path.cwd() / chunking_config.output_dir
         if out_dir.exists() and not force:
             typer.echo(
-                f'teipublisher: error: output directory {out_dir} already exists. '
+                f'opm: error: output directory {out_dir} already exists. '
                 'Use --force to overwrite.',
                 err=True
             )
@@ -510,7 +510,7 @@ def chunk(
 
             if output_format not in ('html', 'json', 'pb-view'):
                 typer.echo(
-                    'teipublisher: error: --format must be "html", "json" or "pb-view", '
+                    'opm: error: --format must be "html", "json" or "pb-view", '
                     f'got {output_format!r}',
                     err=True,
                 )
@@ -546,7 +546,7 @@ def chunk(
             typer.echo(f'  - *.{ext}: chunk files')
         
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
-        typer.echo(f'teipublisher: error: {e}', err=True)
+        typer.echo(f'opm: error: {e}', err=True)
         raise SystemExit(1) from e
 
 
@@ -569,7 +569,7 @@ def serve_cmd(
         typer.Option(
             '--config',
             '-c',
-            help='Path to a TOML configuration file (default: default.toml in the current directory).',
+            help='Path to a TOML configuration file (default: opm.toml in the current directory).',
         ),
     ] = None,
 ) -> None:
@@ -586,7 +586,7 @@ def serve_cmd(
         root = (Path.cwd() / 'chunks').resolve()
 
     if not root.is_dir():
-        typer.echo(f'teipublisher: error: directory {root} does not exist.', err=True)
+        typer.echo(f'opm: error: directory {root} does not exist.', err=True)
         raise SystemExit(1)
 
     handler = functools.partial(
@@ -605,7 +605,7 @@ def main(argv: list[str] | None = None) -> int:
     """Programmatic entry (``argv`` is like ``sys.argv[1:]`` when invoking the installed script)."""
     cmd = get_command(app)
     try:
-        cmd.main(args=argv, prog_name='teipublisher', standalone_mode=False)
+        cmd.main(args=argv, prog_name='opm', standalone_mode=False)
     except NoArgsIsHelpError:
         # With ``standalone_mode=False``, Click does not turn this into exit 0 (Typer ``no_args_is_help``).
         return 0

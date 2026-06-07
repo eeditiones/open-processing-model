@@ -1,10 +1,10 @@
 """Built-in chunk-selection algorithms for TEI and DocBook documents.
 
-Functions here can be referenced in ``default.toml`` via the
+Functions here can be referenced in ``opm.toml`` via the
 ``chunking.selector`` key, e.g.::
 
     [chunking]
-    selector = "teipublisher.navigation.tei_div_chunks"
+    selector = "opm.navigation.tei_div_chunks"
     depth = 2
 
 Each selector callable has the signature::
@@ -18,7 +18,7 @@ import copy
 
 from lxml import etree
 
-from teipublisher.config import ChunkingConfig
+from opm.config import ChunkingConfig
 
 
 def tei_div_chunks(root: etree._Element, config: ChunkingConfig) -> list[etree._Element]:

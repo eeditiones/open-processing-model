@@ -9,8 +9,8 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
-from teipublisher.chunking import chunk_document
-from teipublisher.config import ChunkingConfig, FragmentConfig
+from opm.chunking import chunk_document
+from opm.config import ChunkingConfig, FragmentConfig
 
 ROOT = Path(__file__).resolve().parents[1]
 WIBORADA_ODD = ROOT / 'odd' / 'wiborada.odd'
@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from lxml import etree
 
-from teipublisher.runtime.output_functions import XML_ID
+from opm.runtime.output_functions import XML_ID
 
 ODD_GENERATED_CSS = ''
 
@@ -357,8 +357,8 @@ def test_chunk_document_pb_view_requires_xml_id(tmp_path: Path) -> None:
 
 @pytest.mark.skipif(not WIBORADA_ODD.is_file(), reason='Fixture odd/wiborada.odd not found')
 def test_wiborada_web_div_with_n_preserves_xml_id(tmp_path: Path) -> None:
-    from teipublisher.odd_compiler import compile_odd
-    from teipublisher.runtime.pm_runtime import serialize
+    from opm.odd_compiler import compile_odd
+    from opm.runtime.pm_runtime import serialize
 
     module_path = tmp_path / 'wiborada_web.py'
     module_path.write_text(compile_odd(str(WIBORADA_ODD)), encoding='utf-8')

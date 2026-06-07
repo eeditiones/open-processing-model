@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from lxml import etree
 
-from teipublisher.runtime.output_functions import (
+from opm.runtime.output_functions import (
     PMResult,
     TemplateOutput,
     XLINK_HREF,

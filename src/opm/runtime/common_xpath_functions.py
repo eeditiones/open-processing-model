@@ -9,7 +9,7 @@ from datetime import date, datetime
 import lxml.etree as ET
 from babel.dates import format_date as babel_format_date
 from elementpath.xpath_nodes import XPathNode
-from teipublisher.runtime.xpath_extensions import expect_element, expect_string
+from opm.runtime.xpath_extensions import expect_element, expect_string
 
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
 XML_ID = '{http://www.w3.org/XML/1998/namespace}id'
@@ -166,7 +166,7 @@ def lookup(idref: Any, context_node: Any = None) -> list:
 
     # Return the node wrapper from the *same* cached elementpath tree so that
     # subsequent path steps (e.g. /node(), /bibl) work correctly.
-    from teipublisher.runtime.pm_runtime import _xpath_root_wrapped
+    from opm.runtime.pm_runtime import _xpath_root_wrapped
     doc_wrapped = _xpath_root_wrapped(doc_root)
     wrapped_el = doc_wrapped.elements.get(el)
     return [wrapped_el] if wrapped_el is not None else []

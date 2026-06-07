@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from lxml import etree
 
-from teipublisher.runtime.markdown_output_functions import (
+from opm.runtime.markdown_output_functions import (
     MarkdownOutputFunctions,
     normalize_markdown_xml_text,
 )
-from teipublisher.runtime.output_functions import TemplateOutput
-from teipublisher.runtime.pm_runtime import apply_children
+from opm.runtime.output_functions import TemplateOutput
+from opm.runtime.pm_runtime import apply_children
 
 
 def test_markdown_code_preserves_line_breaks() -> None:

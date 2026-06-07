@@ -50,9 +50,9 @@ def _list_paras(doc_root: etree._Element) -> list[dict]:
 @pytest.fixture(scope='module')
 def docx_parts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, etree._Element]:
     """Compile docbook.odd for docx, transform test-docx-docbook.xml, return parsed parts."""
-    from teipublisher.config import load_project_config
-    from teipublisher.odd_compiler import compile_odd
-    from teipublisher.transform import load_transform_module, run_transform
+    from opm.config import load_project_config
+    from opm.odd_compiler import compile_odd
+    from opm.transform import load_transform_module, run_transform
 
     tmp = tmp_path_factory.mktemp('docx_docbook')
     path = tmp / 'docbook_docx.py'

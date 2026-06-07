@@ -12,7 +12,7 @@ from io import BytesIO
 
 from lxml import etree
 
-from teipublisher.runtime.output_functions import (
+from opm.runtime.output_functions import (
     PMResult,
     ProcessingModelFunctions,
     apply_pb_template,
@@ -45,7 +45,7 @@ def docx_apply_children(config, source_node, content, parent_el) -> None:
     the parent accumulator is a list (Markdown mode).  DOCX needs actual lxml OOXML
     elements in the list so they can be assembled into a document later.
     """
-    from teipublisher.runtime.pm_runtime import apply as _pm_apply, append_to  # noqa: PLC0415
+    from opm.runtime.pm_runtime import apply as _pm_apply, append_to  # noqa: PLC0415
 
     norm = config.get('normalize_text')
     for item in normalize(content):
