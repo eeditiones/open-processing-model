@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="docs/assets/logo-wordmark.svg#gh-light-mode-only" alt="opm — Open Processing Model" width="380">
+  <img src="docs/assets/logo-wordmark-dark.svg#gh-dark-mode-only" alt="opm — Open Processing Model" width="380">
+</p>
+
 # Open Processing Model
 
 **Open Processing Model** (`opm`) implements the [TEI Processing Model](https://tei-c.org/release/doc/tei-p5-doc/en/html/TD.html#TDPM) for transforming XML into various output formats. The implementation is a Python port of the core library of TEI Publisher: [`tei-publisher-lib`](https://github.com/eeditiones/tei-publisher-lib). While `tei-publisher-lib` compiles the processing model instructions found in an ODD into XQuery code, `opm` outputs Python instead.

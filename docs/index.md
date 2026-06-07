@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="assets/logo-wordmark.svg#only-light" alt="opm — Open Processing Model" width="380">
+  <img src="assets/logo-wordmark-dark.svg#only-dark" alt="opm — Open Processing Model" width="380">
+</p>
+
 # Open Processing Model
 
 **Open Processing Model** (`opm`) is an implementation of the [TEI Processing Model](https://tei-c.org/release/doc/tei-p5-doc/en/html/TD.html#TDPM) 

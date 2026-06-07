@@ -1,0 +1,25 @@
+/* opm brand palette — harmonizes with TEI Publisher / e-editiones (orange #F5A623). */
+
+:root {
+  --md-primary-fg-color:        #F5A623;
+  --md-primary-fg-color--light: #f7b850;
+  --md-primary-fg-color--dark:  #d98c12;
+  /* dark text/icons on the light-orange header for readable contrast */
+  --md-primary-bg-color:        #21222C;
+  --md-primary-bg-color--light: rgba(33, 34, 44, 0.7);
+
+  --md-accent-fg-color:         #d98c12;
+  --md-accent-fg-color--transparent: rgba(245, 166, 35, 0.1);
+}
+
+/* Dark mode: keep the orange accent, but use the light body text on the header. */
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color:  #d98c12;
+  --md-primary-bg-color:  #ffffff;
+  --md-accent-fg-color:   #F5A623;
+}
+
+/* Give the header logo a touch of breathing room. */
+.md-header__button.md-logo img {
+  height: 1.6rem;
+}
