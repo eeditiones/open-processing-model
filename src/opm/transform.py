@@ -57,6 +57,7 @@ Three entry points at increasing levels of abstraction:
 from __future__ import annotations
 
 import importlib.util
+from types import ModuleType
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -78,7 +79,7 @@ from opm.template_rendering import (
 )
 
 
-def load_transform_module(script_path: Path):
+def load_transform_module(script_path: Path) -> ModuleType:
     """Load a ``.py`` file that defines ``transform()`` and ``transform_output_channels()``."""
     path = script_path.resolve()
     if not path.is_file():
@@ -136,7 +137,7 @@ def xpath_select(
 
 
 def run_transform(
-    mod,
+    mod: ModuleType,
     root: etree._Element,
     *,
     parameters: dict[str, str] | None = None,

@@ -1,0 +1,85 @@
+site_name: Open Processing Model
+site_description: Transform XML (TEI, DocBook, …) via ODD processing models — HTML, Markdown, DOCX, Typst.
+repo_url: https://github.com/eeditiones/tei-publisher-py
+repo_name: eeditiones/tei-publisher-py
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - navigation.instant
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+
+plugins:
+  - search
+  - mkdocs-typer2
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_if_no_docstring: false
+            members_order: source
+            separate_signature: true
+            merge_init_into_class: true
+            show_signature_annotations: true
+            signature_crossrefs: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+  - Guide:
+      - ODD files: guide/odd-files.md
+      - Output formats: guide/output-formats.md
+      - XPath extensions: guide/xpath-extensions.md
+      - Templates & CSS: guide/templates-and-css.md
+      - Chunking: guide/chunking.md
+      - Configuration (opm.toml): guide/configuration.md
+  - CLI Reference: cli.md
+  - API Reference:
+      - Overview: api/index.md
+      - transform: api/transform.md
+      - chunking: api/chunking.md
+      - config: api/config.md
+      - odd_compiler: api/odd-compiler.md
+      - output functions: api/output-functions.md
+      - runtime: api/runtime.md

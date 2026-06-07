@@ -23,6 +23,12 @@ dev = [
     "pyinstrument>=5.1.2",
     "pytest>=8.0",
 ]
+docs = [
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.26",
+    "mkdocs-typer2>=0.1",
+    "ruff>=0.6",
+]
 
 [project.scripts]
 opm = "opm.cli:main"

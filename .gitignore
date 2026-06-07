@@ -31,3 +31,6 @@ env/
 
 modules/
 chunks/
+
+# MkDocs build output
+site/
