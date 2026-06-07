@@ -27,6 +27,8 @@ from teipublisher.runtime.output_functions import XML_ID
 
 ODD_GENERATED_CSS = ''
 
+ODD_NAME = 'teipublisher'
+
 
 def transform_output_channels():
     return ['web']
@@ -251,6 +253,106 @@ def test_link_pattern_full_url(tmp_path: Path) -> None:
 
     assert 'href="#a"' in chunk_one['content']
     assert 'href="http://localhost:8080/002#b"' in chunk_one['content']
+
+
+def test_chunk_document_pb_view_export(tmp_path: Path) -> None:
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    config = ChunkingConfig(
+        xpath="//body/div[@type='chunk']",
+        output_dir='pb-view-chunks',
+        view='div',
+        params={'lang': 'de'},
+    )
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=config,
+        project_root=tmp_path,
+        output_format='pb-view',
+    )
+
+    out = tmp_path / 'pb-view-chunks'
+
+    # One part file per chunk, named by xml:id.
+    part_a = json.loads((out / 'a.json').read_text(encoding='utf-8'))
+    part_b = json.loads((out / 'b.json').read_text(encoding='utf-8'))
+
+    assert part_a['id'] == 'a' and part_a['root'] == 'a'
+    assert part_a['next'] == 'b' and part_a['nextId'] == 'b'
+    assert 'previous' not in part_a
+    assert part_b['previous'] == 'a' and part_b['previousId'] == 'a'
+    assert 'next' not in part_b
+    assert 'id="a"' in part_a['content']
+
+    # Lookup table mirrors pb-view's createKey() (sorted name=value, joined by &).
+    index = json.loads((out / 'index.json').read_text(encoding='utf-8'))
+    # Keys sort all parameter names together, as pb-view's createKey() does.
+    assert index['odd=teipublisher.odd&user.lang=de&view=div'] == 'a.json'  # initial load
+    assert index['id=a&odd=teipublisher.odd&user.lang=de&view=div'] == 'a.json'
+    assert index['odd=teipublisher.odd&root=a&user.lang=de&view=div'] == 'a.json'
+    assert index['id=b&odd=teipublisher.odd&user.lang=de&view=div'] == 'b.json'
+    assert index['odd=teipublisher.odd&root=b&user.lang=de&view=div'] == 'b.json'
+
+    # ODD stylesheet written where pb-view expects it.
+    assert (out / 'css' / 'teipublisher.css').is_file()
+
+
+def test_chunk_document_pb_view_doc_path_layout(tmp_path: Path) -> None:
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    config = ChunkingConfig(
+        xpath="//body/div[@type='chunk']",
+        output_dir='site',
+        view='div',
+    )
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=config,
+        project_root=tmp_path,
+        output_format='pb-view',
+        doc_path='fixture.xml',
+    )
+
+    site = tmp_path / 'site'
+    # Data lives under the document path; pb-view fetches ${static}/${path}/...
+    assert (site / 'fixture.xml' / 'index.json').is_file()
+    assert (site / 'fixture.xml' / 'a.json').is_file()
+    assert (site / 'fixture.xml' / 'b.json').is_file()
+    # CSS is shared at the static root, not under the document path.
+    assert (site / 'css' / 'teipublisher.css').is_file()
+    assert not (site / 'fixture.xml' / 'css').exists()
+
+    index = json.loads((site / 'fixture.xml' / 'index.json').read_text(encoding='utf-8'))
+    assert index['odd=teipublisher.odd&view=div'] == 'a.json'
+
+
+def test_chunk_document_pb_view_requires_xml_id(tmp_path: Path) -> None:
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    # Select every div, including the <div type="toc"> that has no xml:id.
+    config = ChunkingConfig(xpath="//body/div", output_dir='pb-view-bad')
+
+    with pytest.raises(ValueError, match=r'<div type="toc"> \(line \d+\)'):
+        chunk_document(
+            module_path=module_path,
+            xml_path=xml_path,
+            config=config,
+            project_root=tmp_path,
+            output_format='pb-view',
+        )
 
 
 @pytest.mark.skipif(not WIBORADA_ODD.is_file(), reason='Fixture odd/wiborada.odd not found')

@@ -35,6 +35,24 @@ class ChunkingConfig:
     fragments: list[FragmentConfig] | None = None
     link_pattern: str | None = None
     module: Path | None = None
+    view: str = "div"
+    """View mode (``div``, ``page`` or ``single``) used in pb-view lookup keys."""
+    map: str | None = None
+    """Optional ``map`` parameter included in pb-view lookup keys."""
+    params: dict[str, Any] | None = None
+    """Optional user parameters for pb-view lookup keys.
+
+    Each entry is emitted as ``user.<key>=<value>`` and must match the
+    ``pb-param`` children declared on the consuming ``pb-view``.
+    """
+    doc_path: str | None = None
+    """Document path subdirectory for ``--format pb-view`` output.
+
+    pb-view resolves static data as ``${static}/${path}/...``; the data is
+    written to ``<output_dir>/<doc_path>/`` (CSS stays shared at
+    ``<output_dir>/css/``). Must match the ``path`` of the consuming
+    ``pb-document``. When unset the data is written directly into ``output_dir``.
+    """
     """Optional URL template for cross-chunk links.
 
     Placeholders:
@@ -132,6 +150,10 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
             fragments=fragments if fragments else None,
             link_pattern=chunking_data.get('link_pattern'),
             module=config_path.parent / raw_chunking_module if raw_chunking_module else None,
+            view=chunking_data.get('view', 'div'),
+            map=chunking_data.get('map'),
+            params=chunking_data.get('params'),
+            doc_path=chunking_data.get('doc_path'),
         )
 
     raw_pythonpath = project_data.get('pythonpath', [])

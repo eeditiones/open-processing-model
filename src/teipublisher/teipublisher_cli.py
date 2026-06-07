@@ -419,12 +419,25 @@ def chunk(
         typer.Option(
             '--format',
             help=(
-                'Output format for chunk files: "html" (default, rendered via Jinja2 template) '
-                'or "json" (one JSON file per chunk containing content, head, odd_css, and '
-                'fragments — suitable for static site generators such as Eleventy).'
+                'Output format for chunk files: "html" (default, rendered via Jinja2 template), '
+                '"json" (one JSON file per chunk containing content, head, odd_css, and '
+                'fragments — suitable for static site generators such as Eleventy), or '
+                '"pb-view" (index.json lookup table plus one part file per chunk, consumable '
+                'by the dynamic pb-view web component in static mode).'
             ),
         ),
     ] = 'html',
+    doc_path: Annotated[
+        Optional[str],
+        typer.Option(
+            '--doc-path',
+            help=(
+                'For --format pb-view: document path subdirectory. Data is written to '
+                '<output-dir>/<doc-path>/ and must match the pb-document @path; CSS stays '
+                'shared at <output-dir>/css/. Falls back to chunking.doc_path in config.'
+            ),
+        ),
+    ] = None,
     config: Annotated[
         Optional[Path],
         typer.Option(
@@ -479,7 +492,7 @@ def chunk(
                 effective_template = Path.cwd() / chunking_config.template
         
         effective_webcomponents = (
-            True if output_format == 'json'
+            True if output_format in ('json', 'pb-view')
             else (webcomponents if webcomponents is not None else (cfg.webcomponents_enabled or False))
         )
         effective_extensions: tuple[str, ...] | None = (
@@ -495,12 +508,15 @@ def chunk(
                     progress.length = total  # type: ignore[assignment]
                 progress.update(1)
 
-            if output_format not in ('html', 'json'):
+            if output_format not in ('html', 'json', 'pb-view'):
                 typer.echo(
-                    f'teipublisher: error: --format must be "html" or "json", got {output_format!r}',
+                    'teipublisher: error: --format must be "html", "json" or "pb-view", '
+                    f'got {output_format!r}',
                     err=True,
                 )
                 raise SystemExit(1)
+
+            effective_doc_path = doc_path or chunking_config.doc_path
 
             chunk_document(
                 module_path=transform_script or None,
@@ -513,12 +529,21 @@ def chunk(
                 webcomponents=effective_webcomponents,
                 xpath_extensions=effective_extensions,
                 output_format=output_format,
+                doc_path=effective_doc_path,
             )
         
-        ext = 'json' if output_format == 'json' else 'html'
         typer.echo(f'Chunks written to {out_dir}/')
-        typer.echo(f'  - manifest.json: metadata for static site builders')
-        typer.echo(f'  - *.{ext}: chunk files')
+        if output_format == 'pb-view':
+            data_subdir = f'{effective_doc_path}/' if effective_doc_path else ''
+            typer.echo(f'  - {data_subdir}index.json: pb-view lookup table')
+            typer.echo(f'  - {data_subdir}<xml:id>.json: part files')
+            resolved_module = transform_script or chunking_config.module
+            odd_name = getattr(load_transform_module(resolved_module), 'ODD_NAME', '') if resolved_module else ''
+            typer.echo(f'  - css/{odd_name}.css: ODD stylesheet')
+        else:
+            ext = 'json' if output_format == 'json' else 'html'
+            typer.echo('  - manifest.json: metadata for static site builders')
+            typer.echo(f'  - *.{ext}: chunk files')
         
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
         typer.echo(f'teipublisher: error: {e}', err=True)

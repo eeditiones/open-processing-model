@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 import keyword
 import re
+from pathlib import Path
 
 from . import (
     CodeGenerator,
@@ -59,6 +60,7 @@ class PythonGenerator(CodeGenerator):
     ) -> str:
         schema_ns = parsed.schema_ns
         odd_path = parsed.odd_path
+        odd_name = Path(odd_path).stem if odd_path else ''
         odd_typst_literal = ''
         transform_config_extra = ''
         if output_mode == 'typst':
@@ -204,6 +206,10 @@ def xpath_content(node, expr, params=None, xpath_extensions=None):
         namespaces=NSMAP,
     )
 {template_helpers_block}
+
+
+# Name of the ODD this module was generated from (stem, no extension).
+ODD_NAME = {odd_name!r}
 
 
 def transform_output_channels():

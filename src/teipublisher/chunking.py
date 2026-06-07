@@ -87,6 +87,16 @@ class ChunkProcessor:
         self._transform_config: dict[str, Any] | None = None
         self._chunk_anchor_map: dict[str, str] = {}
 
+    @property
+    def odd_name(self) -> str:
+        """ODD name to advertise to ``pb-view``.
+
+        Read from the ``ODD_NAME`` baked into the generated module, i.e. the ODD
+        it was actually compiled from, so the index and CSS reference the right
+        ODD. pb-view sends ``odd=<name>.odd`` and loads ``css/<name>.css``.
+        """
+        return getattr(self.module, 'ODD_NAME', '')
+
     def select_chunks(self) -> list[etree._Element]:
         """Find chunk elements.
 
@@ -331,13 +341,12 @@ class ChunkProcessor:
         result = cfg['pmf'].finish(cfg, result)
         return inject_cached_footnotes(result, cfg)
 
-    def process_chunk(self, chunk: etree._Element, index: int) -> ChunkResult:
-        """Process a single chunk with its fragments."""
-        metadata = self.generate_chunk_metadata(chunk, index)
+    def _render_chunk_html(self, chunk: etree._Element) -> tuple[str, str]:
+        """Transform *chunk* and return ``(content_html, head_html)``.
 
-        # Call the transform pipeline directly so we can work with the raw lxml
-        # result (avoids serialize → HTMLParser re-parse) and reuse the shared
-        # config dict (avoids rebuilding HtmlOutputFunctions each iteration).
+        Works with the raw lxml result (avoids serialize → HTMLParser re-parse)
+        and reuses the shared config dict.  No link rewriting is applied.
+        """
         raw_result = self._run_chunk_transform(chunk)
 
         serialize = getattr(self.module, 'serialize', _default_serialize)
@@ -350,12 +359,15 @@ class ChunkProcessor:
         )
         if html_el is not None:
             # Full document: extract head/body directly without serializing first.
-            content_html = _inner_html(html_el.find('body'))
-            head_html = _inner_html(html_el.find('head'))
-        else:
-            # Fragment: one serialization, no re-parse.
-            content_html = serialize(raw_result)
-            head_html = ''
+            return _inner_html(html_el.find('body')), _inner_html(html_el.find('head'))
+        # Fragment: one serialization, no re-parse.
+        return serialize(raw_result), ''
+
+    def process_chunk(self, chunk: etree._Element, index: int) -> ChunkResult:
+        """Process a single chunk with its fragments."""
+        metadata = self.generate_chunk_metadata(chunk, index)
+
+        content_html, head_html = self._render_chunk_html(chunk)
 
         content_html = self._rewrite_html_fragment(content_html, current_file=metadata.file)
         head_html = self._rewrite_html_fragment(head_html, current_file=metadata.file)
@@ -553,6 +565,158 @@ class ChunkProcessor:
             encoding='utf-8'
         )
 
+    def _pb_view_base_params(self) -> dict[str, str]:
+        """Build the constant part of the pb-view lookup key.
+
+        Mirrors the parameters ``pb-view`` includes in its static key
+        (``odd``, ``view``, ``xpath``, ``map`` and ``user.*``) — see
+        ``_staticUrl()`` in ``pb-view.js``.
+        """
+        params: dict[str, str] = {
+            'odd': f'{self.odd_name}.odd',
+            'view': self.config.view,
+        }
+        if self.config.map:
+            params['map'] = self.config.map
+        for name, value in (self.config.params or {}).items():
+            params[f'user.{name}'] = str(value)
+        return params
+
+    def export_pb_view(
+        self,
+        doc_path: str | None = None,
+        on_progress: Callable[[int, int], None] | None = None,
+    ) -> None:
+        """Export chunks as data consumable by the ``pb-view`` web component.
+
+        Lays the output out the way ``pb-view`` resolves it in static mode, where
+        the data location is derived from the ``static`` root and the document
+        ``path`` (``${static}/${path}/...``):
+
+        - ``<output_dir>/<doc_path>/index.json`` — lookup table mapping pb-view's
+          computed parameter keys to part files
+        - ``<output_dir>/<doc_path>/<xml:id>.json`` — one part per chunk, mirroring
+          the response of TEI Publisher's ``/api/parts/<doc>/json`` endpoint
+        - ``<output_dir>/css/<odd>.css`` — stylesheet, shared by every document
+          under the same static root
+
+        ``doc_path`` should match the ``path`` of the consuming ``pb-document``.
+        When omitted the data is written directly into ``<output_dir>`` (single
+        document at the static root).
+
+        Every chunk must carry an ``xml:id`` so it can be addressed statically;
+        a chunk without one aborts the export.
+
+        ``on_progress`` is an optional callback ``(current, total)`` invoked after
+        each chunk is written.
+        """
+        xml_ns = {'xml': 'http://www.w3.org/XML/1998/namespace'}
+
+        # Data lives under the document path; CSS is shared at the static root.
+        data_dir = self.output_dir / doc_path if doc_path else self.output_dir
+        data_dir.mkdir(parents=True, exist_ok=True)
+        self.select_chunks()
+        if not self.chunks:
+            raise ValueError('pb-view export: no chunks selected.')
+
+        # Resolve each chunk's xml:id up front so we can wire prev/next links.
+        chunk_ids: list[str] = []
+        for chunk in self.chunks:
+            xml_id = chunk.get(XML_ID)
+            if not xml_id:
+                raise ValueError(
+                    'pb-view export requires every chunk to carry an xml:id, but this '
+                    f'chunk has none: {_describe_element(chunk)}. '
+                    'Adjust the chunking selector or add xml:id attributes.'
+                )
+            chunk_ids.append(xml_id)
+
+        base_params = self._pb_view_base_params()
+        index: dict[str, str] = {}
+        total = len(self.chunks)
+
+        for i, (chunk, xml_id) in enumerate(zip(self.chunks, chunk_ids)):
+            content_html, _ = self._render_chunk_html(chunk)
+            response: dict[str, Any] = {
+                'content': content_html,
+                'id': xml_id,
+                'root': xml_id,
+            }
+            if i > 0:
+                response['previous'] = chunk_ids[i - 1]
+                response['previousId'] = chunk_ids[i - 1]
+            if i < total - 1:
+                response['next'] = chunk_ids[i + 1]
+                response['nextId'] = chunk_ids[i + 1]
+
+            filename = f'{xml_id}.json'
+            (data_dir / filename).write_text(
+                json.dumps(response, indent=2, ensure_ascii=False),
+                encoding='utf-8',
+            )
+
+            # The first chunk answers the initial load, where pb-view sends
+            # neither id nor root.
+            if i == 0:
+                index[_compute_part_key(base_params)] = filename
+
+            # Register every xml:id contained in the chunk so navigation by id
+            # (gotoId, prev/next) and by root resolves to this file.
+            ids = {xml_id}
+            for node in chunk.xpath('.//*[@xml:id]', namespaces=xml_ns):
+                if isinstance(node, etree._Element):
+                    node_id = node.get(XML_ID)
+                    if node_id:
+                        ids.add(node_id)
+            for node_id in ids:
+                index[_compute_part_key({**base_params, 'id': node_id})] = filename
+            index[_compute_part_key({**base_params, 'root': xml_id})] = filename
+
+            if on_progress is not None:
+                on_progress(i + 1, total)
+
+        (data_dir / 'index.json').write_text(
+            json.dumps(index, indent=2, ensure_ascii=False),
+            encoding='utf-8',
+        )
+
+        # pb-view loads its stylesheet from <static>/css/<odd>.css, i.e. shared
+        # at the static root across all documents.
+        odd_css = getattr(self.module, 'ODD_GENERATED_CSS', '')
+        css_dir = self.output_dir / 'css'
+        css_dir.mkdir(parents=True, exist_ok=True)
+        (css_dir / f'{self.odd_name}.css').write_text(odd_css, encoding='utf-8')
+
+
+def _describe_element(element: etree._Element) -> str:
+    """Return a readable opening tag for *element* with its source line.
+
+    Used in error messages to point the user at the offending wrapper element,
+    e.g. ``<div type="title" rend="frontmatter"> (line 47)``.
+    """
+    def _name(qualified: str) -> str:
+        qname = etree.QName(qualified)
+        if qname.namespace == 'http://www.w3.org/XML/1998/namespace':
+            return f'xml:{qname.localname}'
+        return qname.localname
+
+    attrs = ''.join(
+        f' {_name(key)}="{value}"' for key, value in element.attrib.items()
+    )
+    tag = f'<{_name(element.tag)}{attrs}>'
+    if element.sourceline:
+        return f'{tag} (line {element.sourceline})'
+    return tag
+
+
+def _compute_part_key(params: dict[str, str]) -> str:
+    """Build a pb-view lookup key from *params*.
+
+    Matches ``createKey()`` in ``pb-view.js``: sort the parameter names and join
+    ``name=value`` pairs with ``&``.
+    """
+    return '&'.join(f'{key}={params[key]}' for key in sorted(params))
+
 
 def chunk_document(
     module_path: Path | None,
@@ -565,6 +729,7 @@ def chunk_document(
     webcomponents: bool = False,
     xpath_extensions: tuple[str, ...] | None = None,
     output_format: str = 'html',
+    doc_path: str | None = None,
 ) -> None:
     """Chunk a document using the specified configuration."""
     resolved_module = module_path or config.module
@@ -582,4 +747,7 @@ def chunk_document(
         webcomponents=webcomponents,
         xpath_extensions=xpath_extensions,
     )
-    processor.process_all(template_path, on_progress=on_progress, output_format=output_format)
+    if output_format == 'pb-view':
+        processor.export_pb_view(doc_path=doc_path, on_progress=on_progress)
+    else:
+        processor.process_all(template_path, on_progress=on_progress, output_format=output_format)
