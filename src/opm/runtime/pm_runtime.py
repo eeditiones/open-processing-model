@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import elementpath
 from functools import lru_cache
+from typing import Any
 from elementpath import XPathContext
 from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_nodes import XPathNode
@@ -75,6 +76,36 @@ def _cached_parameters_map(key: tuple[tuple[str, str], ...]):
     """One XPathMap per distinct runtime options dict (reused for every node)."""
     params = dict(key) if key else None
     return _parameters_xpath_map(params, _PARAM_PARSE_CTX)
+
+
+# Cache: (params_key, id(root_element)) → XPathMap including root node.
+_params_map_with_root_cache: dict[tuple, Any] = {}
+
+
+def _parameters_map_with_root(params_key: tuple[tuple[str, str], ...], root: 'etree._Element') -> Any:
+    """Build a ``$parameters`` XPathMap that includes *root* as the ``root`` entry.
+
+    Uses ``"root": .`` in the map literal with the root element as XPath context item
+    so the result is a proper XPathMap node value, not a plain Python dict.
+    Cached by (params_key, id(root)) — one map per distinct (params, document) pair.
+    """
+    cache_key = (params_key, id(root))
+    hit = _params_map_with_root_cache.get(cache_key)
+    if hit is not None:
+        return hit
+    params = dict(params_key) if params_key else {}
+    parts = [
+        f'{_xpath_string_literal(str(k))}: {_xpath_string_literal(str(v))}'
+        for k, v in params.items()
+    ]
+    parts.append('"root": .')
+    lit = 'map{' + ', '.join(parts) + '}'
+    token = XPath31Parser().parse(lit)
+    wrapped = _xpath_root_wrapped(root)
+    ctx = XPathContext(root=wrapped, item=wrapped.elements[root])  # type: ignore[arg-type,index]
+    result = list(token.select(ctx))[0]
+    _params_map_with_root_cache[cache_key] = result
+    return result
 
 
 def _default_element_namespace_uri(node: etree._Element) -> str:
@@ -140,6 +171,7 @@ def _xpath_root_wrapped(root: etree._Element):
 def clear_xpath_document_cache() -> None:
     """Drop cached elementpath document trees (e.g. between tests or documents)."""
     _document_xpath_roots.clear()
+    _params_map_with_root_cache.clear()
     _compiled_xpath.cache_clear()
     _loaded_extension_callables.cache_clear()
     _cached_parameters_map.cache_clear()
@@ -151,12 +183,21 @@ def make_context(node: etree._Element, params: dict | None = None) -> XPathConte
     Runtime options are passed as an XPath 3.1 map via ``variables`` so predicate
     strings from the ODD can use ``$parameters?key`` without rewriting the expression.
 
+    ``$parameters?root`` is automatically set to the document root element so that
+    ODD expressions like ``root($parameters?root)`` and ``id(@x, root($parameters?root))``
+    work without the caller needing to pass ``root`` explicitly (compatible with
+    tei-publisher-lib). An explicit ``root`` key in *params* takes precedence.
+
     The document node tree and parameters map are cached; only XPathContext itself is
     constructed fresh each call (it is lightweight — the expensive parts are cached).
     """
     root = node.getroottree().getroot()
-    pmap = _cached_parameters_map(_params_cache_key(params))
     wrapped = _xpath_root_wrapped(root)
+    params_key = _params_cache_key(params)
+    if not params or 'root' not in params:
+        pmap = _parameters_map_with_root(params_key, root)
+    else:
+        pmap = _cached_parameters_map(params_key)
     return XPathContext(
         root=wrapped,  # type: ignore[arg-type]
         item=wrapped.elements[node],  # type: ignore[union-attr,index]
