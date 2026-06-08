@@ -293,10 +293,13 @@ def test_chunk_document_pb_view_export(tmp_path: Path) -> None:
     index = json.loads((out / 'index.json').read_text(encoding='utf-8'))
     # Keys sort all parameter names together, as pb-view's createKey() does.
     assert index['odd=teipublisher.odd&user.lang=de&view=div'] == 'a.json'  # initial load
+    assert index["odd=teipublisher.odd&user.lang=de&view=div&xpath=//body/div[@type='chunk']"] == 'a.json'
     assert index['id=a&odd=teipublisher.odd&user.lang=de&view=div'] == 'a.json'
     assert index['odd=teipublisher.odd&root=a&user.lang=de&view=div'] == 'a.json'
     assert index['id=b&odd=teipublisher.odd&user.lang=de&view=div'] == 'b.json'
     assert index['odd=teipublisher.odd&root=b&user.lang=de&view=div'] == 'b.json'
+    # xpath key registered only once (first chunk), no positional suffix
+    assert "xpath=//body/div[@type='chunk'][2]" not in str(index)
 
     # ODD stylesheet written where pb-view expects it.
     assert (out / 'css' / 'teipublisher.css').is_file()
@@ -334,6 +337,70 @@ def test_chunk_document_pb_view_doc_path_layout(tmp_path: Path) -> None:
 
     index = json.loads((site / 'fixture.xml' / 'index.json').read_text(encoding='utf-8'))
     assert index['odd=teipublisher.odd&view=div'] == 'a.json'
+
+
+def test_pb_view_export_per_chunk_fragments(tmp_path: Path) -> None:
+    """Per-chunk fragments produce {name}-{xml_id}.json files beside the main chunks."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    _write_chunking_fixture_module(module_path)
+
+    xml_path = tmp_path / 'parallel.xml'
+    xml_path.write_text(
+        """<doc>
+  <body>
+    <div xml:lang="zh" xml:id="zh1"><p>漢</p></div>
+    <div xml:lang="zh" xml:id="zh2"><p>字</p></div>
+    <div xml:lang="en" xml:id="en1"><p>one</p></div>
+    <div xml:lang="en" xml:id="en2"><p>two</p></div>
+  </body>
+</doc>""",
+        encoding='utf-8',
+    )
+
+    config = ChunkingConfig(
+        xpath="//body/div[@xml:lang='zh']",
+        output_dir='pb-frags',
+        view='div',
+        fragments=[
+            FragmentConfig(
+                name='en',
+                scope='per-chunk',
+                xpath="//body/div[@xml:lang='en']",
+            ),
+        ],
+    )
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=config,
+        project_root=tmp_path,
+        output_format='pb-view',
+    )
+
+    out = tmp_path / 'pb-frags'
+
+    # Main chunk files.
+    assert (out / 'zh1.json').is_file()
+    assert (out / 'zh2.json').is_file()
+
+    # Fragment files named {name}-{xml_id}.json.
+    frag1 = json.loads((out / 'en-zh1.json').read_text(encoding='utf-8'))
+    frag2 = json.loads((out / 'en-zh2.json').read_text(encoding='utf-8'))
+    assert 'one' in frag1['content']
+    assert 'two' in frag2['content']
+    assert frag1['next'] == 'zh2' and frag2['previous'] == 'zh1'
+
+    index = json.loads((out / 'index.json').read_text(encoding='utf-8'))
+
+    # Fragment xpath registered once (first chunk).
+    assert index["odd=teipublisher.odd&view=div&xpath=//body/div[@xml:lang='en']"] == 'en-zh1.json'
+    # Per-chunk/id fragment lookups include xpath to distinguish from main.
+    assert index["odd=teipublisher.odd&root=zh1&view=div&xpath=//body/div[@xml:lang='en']"] == 'en-zh1.json'
+    assert index["odd=teipublisher.odd&root=zh2&view=div&xpath=//body/div[@xml:lang='en']"] == 'en-zh2.json'
+    assert index["id=zh1&odd=teipublisher.odd&view=div&xpath=//body/div[@xml:lang='en']"] == 'en-zh1.json'
+    # No positional suffix anywhere.
+    assert "[1]" not in str(index)
 
 
 def test_chunk_document_pb_view_requires_xml_id(tmp_path: Path) -> None:
@@ -376,3 +443,54 @@ def test_wiborada_web_div_with_n_preserves_xml_id(tmp_path: Path) -> None:
     rendered = serialize(module.transform(root))
 
     assert 'id="intro"' in rendered
+
+
+def _write_tei_namespaced_fixture_xml(path: Path) -> None:
+    path.write_text(
+        """<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <text>
+    <body>
+      <div xml:lang="zh" xml:id="zh1"><p>漢</p></div>
+      <div xml:lang="en" xml:id="en1"><p>english</p></div>
+      <div xml:lang="zh" xml:id="zh2"><p>字</p></div>
+    </body>
+  </text>
+</TEI>
+""",
+        encoding='utf-8',
+    )
+
+
+def test_select_chunks_resolves_default_namespace(tmp_path: Path) -> None:
+    """Unprefixed names in the chunk selector match TEI-namespaced elements.
+
+    Regression: select_chunks() used raw lxml xpath() with a prefix-only nsmap,
+    so //body/div never matched a document whose only namespace is the default
+    TEI namespace, yielding "no chunks selected".
+    """
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_tei_namespaced_fixture_xml(xml_path)
+
+    config = ChunkingConfig(
+        xpath="//body/div[@xml:lang='zh']",
+        output_dir='tei-chunks',
+    )
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=config,
+        project_root=tmp_path,
+        output_format='json',
+    )
+
+    out_dir = tmp_path / 'tei-chunks'
+    manifest = json.loads((out_dir / 'manifest.json').read_text(encoding='utf-8'))
+
+    # Only the two zh divs are selected, not the en one.
+    assert len(manifest['chunks']) == 2
+    assert (out_dir / '001.json').is_file()
+    assert (out_dir / '002.json').is_file()
+    assert not (out_dir / '003.json').is_file()

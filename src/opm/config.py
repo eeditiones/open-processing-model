@@ -27,7 +27,7 @@ class FragmentConfig:
 
 @dataclass
 class ChunkingConfig:
-    xpath: str = "//text/body/div"
+    xpath: str | None = None
     selector: str | None = None
     depth: int = 1
     output_dir: str = "chunks"
@@ -142,7 +142,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         chunking_template = chunking_data.get('template')
         raw_chunking_module = chunking_data.get('module')
         chunking = ChunkingConfig(
-            xpath=chunking_data.get('xpath', '//text/body/div'),
+            xpath=chunking_data.get('xpath'),
             selector=chunking_data.get('selector'),
             depth=chunking_data.get('depth', 1),
             output_dir=chunking_data.get('output_dir', 'chunks'),

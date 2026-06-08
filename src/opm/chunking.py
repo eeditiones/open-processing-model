@@ -110,15 +110,15 @@ class ChunkProcessor:
             selector_fn = getattr(importlib.import_module(module_name), func_name)
             chunks = selector_fn(self.xml_root, self.config)
         else:
-            try:
-                nsmap: dict[str, str] = {k: v for k, v in self.xml_root.nsmap.items() if k is not None}
-                chunks = self.xml_root.xpath(self.config.xpath, namespaces=nsmap or None)  # type: ignore[arg-type]
-            except Exception:
-                chunks = xpath_select(
-                    self.xml_root,
-                    self.config.xpath,
-                    xpath_extensions=self.xpath_extensions or None,
-                )
+            # Use xpath_select (XPath 3.1) so unprefixed names resolve against the
+            # document's default namespace — TEI's div/body live in the TEI
+            # namespace, which raw lxml xpath() with a prefix-only nsmap silently
+            # misses. Matches how process_fragment() selects nodes.
+            chunks = xpath_select(
+                self.xml_root,
+                self.config.xpath or '//text/body/div',
+                xpath_extensions=self.xpath_extensions or None,
+            )
 
         if not isinstance(chunks, list):
             chunks = [chunks] if chunks else []
@@ -143,7 +143,7 @@ class ChunkProcessor:
         return ChunkMetadata(
             id=chunk_id,
             file=chunk_file,
-            xpath=self.config.xpath + f"[{index + 1}]",
+            xpath=(self.config.xpath + f"[{index + 1}]") if self.config.xpath else '',
             prev=prev_id,
             next=next_id
         )
@@ -635,6 +635,13 @@ class ChunkProcessor:
         index: dict[str, str] = {}
         total = len(self.chunks)
 
+        # Pre-select per-chunk fragment elements, aligned by position with main chunks.
+        per_chunk_frags = [f for f in (self.config.fragments or []) if f.scope == 'per-chunk']
+        frag_elements: dict[str, list[etree._Element]] = {}
+        for frag in per_chunk_frags:
+            elements = xpath_select(self.xml_root, frag.xpath, xpath_extensions=self.xpath_extensions or None)
+            frag_elements[frag.name] = [e for e in elements if isinstance(e, etree._Element)]
+
         for i, (chunk, xml_id) in enumerate(zip(self.chunks, chunk_ids)):
             content_html, _ = self._render_chunk_html(chunk)
             response: dict[str, Any] = {
@@ -656,9 +663,11 @@ class ChunkProcessor:
             )
 
             # The first chunk answers the initial load, where pb-view sends
-            # neither id nor root.
+            # neither id nor root; also register the configured xpath as-is.
             if i == 0:
                 index[_compute_part_key(base_params)] = filename
+                if self.config.xpath:
+                    index[_compute_part_key({**base_params, 'xpath': self.config.xpath})] = filename
 
             # Register every xml:id contained in the chunk so navigation by id
             # (gotoId, prev/next) and by root resolves to this file.
@@ -671,6 +680,40 @@ class ChunkProcessor:
             for node_id in ids:
                 index[_compute_part_key({**base_params, 'id': node_id})] = filename
             index[_compute_part_key({**base_params, 'root': xml_id})] = filename
+
+            # Per-chunk fragment files: {name}-{xml_id}.json
+            for frag in per_chunk_frags:
+                frag_elems = frag_elements.get(frag.name, [])
+                if i >= len(frag_elems):
+                    continue
+                frag_mod = self._fragment_modules.get(str(frag.module)) if frag.module else self.module
+                frag_html = run_transform(
+                    frag_mod, frag_elems[i],
+                    xpath_extensions=self.xpath_extensions or None,
+                    apply_template=False,
+                )
+                if isinstance(frag_html, bytes):
+                    frag_html = frag_html.decode('utf-8')
+
+                frag_response: dict[str, Any] = {'content': frag_html, 'id': xml_id, 'root': xml_id}
+                if i > 0:
+                    frag_response['previous'] = chunk_ids[i - 1]
+                    frag_response['previousId'] = chunk_ids[i - 1]
+                if i < total - 1:
+                    frag_response['next'] = chunk_ids[i + 1]
+                    frag_response['nextId'] = chunk_ids[i + 1]
+
+                frag_filename = f'{frag.name}-{xml_id}.json'
+                (data_dir / frag_filename).write_text(
+                    json.dumps(frag_response, indent=2, ensure_ascii=False),
+                    encoding='utf-8',
+                )
+
+                if i == 0:
+                    index[_compute_part_key({**base_params, 'xpath': frag.xpath})] = frag_filename
+                for node_id in ids:
+                    index[_compute_part_key({**base_params, 'id': node_id, 'xpath': frag.xpath})] = frag_filename
+                index[_compute_part_key({**base_params, 'root': xml_id, 'xpath': frag.xpath})] = frag_filename
 
             if on_progress is not None:
                 on_progress(i + 1, total)
