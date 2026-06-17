@@ -110,20 +110,26 @@ def _model_ordinal(spec_el, model_el) -> int:
     return 1
 
 
+OPM_OUTPUT_PREFIX = 'opm-'
+
+
 def _model_matches_output_mode(el, output_mode: str) -> bool:
     """Whether *el* participates in the given ODD output channel (``@output`` on models).
 
     Models without ``@output`` are generic and apply to all modes.  Mode-specific
     models override them via the predicate/ordering rules in ``_top_level_models``.
+
+    Values prefixed with ``opm-`` (e.g. ``opm-web``) are recognised only by this
+    Python compiler; tei-publisher-lib ignores them.
     """
     o = el.get('output')
     if o is None:
         return True
-    return o == output_mode
+    return o == output_mode or o == f'{OPM_OUTPUT_PREFIX}{output_mode}'
 
 
 def _filter_by_output_mode(elements: list, output_mode: str) -> list:
-    """Filter elements by output mode."""
+    """Filter elements by output mode, preserving ODD document order."""
     return [el for el in elements if _model_matches_output_mode(el, output_mode)]
 
 

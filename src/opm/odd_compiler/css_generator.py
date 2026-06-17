@@ -8,6 +8,7 @@ from lxml import etree
 
 from opm.runtime.output_functions import XML_ID
 
+from .codegen import _model_matches_output_mode
 from .parse_odd import ParsedOdd, iter_element_specs
 
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
@@ -31,18 +32,6 @@ def _model_ordinal(spec_el, model_el) -> int:
         if m is model_el:
             return i + 1
     return 1
-
-
-def _model_matches_output_mode(el, output_mode: str) -> bool:
-    """Whether *el* participates in the given ODD output channel (``@output`` on models)."""
-    o = el.get('output')
-    if output_mode == 'web':
-        return o is None or o == 'web'
-    if output_mode == 'markdown':
-        return o is None or o == 'markdown'
-    if output_mode == 'typst':
-        return o is None or o == 'typst'
-    return o == output_mode
 
 
 def _normalize_css_body(text: str) -> str:

@@ -82,6 +82,55 @@ def test_compile_web_mode_emits_transform_output_channels() -> None:
     assert "return ['web']" in src
 
 
+def test_opm_output_prefix_matches_web_mode_in_document_order(tmp_path: Path) -> None:
+    """``output=\"opm-web\"`` is web-only for this compiler; first matching model wins."""
+    from opm.odd_compiler import compile_odd
+
+    odd = tmp_path / 'opm_web.odd'
+    odd.write_text(
+        '<?xml version="1.0"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0">'
+        '<teiHeader><fileDesc><titleStmt><title>t</title></titleStmt>'
+        '<publicationStmt><p>p</p></publicationStmt>'
+        '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
+        '<text><body>'
+        '<schemaSpec ident="x" ns="http://www.tei-c.org/ns/1.0">'
+        '<elementSpec ident="p" mode="change">'
+        '<model output="opm-web" behaviour="block"/>'
+        '<model output="web" behaviour="paragraph"/>'
+        '</elementSpec>'
+        '</schemaSpec>'
+        '</body></text></TEI>',
+        encoding='utf-8',
+    )
+    src = compile_odd(str(odd), output_mode='web')
+    assert "return pmf.block(config, node, ['tei-p', 'tei-p1', r], node)" in src
+    assert 'pmf.paragraph' not in src
+
+
+def test_opm_output_prefix_ignored_for_other_compile_modes(tmp_path: Path) -> None:
+    from opm.odd_compiler import compile_odd
+
+    odd = tmp_path / 'opm_markdown_only.odd'
+    odd.write_text(
+        '<?xml version="1.0"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0">'
+        '<teiHeader><fileDesc><titleStmt><title>t</title></titleStmt>'
+        '<publicationStmt><p>p</p></publicationStmt>'
+        '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
+        '<text><body>'
+        '<schemaSpec ident="x" ns="http://www.tei-c.org/ns/1.0">'
+        '<elementSpec ident="p" mode="change">'
+        '<model output="opm-web" behaviour="block"/>'
+        '</elementSpec>'
+        '</schemaSpec>'
+        '</body></text></TEI>',
+        encoding='utf-8',
+    )
+    src = compile_odd(str(odd), output_mode='markdown')
+    assert "case 'p':" not in src
+
+
 def test_compile_code_behaviour_emits_language_kwarg_for_markdown(tmp_path: Path) -> None:
     from opm.odd_compiler import compile_odd
 
