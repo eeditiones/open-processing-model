@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import re
+import urllib.error
+import urllib.request
 from typing import Any
 from datetime import date, datetime
 
 import lxml.etree as ET
 from babel.dates import format_date as babel_format_date
+from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_nodes import XPathNode
 from opm.runtime.xpath_extensions import expect_element, expect_string
 
@@ -175,4 +178,67 @@ def lookup(idref: Any, context_node: Any = None) -> list:
 def clear_xml_id_index_cache() -> None:
     """Invalidate the xml:id index (e.g. after the document changes)."""
     _xml_id_index_cache.clear()
+
+
+# ── tp:request(uri) — HTTP GET with XML-or-string response ───────────────────────
+
+_REQUEST_TIMEOUT_SECS = 30
+
+
+def _is_xml_content_type(content_type: str) -> bool:
+    """True when *content_type* indicates an XML payload."""
+    ct = content_type.split(';', 1)[0].strip().lower()
+    return ct in ('application/xml', 'text/xml') or ct.endswith('+xml')
+
+
+def _wrap_fetched_element(el: ET._Element):
+    """Wrap a parsed lxml element for further XPath steps (e.g. ``/child``)."""
+    wrapped = get_node_tree(el.getroottree())
+    node = wrapped.elements.get(el)
+    if node is None:
+        raise ValueError('request() failed to wrap fetched XML document')
+    return node
+
+
+def request(uri: Any) -> Any:
+    """``tp:request(uri)`` — HTTP GET to *uri*; XML responses become element nodes.
+
+    Inspects the response ``Content-Type``: XML media types (``application/xml``,
+    ``text/xml``, or ``*/*+xml``) are parsed and returned as an elementpath node
+    so path expressions such as ``tp:request($uri)/entry`` work.  All other types
+    are returned as a decoded string.
+
+    When the surrounding document uses a default element namespace (e.g. TEI),
+    unprefixed child steps on the fetched tree resolve in that namespace; for
+    namespace-less API XML use ``*[local-name()='entry']`` instead of ``/entry``.
+    """
+    uri = expect_string(uri, arg_name='request(uri)')
+    if not uri:
+        raise ValueError('request(uri) expects a non-empty URI')
+
+    http_req = urllib.request.Request(
+        uri,
+        method='GET',
+        headers={'User-Agent': 'opm/1.0 tp:request'},
+    )
+    try:
+        with urllib.request.urlopen(http_req, timeout=_REQUEST_TIMEOUT_SECS) as resp:
+            body = resp.read()
+            content_type = resp.headers.get_content_type()
+            charset = resp.headers.get_content_charset() or 'utf-8'
+    except urllib.error.URLError as e:
+        raise ValueError(f'request({uri!r}) failed: {e}') from e
+
+    if _is_xml_content_type(content_type):
+        if not body.strip():
+            # eXist REST returns 200 + application/xml with an empty body when
+            # _xpath matches nothing (_wrap=no); treat as an empty result.
+            return ''
+        try:
+            el = ET.fromstring(body)
+        except ET.XMLSyntaxError as e:
+            raise ValueError(f'request({uri!r}) returned invalid XML: {e}') from e
+        return _wrap_fetched_element(el)
+
+    return body.decode(charset, errors='replace')
 
