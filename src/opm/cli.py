@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 import tempfile
 import webbrowser
+from dataclasses import replace
 from pathlib import Path
 from typing import Annotated, Optional
 
@@ -102,6 +103,25 @@ def _resolve_user_css(css_path: Path | None) -> str | None:
     if css_path is None and not path.is_file():
         return None
     return path.read_text(encoding='utf-8')
+
+
+def _chunk_input_files(input_path: Path) -> list[Path]:
+    """Return XML files to process for ``opm chunk``."""
+    if input_path.is_dir():
+        return sorted(path for path in input_path.iterdir() if path.is_file() and path.suffix.lower() == '.xml')
+    return [input_path]
+
+
+def _append_doc_path(base_doc_path: str | None, xml_path: Path) -> str:
+    """Append the XML filename to a configured pb-view document path."""
+    if not base_doc_path:
+        return xml_path.name
+    return f'{base_doc_path.rstrip("/")}/{xml_path.name}'
+
+
+def _append_output_dir(base_output_dir: str, xml_path: Path) -> str:
+    """Append the XML filename to the chunk output directory."""
+    return f'{base_output_dir.rstrip("/")}/{xml_path.name}'
 
 
 @app.command('compile')
@@ -365,7 +385,7 @@ def chunk(
     input_xml: Annotated[
         Optional[Path],
         typer.Argument(
-            help='XML file to transform and chunk.',
+            help='XML file to transform and chunk, or a directory of XML files for --format pb-view.',
         ),
     ] = None,
     transform_script: Annotated[
@@ -481,6 +501,29 @@ def chunk(
         if template:
             chunking_config.template = template
         
+        if output_format not in ('html', 'json', 'pb-view'):
+            typer.echo(
+                'opm: error: --format must be "html", "json" or "pb-view", '
+                f'got {output_format!r}',
+                err=True,
+            )
+            raise SystemExit(1)
+
+        input_files = _chunk_input_files(input_xml)
+        if input_xml.is_dir():
+            if output_format not in ('json', 'pb-view'):
+                typer.echo(
+                    'opm: error: directory input is currently supported only with --format json or --format pb-view.',
+                    err=True,
+                )
+                raise SystemExit(1)
+            if not input_files:
+                typer.echo(
+                    f'opm: error: no XML files found in directory {input_xml}.',
+                    err=True,
+                )
+                raise SystemExit(1)
+
         # Check if output directory exists
         out_dir = Path.cwd() / chunking_config.output_dir
         if out_dir.exists() and not force:
@@ -507,42 +550,61 @@ def chunk(
             tuple(xpath_extensions) if xpath_extensions else None
         )
 
-        # Chunk the document
+        # Chunk the document(s)
         effective_chunk_script = transform_script or (cfg.chunking.module if cfg.chunking else None)
-        typer.echo(f'Chunking {input_xml} using {effective_chunk_script or "module from config"}...')
+        if input_xml.is_dir():
+            typer.echo(
+                f'Chunking {len(input_files)} XML files from {input_xml} '
+                f'using {effective_chunk_script or "module from config"}...'
+            )
+        else:
+            typer.echo(f'Chunking {input_xml} using {effective_chunk_script or "module from config"}...')
         with typer.progressbar(length=0, label='Processing chunks') as progress:
             def _on_progress(current: int, total: int) -> None:
                 if progress.length == 0:
                     progress.length = total  # type: ignore[assignment]
                 progress.update(1)
 
-            if output_format not in ('html', 'json', 'pb-view'):
-                typer.echo(
-                    'opm: error: --format must be "html", "json" or "pb-view", '
-                    f'got {output_format!r}',
-                    err=True,
+            base_doc_path = doc_path or chunking_config.doc_path
+
+            for xml_file in input_files:
+                effective_chunking_config = (
+                    replace(
+                        chunking_config,
+                        output_dir=_append_output_dir(chunking_config.output_dir, xml_file),
+                    )
+                    if input_xml.is_dir() and output_format == 'json'
+                    else chunking_config
                 )
-                raise SystemExit(1)
+                effective_doc_path = (
+                    _append_doc_path(base_doc_path, xml_file)
+                    if input_xml.is_dir() and output_format == 'pb-view'
+                    else base_doc_path
+                )
 
-            effective_doc_path = doc_path or chunking_config.doc_path
-
-            chunk_document(
-                module_path=transform_script or None,
-                xml_path=input_xml,
-                config=chunking_config,
-                project_root=Path.cwd(),
-                template_path=effective_template,
-                on_progress=_on_progress,
-                project_config=cfg,
-                webcomponents=effective_webcomponents,
-                xpath_extensions=effective_extensions,
-                output_format=output_format,
-                doc_path=effective_doc_path,
-            )
+                chunk_document(
+                    module_path=transform_script or None,
+                    xml_path=xml_file,
+                    config=effective_chunking_config,
+                    project_root=Path.cwd(),
+                    template_path=effective_template,
+                    on_progress=_on_progress,
+                    project_config=cfg,
+                    webcomponents=effective_webcomponents,
+                    xpath_extensions=effective_extensions,
+                    output_format=output_format,
+                    doc_path=effective_doc_path,
+                )
         
         typer.echo(f'Chunks written to {out_dir}/')
         if output_format == 'pb-view':
-            data_subdir = f'{effective_doc_path}/' if effective_doc_path else ''
+            if input_xml.is_dir():
+                data_subdir = f'{(doc_path or chunking_config.doc_path or "").rstrip("/")}/<document>.xml/'
+                if data_subdir.startswith('/'):
+                    data_subdir = data_subdir[1:]
+            else:
+                effective_doc_path = doc_path or chunking_config.doc_path
+                data_subdir = f'{effective_doc_path}/' if effective_doc_path else ''
             typer.echo(f'  - {data_subdir}index.json: pb-view lookup table')
             typer.echo(f'  - {data_subdir}<xml:id>.json: part files')
             resolved_module = transform_script or chunking_config.module
@@ -550,8 +612,12 @@ def chunk(
             typer.echo(f'  - css/{odd_name}.css: ODD stylesheet')
         else:
             ext = 'json' if output_format == 'json' else 'html'
-            typer.echo('  - manifest.json: metadata for static site builders')
-            typer.echo(f'  - *.{ext}: chunk files')
+            if input_xml.is_dir() and output_format == 'json':
+                typer.echo('  - <document>.xml/manifest.json: metadata for static site builders')
+                typer.echo(f'  - <document>.xml/*.{ext}: chunk files')
+            else:
+                typer.echo('  - manifest.json: metadata for static site builders')
+                typer.echo(f'  - *.{ext}: chunk files')
         
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
         typer.echo(f'opm: error: {e}', err=True)

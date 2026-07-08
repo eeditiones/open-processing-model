@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from opm.cli import _preview_kind_from_module
 from opm.cli import _resolve_user_css
 from opm.cli import main
+from tests.test_chunking import _write_chunking_fixture_module
+from tests.test_chunking import _write_chunking_fixture_xml
 
 
 def test_preview_kind_from_transform_output_channels() -> None:
@@ -167,5 +170,70 @@ def test_transform_fragment_output_skips_template_shell(tmp_path: Path, monkeypa
     assert rc == 0
     rendered = out.read_text(encoding='utf-8')
     assert rendered == '<p>item</p>'
+
+
+def test_chunk_directory_pb_view_appends_xml_filename_to_doc_path(tmp_path: Path, monkeypatch) -> None:
+    _write_chunking_fixture_module(tmp_path / 'chunk_fixture.py')
+    docs = tmp_path / 'docs'
+    docs.mkdir()
+    _write_chunking_fixture_xml(docs / 'one.xml')
+    _write_chunking_fixture_xml(docs / 'two.xml')
+    (tmp_path / 'opm.toml').write_text(
+        """[chunking]
+module = "chunk_fixture.py"
+xpath = "//body/div[@type='chunk']"
+output_dir = "site"
+view = "div"
+doc_path = "letters"
+""",
+        encoding='utf-8',
+    )
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['chunk', 'docs', '--format', 'pb-view', '-c', 'opm.toml'])
+
+    assert rc == 0
+    site = tmp_path / 'site'
+    assert (site / 'letters' / 'one.xml' / 'index.json').is_file()
+    assert (site / 'letters' / 'one.xml' / 'a.json').is_file()
+    assert (site / 'letters' / 'two.xml' / 'index.json').is_file()
+    assert (site / 'letters' / 'two.xml' / 'b.json').is_file()
+    assert (site / 'css' / 'teipublisher.css').is_file()
+
+    one_index = json.loads((site / 'letters' / 'one.xml' / 'index.json').read_text(encoding='utf-8'))
+    two_index = json.loads((site / 'letters' / 'two.xml' / 'index.json').read_text(encoding='utf-8'))
+    assert one_index['odd=teipublisher.odd&view=div'] == 'a.json'
+    assert two_index['odd=teipublisher.odd&view=div'] == 'a.json'
+
+
+def test_chunk_directory_json_writes_each_document_to_own_directory(tmp_path: Path, monkeypatch) -> None:
+    _write_chunking_fixture_module(tmp_path / 'chunk_fixture.py')
+    docs = tmp_path / 'docs'
+    docs.mkdir()
+    _write_chunking_fixture_xml(docs / 'one.xml')
+    _write_chunking_fixture_xml(docs / 'two.xml')
+    (tmp_path / 'opm.toml').write_text(
+        """[chunking]
+module = "chunk_fixture.py"
+xpath = "//body/div[@type='chunk']"
+output_dir = "json-site"
+""",
+        encoding='utf-8',
+    )
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['chunk', 'docs', '--format', 'json', '-c', 'opm.toml'])
+
+    assert rc == 0
+    site = tmp_path / 'json-site'
+    assert (site / 'one.xml' / 'manifest.json').is_file()
+    assert (site / 'one.xml' / '001.json').is_file()
+    assert (site / 'two.xml' / 'manifest.json').is_file()
+    assert (site / 'two.xml' / '002.json').is_file()
+
+    one_chunk = json.loads((site / 'one.xml' / '001.json').read_text(encoding='utf-8'))
+    two_manifest = json.loads((site / 'two.xml' / 'manifest.json').read_text(encoding='utf-8'))
+    assert 'id="a"' in one_chunk['content']
+    assert two_manifest['anchors'] == {'a': '001.html', 'b': '002.html'}
 
 
