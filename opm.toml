@@ -1,10 +1,98 @@
-[transform]
-xpath_extensions = [
-    "opm.runtime.common_xpath_functions"
-]
-
-# [project]
+[project]
+# Additional Python import paths for local extension modules.
+# Paths are resolved relative to this config file.
 # pythonpath = ["extensions"]
 
+[transform]
+# Default compiled transform module used when --module/-m is omitted.
+# module = "modules/teipublisher-web.py"
+
+# XPath extension modules loaded into the tp: namespace.
+xpath_extensions = [
+    "opm.runtime.common_xpath_functions"
+    # "extensions.my_functions",
+]
+
+# XML documents available to XPath doc().
+# Paths are resolved relative to this config file; doc("...") lookups resolve
+# relative to the main XML input document URI.
+# documents = [
+#     "data/authority.xml",
+#     "data/lookup.xml",
+# ]
+
+[document]
+# Jinja2 template used to wrap full-document HTML output.
+# template = "templates/default.html.j2"
+
+# CSS file injected into full-document HTML output.
+# css = "templates/default.css"
+
+[docx]
+# Word style template used for DOCX output.
+# template = "templates/corporate.docx"
+
+[typst]
+# Typst document-shell template used for Typst output.
+# template = "templates/book.typ.j2"
+
 [webcomponents]
+# Enable TEI Publisher web-component output mode by default.
 enabled = false
+
+# CDN URL template for pb-components; {version} is replaced with the configured version.
+# cdn = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@{version}/dist/pb-components-bundle.js"
+
+# pb-components version used by the default CDN template.
+# version = "3.0.5"
+
+[chunking]
+# Transform module used for chunking; falls back to [transform].module when omitted.
+# module = "modules/teipublisher-web.py"
+
+# XPath expression selecting chunk root elements.
+# xpath = "//text/body/div"
+
+# Python callable for custom chunk selection logic.
+# selector = "opm.navigation.tei_div_chunks"
+
+# Maximum depth used by built-in navigation selectors.
+# depth = 2
+
+# Output directory for chunk files.
+# output_dir = "chunks"
+
+# Jinja2 template for chunk pages.
+# template = "templates/chunk.html.j2"
+
+# URL pattern for cross-chunk links.
+# Available placeholders: {file}, {stem}, {anchor}.
+# link_pattern = "{file}#{anchor}"
+
+# pb-view lookup mode, e.g. "div", "page", or "single".
+# view = "div"
+
+# Optional map parameter included in pb-view lookup keys.
+# map = "default"
+
+# Optional user parameters emitted into pb-view lookup keys as user.<key>=<value>.
+# [chunking.parameters]
+# lang = "en"
+
+# Document path subdirectory for --format pb-view output.
+# doc_path = "letters"
+
+# Fragment definitions used by chunking.
+# [[chunking.fragments]]
+# name = "toc"
+# scope = "global"
+# xpath = "//text/body"
+# module = "modules/teipublisher-web.py"
+#
+# [chunking.fragments.parameters]
+# mode = "toc"
+#
+# [[chunking.fragments]]
+# name = "notes"
+# scope = "per-chunk"
+# xpath = ".//note"
