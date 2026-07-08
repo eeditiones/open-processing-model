@@ -625,8 +625,10 @@ class ChunkProcessor:
         When omitted the data is written directly into ``<output_dir>`` (single
         document at the static root).
 
-        Every chunk must carry an ``xml:id`` so it can be addressed statically;
-        a chunk without one aborts the export.
+        Chunks carrying an ``xml:id`` are addressed by it; chunks without one get
+        a stable synthetic id. ``pb-view`` navigates ``view="single"`` by echoing
+        the ``previous``/``next`` values we emit back as the ``root`` parameter, so
+        a real ``xml:id`` is never required for paging.
 
         ``on_progress`` is an optional callback ``(current, total)`` invoked after
         each chunk is written.
@@ -640,16 +642,26 @@ class ChunkProcessor:
         if not self.chunks:
             raise ValueError('pb-view export: no chunks selected.')
 
-        # Resolve each chunk's xml:id up front so we can wire prev/next links.
+        # Resolve each chunk's identifier up front so we can wire prev/next links.
+        # Chunks with an xml:id are addressed by it; chunks without one get a
+        # stable synthetic id so they can still be paged through by pb-view, which
+        # navigates by echoing our previous/next values back as the root param.
+        existing_ids = {
+            e.get(XML_ID)
+            for e in self.xml_root.xpath('//*[@xml:id]', namespaces=xml_ns)
+            if isinstance(e, etree._Element) and e.get(XML_ID)
+        }
         chunk_ids: list[str] = []
+        synthetic_counter = 0
         for chunk in self.chunks:
             xml_id = chunk.get(XML_ID)
             if not xml_id:
-                raise ValueError(
-                    'pb-view export requires every chunk to carry an xml:id, but this '
-                    f'chunk has none: {_describe_element(chunk)}. '
-                    'Adjust the chunking selector or add xml:id attributes.'
-                )
+                synthetic_counter += 1
+                xml_id = f'_chunk{synthetic_counter}'
+                while xml_id in existing_ids:
+                    synthetic_counter += 1
+                    xml_id = f'_chunk{synthetic_counter}'
+                existing_ids.add(xml_id)
             chunk_ids.append(xml_id)
 
         base_params = self._pb_view_base_params()
@@ -758,27 +770,6 @@ class ChunkProcessor:
         css_dir = self.output_dir / 'css'
         css_dir.mkdir(parents=True, exist_ok=True)
         (css_dir / f'{self.odd_name}.css').write_text(odd_css, encoding='utf-8')
-
-
-def _describe_element(element: etree._Element) -> str:
-    """Return a readable opening tag for *element* with its source line.
-
-    Used in error messages to point the user at the offending wrapper element,
-    e.g. ``<div type="title" rend="frontmatter"> (line 47)``.
-    """
-    def _name(qualified: str) -> str:
-        qname = etree.QName(qualified)
-        if qname.namespace == 'http://www.w3.org/XML/1998/namespace':
-            return f'xml:{qname.localname}'
-        return qname.localname
-
-    attrs = ''.join(
-        f' {_name(key)}="{value}"' for key, value in element.attrib.items()
-    )
-    tag = f'<{_name(element.tag)}{attrs}>'
-    if element.sourceline:
-        return f'{tag} (line {element.sourceline})'
-    return tag
 
 
 def _compute_part_key(params: dict[str, str]) -> str:

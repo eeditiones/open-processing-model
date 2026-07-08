@@ -403,23 +403,46 @@ def test_pb_view_export_per_chunk_fragments(tmp_path: Path) -> None:
     assert "[1]" not in str(index)
 
 
-def test_chunk_document_pb_view_requires_xml_id(tmp_path: Path) -> None:
+def test_chunk_document_pb_view_synthesizes_id_for_idless_chunks(tmp_path: Path) -> None:
+    """Chunks without an xml:id get a stable synthetic id and still page correctly.
+
+    pb-view navigates ``view="single"`` by echoing our previous/next values back as
+    the ``root`` parameter, so a real xml:id is not required.
+    """
     module_path = tmp_path / 'chunk_fixture.py'
     xml_path = tmp_path / 'fixture.xml'
     _write_chunking_fixture_module(module_path)
     _write_chunking_fixture_xml(xml_path)
 
     # Select every div, including the <div type="toc"> that has no xml:id.
-    config = ChunkingConfig(xpath="//body/div", output_dir='pb-view-bad')
+    config = ChunkingConfig(xpath="//body/div", output_dir='pb-view-mixed', view='div')
 
-    with pytest.raises(ValueError, match=r'<div type="toc"> \(line \d+\)'):
-        chunk_document(
-            module_path=module_path,
-            xml_path=xml_path,
-            config=config,
-            project_root=tmp_path,
-            output_format='pb-view',
-        )
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=config,
+        project_root=tmp_path,
+        output_format='pb-view',
+    )
+
+    out = tmp_path / 'pb-view-mixed'
+
+    # The id-less first chunk gets a synthetic id; the others keep their xml:id.
+    assert (out / '_chunk1.json').is_file()
+    part_toc = json.loads((out / '_chunk1.json').read_text(encoding='utf-8'))
+    assert part_toc['id'] == '_chunk1' and part_toc['root'] == '_chunk1'
+    assert part_toc['next'] == 'a' and 'previous' not in part_toc
+
+    part_a = json.loads((out / 'a.json').read_text(encoding='utf-8'))
+    assert part_a['previous'] == '_chunk1' and part_a['previousId'] == '_chunk1'
+    assert part_a['next'] == 'b'
+
+    index = json.loads((out / 'index.json').read_text(encoding='utf-8'))
+    # Initial load (no id/root) resolves to the first chunk.
+    assert index['odd=teipublisher.odd&view=div'] == '_chunk1.json'
+    # Navigation by root resolves the synthetic and real ids alike.
+    assert index['odd=teipublisher.odd&root=_chunk1&view=div'] == '_chunk1.json'
+    assert index['odd=teipublisher.odd&root=a&view=div'] == 'a.json'
 
 
 @pytest.mark.skipif(not WIBORADA_ODD.is_file(), reason='Fixture odd/wiborada.odd not found')
