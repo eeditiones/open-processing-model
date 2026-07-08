@@ -19,6 +19,8 @@ pythonpath = ["extensions"]
 module = "modules/teipublisher-web.py"
 # XPath extension modules loaded for every transform (see XPath extensions guide)
 xpath_extensions = ["extensions.my_functions"]
+# XML documents available to XPath doc(); paths are relative to this config file
+documents = ["data/authority.xml", "data/lookup.xml"]
 
 [docx]
 # Default Word style template for DOCX output (overridable with --template)
@@ -62,7 +64,7 @@ link_pattern = "/{stem}/"
 | Section | Purpose | Related guide |
 | --- | --- | --- |
 | `[project]` | `pythonpath` additions so local extension modules import | [XPath extensions](xpath-extensions.md) |
-| `[transform]` | Default transform `module` and `xpath_extensions` | [Output formats](output-formats.md) |
+| `[transform]` | Default transform `module`, `xpath_extensions`, and `documents` for `doc()` | [Output formats](output-formats.md) |
 | `[document]` | HTML `template` and `css` | [Templates & CSS](templates-and-css.md) |
 | `[docx]` | Word style `template` | [Output formats](output-formats.md#docx) |
 | `[typst]` | Typst `template` | [Output formats](output-formats.md#typst) |
@@ -72,5 +74,10 @@ link_pattern = "/{stem}/"
 Loaded programmatically, these map to
 [`ProjectConfig`](../api/config.md) and
 [`ChunkingConfig`](../api/config.md). The `[chunking]` section also accepts
-`fragments`, `view`, `map`, `params`, and `doc_path` keys consumed by the
+`fragments`, `view`, `map`, `parameters`, and `doc_path` keys consumed by the
 chunking pipeline.
+
+`[transform].documents` is loaded into the XPath dynamic context for both
+`opm transform` and `opm chunk`. During evaluation, the XPath base URI is set to
+the main XML document being processed, so `doc("lookup.xml")` resolves relative
+to that input document's URI and must match one of the configured document URIs.

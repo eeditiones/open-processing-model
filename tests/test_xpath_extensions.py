@@ -8,9 +8,16 @@ from unittest.mock import patch
 from lxml import etree
 import pytest
 
+from opm.config import load_project_config
 from opm.runtime.common_xpath_functions import request
-from opm.runtime.pm_runtime import resolve_context_element, xpath_select_nodes, xpath_test
+from opm.runtime.pm_runtime import (
+    resolve_context_element,
+    xpath_runtime_context,
+    xpath_select_nodes,
+    xpath_test,
+)
 from opm.runtime.xpath_extensions import expect_string, expect_text
+from opm.transform import load_xpath_documents, transform_file
 
 
 def test_tp_function_in_xpath_select() -> None:
@@ -83,6 +90,73 @@ def test_expect_string_and_text_helpers() -> None:
 
     with pytest.raises(ValueError, match='single XPath item'):
         expect_string([1, 2])
+
+
+def test_transform_documents_config_is_relative_to_config_file(tmp_path) -> None:
+    (tmp_path / 'data').mkdir()
+    config_path = tmp_path / 'opm.toml'
+    config_path.write_text(
+        '[transform]\n'
+        'documents = ["data/lookup.xml"]\n',
+        encoding='utf-8',
+    )
+
+    cfg = load_project_config(config_path)
+
+    assert cfg.xpath_documents == (tmp_path / 'data' / 'lookup.xml',)
+
+
+def test_doc_function_uses_configured_documents_and_input_base_uri(tmp_path) -> None:
+    main_path = tmp_path / 'main.xml'
+    lookup_path = tmp_path / 'lookup.xml'
+    main_path.write_text('<root/>', encoding='utf-8')
+    lookup_path.write_text('<lookup><label>found</label></lookup>', encoding='utf-8')
+
+    root = etree.parse(str(main_path)).getroot()
+    params = xpath_runtime_context(
+        base_uri=main_path.resolve().as_uri(),
+        documents=load_xpath_documents([lookup_path]),
+    )
+
+    assert xpath_select_nodes(root, 'doc("lookup.xml")/lookup/label/string()', params) == 'found'
+    assert xpath_select_nodes(root, 'doc-available("lookup.xml")', params) is True
+
+
+def test_transform_file_passes_configured_documents_to_doc_function(tmp_path) -> None:
+    main_path = tmp_path / 'main.xml'
+    lookup_path = tmp_path / 'lookup.xml'
+    module_path = tmp_path / 'doc_transform.py'
+    config_path = tmp_path / 'opm.toml'
+    main_path.write_text('<root/>', encoding='utf-8')
+    lookup_path.write_text('<lookup><label>from doc</label></lookup>', encoding='utf-8')
+    module_path.write_text(
+        """from opm.runtime.pm_runtime import xpath_select_nodes
+
+
+def transform_output_channels():
+    return ['text']
+
+
+def serialize(result):
+    return ''.join(str(item) for item in result)
+
+
+def transform(root, options=None):
+    return [xpath_select_nodes(root, 'doc("lookup.xml")/lookup/label/string()', options)]
+""",
+        encoding='utf-8',
+    )
+    config_path.write_text(
+        '[transform]\n'
+        'documents = ["lookup.xml"]\n',
+        encoding='utf-8',
+    )
+
+    assert transform_file(
+        module_path,
+        main_path,
+        config=load_project_config(config_path),
+    ) == 'from doc'
 
 
 def test_heading_number_matches_ext_common_heading_number() -> None:

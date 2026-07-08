@@ -37,6 +37,8 @@ from .xpath_extensions import (
 # One elementpath tree wrapper per document (key: id(document root element)).
 # Reusing it avoids build_lxml_node_tree() on every xpath_test / xpath_select_nodes.
 _document_xpath_roots: dict[int, object] = {}
+_XPATH_DOCUMENTS_PARAM = '__opm_xpath_documents'
+_XPATH_BASE_URI_PARAM = '__opm_xpath_base_uri'
 
 # Minimal tree used only to parse ``map{{...}}`` into an XPathMap for ``$parameters``.
 _PARAM_PARSE_ROOT = etree.fromstring(b'<e/>')
@@ -68,7 +70,13 @@ def _parameters_xpath_map(params: dict | None, parse_ctx: XPathContext):
 def _params_cache_key(params: dict | None) -> tuple[tuple[str, str], ...]:
     if not params:
         return ()
-    return tuple(sorted((str(k), str(v)) for k, v in params.items()))
+    return tuple(
+        sorted(
+            (str(k), str(v))
+            for k, v in params.items()
+            if k not in (_XPATH_DOCUMENTS_PARAM, _XPATH_BASE_URI_PARAM)
+        )
+    )
 
 
 @lru_cache(maxsize=256)
@@ -121,16 +129,31 @@ def _default_element_namespace_uri(node: etree._Element) -> str:
     return uri or ''
 
 
-def _parse_xpath(expr: str, default_element_ns: str, ext_fp: str, namespaces: dict[str, str] | None = None):
+def _parse_xpath(
+    expr: str,
+    default_element_ns: str,
+    ext_fp: str,
+    namespaces: dict[str, str] | None = None,
+    base_uri: str | None = None,
+):
     """Parse *expr*; *ext_fp* is ``fingerprint_for_module(...)`` or ``''``."""
     ns = namespaces or {}
     if ext_fp:
         callables = _loaded_extension_callables(ext_fp)
-        parser = build_extension_parser(default_element_ns, callables, namespaces=ns)
+        parser = build_extension_parser(
+            default_element_ns,
+            callables,
+            namespaces=ns,
+            base_uri=base_uri,
+        )
     elif default_element_ns or ns:
-        parser = XPath31Parser(default_namespace=default_element_ns or None, namespaces=ns)
+        parser = XPath31Parser(
+            default_namespace=default_element_ns or None,
+            namespaces=ns,
+            base_uri=base_uri,
+        )
     else:
-        parser = XPath31Parser()
+        parser = XPath31Parser(base_uri=base_uri)
     return parser.parse(expr)
 
 
@@ -146,10 +169,16 @@ def _loaded_extension_callables(ext_fp: str) -> dict:
 
 
 @lru_cache(maxsize=8192)
-def _compiled_xpath(expr: str, default_element_ns: str = '', ext_fp: str = '', namespaces: frozenset[tuple[str, str]] | None = None):
-    """Parse each distinct (*expr*, *default_element_ns*, *ext_fp*, *namespaces*) tuple once."""
+def _compiled_xpath(
+    expr: str,
+    default_element_ns: str = '',
+    ext_fp: str = '',
+    namespaces: frozenset[tuple[str, str]] | None = None,
+    base_uri: str | None = None,
+):
+    """Parse each distinct XPath/static-context tuple once."""
     ns_dict = dict(namespaces) if namespaces else None
-    return _parse_xpath(expr, default_element_ns, ext_fp, ns_dict)
+    return _parse_xpath(expr, default_element_ns, ext_fp, ns_dict, base_uri)
 
 
 def _xpath_root_wrapped(root: etree._Element):
@@ -166,6 +195,34 @@ def _xpath_root_wrapped(root: etree._Element):
     wrapped = get_node_tree(root.getroottree())  # type: ignore[arg-type]
     _document_xpath_roots[key] = wrapped
     return wrapped
+
+
+def xpath_runtime_context(
+    *,
+    base_uri: str | None = None,
+    documents: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Return internal parameters used to populate elementpath's dynamic context."""
+    out: dict[str, Any] = {}
+    if base_uri:
+        out[_XPATH_BASE_URI_PARAM] = base_uri
+    if documents:
+        out[_XPATH_DOCUMENTS_PARAM] = documents
+    return out
+
+
+def _xpath_base_uri(params: dict | None) -> str | None:
+    if not params:
+        return None
+    value = params.get(_XPATH_BASE_URI_PARAM)
+    return str(value) if value else None
+
+
+def _xpath_documents(params: dict | None) -> dict[str, Any] | None:
+    if not params:
+        return None
+    value = params.get(_XPATH_DOCUMENTS_PARAM)
+    return value if isinstance(value, dict) else None
 
 
 def clear_xpath_document_cache() -> None:
@@ -202,6 +259,7 @@ def make_context(node: etree._Element, params: dict | None = None) -> XPathConte
         root=wrapped,  # type: ignore[arg-type]
         item=wrapped.elements[node],  # type: ignore[union-attr,index]
         variables={'parameters': pmap},
+        documents=_xpath_documents(params),
     )
 
 
@@ -239,11 +297,13 @@ def xpath_test(
     try:
         ext_fp = _extension_fingerprint(xpath_extensions)
         ns_key = frozenset(namespaces.items()) if namespaces else None
+        base_uri = _xpath_base_uri(params)
         token = _compiled_xpath(
             expr,
             _default_element_namespace_uri(node),
             ext_fp,
             ns_key,
+            base_uri,
         )
         result = list(token.select(make_context(node, params)))
         if not result:
@@ -267,11 +327,13 @@ def xpath_count(
     try:
         ext_fp = _extension_fingerprint(xpath_extensions)
         ns_key = frozenset((namespaces or {}).items()) if namespaces else None
+        base_uri = _xpath_base_uri(params)
         token = _compiled_xpath(
             expr,
             _default_element_namespace_uri(node),
             ext_fp,
             ns_key,
+            base_uri,
         )
         return len(list(token.select(make_context(node, params))))
     except elementpath.ElementPathError:
@@ -318,11 +380,13 @@ def xpath_select_nodes(
     try:
         ext_fp = _extension_fingerprint(xpath_extensions)
         ns_key = frozenset(namespaces.items()) if namespaces else None
+        base_uri = _xpath_base_uri(params)
         token = _compiled_xpath(
             expr,
             _default_element_namespace_uri(node),
             ext_fp,
             ns_key,
+            base_uri,
         )
         raw = list(token.select(make_context(node, params)))
         raw = _xpath_raw_to_pipeline_values(raw)
@@ -350,10 +414,12 @@ def resolve_context_element(
     """
     try:
         ext_fp = _extension_fingerprint(xpath_extensions)
+        base_uri = _xpath_base_uri(params)
         token = _compiled_xpath(
             xpath_expr,
             _default_element_namespace_uri(document_root),
             ext_fp,
+            base_uri=base_uri,
         )
         raw = list(token.select(make_context(document_root, params)))
     except elementpath.ElementPathError as e:

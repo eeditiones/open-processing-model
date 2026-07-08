@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +21,7 @@ class FragmentConfig:
     name: str
     scope: str  # "global" or "per-chunk"
     xpath: str
-    params: dict[str, Any] | None = None
+    parameters: dict[str, Any] | None = None
     module: Path | None = None
 
 
@@ -39,7 +39,7 @@ class ChunkingConfig:
     """View mode (``div``, ``page`` or ``single``) used in pb-view lookup keys."""
     map: str | None = None
     """Optional ``map`` parameter included in pb-view lookup keys."""
-    params: dict[str, Any] | None = None
+    parameters: dict[str, Any] | None = None
     """Optional user parameters for pb-view lookup keys.
 
     Each entry is emitted as ``user.<key>=<value>`` and must match the
@@ -77,6 +77,9 @@ class ProjectConfig:
     document_docx_template: Path | None = None
     typst_template: Path | None = None
     xpath_extensions: tuple[str, ...] = ()
+    xpath_documents: tuple[Path, ...] = ()
+    parameters: dict[str, str] = field(default_factory=dict)
+    """User parameters bound to XPath ``$parameters`` (from ``[transform.parameters]``)."""
     chunking: ChunkingConfig | None = None
     pythonpath: tuple[Path, ...] = ()
     transform_module: Path | None = None
@@ -121,6 +124,20 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
             'opm.toml: transform.xpath_extensions must be a string or list of strings',
         )
 
+    raw_xpath_documents = transform.get('documents', [])
+    if isinstance(raw_xpath_documents, str):
+        raw_xpath_documents = [raw_xpath_documents]
+    elif not isinstance(raw_xpath_documents, list):
+        raise ValueError(
+            'opm.toml: transform.documents must be a string or list of strings',
+        )
+    xpath_documents = tuple(config_path.parent / str(path) for path in raw_xpath_documents)
+
+    raw_parameters = transform.get('parameters', {})
+    if not isinstance(raw_parameters, dict):
+        raise ValueError('opm.toml: transform.parameters must be a table')
+    parameters = {str(key): str(value) for key, value in raw_parameters.items()}
+
     # Parse chunking configuration
     chunking: ChunkingConfig | None = None
     if chunking_data:
@@ -133,7 +150,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
                 name=frag_data.get('name', ''),
                 scope=frag_data.get('scope', 'per-chunk'),
                 xpath=frag_data.get('xpath', '.'),
-                params=frag_data.get('params'),
+                parameters=frag_data.get('parameters'),
                 module=config_path.parent / raw_frag_module if raw_frag_module else None,
             )
             if fragment.name and fragment.scope in ('global', 'per-chunk'):
@@ -152,7 +169,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
             module=config_path.parent / raw_chunking_module if raw_chunking_module else None,
             view=chunking_data.get('view', 'div'),
             map=chunking_data.get('map'),
-            params=chunking_data.get('params'),
+            parameters=chunking_data.get('parameters'),
             doc_path=chunking_data.get('doc_path'),
         )
 
@@ -169,6 +186,8 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         document_docx_template=config_path.parent / docx_template_file if docx_template_file else None,
         typst_template=config_path.parent / typst_template_file if typst_template_file else None,
         xpath_extensions=xpath_extensions,
+        xpath_documents=xpath_documents,
+        parameters=parameters,
         chunking=chunking,
         pythonpath=pythonpath,
         transform_module=config_path.parent / raw_transform_module if raw_transform_module else None,

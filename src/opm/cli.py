@@ -17,7 +17,8 @@ from lxml import etree
 from opm.config import DEFAULT_CDN_TEMPLATE, DEFAULT_VERSION, load_project_config
 from opm.odd_compiler import compile_odd, PythonGenerator
 from opm.runtime.pm_runtime import resolve_context_element
-from opm.transform import load_transform_module, run_transform
+from opm.transform import load_transform_module, load_xpath_documents, run_transform
+from opm.runtime.pm_runtime import xpath_runtime_context
 from opm.chunking import chunk_document
 
 app = typer.Typer(
@@ -288,11 +289,16 @@ def transform_cmd(
             tuple(xpath_extensions) if xpath_extensions else cfg.xpath_extensions
         )
 
-        parameters = _parameters_from_cli(param if param else None)
+        # Config parameters seed $parameters; CLI -p overrides them.
+        parameters = dict(cfg.parameters)
+        parameters.update(_parameters_from_cli(param if param else None))
         # Add input_path to parameters for image processing in DOCX output
-        if parameters is None:
-            parameters = {}
         parameters['input_path'] = str(input_xml)
+        xpath_base_uri = input_xml.resolve().as_uri()
+        xpath_documents = load_xpath_documents(cfg.xpath_documents)
+        parameters.update(
+            xpath_runtime_context(base_uri=xpath_base_uri, documents=xpath_documents),
+        )
         user_css = _resolve_user_css(effective_css)
 
         tree = etree.parse(str(input_xml))
@@ -323,6 +329,8 @@ def transform_cmd(
             webcomponents_url=webcomponents_url,
             docx_template=effective_docx_template,
             typst_template_path=effective_template if primary == 'typst' else None,
+            xpath_base_uri=xpath_base_uri,
+            xpath_documents=xpath_documents,
         )
 
         if isinstance(out, bytes):

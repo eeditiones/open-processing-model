@@ -104,6 +104,7 @@ def build_extension_parser(
     default_element_ns: str,
     callables: dict[str, Callable[..., Any]],
     namespaces: dict[str, str] | None = None,
+    base_uri: str | None = None,
 ) -> XPath31Parser:
     """Create an :class:`~elementpath.xpath31.xpath31_parser.XPath31Parser` with ``tp:`` external functions."""
     ns = extension_namespace_map()
@@ -112,6 +113,8 @@ def build_extension_parser(
     kwargs: dict[str, Any] = {'namespaces': ns}
     if default_element_ns:
         kwargs['default_namespace'] = default_element_ns
+    if base_uri:
+        kwargs['base_uri'] = base_uri
     parser = XPath31Parser(**kwargs)
     for name, fn in sorted(callables.items()):
         try:

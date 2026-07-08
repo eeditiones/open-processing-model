@@ -265,7 +265,7 @@ def test_chunk_document_pb_view_export(tmp_path: Path) -> None:
         xpath="//body/div[@type='chunk']",
         output_dir='pb-view-chunks',
         view='div',
-        params={'lang': 'de'},
+        parameters={'lang': 'de'},
     )
 
     chunk_document(

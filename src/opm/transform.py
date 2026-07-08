@@ -69,7 +69,7 @@ from opm.config import (
     ProjectConfig,
     load_project_config,
 )
-from opm.runtime.pm_runtime import resolve_context_element
+from opm.runtime.pm_runtime import resolve_context_element, xpath_runtime_context
 from opm.runtime.pm_runtime import serialize as _default_serialize
 from opm.template_rendering import (
     DEFAULT_TYPST_TEMPLATE_NAME,
@@ -106,6 +106,8 @@ def xpath_select(
     expr: str,
     params: dict[str, str] | None = None,
     xpath_extensions: Sequence[str] | None = None,
+    xpath_base_uri: str | None = None,
+    xpath_documents: dict[str, Any] | None = None,
 ) -> list:
     """Evaluate XPath 3.1 *expr* against *root*, returning a plain list.
 
@@ -128,12 +130,27 @@ def xpath_select(
     """
     from opm.runtime.pm_runtime import xpath_select_nodes  # noqa: PLC0415
 
+    effective_params: dict[str, Any] = dict(params or {})
+    effective_params.update(
+        xpath_runtime_context(base_uri=xpath_base_uri, documents=xpath_documents),
+    )
     result = xpath_select_nodes(
-        root, expr, params,
+        root,
+        expr,
+        effective_params or None,
         xpath_extensions=tuple(xpath_extensions) if xpath_extensions else None,
     )
     # xpath_select_nodes unwraps a single-item list to a scalar; normalise back to list
     return result if isinstance(result, list) else [result]
+
+
+def load_xpath_documents(paths: Sequence[Path]) -> dict[str, etree._ElementTree]:
+    """Parse configured XPath documents keyed by their absolute file URI."""
+    documents: dict[str, etree._ElementTree] = {}
+    for path in paths:
+        resolved = path.resolve()
+        documents[resolved.as_uri()] = etree.parse(str(resolved))
+    return documents
 
 
 def run_transform(
@@ -149,6 +166,8 @@ def run_transform(
     webcomponents_url: str | None = None,
     docx_template: Path | None = None,
     typst_template_path: Path | None = None,
+    xpath_base_uri: str | None = None,
+    xpath_documents: dict[str, etree._ElementTree] | None = None,
 ) -> str | bytes:
     """Run *mod* against *root* and return the serialized output.
 
@@ -174,6 +193,9 @@ def run_transform(
     serialize = getattr(mod, 'serialize', _default_serialize)
 
     transform_opts: dict[str, Any] = dict(parameters or {})
+    transform_opts.update(
+        xpath_runtime_context(base_uri=xpath_base_uri, documents=xpath_documents),
+    )
     if xpath_extensions:
         transform_opts['xpath_extensions'] = list(xpath_extensions)
     if webcomponents:
@@ -239,6 +261,8 @@ def transform_node(
     webcomponents_url: str | None = None,
     docx_template: Path | None = None,
     typst_template_path: Path | None = None,
+    xpath_base_uri: str | None = None,
+    xpath_documents: dict[str, etree._ElementTree] | None = None,
 ) -> str | bytes:
     """Load *script_path* as a transform module and apply it to *root*.
 
@@ -263,8 +287,17 @@ def transform_node(
     """
     mod = load_transform_module(script_path)
     effective_extensions: tuple[str, ...] = tuple(xpath_extensions) if xpath_extensions else ()
+    effective_parameters: dict[str, Any] = dict(parameters or {})
+    effective_parameters.update(
+        xpath_runtime_context(base_uri=xpath_base_uri, documents=xpath_documents),
+    )
     element = (
-        resolve_context_element(root, xpath, parameters or None, xpath_extensions=effective_extensions)
+        resolve_context_element(
+            root,
+            xpath,
+            effective_parameters or None,
+            xpath_extensions=effective_extensions,
+        )
         if xpath
         else root
     )
@@ -280,6 +313,8 @@ def transform_node(
         webcomponents_url=webcomponents_url,
         docx_template=docx_template,
         typst_template_path=typst_template_path,
+        xpath_base_uri=xpath_base_uri,
+        xpath_documents=xpath_documents,
     )
 
 
@@ -329,6 +364,8 @@ def transform_file(
         webcomponents_url = cfg.webcomponents_cdn or DEFAULT_CDN_TEMPLATE.replace('{version}', DEFAULT_VERSION)
 
     doc_root = etree.parse(str(xml_path)).getroot()
+    xpath_base_uri = xml_path.resolve().as_uri()
+    xpath_documents = load_xpath_documents(cfg.xpath_documents)
 
     return transform_node(
         module_path,
@@ -342,4 +379,6 @@ def transform_file(
         webcomponents_url=webcomponents_url,
         docx_template=cfg.document_docx_template,
         typst_template_path=template if template is not None else cfg.typst_template,
+        xpath_base_uri=xpath_base_uri,
+        xpath_documents=xpath_documents,
     )
