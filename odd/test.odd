@@ -37,13 +37,11 @@
                     <model predicate="@type='variant'" behaviour="inline" cssClass="name variant"/>
                     <model predicate="parent::person" behaviour="inline"/>
                     <model predicate="ancestor::correspContext" behaviour="inline"/>
-                    <model predicate="@key or @ref" behaviour="alternate"
-                        cssClass="persName context">
+                    <model predicate="@key or @ref" behaviour="alternate" cssClass="persName context">
                         <desc>Resolve @ref/@key to the corresponding person in the same TEI and show
                             its note as alternate content.</desc>
                         <param name="default" value="."/>
-                        <param name="alternate"
-                            value="id(replace(string((@ref, @key)[1]), '^#', ''), root(.))"/>
+                        <param name="alternate" value="id(replace(string((@ref, @key)[1]), '^#', ''), root(.))"/>
                     </model>
                     <model behaviour="inline"/>
                 </elementSpec>
