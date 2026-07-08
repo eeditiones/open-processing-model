@@ -13,6 +13,11 @@ emit output.
 | `typst` | Typst markup | `TypstOutputFunctions` |
 | `print`, … | any `@output` value in the ODD | — |
 
+Models may use an optional `opm-` prefix on `@output` (e.g. `opm-web`) for rules
+that apply only when compiling with this Python implementation. tei-publisher-lib
+ignores those models. Among models that match the compile mode, the usual ODD
+rule applies: the first whose conditions apply wins.
+
 ```bash
 uv run opm compile odd/teipublisher.odd --mode web        # → modules/teipublisher-web.py
 uv run opm compile odd/teipublisher.odd --mode markdown   # → modules/teipublisher-markdown.py
