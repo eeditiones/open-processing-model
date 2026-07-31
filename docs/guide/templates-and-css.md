@@ -17,15 +17,18 @@ uv run opm transform modules/teipublisher-web.py demo/tei-test.xml \
 
 ### Template variables
 
-A document template receives:
+A document or chunk template receives:
 
 | Variable | Contents |
 | --- | --- |
-| `content_html` | The transformed document body |
-| `head_html` | CSS generated from the ODD's `<outputRendition>` rules |
+| `content_html` | The transformed document body (or chunk body) |
+| `head_html` | Contents of the transform `<head>` (for full `document` output this includes ODD CSS already) |
+| `odd_css` | ODD-generated stylesheet text — use this for **chunk** pages, where the transform is a fragment and `head_html` is empty |
 | `user_css` | The stylesheet passed via `--css` / `[document] css` |
 | `webcomponents_url` | Script URL when web components mode is enabled |
 | `lang` | Document language (defaults to `en`) |
+| `chunk` | Chunk metadata (`id`, `file`, `prev`, `next`, …) when rendering via `opm chunk` |
+| `fragments` | Named fragment HTML from `[chunking.fragments]` |
 
 A minimal template:
 
@@ -35,7 +38,8 @@ A minimal template:
   <head>
     <meta charset="utf-8">
     {{ head_html | safe }}
-    {% if user_css %}<link rel="stylesheet" href="{{ user_css }}">{% endif %}
+    {% if odd_css %}<style type="text/css">{{ odd_css }}</style>{% endif %}
+    {% if user_css %}<style type="text/css">{{ user_css }}</style>{% endif %}
     {% if webcomponents_url %}<script type="module" src="{{ webcomponents_url }}"></script>{% endif %}
   </head>
   <body>
@@ -46,9 +50,11 @@ A minimal template:
 
 ## Two kinds of CSS
 
-- **ODD-generated CSS** (`head_html`) — produced at compile time from
-  `<outputRendition>` rules in the ODD (see [ODD files](odd-files.md)). It styles
-  the classes the transform emits and travels with the document.
+- **ODD-generated CSS** (`odd_css` / sometimes already inside `head_html`) — produced at
+  compile time from `<outputRendition>` rules and linked stylesheets in the ODD
+  (see [ODD files](odd-files.md)). It styles the classes the transform emits.
+  Full-document transforms inject it into `<head>` (so it appears in `head_html`);
+  chunked fragment pages rely on the template rendering `{{ odd_css }}`.
 - **User CSS** (`user_css`) — your own stylesheet, supplied with `--css` or
   `[document] css`, layered on top.
 

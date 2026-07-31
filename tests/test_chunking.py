@@ -206,6 +206,42 @@ def test_chunk_document_rewrites_same_document_links_in_html_output(tmp_path: Pa
     assert 'href="002.html#b"' in toc_html
 
 
+def test_chunk_html_template_includes_odd_css(tmp_path: Path) -> None:
+    """Chunk pages must receive ODD_GENERATED_CSS via the odd_css template variable."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    module_path.write_text(
+        module_path.read_text(encoding='utf-8').replace(
+            "ODD_GENERATED_CSS = ''",
+            "ODD_GENERATED_CSS = '.tei-title { color: crimson; }'",
+        ),
+        encoding='utf-8',
+    )
+    _write_chunking_fixture_xml(xml_path)
+
+    template = tmp_path / 'chunk.html.j2'
+    template.write_text(
+        '<html><head>{% if odd_css %}<style>{{ odd_css }}</style>{% endif %}</head>'
+        '<body>{{ content_html | safe }}</body></html>',
+        encoding='utf-8',
+    )
+    config = _chunking_config('css-chunks')
+    config.template = Path('chunk.html.j2')
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=config,
+        project_root=tmp_path,
+        output_format='html',
+    )
+
+    html = (tmp_path / 'css-chunks' / '001.html').read_text(encoding='utf-8')
+    assert '.tei-title { color: crimson; }' in html
+    assert '<style>' in html
+
+
 def test_link_pattern_stem_anchor(tmp_path: Path) -> None:
     """link_pattern = '/{stem}#{anchor}' produces absolute paths without extension."""
     module_path = tmp_path / 'chunk_fixture.py'

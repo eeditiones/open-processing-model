@@ -6,6 +6,11 @@
   {% if webcomponents_url %}
   <script type="module" src="{{ webcomponents_url }}"></script>
   {% endif %}
+  {% if odd_css %}
+  <style type="text/css">
+{{ odd_css }}
+  </style>
+  {% endif %}
   {% if user_css %}
   <style type="text/css">
 {{ user_css }}

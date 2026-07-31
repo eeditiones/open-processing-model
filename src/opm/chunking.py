@@ -21,6 +21,16 @@ from opm.runtime.pm_runtime import serialize as _default_serialize, inject_cache
 from opm.runtime.output_functions import XML_ID, reset_counters
 
 
+def _load_user_css(css_path: Path | None, project_root: Path) -> str:
+    """Return stylesheet text from *css_path*, or ``''`` if unset/missing."""
+    if css_path is None:
+        return ''
+    path = css_path if css_path.is_absolute() else project_root / css_path
+    if not path.is_file():
+        return ''
+    return path.read_text(encoding='utf-8')
+
+
 @dataclass
 class ChunkMetadata:
     id: str
@@ -85,6 +95,8 @@ class ChunkProcessor:
         self.parameters: dict[str, str] = dict(cfg.parameters)
         self.xpath_base_uri = xpath_base_uri
         self.xpath_documents = xpath_documents or {}
+        self.odd_css: str = getattr(self.module, 'ODD_GENERATED_CSS', '') or ''
+        self.user_css: str = _load_user_css(cfg.document_css, project_root)
         self.chunks: list[etree._Element] = []
         self.results: list[ChunkResult] = []
         self._jinja_env: Any | None = None
@@ -476,9 +488,9 @@ class ChunkProcessor:
             rendered = tpl.render(
                 head_html=head_html,
                 content_html=content_html,
-                odd_css="",
-                user_css="",
-                parameters={},
+                odd_css=self.odd_css,
+                user_css=self.user_css,
+                parameters=self.parameters,
                 lang="",
                 webcomponents_url=self.webcomponents_url,
                 # Add chunk-specific context
@@ -554,7 +566,7 @@ class ChunkProcessor:
                     **asdict(chunk_result.metadata),
                     'content': chunk_result.content_html,
                     'head': chunk_result.head_html,
-                    'odd_css': getattr(self.module, 'ODD_GENERATED_CSS', ''),
+                    'odd_css': self.odd_css,
                     'fragments': {**embedded_global_fragments, **chunk_result.fragments},
                 }
                 chunk_file = self.output_dir / f"{stem}.json"

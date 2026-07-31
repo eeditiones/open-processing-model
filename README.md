@@ -20,8 +20,11 @@ uv sync                                              # install dependencies
 uv run opm compile odd/teipublisher.odd             # → modules/teipublisher-web.py
 
 # Transform a document — HTML preview in the browser
-uv run opm transform modules/teipublisher-web.py demo/tei-test.xml \
+uv run opm transform demo/tei-test.xml -m modules/teipublisher-web.py \
   --preview --template templates/tufte.html.j2
+
+# Or pick the module from TOML with --type (web / docx / typst / …)
+# uv run opm transform demo/tei-test.xml -c teipublisher.toml -t web --preview
 
 # Chunk a large document into pages for a static site
 uv run opm chunk demo/tei-test.xml -o chunks/ --force

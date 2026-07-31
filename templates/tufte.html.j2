@@ -13,6 +13,11 @@
       line-height: 1.6;
     }
   </style>
+  {% if odd_css %}
+  <style type="text/css">
+{{ odd_css }}
+  </style>
+  {% endif %}
   {% if user_css %}
   <style type="text/css">
 {{ user_css }}

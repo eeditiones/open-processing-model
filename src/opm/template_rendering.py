@@ -73,6 +73,14 @@ def render_document_template(
 
     head = html_root.find('head')
     body = html_root.find('body')
+    head_content = _inner_html(head)
+    # HtmlOutputFunctions.document() already injects ODD CSS into <head>.
+    # Skip the odd_css template variable when that happened so templates that
+    # render both {{ head_html }} and {{ odd_css }} do not duplicate styles.
+    # Chunked fragments have an empty head, so odd_css is still emitted there.
+    effective_odd_css = odd_css or ''
+    if effective_odd_css and effective_odd_css in head_content:
+        effective_odd_css = ''
     env = Environment(
         loader=FileSystemLoader(str(template_path.parent)),
         autoescape=False,
@@ -82,9 +90,9 @@ def render_document_template(
     except TemplateNotFound as e:
         raise FileNotFoundError(f'Template not found: {template_path}') from e
     return tpl.render(
-        head_html=_inner_html(head),
+        head_html=head_content,
         content_html=_inner_html(body),
-        odd_css=odd_css or '',
+        odd_css=effective_odd_css,
         user_css=user_css or '',
         parameters=parameters or {},
         lang=html_root.get('lang', ''),
