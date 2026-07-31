@@ -4,7 +4,8 @@
 # pythonpath = ["extensions"]
 
 [transform]
-# Default compiled transform module used when --module/-m is omitted.
+# Default (web) compiled transform module used when --module/-m and --type/-t
+# are omitted. Also selected by ``opm transform --type web``.
 # module = "modules/teipublisher-web.py"
 
 # XPath extension modules loaded into the tp: namespace.
@@ -29,10 +30,14 @@ xpath_extensions = [
 # css = "templates/default.css"
 
 [docx]
+# Compiled module selected by ``opm transform --type docx``.
+# module = "modules/teipublisher-docx.py"
 # Word style template used for DOCX output.
 # template = "templates/corporate.docx"
 
 [typst]
+# Compiled module selected by ``opm transform --type typst``.
+# module = "modules/teipublisher-typst.py"
 # Typst document-shell template used for Typst output.
 # template = "templates/book.typ.j2"
 

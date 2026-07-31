@@ -28,6 +28,32 @@ uv run opm compile odd/teipublisher.odd --mode typst      # → modules/teipubli
 The generated module records its channel via `transform_output_channels()`, so
 `opm transform` knows how to handle the result.
 
+## Choosing a module at transform time
+
+Pass a compiled module with `--module`/`-m`, or select it from your TOML config
+with `--type`/`-t` (and `-c` if the config is not `opm.toml`):
+
+| `--type` | Config key |
+| --- | --- |
+| `web` | `[transform].module` (or `[web].module`) |
+| `docx` | `[docx].module` |
+| `typst` | `[typst].module` |
+| `markdown`, `print`, … | `[<type>].module` |
+
+```bash
+# Explicit module path
+uv run opm transform demo/tei-test.xml -m modules/teipublisher-web.py --preview
+
+# Module looked up from config (see Configuration)
+uv run opm transform demo/tei-test.xml -c teipublisher.toml -t web --preview
+uv run opm transform demo/tei-test.xml -c teipublisher.toml -t typst -o out.typ
+uv run opm transform demo/tei-test.xml -c teipublisher.toml -t docx -o out.docx
+```
+
+`--module` overrides `--type` when both are given. Omitting both falls back to
+`[transform].module`. Details and the full TOML schema are in
+[Configuration](configuration.md#selecting-a-module-by-type).
+
 ## HTML (`web`)
 
 Full-document output is wrapped in a Jinja2 template and can include
@@ -35,14 +61,14 @@ ODD-generated CSS, a user stylesheet, and optional tei-publisher web components.
 See [Templates & CSS](templates-and-css.md).
 
 ```bash
-uv run opm transform modules/teipublisher-web.py demo/tei-test.xml \
+uv run opm transform demo/tei-test.xml -m modules/teipublisher-web.py \
   --preview --template templates/tufte.html.j2
 ```
 
 ## Markdown
 
 ```bash
-uv run opm transform modules/teipublisher-markdown.py demo/tei-test.xml --preview
+uv run opm transform demo/tei-test.xml -m modules/teipublisher-markdown.py --preview
 ```
 
 `--preview` renders the Markdown in the terminal with
@@ -57,14 +83,19 @@ the output. Missing built-in styles (`Hyperlink`, `footnote text`,
 `footnote reference`) are injected automatically.
 
 ```bash
-uv run opm transform modules/teipublisher-docx.py demo/tei-test.xml -o report.docx \
+uv run opm transform demo/tei-test.xml -m modules/teipublisher-docx.py -o report.docx \
   --template templates/corporate.docx
+# Or: -c teipublisher.toml -t docx -o report.docx
 ```
 
 ## Typst
 
 Typst output uses a `.typ.j2` Jinja2 template (e.g. a `book` or `documentation`
 layout), configured under `[typst]` in `opm.toml`.
+
+```bash
+uv run opm transform demo/tei-test.xml -c teipublisher.toml -t typst -o out.typ
+```
 
 ## Adding a new format
 

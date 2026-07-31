@@ -176,7 +176,27 @@ def transform_cmd(
     input_xml: Annotated[Optional[Path], typer.Argument(help='Input XML file')] = None,
     transform_script: Annotated[
         Optional[Path],
-        typer.Option('--module', '-m', help='Path to the .py file (must define transform()). Falls back to transform.module in config.'),
+        typer.Option(
+            '--module',
+            '-m',
+            help=(
+                'Path to the .py file (must define transform()). '
+                'Overrides --type and transform.module / type-specific module keys in config.'
+            ),
+        ),
+    ] = None,
+    transform_type: Annotated[
+        Optional[str],
+        typer.Option(
+            '--type',
+            '-t',
+            metavar='TYPE',
+            help=(
+                'Transform type (web, docx, typst, markdown, …). When --module is omitted, '
+                'selects the module from transform.module (for web) or the matching '
+                'type section module key in config (e.g. docx.module, typst.module).'
+            ),
+        ),
     ] = None,
     output: Annotated[
         Optional[Path],
@@ -274,11 +294,29 @@ def transform_cmd(
             if entry not in sys.path:
                 sys.path.insert(0, entry)
 
-        effective_script = transform_script or cfg.transform_module
+        if transform_script is not None:
+            effective_script = transform_script
+        elif transform_type is not None:
+            effective_script = cfg.module_for_type(transform_type)
+            if effective_script is None:
+                section = (
+                    '[transform].module'
+                    if transform_type.strip().lower() == 'web'
+                    else f'[{transform_type.strip().lower()}].module'
+                )
+                typer.echo(
+                    f'opm: error: no module configured for type {transform_type!r}. '
+                    f'Set {section} in your config, or pass --module.',
+                    err=True,
+                )
+                raise SystemExit(1)
+        else:
+            effective_script = cfg.transform_module
         if effective_script is None:
             typer.echo(
                 'opm: error: transform script is required. '
-                'Pass it as an argument or set transform.module in your config.',
+                'Pass --module, use --type with a matching config section, '
+                'or set transform.module in your config.',
                 err=True,
             )
             raise SystemExit(1)

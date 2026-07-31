@@ -15,7 +15,7 @@ the config file.
 pythonpath = ["extensions"]
 
 [transform]
-# Default transform module (used when --module is omitted)
+# Default transform module (web / when --module and --type are omitted)
 module = "modules/teipublisher-web.py"
 # XPath extension modules loaded for every transform (see XPath extensions guide)
 xpath_extensions = ["extensions.my_functions"]
@@ -23,10 +23,14 @@ xpath_extensions = ["extensions.my_functions"]
 documents = ["data/authority.xml", "data/lookup.xml"]
 
 [docx]
+# Module selected by ``opm transform --type docx`` (when --module is omitted)
+module = "modules/teipublisher-docx.py"
 # Default Word style template for DOCX output (overridable with --template)
 template = "templates/corporate.docx"
 
 [typst]
+# Module selected by ``opm transform --type typst`` (when --module is omitted)
+module = "modules/teipublisher-typst.py"
 # Default Typst (.typ.j2) template for Typst output
 template = "templates/book.typ.j2"
 
@@ -64,10 +68,10 @@ link_pattern = "/{stem}/"
 | Section | Purpose | Related guide |
 | --- | --- | --- |
 | `[project]` | `pythonpath` additions so local extension modules import | [XPath extensions](xpath-extensions.md) |
-| `[transform]` | Default transform `module`, `xpath_extensions`, and `documents` for `doc()` | [Output formats](output-formats.md) |
+| `[transform]` | Default (`web`) transform `module`, `xpath_extensions`, and `documents` for `doc()` | [Output formats](output-formats.md) |
 | `[document]` | HTML `template` and `css` | [Templates & CSS](templates-and-css.md) |
-| `[docx]` | Word style `template` | [Output formats](output-formats.md#docx) |
-| `[typst]` | Typst `template` | [Output formats](output-formats.md#typst) |
+| `[docx]` | DOCX transform `module` and Word style `template` | [Output formats](output-formats.md#docx) |
+| `[typst]` | Typst transform `module` and Typst `template` | [Output formats](output-formats.md#typst) |
 | `[webcomponents]` | `enabled` flag and `cdn` URL | [Templates & CSS](templates-and-css.md#web-components) |
 | `[chunking]` | Splitting rules, output, templates, fragments | [Chunking](chunking.md) |
 
@@ -81,3 +85,23 @@ chunking pipeline.
 `opm transform` and `opm chunk`. During evaluation, the XPath base URI is set to
 the main XML document being processed, so `doc("lookup.xml")` resolves relative
 to that input document's URI and must match one of the configured document URIs.
+
+### Selecting a module by type
+
+`opm transform --type|-t` picks the compiled module from config without passing
+`--module`:
+
+| `--type` | Config key |
+| --- | --- |
+| `web` (default when `--type` is omitted) | `[transform].module` or `[web].module` |
+| `docx` | `[docx].module` |
+| `typst` | `[typst].module` |
+| `markdown`, `print`, … | `[<type>].module` |
+
+`--module` always wins when both are given.
+
+```bash
+uv run opm transform demo/tei-test.xml -c teipublisher.toml -t web --preview
+uv run opm transform demo/tei-test.xml -c teipublisher.toml -t typst -o out.typ
+uv run opm transform demo/tei-test.xml -c teipublisher.toml -t docx -o out.docx
+```

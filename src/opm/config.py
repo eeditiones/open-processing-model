@@ -15,6 +15,10 @@ DEFAULT_VERSION = '3.0.5'
 
 CONFIG_FILENAME = 'opm.toml'
 
+# TOML sections that may declare a per-type ``module`` for ``opm transform --type``.
+# ``web`` also falls back to ``[transform].module``.
+TRANSFORM_TYPE_SECTIONS = ('web', 'docx', 'typst', 'markdown', 'print')
+
 
 @dataclass
 class FragmentConfig:
@@ -83,6 +87,18 @@ class ProjectConfig:
     chunking: ChunkingConfig | None = None
     pythonpath: tuple[Path, ...] = ()
     transform_module: Path | None = None
+    """Default module from ``[transform].module`` (``web`` / omitted ``--type``)."""
+    transform_modules: dict[str, Path] = field(default_factory=dict)
+    """Map of transform type (``web``, ``docx``, ``typst``, …) → module path."""
+
+    def module_for_type(self, transform_type: str) -> Path | None:
+        """Return the configured module for *transform_type*, or ``None``."""
+        key = transform_type.strip().lower()
+        if key in self.transform_modules:
+            return self.transform_modules[key]
+        if key == 'web':
+            return self.transform_module
+        return None
 
 
 def load_project_config(path: Path | None = None) -> ProjectConfig:
@@ -178,6 +194,20 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         raw_pythonpath = [raw_pythonpath]
     pythonpath = tuple(config_path.parent / p for p in raw_pythonpath)
 
+    transform_module = (
+        config_path.parent / raw_transform_module if raw_transform_module else None
+    )
+    transform_modules: dict[str, Path] = {}
+    if transform_module is not None:
+        transform_modules['web'] = transform_module
+    for type_name in TRANSFORM_TYPE_SECTIONS:
+        section = data.get(type_name, {})
+        if not isinstance(section, dict):
+            continue
+        raw_type_module = section.get('module')
+        if raw_type_module:
+            transform_modules[type_name] = config_path.parent / str(raw_type_module)
+
     return ProjectConfig(
         webcomponents_enabled=wc.get('enabled'),
         webcomponents_cdn=resolved_cdn,
@@ -190,5 +220,6 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         parameters=parameters,
         chunking=chunking,
         pythonpath=pythonpath,
-        transform_module=config_path.parent / raw_transform_module if raw_transform_module else None,
+        transform_module=transform_module,
+        transform_modules=transform_modules,
     )

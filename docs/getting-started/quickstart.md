@@ -22,27 +22,37 @@ uv run opm compile odd/teipublisher.odd --mode docx       # → modules/teipubli
 Preview HTML in the browser using a Jinja2 template:
 
 ```bash
-uv run opm transform modules/teipublisher-web.py demo/tei-test.xml \
+uv run opm transform demo/tei-test.xml -m modules/teipublisher-web.py \
   --preview --template templates/tufte.html.j2
 ```
 
 Write to a file instead of previewing:
 
 ```bash
-uv run opm transform modules/teipublisher-web.py demo/tei-test.xml -o output.html
+uv run opm transform demo/tei-test.xml -m modules/teipublisher-web.py -o output.html
 ```
 
 Markdown preview in the terminal, and DOCX to a file:
 
 ```bash
-uv run opm transform modules/teipublisher-markdown.py demo/tei-test.xml --preview
-uv run opm transform modules/teipublisher-docx.py demo/tei-test.xml -o output.docx
+uv run opm transform demo/tei-test.xml -m modules/teipublisher-markdown.py --preview
+uv run opm transform demo/tei-test.xml -m modules/teipublisher-docx.py -o output.docx
+```
+
+With modules declared in a TOML config (see
+[Configuration](../guide/configuration.md#selecting-a-module-by-type)), omit
+`--module` and select the format with `--type`/`-t`:
+
+```bash
+uv run opm transform demo/tei-test.xml -c teipublisher.toml -t web --preview
+uv run opm transform demo/tei-test.xml -c teipublisher.toml -t docx -o output.docx
+uv run opm transform demo/tei-test.xml -c teipublisher.toml -t typst -o output.typ
 ```
 
 Pass runtime parameters (exposed to XPath as `$parameters`) with `-p`:
 
 ```bash
-uv run opm transform modules/teipublisher-web.py demo/tei-test.xml \
+uv run opm transform demo/tei-test.xml -m modules/teipublisher-web.py \
   -p mode=toc -p display=browse -o output.html
 ```
 
