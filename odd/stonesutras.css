@@ -1,0 +1,129 @@
+div:lang(zh) {
+    font-family: var(--bss-chinese-font-family);
+    --pb-content-font-family: var(--bss-chinese-font-family);
+}
+
+.cbeta {
+    color: orange;
+    font-weight: bold;
+}
+
+a:link, a:visited {
+    text-decoration: none;
+    color: var(--bss-color-lb);
+}
+
+.lemma {
+    background-color: var(--bss-color-lemma);
+    color: var(--pb-color-inverse);
+}
+
+.note.lemma {
+    padding: 0 4px 0 4px;
+    color: var(--pb-color-inverse);
+}
+
+.cblb {
+    display: none;
+}
+
+.cblb.toggle {
+    display: inline;
+}
+
+.rdg + .rdg::before {
+    content: "，";
+}
+
+.witness + .witness::before {
+    content: "; ";
+}
+
+.witDetail::before {
+    content: ": ";
+}
+
+.titleInfo {
+    font-variant: small-caps;
+}
+
+.abbr {
+    display: block;
+    text-align: right;
+}
+
+[lang=zh] .abbr::before {
+    content: '（';
+}
+
+[lang=zh] .abbr::after {
+    content: '）';
+}
+
+.illustration {
+    position: static;
+    float: right;
+    clear: both;
+    margin-right: -100px;
+}
+
+.illustration img {
+    width: 80px;
+}
+
+figure {
+    break-inside: avoid-column;
+    scroll-padding-top: 128px;
+}
+
+figcaption {
+    text-align: right;
+    font-size: var(--pb-footnote-font-size);
+}
+
+figcaption.fignum {
+    text-align: left;
+}
+
+figcaption.fignum::before {
+    content: 'Figure ';
+}
+
+/* .site {
+    columns: 2;
+} */
+
+.site h1, .site h2, .site h3, .site figure.full, .site figure.center {
+    column-span: all;
+}
+
+h1, h2 {
+    font-family: var(--bss-serif-font-family);
+    font-weight: 400;
+    margin-top: var(--pb-content-margin);
+    margin-bottom: var(--pb-content-margin);
+}
+
+h3, h4 {
+    font-family: var(--bss-serif-font-family);
+    font-weight: 400;
+    margin-top: calc(var(--pb-content-margin)*0.4);
+    margin-bottom: calc(var(--pb-content-margin)*0.4);
+}
+
+p {
+    margin-top: 0;
+    margin-bottom: var(--pb-content-margin);
+}
+
+img {
+    width: 100%;
+}
+
+.fn-content {
+    font-size: var(--pb-footnote-font-size);
+}
+
+.tippy-content {
+    font-size: 13px;
+}

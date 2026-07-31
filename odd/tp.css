@@ -15,12 +15,39 @@ people, places, organizations etc */
     border-radius: 1rem; 
     color: grey;
     margin-left: 2rem;
-    padding: .5rem;
-    font-size: 1rem;
+    padding: .5em;
+    font-size: 1em;
 }
 
-/* Default styles for TEI elements */
+/* 
 
+Toggle styles for 
+
+- line breaks and hyphens generated via ODD 
+- choice and choice-alternate for client-side switching of source/editorial view 
+*/
+    .lb.toggle {
+        display: none;
+    }
+
+	.lb-hyphen.toggle {
+        display: none;
+    }
+
+    .choice-alternate {
+		display: none;
+	}
+
+	.choice-alternate.toggle {
+		display: inline;
+	}
+
+	.choice.toggle {
+	    display: none;
+	}
+
+/* Default styles for TEI elements */
+    
 .tei-title {
     font-style: italic;
 }
@@ -89,7 +116,6 @@ people, places, organizations etc */
 
 .tei-figure .figure-head {
     font-style: italic;
-    text-align: right;
 }
 
 .table-head {
@@ -177,7 +203,7 @@ ul.tei-person {
     content: ' – ';
 }
 
-.center {
+.align-center {
     text-align: center;
 }
 
