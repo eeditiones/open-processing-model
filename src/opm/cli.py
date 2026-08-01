@@ -181,7 +181,7 @@ def transform_cmd(
             '-m',
             help=(
                 'Path to the .py file (must define transform()). '
-                'Overrides --type and transform.module / type-specific module keys in config.'
+                'Overrides --type and transform.<type>.module keys in config.'
             ),
         ),
     ] = None,
@@ -193,8 +193,8 @@ def transform_cmd(
             metavar='TYPE',
             help=(
                 'Transform type (web, docx, typst, markdown, …). When --module is omitted, '
-                'selects the module from transform.module (for web) or the matching '
-                'type section module key in config (e.g. docx.module, typst.module).'
+                'selects the module from the matching transform.<type> table in config '
+                '(e.g. transform.web.module, transform.docx.module).'
             ),
         ),
     ] = None,
@@ -273,7 +273,7 @@ def transform_cmd(
             help=(
                 'Enable/disable tei-publisher web components mode: alternate behaviours emit '
                 '<pb-alternate> and the document template loads tei-publisher-components. '
-                'Falls back to the webcomponents.enabled setting in opm.toml.'
+                'Falls back to transform.web.webcomponents.enabled in the project config.'
             ),
         ),
     ] = None,
@@ -299,11 +299,7 @@ def transform_cmd(
         elif transform_type is not None:
             effective_script = cfg.module_for_type(transform_type)
             if effective_script is None:
-                section = (
-                    '[transform].module'
-                    if transform_type.strip().lower() == 'web'
-                    else f'[{transform_type.strip().lower()}].module'
-                )
+                section = f'[transform.{transform_type.strip().lower()}].module'
                 typer.echo(
                     f'opm: error: no module configured for type {transform_type!r}. '
                     f'Set {section} in your config, or pass --module.',
@@ -316,7 +312,7 @@ def transform_cmd(
             typer.echo(
                 'opm: error: transform script is required. '
                 'Pass --module, use --type with a matching config section, '
-                'or set transform.module in your config.',
+                'or set transform.web.module in your config.',
                 err=True,
             )
             raise SystemExit(1)
@@ -465,7 +461,7 @@ def chunk(
             '--webcomponents/--no-webcomponents',
             help=(
                 'Enable/disable tei-publisher web components mode. '
-                'Falls back to the webcomponents.enabled setting in opm.toml.'
+                'Falls back to transform.web.webcomponents.enabled in the project config.'
             ),
         ),
     ] = None,

@@ -35,10 +35,10 @@ with `--type`/`-t` (and `-c` if the config is not `opm.toml`):
 
 | `--type` | Config key |
 | --- | --- |
-| `web` | `[transform].module` (or `[web].module`) |
-| `docx` | `[docx].module` |
-| `typst` | `[typst].module` |
-| `markdown`, `print`, … | `[<type>].module` |
+| `web` | `[transform.web].module` |
+| `docx` | `[transform.docx].module` |
+| `typst` | `[transform.typst].module` |
+| `markdown`, `print`, … | `[transform.<type>].module` |
 
 ```bash
 # Explicit module path
@@ -51,7 +51,7 @@ uv run opm transform demo/tei-test.xml -c teipublisher.toml -t docx -o out.docx
 ```
 
 `--module` overrides `--type` when both are given. Omitting both falls back to
-`[transform].module`. Details and the full TOML schema are in
+`[transform.web].module`. Details and the full TOML schema are in
 [Configuration](configuration.md#selecting-a-module-by-type).
 
 ## HTML (`web`)
@@ -78,7 +78,7 @@ uv run opm transform demo/tei-test.xml -m modules/teipublisher-markdown.py --pre
 
 DOCX is binary, so `-o` is required (it cannot be previewed). A custom Word
 `.docx` can be supplied as a **style template** via `--template` or the
-`[docx] template` config key; its paragraph and character styles are reused in
+`[transform.docx] template` config key; its paragraph and character styles are reused in
 the output. Missing built-in styles (`Hyperlink`, `footnote text`,
 `footnote reference`) are injected automatically.
 
@@ -91,7 +91,7 @@ uv run opm transform demo/tei-test.xml -m modules/teipublisher-docx.py -o report
 ## Typst
 
 Typst output uses a `.typ.j2` Jinja2 template (e.g. a `book` or `documentation`
-layout), configured under `[typst]` in `opm.toml`.
+layout), configured under `[transform.typst]` in `opm.toml`.
 
 ```bash
 uv run opm transform demo/tei-test.xml -c teipublisher.toml -t typst -o out.typ

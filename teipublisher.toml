@@ -2,21 +2,27 @@
 pythonpath = ["extensions"]
 
 [transform]
-module = "modules/docbook-web.py"
 xpath_extensions = [
     "opm.runtime.common_xpath_functions"
 ]
 
-[docx]
+[transform.web]
+module = "modules/docbook-web.py"
+
+[transform.web.webcomponents]
+# Enable TEI Publisher web-component output mode by default.
+enabled = true
+
+[transform.docx]
 module = "modules/docbook-docx.py"
 template = "templates/default.docx"
 
-[typst]
+[transform.typst]
 module = "modules/docbook-typst.py"
 template = "templates/documentation.typ.j2"
 
-[webcomponents]
-enabled = false
+[transform.markdown]
+module = "modules/docbook-markdown.py"
 
 [chunking]
 module = "modules/docbook-web.py"

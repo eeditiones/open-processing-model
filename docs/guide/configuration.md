@@ -15,24 +15,32 @@ the config file.
 pythonpath = ["extensions"]
 
 [transform]
-# Default transform module (web / when --module and --type are omitted)
-module = "modules/teipublisher-web.py"
 # XPath extension modules loaded for every transform (see XPath extensions guide)
 xpath_extensions = ["extensions.my_functions"]
 # XML documents available to XPath doc(); paths are relative to this config file
 documents = ["data/authority.xml", "data/lookup.xml"]
 
-[docx]
+[transform.web]
+# Module selected by ``opm transform --type web`` (and when --type/--module are omitted)
+module = "modules/teipublisher-web.py"
+
+[transform.docx]
 # Module selected by ``opm transform --type docx`` (when --module is omitted)
 module = "modules/teipublisher-docx.py"
 # Default Word style template for DOCX output (overridable with --template)
 template = "templates/corporate.docx"
 
-[typst]
+[transform.typst]
 # Module selected by ``opm transform --type typst`` (when --module is omitted)
 module = "modules/teipublisher-typst.py"
 # Default Typst (.typ.j2) template for Typst output
 template = "templates/book.typ.j2"
+
+[transform.web.webcomponents]
+# Enable tei-publisher web components mode by default
+enabled = false
+# CDN URL template for pb-components (use {version} placeholder)
+# cdn = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@{version}/dist/pb-components-bundle.js"
 
 [document]
 # Default Jinja2 template for full-document HTML output
@@ -40,14 +48,8 @@ template = "templates/default.html.j2"
 # Default CSS file injected into HTML output
 css = "styles/main.css"
 
-[webcomponents]
-# Enable tei-publisher web components mode by default
-enabled = false
-# CDN URL template for pb-components (use {version} placeholder)
-# cdn = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@{version}/dist/pb-components-bundle.js"
-
 [chunking]
-# Transform module used for chunking (falls back to [transform] module)
+# Transform module used for chunking (falls back to [transform.web] module)
 module = "modules/teipublisher-web.py"
 # XPath expression selecting chunk root elements
 xpath = "//text/body/div"
@@ -68,11 +70,13 @@ link_pattern = "/{stem}/"
 | Section | Purpose | Related guide |
 | --- | --- | --- |
 | `[project]` | `pythonpath` additions so local extension modules import | [XPath extensions](xpath-extensions.md) |
-| `[transform]` | Default (`web`) transform `module`, `xpath_extensions`, and `documents` for `doc()` | [Output formats](output-formats.md) |
+| `[transform]` | Shared settings (`xpath_extensions`, `documents`, `parameters`) | [Output formats](output-formats.md) |
+| `[transform.web]` | Web transform `module` | [Output formats](output-formats.md) |
+| `[transform.docx]` | DOCX transform `module` and Word style `template` | [Output formats](output-formats.md#docx) |
+| `[transform.typst]` | Typst transform `module` and Typst `template` | [Output formats](output-formats.md#typst) |
+| `[transform.markdown]`, … | Other per-type `module` (and optional `template`) entries | [Output formats](output-formats.md) |
+| `[transform.web.webcomponents]` | Web-only `enabled` flag and `cdn` URL for pb-components | [Templates & CSS](templates-and-css.md#web-components) |
 | `[document]` | HTML `template` and `css` | [Templates & CSS](templates-and-css.md) |
-| `[docx]` | DOCX transform `module` and Word style `template` | [Output formats](output-formats.md#docx) |
-| `[typst]` | Typst transform `module` and Typst `template` | [Output formats](output-formats.md#typst) |
-| `[webcomponents]` | `enabled` flag and `cdn` URL | [Templates & CSS](templates-and-css.md#web-components) |
 | `[chunking]` | Splitting rules, output, templates, fragments | [Chunking](chunking.md) |
 
 Loaded programmatically, these map to
@@ -93,12 +97,13 @@ to that input document's URI and must match one of the configured document URIs.
 
 | `--type` | Config key |
 | --- | --- |
-| `web` (default when `--type` is omitted) | `[transform].module` or `[web].module` |
-| `docx` | `[docx].module` |
-| `typst` | `[typst].module` |
-| `markdown`, `print`, … | `[<type>].module` |
+| `web` (default when `--type` is omitted) | `[transform.web].module` |
+| `docx` | `[transform.docx].module` |
+| `typst` | `[transform.typst].module` |
+| `markdown`, `print`, … | `[transform.<type>].module` |
 
-`--module` always wins when both are given.
+`--module` always wins when both are given. Legacy top-level `[docx]` / `[typst]`
+sections are still accepted as a fallback.
 
 ```bash
 uv run opm transform demo/tei-test.xml -c teipublisher.toml -t web --preview

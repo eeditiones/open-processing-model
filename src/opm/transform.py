@@ -344,7 +344,7 @@ def transform_file(
         xpath_extensions: Dotted module paths for custom XPath functions.
             ``None`` uses ``[transform] xpath_extensions`` from config.
         webcomponents: Enable web-component mode.
-            ``None`` uses ``[webcomponents] enabled`` from config.
+            ``None`` uses ``[transform.web.webcomponents] enabled`` from config.
         template: Jinja2 template override for full-document HTML output.
         user_css: CSS string for full-document HTML output.
         config: Pre-loaded :class:`~opm.config.ProjectConfig`.

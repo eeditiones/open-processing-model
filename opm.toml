@@ -4,10 +4,6 @@
 # pythonpath = ["extensions"]
 
 [transform]
-# Default (web) compiled transform module used when --module/-m and --type/-t
-# are omitted. Also selected by ``opm transform --type web``.
-# module = "modules/teipublisher-web.py"
-
 # XPath extension modules loaded into the tp: namespace.
 xpath_extensions = [
     "opm.runtime.common_xpath_functions"
@@ -22,6 +18,11 @@ xpath_extensions = [
 #     "data/lookup.xml",
 # ]
 
+[transform.web]
+# Compiled web module used when --module/-m and --type/-t are omitted,
+# and when ``opm transform --type web`` is selected.
+# module = "modules/teipublisher-web.py"
+
 [document]
 # Jinja2 template used to wrap full-document HTML output.
 # template = "templates/default.html.j2"
@@ -29,19 +30,19 @@ xpath_extensions = [
 # CSS file injected into full-document HTML output.
 # css = "templates/default.css"
 
-[docx]
+[transform.docx]
 # Compiled module selected by ``opm transform --type docx``.
 # module = "modules/teipublisher-docx.py"
 # Word style template used for DOCX output.
 # template = "templates/corporate.docx"
 
-[typst]
+[transform.typst]
 # Compiled module selected by ``opm transform --type typst``.
 # module = "modules/teipublisher-typst.py"
 # Typst document-shell template used for Typst output.
 # template = "templates/book.typ.j2"
 
-[webcomponents]
+[transform.web.webcomponents]
 # Enable TEI Publisher web-component output mode by default.
 enabled = false
 
@@ -52,7 +53,7 @@ enabled = false
 # version = "3.0.5"
 
 [chunking]
-# Transform module used for chunking; falls back to [transform].module when omitted.
+# Transform module used for chunking; falls back to [transform.web].module when omitted.
 # module = "modules/teipublisher-web.py"
 
 # XPath expression selecting chunk root elements.
@@ -93,9 +94,7 @@ enabled = false
 # scope = "global"
 # xpath = "//text/body"
 # module = "modules/teipublisher-web.py"
-#
-# [chunking.fragments.parameters]
-# mode = "toc"
+# parameters = { mode = "toc" }
 #
 # [[chunking.fragments]]
 # name = "notes"

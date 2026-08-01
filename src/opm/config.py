@@ -15,9 +15,17 @@ DEFAULT_VERSION = '3.0.5'
 
 CONFIG_FILENAME = 'opm.toml'
 
-# TOML sections that may declare a per-type ``module`` for ``opm transform --type``.
-# ``web`` also falls back to ``[transform].module``.
+# Output types that may declare ``[transform.<type>]`` (module + optional template).
 TRANSFORM_TYPE_SECTIONS = ('web', 'docx', 'typst', 'markdown', 'print')
+
+
+def _section_table(value: Any) -> dict[str, Any]:
+    """Return *value* if it is a TOML table, else an empty dict.
+
+    Nested keys like ``[transform.docx]`` appear as dicts under ``transform``;
+    scalar keys (``module``, ``xpath_extensions``, …) must be ignored.
+    """
+    return value if isinstance(value, dict) else {}
 
 
 @dataclass
@@ -87,18 +95,29 @@ class ProjectConfig:
     chunking: ChunkingConfig | None = None
     pythonpath: tuple[Path, ...] = ()
     transform_module: Path | None = None
-    """Default module from ``[transform].module`` (``web`` / omitted ``--type``)."""
+    """Web transform module from ``[transform.web].module``."""
     transform_modules: dict[str, Path] = field(default_factory=dict)
     """Map of transform type (``web``, ``docx``, ``typst``, …) → module path."""
 
     def module_for_type(self, transform_type: str) -> Path | None:
         """Return the configured module for *transform_type*, or ``None``."""
-        key = transform_type.strip().lower()
-        if key in self.transform_modules:
-            return self.transform_modules[key]
-        if key == 'web':
-            return self.transform_module
-        return None
+        return self.transform_modules.get(transform_type.strip().lower())
+
+
+def _resolve_type_section(
+    transform: dict[str, Any],
+    data: dict[str, Any],
+    type_name: str,
+) -> dict[str, Any]:
+    """Return the config table for *type_name*.
+
+    Prefer ``[transform.<type>]``; fall back to a legacy top-level ``[<type>]``
+    section for backward compatibility.
+    """
+    nested = _section_table(transform.get(type_name))
+    if nested:
+        return nested
+    return _section_table(data.get(type_name))
 
 
 def load_project_config(path: Path | None = None) -> ProjectConfig:
@@ -110,13 +129,20 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     with config_path.open('rb') as f:
         data = tomllib.load(f)
 
-    wc = data.get('webcomponents', {})
-    doc = data.get('document', {})
-    docx_data = data.get('docx', {})
-    typst_data = data.get('typst', {})
-    transform = data.get('transform', {})
-    chunking_data = data.get('chunking', {})
-    project_data = data.get('project', {})
+    doc = _section_table(data.get('document'))
+    transform = _section_table(data.get('transform'))
+    chunking_data = _section_table(data.get('chunking'))
+    project_data = _section_table(data.get('project'))
+
+    # Per-type tables: prefer [transform.<type>], accept legacy top-level [<type>].
+    type_sections = {
+        type_name: _resolve_type_section(transform, data, type_name)
+        for type_name in TRANSFORM_TYPE_SECTIONS
+    }
+    docx_data = type_sections['docx']
+    typst_data = type_sections['typst']
+    web_data = type_sections['web']
+    wc = _section_table(web_data.get('webcomponents'))
 
     cdn_template = wc.get('cdn', DEFAULT_CDN_TEMPLATE)
     version = wc.get('version', DEFAULT_VERSION)
@@ -126,7 +152,6 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     css_file = doc.get('css')
     docx_template_file = docx_data.get('template')
     typst_template_file = typst_data.get('template')
-    raw_transform_module = transform.get('module')
     raw_xpath_extensions = transform.get('xpath_extensions')
     xpath_extensions: tuple[str, ...]
     if raw_xpath_extensions is None:
@@ -152,7 +177,12 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     raw_parameters = transform.get('parameters', {})
     if not isinstance(raw_parameters, dict):
         raise ValueError('opm.toml: transform.parameters must be a table')
-    parameters = {str(key): str(value) for key, value in raw_parameters.items()}
+    # Nested [transform.<type>] tables are also dict values; only keep scalar params.
+    parameters = {
+        str(key): str(value)
+        for key, value in raw_parameters.items()
+        if not isinstance(value, dict)
+    }
 
     # Parse chunking configuration
     chunking: ChunkingConfig | None = None
@@ -194,19 +224,12 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         raw_pythonpath = [raw_pythonpath]
     pythonpath = tuple(config_path.parent / p for p in raw_pythonpath)
 
-    transform_module = (
-        config_path.parent / raw_transform_module if raw_transform_module else None
-    )
     transform_modules: dict[str, Path] = {}
-    if transform_module is not None:
-        transform_modules['web'] = transform_module
-    for type_name in TRANSFORM_TYPE_SECTIONS:
-        section = data.get(type_name, {})
-        if not isinstance(section, dict):
-            continue
+    for type_name, section in type_sections.items():
         raw_type_module = section.get('module')
         if raw_type_module:
             transform_modules[type_name] = config_path.parent / str(raw_type_module)
+    transform_module = transform_modules.get('web')
 
     return ProjectConfig(
         webcomponents_enabled=wc.get('enabled'),

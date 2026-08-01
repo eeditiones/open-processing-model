@@ -188,14 +188,14 @@ def test_load_project_config_reads_per_type_modules(tmp_path: Path) -> None:
     from opm.config import load_project_config
 
     (tmp_path / 'opm.toml').write_text(
-        """[transform]
+        """[transform.web]
 module = "web.py"
 
-[docx]
+[transform.docx]
 module = "docx.py"
 template = "style.docx"
 
-[typst]
+[transform.typst]
 module = "typst.py"
 template = "book.typ.j2"
 """,
@@ -207,16 +207,70 @@ template = "book.typ.j2"
     assert cfg.module_for_type('docx') == tmp_path / 'docx.py'
     assert cfg.module_for_type('typst') == tmp_path / 'typst.py'
     assert cfg.module_for_type('markdown') is None
+    assert cfg.document_docx_template == tmp_path / 'style.docx'
+    assert cfg.typst_template == tmp_path / 'book.typ.j2'
+
+
+def test_load_project_config_reads_webcomponents_under_transform_web(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    (tmp_path / 'opm.toml').write_text(
+        """[transform.web]
+module = "web.py"
+
+[transform.web.webcomponents]
+enabled = true
+cdn = "https://example.test/pb.js"
+""",
+        encoding='utf-8',
+    )
+    cfg = load_project_config(tmp_path / 'opm.toml')
+    assert cfg.webcomponents_enabled is True
+    assert cfg.webcomponents_cdn == 'https://example.test/pb.js'
+
+
+def test_load_project_config_ignores_legacy_top_level_webcomponents(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    (tmp_path / 'opm.toml').write_text(
+        """[transform.web]
+module = "web.py"
+
+[webcomponents]
+enabled = true
+""",
+        encoding='utf-8',
+    )
+    cfg = load_project_config(tmp_path / 'opm.toml')
+    assert cfg.webcomponents_enabled is None
+
+
+def test_load_project_config_accepts_legacy_top_level_type_sections(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    (tmp_path / 'opm.toml').write_text(
+        """[transform.web]
+module = "web.py"
+
+[docx]
+module = "docx.py"
+template = "style.docx"
+""",
+        encoding='utf-8',
+    )
+    cfg = load_project_config(tmp_path / 'opm.toml')
+    assert cfg.module_for_type('docx') == tmp_path / 'docx.py'
+    assert cfg.document_docx_template == tmp_path / 'style.docx'
 
 
 def test_transform_type_selects_module_from_config(tmp_path: Path, monkeypatch, capsys) -> None:
     _write_channel_transform_module(tmp_path / 'web.py', 'web', 'FROM-WEB')
     _write_channel_transform_module(tmp_path / 'typst.py', 'typst', 'FROM-TYPST')
     (tmp_path / 'opm.toml').write_text(
-        """[transform]
+        """[transform.web]
 module = "web.py"
 
-[typst]
+[transform.typst]
 module = "typst.py"
 """,
         encoding='utf-8',
@@ -235,7 +289,7 @@ module = "typst.py"
 
 
 def test_transform_type_missing_module_errors(tmp_path: Path, monkeypatch, capsys) -> None:
-    (tmp_path / 'opm.toml').write_text('[transform]\nmodule = "web.py"\n', encoding='utf-8')
+    (tmp_path / 'opm.toml').write_text('[transform.web]\nmodule = "web.py"\n', encoding='utf-8')
     (tmp_path / 'web.py').write_text(
         "def transform_output_channels():\n    return ['web']\n"
         "def transform(root, options=None):\n    return 'ok'\n",
@@ -249,13 +303,13 @@ def test_transform_type_missing_module_errors(tmp_path: Path, monkeypatch, capsy
     assert rc == 1
     err = capsys.readouterr().err
     assert "no module configured for type 'docx'" in err
-    assert '[docx].module' in err
+    assert '[transform.docx].module' in err
 
 
 def test_transform_module_overrides_type(tmp_path: Path, monkeypatch, capsys) -> None:
     _write_channel_transform_module(tmp_path / 'web.py', 'web', 'FROM-WEB')
     _write_channel_transform_module(tmp_path / 'other.py', 'web', 'FROM-OTHER')
-    (tmp_path / 'opm.toml').write_text('[transform]\nmodule = "web.py"\n', encoding='utf-8')
+    (tmp_path / 'opm.toml').write_text('[transform.web]\nmodule = "web.py"\n', encoding='utf-8')
     xml = tmp_path / 'in.xml'
     xml.write_text('<doc/>', encoding='utf-8')
     monkeypatch.chdir(tmp_path)

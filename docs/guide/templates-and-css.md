@@ -60,7 +60,8 @@ A minimal template:
 
 ## Web components
 
-With web components mode enabled (`--webcomponents` or `[webcomponents] enabled`),
+With web components mode enabled (`--webcomponents` or
+`[transform.web.webcomponents] enabled`),
 `alternate` behaviours emit `<pb-alternate>` and the template loads the
 tei-publisher `pb-components` bundle from the configured `cdn`. This integrates
 output with the [TEI Publisher](https://teipublisher.com/) web component
@@ -68,7 +69,7 @@ ecosystem.
 
 ## Typst and DOCX templates
 
-- **Typst** uses `.typ.j2` Jinja2 templates configured under `[typst]`.
+- **Typst** uses `.typ.j2` Jinja2 templates configured under `[transform.typst]`.
 - **DOCX** uses a binary `.docx` file as a *style* template (not Jinja2),
-  configured under `[docx]` or passed with `--template` — see
+  configured under `[transform.docx]` or passed with `--template` — see
   [Output formats](output-formats.md#docx).
