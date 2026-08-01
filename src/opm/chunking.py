@@ -22,10 +22,17 @@ from opm.runtime.output_functions import XML_ID, reset_counters
 
 
 def _load_user_css(css_path: Path | None, project_root: Path) -> str:
-    """Return stylesheet text from *css_path*, or ``''`` if unset/missing."""
-    if css_path is None:
-        return ''
-    path = css_path if css_path.is_absolute() else project_root / css_path
+    """Return stylesheet text from *css_path*, or ``styles/default-styles.css`` if present.
+
+    Mirrors ``opm.cli._resolve_user_css`` so chunk pages get the same alternate
+    popover / margin-note defaults as ``opm transform`` when no document CSS is set.
+    """
+    if css_path is not None:
+        path = css_path if css_path.is_absolute() else project_root / css_path
+    else:
+        path = project_root / 'styles' / 'default-styles.css'
+        if not path.is_file():
+            return ''
     if not path.is_file():
         return ''
     return path.read_text(encoding='utf-8')
