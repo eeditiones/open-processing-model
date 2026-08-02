@@ -1,4 +1,10 @@
-"""Project-level configuration loaded from ``opm.toml``."""
+"""Project-level configuration loaded from ``opm.toml``.
+
+All relative paths in the config (modules, templates, CSS, documents,
+``pythonpath``) are resolved relative to the directory containing the
+config file, so ``opm`` commands work regardless of the current working
+directory.
+"""
 
 from __future__ import annotations
 
@@ -209,7 +215,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
             selector=chunking_data.get('selector'),
             depth=chunking_data.get('depth', 1),
             output_dir=chunking_data.get('output_dir', 'chunks'),
-            template=Path(chunking_template) if chunking_template else None,
+            template=config_path.parent / str(chunking_template) if chunking_template else None,
             fragments=fragments if fragments else None,
             link_pattern=chunking_data.get('link_pattern'),
             module=config_path.parent / raw_chunking_module if raw_chunking_module else None,
@@ -234,8 +240,8 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     return ProjectConfig(
         webcomponents_enabled=wc.get('enabled'),
         webcomponents_cdn=resolved_cdn,
-        document_template=Path(template) if template else None,
-        document_css=Path(css_file) if css_file else None,
+        document_template=config_path.parent / str(template) if template else None,
+        document_css=config_path.parent / str(css_file) if css_file else None,
         document_docx_template=config_path.parent / docx_template_file if docx_template_file else None,
         typst_template=config_path.parent / typst_template_file if typst_template_file else None,
         xpath_extensions=xpath_extensions,

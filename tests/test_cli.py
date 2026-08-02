@@ -211,6 +211,78 @@ template = "book.typ.j2"
     assert cfg.typst_template == tmp_path / 'book.typ.j2'
 
 
+def test_load_project_config_resolves_document_and_chunking_paths(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    (tmp_path / 'opm.toml').write_text(
+        """[document]
+template = "templates/page.html.j2"
+css = "styles/site.css"
+
+[chunking]
+template = "templates/chunk.html.j2"
+""",
+        encoding='utf-8',
+    )
+    cfg = load_project_config(tmp_path / 'opm.toml')
+    assert cfg.document_template == tmp_path / 'templates' / 'page.html.j2'
+    assert cfg.document_css == tmp_path / 'styles' / 'site.css'
+    assert cfg.chunking is not None
+    assert cfg.chunking.template == tmp_path / 'templates' / 'chunk.html.j2'
+
+
+def test_transform_config_paths_resolve_relative_to_config_file(tmp_path: Path, monkeypatch) -> None:
+    """Running from an unrelated CWD with -c must find template and CSS next to the config."""
+    project = tmp_path / 'project'
+    (project / 'templates').mkdir(parents=True)
+    script = project / 'transform_mod.py'
+    script.write_text(
+        "from lxml import etree\n"
+        "def transform_output_channels():\n"
+        "    return ['web']\n"
+        "ODD_GENERATED_CSS = ''\n"
+        "def transform(root, options=None):\n"
+        "    _ = root, options\n"
+        "    html = etree.Element('html')\n"
+        "    etree.SubElement(html, 'head')\n"
+        "    body = etree.SubElement(html, 'body')\n"
+        "    div = etree.SubElement(body, 'div')\n"
+        "    div.text = 'X'\n"
+        "    return [html]\n",
+        encoding='utf-8',
+    )
+    (project / 'templates' / 'custom.j2').write_text(
+        '<html><head><!-- config-relative-template --><style>{{ user_css }}</style></head>'
+        '<body>{{ content_html|safe }}</body></html>',
+        encoding='utf-8',
+    )
+    (project / 'site.css').write_text('.site { color: green; }', encoding='utf-8')
+    (project / 'opm.toml').write_text(
+        """[transform.web]
+module = "transform_mod.py"
+
+[document]
+template = "templates/custom.j2"
+css = "site.css"
+""",
+        encoding='utf-8',
+    )
+    xml = project / 'in.xml'
+    xml.write_text('<doc/>', encoding='utf-8')
+    out = tmp_path / 'out.html'
+
+    elsewhere = tmp_path / 'elsewhere'
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+
+    rc = main(['transform', str(xml), '-c', str(project / 'opm.toml'), '--output', str(out)])
+    assert rc == 0
+    rendered = out.read_text(encoding='utf-8')
+    assert 'config-relative-template' in rendered
+    assert '.site { color: green; }' in rendered
+    assert '<div>X</div>' in rendered
+
+
 def test_load_project_config_reads_webcomponents_under_transform_web(tmp_path: Path) -> None:
     from opm.config import load_project_config
 

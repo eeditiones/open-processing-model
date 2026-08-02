@@ -568,13 +568,9 @@ def chunk(
             )
             raise SystemExit(1)
         
-        # Resolve template path
-        effective_template = None
-        if chunking_config.template:
-            if chunking_config.template.is_absolute():
-                effective_template = chunking_config.template
-            else:
-                effective_template = Path.cwd() / chunking_config.template
+        # Config templates are already resolved relative to the config file;
+        # a --template CLI path is relative to the current working directory.
+        effective_template = chunking_config.template
         
         effective_webcomponents = (
             True if output_format in ('json', 'pb-view')
