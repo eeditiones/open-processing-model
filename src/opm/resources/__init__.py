@@ -67,12 +67,11 @@ def packaged_default_css() -> Path | None:
     try:
         with resources.as_file(packaged) as path:
             if path.is_file():
-                # Copy into versioned cache so callers get a stable path.
+                # Keep the mirrored copy fresh across editable installs.
                 dest = user_opm_cache_dir() / 'resources' / opm_version() / 'styles'
                 dest.mkdir(parents=True, exist_ok=True)
                 out = dest / 'default-styles.css'
-                if not out.is_file():
-                    shutil.copy2(path, out)
+                shutil.copy2(path, out)
                 return out
     except (FileNotFoundError, TypeError, OSError):
         return None

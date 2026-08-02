@@ -306,13 +306,27 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         return []
 
     def break_(self, config, node, cls, content, type=None, label=None) -> PMResult:
-        if (type or '').lower() == 'page':
+        kind = (type or '').lower()
+        if kind == 'page':
             el = self._el('span', cls, node)
             config['apply_children'](config, node, label if label is not None else [], el)
             return [el]
-        br = etree.Element('br')
-        br.set('class', classes(*cls))
-        return [br]
+        # Column breaks must be real block elements: Chromium ignores
+        # ``break-before: column`` on ``<br>``, which collapses Folio pages
+        # into a single tall column. Line breaks stay as ``<br>``.
+        el = etree.Element('div' if kind == 'column' else 'br')
+        el.set('class', classes(*cls))
+        # Surface @n (ODD label param) so CSS can skip Folio ``cb[@n='1']``
+        # start-of-column markers while breaking on later columns.
+        if label is not None and not isinstance(label, (list, tuple)):
+            n = str(label).strip()
+            if n:
+                el.set('data-n', n)
+        elif node is not None:
+            n = (node.get('n') or '').strip()
+            if n:
+                el.set('data-n', n)
+        return [el]
 
     def anchor(self, config, node, cls, content, id=None) -> PMResult:
         el = etree.Element('span')

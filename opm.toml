@@ -23,12 +23,15 @@ xpath_extensions = [
 # teipublisher ODD is used.
 # odd = "odd/teipublisher.odd"
 
-[document]
-# Jinja2 template used to wrap full-document HTML output.
-# template = "templates/default.html.j2"
+[transform.web.webcomponents]
+# Enable TEI Publisher web-component output mode by default.
+enabled = false
 
-# CSS file injected into full-document HTML output.
-# css = "templates/default.css"
+# CDN URL template for pb-components; {version} is replaced with the configured version.
+# cdn = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@{version}/dist/pb-components-bundle.js"
+
+# pb-components version used by the default CDN template.
+# version = "3.0.5"
 
 [transform.docx]
 # odd = "odd/teipublisher.odd"
@@ -40,15 +43,12 @@ xpath_extensions = [
 # Typst document-shell template used for Typst output.
 # template = "templates/book.typ.j2"
 
-[transform.web.webcomponents]
-# Enable TEI Publisher web-component output mode by default.
-enabled = false
+[document]
+# Jinja2 template used to wrap full-document HTML output.
+# template = "templates/default.html.j2"
 
-# CDN URL template for pb-components; {version} is replaced with the configured version.
-# cdn = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@{version}/dist/pb-components-bundle.js"
-
-# pb-components version used by the default CDN template.
-# version = "3.0.5"
+# CSS file injected into full-document HTML output.
+# css = "templates/default.css"
 
 [chunking]
 # ODD compiled on demand. Falls back to [transform.web] / packaged default when omitted.
@@ -59,6 +59,8 @@ enabled = false
 
 # Python callable for custom chunk selection logic.
 # selector = "opm.navigation.tei_div_chunks"
+# selector = "opm.navigation.tei_pb_chunks"  # view=page: one chunk per tei:pb
+# selector = "opm.navigation.dbk_section_chunks"
 
 # Maximum depth used by built-in navigation selectors.
 # depth = 2

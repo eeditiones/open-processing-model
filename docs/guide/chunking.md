@@ -22,7 +22,19 @@ depth = 2          # maximum heading depth at which to split
 ```
 
 For logic that XPath can't express, point `selector` at a Python callable
-(dotted path) that returns the chunk elements.
+(dotted path) that returns the chunk elements. Built-ins:
+
+| Selector | Use |
+| --- | --- |
+| `opm.navigation.tei_div_chunks` | TEI by-division (`depth`) |
+| `opm.navigation.tei_pb_chunks` | TEI by page-break (`tei:pb` milestones, `view="page"`) |
+| `opm.navigation.dbk_section_chunks` | DocBook by `section` |
+
+```toml
+[chunking]
+selector = "opm.navigation.tei_pb_chunks"
+view = "page"
+```
 
 ## Output formats
 

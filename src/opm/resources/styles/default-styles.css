@@ -24,6 +24,20 @@
     display: block;
 }
 
+/* tei:cb → break behaviour type=column (emitted as div.tei-cb).
+   Folio encoding uses cb[@n='1'] to mark the start of column 1 — that must
+   not force a CSS column break, or the first column stays empty. Later cbs
+   (n=2, …) and cbs without @n do force a break. */
+.tei-cb:not([data-n="1"]) {
+    display: block;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    visibility: hidden;
+    break-before: column;
+}
+
 @media (min-width: 769px) {
     .content:has(.margin-note) {
         margin-right: 200px;

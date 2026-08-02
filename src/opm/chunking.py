@@ -22,20 +22,27 @@ from opm.runtime.output_functions import XML_ID, reset_counters
 
 
 def _load_user_css(css_path: Path | None, project_root: Path) -> str:
-    """Return stylesheet text from *css_path*, or ``styles/default-styles.css`` if present.
+    """Return stylesheet text from *css_path*, CWD default, or the packaged default.
 
-    Mirrors ``opm.cli._resolve_user_css`` so chunk pages get the same alternate
-    popover / margin-note defaults as ``opm transform`` when no document CSS is set.
+    Mirrors ``opm.cli._resolve_user_css`` so chunk pages get the same defaults
+    (alternate popovers, ``.tei-cb`` column breaks, …) as ``opm transform``.
     """
+    from opm.resources import packaged_default_css
+
     if css_path is not None:
         path = css_path if css_path.is_absolute() else project_root / css_path
-    else:
-        path = project_root / 'styles' / 'default-styles.css'
-        if not path.is_file():
-            return ''
-    if not path.is_file():
+        if path.is_file():
+            return path.read_text(encoding='utf-8')
         return ''
-    return path.read_text(encoding='utf-8')
+
+    local = project_root / 'styles' / 'default-styles.css'
+    if local.is_file():
+        return local.read_text(encoding='utf-8')
+
+    packaged = packaged_default_css()
+    if packaged is not None and packaged.is_file():
+        return packaged.read_text(encoding='utf-8')
+    return ''
 
 
 @dataclass
