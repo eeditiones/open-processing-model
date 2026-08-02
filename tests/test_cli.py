@@ -201,9 +201,36 @@ template = "book.typ.j2"
     assert cfg.odd_for_type('web') == tmp_path / 'web.odd'
     assert cfg.odd_for_type('docx') == tmp_path / 'docx.odd'
     assert cfg.odd_for_type('typst') == tmp_path / 'typst.odd'
-    assert cfg.odd_for_type('markdown') is None
+    assert cfg.odd_for_type('markdown') == tmp_path / 'web.odd'  # falls back to web-as-default
     assert cfg.document_docx_template == tmp_path / 'style.docx'
     assert cfg.typst_template == tmp_path / 'book.typ.j2'
+
+
+def test_load_project_config_shared_transform_odd(tmp_path: Path) -> None:
+    """``[transform].odd`` is the default; per-type tables may override."""
+    from opm.config import load_project_config
+
+    (tmp_path / 'opm.toml').write_text(
+        """[transform]
+odd = "shared.odd"
+
+[transform.typst]
+odd = "typst-only.odd"
+template = "book.typ.j2"
+
+[chunking]
+xpath = "//div"
+""",
+        encoding='utf-8',
+    )
+    cfg = load_project_config(tmp_path / 'opm.toml')
+    assert cfg.transform_odd == tmp_path / 'shared.odd'
+    assert cfg.odd_for_type('web') == tmp_path / 'shared.odd'
+    assert cfg.odd_for_type('docx') == tmp_path / 'shared.odd'
+    assert cfg.odd_for_type('markdown') == tmp_path / 'shared.odd'
+    assert cfg.odd_for_type('typst') == tmp_path / 'typst-only.odd'
+    assert cfg.chunking is not None
+    assert cfg.chunking.odd == tmp_path / 'shared.odd'
 
 
 def test_load_project_config_resolves_document_and_chunking_paths(tmp_path: Path) -> None:

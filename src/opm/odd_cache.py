@@ -138,7 +138,7 @@ def resolve_transform_module(
     if odd_path is None:
         raise ValueError(
             'No transform ODD specified. '
-            'Pass --odd, set transform.<type>.odd in config, '
+            'Pass --odd, set transform.odd (or transform.<type>.odd) in config, '
             'or install the package with stock ODDs.',
         )
 

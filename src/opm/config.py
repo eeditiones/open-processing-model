@@ -9,7 +9,7 @@ directory.
 from __future__ import annotations
 
 import tomllib
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -109,13 +109,20 @@ class ProjectConfig:
     chunking: ChunkingConfig | None = None
     pythonpath: tuple[Path, ...] = ()
     transform_odd: Path | None = None
-    """Web transform ODD from ``[transform.web].odd``."""
+    """Default transform ODD from ``[transform].odd`` or ``[transform.web].odd``."""
     transform_odds: dict[str, Path] = field(default_factory=dict)
-    """Map of transform type → ODD path (compiled on demand)."""
+    """Map of transform type → ODD path (compiled on demand).
+
+    Per-type ``[transform.<type>].odd`` entries override ``[transform].odd``.
+    """
 
     def odd_for_type(self, transform_type: str) -> Path | None:
-        """Return the configured ODD for *transform_type*, or ``None``."""
-        return self.transform_odds.get(transform_type.strip().lower())
+        """Return the ODD for *transform_type*.
+
+        Precedence: ``[transform.<type>].odd`` → ``[transform].odd`` → ``None``.
+        """
+        key = transform_type.strip().lower()
+        return self.transform_odds.get(key) or self.transform_odd
 
 
 def _resolve_type_section(
@@ -239,12 +246,25 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         raw_pythonpath = [raw_pythonpath]
     pythonpath = tuple(config_path.parent / p for p in raw_pythonpath)
 
+    raw_default_odd = transform.get('odd')
+    transform_odd = (
+        config_path.parent / str(raw_default_odd) if raw_default_odd else None
+    )
+
     transform_odds: dict[str, Path] = {}
     for type_name, section in type_sections.items():
         raw_type_odd = section.get('odd')
         if raw_type_odd:
             transform_odds[type_name] = config_path.parent / str(raw_type_odd)
-    transform_odd = transform_odds.get('web')
+
+    # Legacy convenience: [transform.web].odd alone still acts as the default
+    # when [transform].odd is omitted (keeps transform_odd / chunking fallbacks).
+    if transform_odd is None:
+        transform_odd = transform_odds.get('web')
+
+    # Chunking inherits the shared transform ODD when [chunking].odd is omitted.
+    if chunking is not None and chunking.odd is None and transform_odd is not None:
+        chunking = replace(chunking, odd=transform_odd)
 
     return ProjectConfig(
         webcomponents_enabled=wc.get('enabled'),
