@@ -215,7 +215,7 @@ ODD_NAME = {odd_name!r}
 def transform_output_channels():
     """Return ODD processing-model output channel(s) for this module.
 
-    Same values as ``opm compile --mode`` and the ``output`` key in ``transform()`` config.
+    Same values as ``opm transform --type`` / ODD compile ``output_mode`` and the ``output`` key in ``transform()`` config.
     """
     return ['{output_mode}']
 

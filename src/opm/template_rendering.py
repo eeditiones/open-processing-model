@@ -15,7 +15,7 @@ DEFAULT_TYPST_TEMPLATE_NAME = 'default_document.typ.j2'
 def default_template_path(template_name: str = DEFAULT_TEMPLATE_NAME) -> Path:
     """Return the path to a packaged default document template."""
     return Path(
-        str(resources.files('opm').joinpath(f'templates/{template_name}'))
+        str(resources.files('opm').joinpath(f'resources/templates/{template_name}'))
     )
 
 

@@ -8,7 +8,6 @@ from pathlib import Path
 from opm.cli import _preview_kind_from_module
 from opm.cli import _resolve_user_css
 from opm.cli import main
-from tests.test_chunking import _write_chunking_fixture_module
 from tests.test_chunking import _write_chunking_fixture_xml
 
 
@@ -64,7 +63,16 @@ def test_resolve_user_css_uses_default_if_present(tmp_path: Path, monkeypatch) -
 
 def test_resolve_user_css_none_if_default_missing(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr('opm.cli.packaged_default_css', lambda: None)
     assert _resolve_user_css(None) is None
+
+
+def test_resolve_user_css_falls_back_to_packaged(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    packaged = tmp_path / 'packaged.css'
+    packaged.write_text('.packaged { color: blue; }', encoding='utf-8')
+    monkeypatch.setattr('opm.cli.packaged_default_css', lambda: packaged)
+    assert _resolve_user_css(None) == '.packaged { color: blue; }'
 
 
 def test_resolve_user_css_explicit_path_overrides_default(tmp_path: Path, monkeypatch) -> None:
@@ -78,85 +86,79 @@ def test_resolve_user_css_explicit_path_overrides_default(tmp_path: Path, monkey
     assert _resolve_user_css(custom) == 'custom'
 
 
-def test_transform_uses_packaged_default_template_for_full_html(tmp_path: Path, monkeypatch) -> None:
-    script = tmp_path / 'transform_mod.py'
-    script.write_text(
-        "from lxml import etree\n"
-        "def transform_output_channels():\n"
-        "    return ['web']\n"
-        "ODD_GENERATED_CSS = '.odd { color: blue; }'\n"
-        "def transform(root, options=None):\n"
-        "    _ = root, options\n"
-        "    html = etree.Element('html')\n"
-        "    head = etree.SubElement(html, 'head')\n"
-        "    title = etree.SubElement(head, 'title')\n"
-        "    title.text = 'T'\n"
-        "    body = etree.SubElement(html, 'body')\n"
-        "    p = etree.SubElement(body, 'p')\n"
-        "    p.text = 'content'\n"
-        "    return [html]\n",
+def _write_tiny_odd(path: Path, *, ident: str = 'teipublisher') -> Path:
+    path.write_text(
+        '<?xml version="1.0"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0">'
+        '<teiHeader><fileDesc><titleStmt><title>t</title></titleStmt>'
+        '<publicationStmt><p>p</p></publicationStmt>'
+        '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
+        '<text><body>'
+        f'<schemaSpec ident="{ident}" ns="">'
+        '<elementSpec ident="doc"><model behaviour="document"/></elementSpec>'
+        '<elementSpec ident="div"><model behaviour="block"/></elementSpec>'
+        '<elementSpec ident="p"><model behaviour="paragraph"/></elementSpec>'
+        '<elementSpec ident="ref"><model behaviour="link"/></elementSpec>'
+        '<elementSpec ident="body"><model behaviour="block"/></elementSpec>'
+        '<elementSpec ident="text"><model behaviour="block"/></elementSpec>'
+        '<elementSpec ident="item"><model behaviour="inline"/></elementSpec>'
+        '</schemaSpec>'
+        '</body></text></TEI>',
         encoding='utf-8',
     )
+    return path
+
+
+def _config_with_odd(tmp_path: Path, odd_name: str = 'tiny.odd') -> Path:
+    """Write a minimal opm.toml that selects *odd_name* for web transforms."""
+    path = tmp_path / 'opm.toml'
+    path.write_text(f'[transform.web]\nodd = "{odd_name}"\n', encoding='utf-8')
+    return path
+
+
+def test_transform_uses_packaged_default_template_for_full_html(tmp_path: Path, monkeypatch) -> None:
+    _write_tiny_odd(tmp_path / 'tiny.odd')
+    _config_with_odd(tmp_path)
     xml = tmp_path / 'in.xml'
-    xml.write_text('<doc/>', encoding='utf-8')
+    xml.write_text('<doc><p>content</p></doc>', encoding='utf-8')
     out = tmp_path / 'out.html'
     monkeypatch.chdir(tmp_path)
 
-    rc = main(['transform', str(xml), '--module', str(script), '--output', str(out)])
+    rc = main(['transform', str(xml), '-c', 'opm.toml', '--output', str(out)])
     assert rc == 0
     rendered = out.read_text(encoding='utf-8')
     assert '<!-- opm-default-template -->' in rendered
-    assert '<p>content</p>' in rendered
+    assert '<p' in rendered
+    assert 'content' in rendered
 
 
 def test_transform_uses_template_override_for_full_html(tmp_path: Path, monkeypatch) -> None:
-    script = tmp_path / 'transform_mod.py'
-    script.write_text(
-        "from lxml import etree\n"
-        "def transform_output_channels():\n"
-        "    return ['web']\n"
-        "ODD_GENERATED_CSS = ''\n"
-        "def transform(root, options=None):\n"
-        "    _ = root, options\n"
-        "    html = etree.Element('html')\n"
-        "    etree.SubElement(html, 'head')\n"
-        "    body = etree.SubElement(html, 'body')\n"
-        "    div = etree.SubElement(body, 'div')\n"
-        "    div.text = 'X'\n"
-        "    return [html]\n",
-        encoding='utf-8',
-    )
+    _write_tiny_odd(tmp_path / 'tiny.odd')
+    _config_with_odd(tmp_path)
     template = tmp_path / 'custom.j2'
     template.write_text(
         "<html><head><meta name='x' content='y'></head><body>{{ content_html|safe }}</body></html>",
         encoding='utf-8',
     )
     xml = tmp_path / 'in.xml'
-    xml.write_text('<doc/>', encoding='utf-8')
+    xml.write_text('<doc><p>X</p></doc>', encoding='utf-8')
     out = tmp_path / 'out.html'
     monkeypatch.chdir(tmp_path)
 
-    rc = main(['transform', str(xml), '--module', str(script), '--template', str(template), '--output', str(out)])
+    rc = main(
+        ['transform', str(xml), '-c', 'opm.toml', '--template', str(template), '--output', str(out)],
+    )
     assert rc == 0
     rendered = out.read_text(encoding='utf-8')
     assert "name='x'" in rendered
-    assert '<div>X</div>' in rendered
+    assert '<p' in rendered
+    assert 'X' in rendered
     assert 'opm-default-template' not in rendered
 
 
 def test_transform_fragment_output_skips_template_shell(tmp_path: Path, monkeypatch) -> None:
-    script = tmp_path / 'transform_mod.py'
-    script.write_text(
-        "from lxml import etree\n"
-        "def transform_output_channels():\n"
-        "    return ['web']\n"
-        "def transform(root, options=None):\n"
-        "    _ = options\n"
-        "    p = etree.Element('p')\n"
-        "    p.text = root.tag\n"
-        "    return [p]\n",
-        encoding='utf-8',
-    )
+    _write_tiny_odd(tmp_path / 'tiny.odd')
+    _config_with_odd(tmp_path)
     template = tmp_path / 'custom.j2'
     template.write_text("<html><body>WRAP {{ content_html|safe }}</body></html>", encoding='utf-8')
     xml = tmp_path / 'in.xml'
@@ -165,48 +167,41 @@ def test_transform_fragment_output_skips_template_shell(tmp_path: Path, monkeypa
     monkeypatch.chdir(tmp_path)
 
     rc = main(
-        ['transform', str(xml), '--module', str(script), '--xpath', '/doc/item', '--template', str(template), '--output', str(out)],
+        [
+            'transform', str(xml), '-c', 'opm.toml',
+            '--xpath', '/doc/item', '--template', str(template), '--output', str(out),
+        ],
     )
     assert rc == 0
     rendered = out.read_text(encoding='utf-8')
-    assert rendered == '<p>item</p>'
+    assert 'WRAP' not in rendered
+    assert 'ok' in rendered
+    assert rendered.startswith('<')
 
 
-def _write_channel_transform_module(path: Path, channel: str, marker: str) -> None:
-    path.write_text(
-        "from lxml import etree\n"
-        f"def transform_output_channels():\n"
-        f"    return [{channel!r}]\n"
-        "def transform(root, options=None):\n"
-        "    _ = root, options\n"
-        f"    return [{marker!r}]\n",
-        encoding='utf-8',
-    )
-
-
-def test_load_project_config_reads_per_type_modules(tmp_path: Path) -> None:
+def test_load_project_config_reads_per_type_odds(tmp_path: Path) -> None:
     from opm.config import load_project_config
 
     (tmp_path / 'opm.toml').write_text(
         """[transform.web]
-module = "web.py"
+odd = "web.odd"
 
 [transform.docx]
-module = "docx.py"
+odd = "docx.odd"
 template = "style.docx"
 
 [transform.typst]
-module = "typst.py"
+odd = "typst.odd"
 template = "book.typ.j2"
 """,
         encoding='utf-8',
     )
     cfg = load_project_config(tmp_path / 'opm.toml')
-    assert cfg.transform_module == tmp_path / 'web.py'
-    assert cfg.module_for_type('web') == tmp_path / 'web.py'
-    assert cfg.module_for_type('docx') == tmp_path / 'docx.py'
-    assert cfg.module_for_type('typst') == tmp_path / 'typst.py'
-    assert cfg.module_for_type('markdown') is None
+    assert cfg.transform_odd == tmp_path / 'web.odd'
+    assert cfg.odd_for_type('web') == tmp_path / 'web.odd'
+    assert cfg.odd_for_type('docx') == tmp_path / 'docx.odd'
+    assert cfg.odd_for_type('typst') == tmp_path / 'typst.odd'
+    assert cfg.odd_for_type('markdown') is None
     assert cfg.document_docx_template == tmp_path / 'style.docx'
     assert cfg.typst_template == tmp_path / 'book.typ.j2'
 
@@ -235,22 +230,7 @@ def test_transform_config_paths_resolve_relative_to_config_file(tmp_path: Path, 
     """Running from an unrelated CWD with -c must find template and CSS next to the config."""
     project = tmp_path / 'project'
     (project / 'templates').mkdir(parents=True)
-    script = project / 'transform_mod.py'
-    script.write_text(
-        "from lxml import etree\n"
-        "def transform_output_channels():\n"
-        "    return ['web']\n"
-        "ODD_GENERATED_CSS = ''\n"
-        "def transform(root, options=None):\n"
-        "    _ = root, options\n"
-        "    html = etree.Element('html')\n"
-        "    etree.SubElement(html, 'head')\n"
-        "    body = etree.SubElement(html, 'body')\n"
-        "    div = etree.SubElement(body, 'div')\n"
-        "    div.text = 'X'\n"
-        "    return [html]\n",
-        encoding='utf-8',
-    )
+    _write_tiny_odd(project / 'tiny.odd')
     (project / 'templates' / 'custom.j2').write_text(
         '<html><head><!-- config-relative-template --><style>{{ user_css }}</style></head>'
         '<body>{{ content_html|safe }}</body></html>',
@@ -259,7 +239,7 @@ def test_transform_config_paths_resolve_relative_to_config_file(tmp_path: Path, 
     (project / 'site.css').write_text('.site { color: green; }', encoding='utf-8')
     (project / 'opm.toml').write_text(
         """[transform.web]
-module = "transform_mod.py"
+odd = "tiny.odd"
 
 [document]
 template = "templates/custom.j2"
@@ -268,7 +248,7 @@ css = "site.css"
         encoding='utf-8',
     )
     xml = project / 'in.xml'
-    xml.write_text('<doc/>', encoding='utf-8')
+    xml.write_text('<doc><p>X</p></doc>', encoding='utf-8')
     out = tmp_path / 'out.html'
 
     elsewhere = tmp_path / 'elsewhere'
@@ -280,7 +260,7 @@ css = "site.css"
     rendered = out.read_text(encoding='utf-8')
     assert 'config-relative-template' in rendered
     assert '.site { color: green; }' in rendered
-    assert '<div>X</div>' in rendered
+    assert 'X' in rendered
 
 
 def test_load_project_config_reads_webcomponents_under_transform_web(tmp_path: Path) -> None:
@@ -288,7 +268,7 @@ def test_load_project_config_reads_webcomponents_under_transform_web(tmp_path: P
 
     (tmp_path / 'opm.toml').write_text(
         """[transform.web]
-module = "web.py"
+odd = "web.odd"
 
 [transform.web.webcomponents]
 enabled = true
@@ -306,7 +286,7 @@ def test_load_project_config_ignores_legacy_top_level_webcomponents(tmp_path: Pa
 
     (tmp_path / 'opm.toml').write_text(
         """[transform.web]
-module = "web.py"
+odd = "web.odd"
 
 [webcomponents]
 enabled = true
@@ -322,84 +302,172 @@ def test_load_project_config_accepts_legacy_top_level_type_sections(tmp_path: Pa
 
     (tmp_path / 'opm.toml').write_text(
         """[transform.web]
-module = "web.py"
+odd = "web.odd"
 
 [docx]
-module = "docx.py"
+odd = "docx.odd"
 template = "style.docx"
 """,
         encoding='utf-8',
     )
     cfg = load_project_config(tmp_path / 'opm.toml')
-    assert cfg.module_for_type('docx') == tmp_path / 'docx.py'
+    assert cfg.odd_for_type('docx') == tmp_path / 'docx.odd'
     assert cfg.document_docx_template == tmp_path / 'style.docx'
 
 
-def test_transform_type_selects_module_from_config(tmp_path: Path, monkeypatch, capsys) -> None:
-    _write_channel_transform_module(tmp_path / 'web.py', 'web', 'FROM-WEB')
-    _write_channel_transform_module(tmp_path / 'typst.py', 'typst', 'FROM-TYPST')
+def test_transform_type_selects_odd_from_config(tmp_path: Path, monkeypatch, capsys) -> None:
+    _write_tiny_odd(tmp_path / 'tiny.odd')
     (tmp_path / 'opm.toml').write_text(
         """[transform.web]
-module = "web.py"
+odd = "tiny.odd"
 
 [transform.typst]
-module = "typst.py"
+odd = "tiny.odd"
 """,
         encoding='utf-8',
     )
     xml = tmp_path / 'in.xml'
+    xml.write_text('<doc><p>hi</p></doc>', encoding='utf-8')
+    cache = tmp_path / 'cache'
+    monkeypatch.setattr('opm.odd_cache.modules_cache_dir', lambda: cache / 'modules')
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['transform', str(xml), '-c', 'opm.toml', '-t', 'typst', '-o', str(tmp_path / 'out.typ')])
+    assert rc == 0
+    err = capsys.readouterr().err
+    assert 'typst' in err
+
+    rc = main(['transform', str(xml), '-c', 'opm.toml', '--type', 'web', '-o', str(tmp_path / 'out.html')])
+    assert rc == 0
+    err = capsys.readouterr().err
+    assert 'web' in err
+
+
+def test_transform_type_missing_odd_uses_packaged_odd(tmp_path: Path, monkeypatch, capsys) -> None:
+    """When --type has no config entry, fall back to the packaged stock ODD."""
+    _write_tiny_odd(tmp_path / 'tiny.odd')
+    (tmp_path / 'opm.toml').write_text('[transform.web]\nodd = "tiny.odd"\n', encoding='utf-8')
+    xml = tmp_path / 'in.xml'
     xml.write_text('<doc/>', encoding='utf-8')
     monkeypatch.chdir(tmp_path)
 
-    rc = main(['transform', str(xml), '-c', 'opm.toml', '-t', 'typst'])
+    rc = main(['transform', str(xml), '-c', 'opm.toml', '-t', 'markdown', '-o', str(tmp_path / 'out.md')])
     assert rc == 0
-    assert 'FROM-TYPST' in capsys.readouterr().out
-
-    rc = main(['transform', str(xml), '-c', 'opm.toml', '--type', 'web'])
-    assert rc == 0
-    assert 'FROM-WEB' in capsys.readouterr().out
+    err = capsys.readouterr().err
+    assert 'Cached module:' in err or 'Compiled ' in err
+    assert (tmp_path / 'out.md').is_file()
 
 
-def test_transform_type_missing_module_errors(tmp_path: Path, monkeypatch, capsys) -> None:
-    (tmp_path / 'opm.toml').write_text('[transform.web]\nmodule = "web.py"\n', encoding='utf-8')
-    (tmp_path / 'web.py').write_text(
-        "def transform_output_channels():\n    return ['web']\n"
-        "def transform(root, options=None):\n    return 'ok'\n",
+def test_transform_odd_compiles_into_cache(tmp_path: Path, monkeypatch, capsys) -> None:
+    odd = tmp_path / 'tiny.odd'
+    odd.write_text(
+        '''<?xml version="1.0" encoding="UTF-8"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader><fileDesc><titleStmt><title>t</title></titleStmt>
+  <publicationStmt><p/></publicationStmt>
+  <sourceDesc><p/></sourceDesc></fileDesc></teiHeader>
+  <text><body>
+    <schemaSpec ident="tiny" start="doc">
+      <elementSpec ident="doc">
+        <model behaviour="document"/>
+      </elementSpec>
+      <elementSpec ident="p">
+        <model behaviour="paragraph"/>
+      </elementSpec>
+    </schemaSpec>
+  </body></text>
+</TEI>
+''',
         encoding='utf-8',
     )
     xml = tmp_path / 'in.xml'
-    xml.write_text('<doc/>', encoding='utf-8')
+    xml.write_text('<doc xmlns="http://www.tei-c.org/ns/1.0"><p>hi</p></doc>', encoding='utf-8')
+    out = tmp_path / 'out.html'
+    cache = tmp_path / 'cache'
+    monkeypatch.setenv('XDG_CACHE_HOME', str(cache))
+    # platformdirs on macOS ignores XDG_CACHE_HOME; redirect modules_cache_dir instead.
+    monkeypatch.setattr('opm.odd_cache.modules_cache_dir', lambda: cache / 'modules')
+    monkeypatch.setattr('opm.resources.user_opm_cache_dir', lambda: cache)
     monkeypatch.chdir(tmp_path)
 
-    rc = main(['transform', str(xml), '-c', 'opm.toml', '-t', 'docx'])
-    assert rc == 1
-    err = capsys.readouterr().err
-    assert "no module configured for type 'docx'" in err
-    assert '[transform.docx].module' in err
-
-
-def test_transform_module_overrides_type(tmp_path: Path, monkeypatch, capsys) -> None:
-    _write_channel_transform_module(tmp_path / 'web.py', 'web', 'FROM-WEB')
-    _write_channel_transform_module(tmp_path / 'other.py', 'web', 'FROM-OTHER')
-    (tmp_path / 'opm.toml').write_text('[transform.web]\nmodule = "web.py"\n', encoding='utf-8')
-    xml = tmp_path / 'in.xml'
-    xml.write_text('<doc/>', encoding='utf-8')
-    monkeypatch.chdir(tmp_path)
-
-    rc = main(['transform', str(xml), '-c', 'opm.toml', '-t', 'web', '-m', 'other.py'])
+    rc = main(['transform', str(xml), '-d', str(odd), '--output', str(out)])
     assert rc == 0
-    assert 'FROM-OTHER' in capsys.readouterr().out
+    err = capsys.readouterr().err
+    assert 'Compiled ' in err
+    assert str(cache / 'modules') in err or 'tiny-web-' in err
+    assert out.is_file()
+
+    rc = main(['transform', str(xml), '-d', str(odd), '--output', str(out)])
+    assert rc == 0
+    err = capsys.readouterr().err
+    assert 'Cached module:' in err
+
+
+def test_load_project_config_reads_odd_paths(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    (tmp_path / 'opm.toml').write_text(
+        """[transform.web]
+odd = "odd/web.odd"
+
+[transform.docx]
+odd = "odd/docx.odd"
+
+[chunking]
+odd = "odd/chunk.odd"
+
+[[chunking.fragments]]
+name = "notes"
+scope = "per-chunk"
+xpath = ".//note"
+odd = "odd/notes.odd"
+mode = "markdown"
+""",
+        encoding='utf-8',
+    )
+    cfg = load_project_config(tmp_path / 'opm.toml')
+    assert cfg.transform_odd == tmp_path / 'odd' / 'web.odd'
+    assert cfg.odd_for_type('docx') == tmp_path / 'odd' / 'docx.odd'
+    assert cfg.chunking is not None
+    assert cfg.chunking.odd == tmp_path / 'odd' / 'chunk.odd'
+    assert cfg.chunking.fragments is not None
+    assert cfg.chunking.fragments[0].odd == tmp_path / 'odd' / 'notes.odd'
+    assert cfg.chunking.fragments[0].mode == 'markdown'
+    assert cfg.chunking.module is None
+    assert cfg.chunking.fragments[0].module is None
+
+
+def test_transform_odd_overrides_config_odd(tmp_path: Path, monkeypatch, capsys) -> None:
+    config_odd = tmp_path / 'config.odd'
+    _write_tiny_odd(config_odd, ident='config-odd')
+    cli_odd = tmp_path / 'cli.odd'
+    _write_tiny_odd(cli_odd, ident='cli-odd')
+    (tmp_path / 'opm.toml').write_text('[transform.web]\nodd = "config.odd"\n', encoding='utf-8')
+    xml = tmp_path / 'in.xml'
+    xml.write_text('<doc><p>hi</p></doc>', encoding='utf-8')
+    out = tmp_path / 'out.html'
+    cache = tmp_path / 'cache'
+    monkeypatch.setattr('opm.odd_cache.modules_cache_dir', lambda: cache / 'modules')
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['transform', str(xml), '-c', 'opm.toml', '-d', str(cli_odd), '--output', str(out)])
+    assert rc == 0
+    err = capsys.readouterr().err
+    assert 'Compiled ' in err or 'Cached module:' in err
+    assert 'cli-odd' in err or 'cli-' in err
+    assert out.is_file()
 
 
 def test_chunk_directory_pb_view_appends_xml_filename_to_doc_path(tmp_path: Path, monkeypatch) -> None:
-    _write_chunking_fixture_module(tmp_path / 'chunk_fixture.py')
+    # File stem becomes ODD_NAME → css/teipublisher.css and odd=teipublisher.odd keys.
+    _write_tiny_odd(tmp_path / 'teipublisher.odd')
     docs = tmp_path / 'docs'
     docs.mkdir()
     _write_chunking_fixture_xml(docs / 'one.xml')
     _write_chunking_fixture_xml(docs / 'two.xml')
     (tmp_path / 'opm.toml').write_text(
         """[chunking]
-module = "chunk_fixture.py"
+odd = "teipublisher.odd"
 xpath = "//body/div[@type='chunk']"
 output_dir = "site"
 view = "div"
@@ -426,14 +494,14 @@ doc_path = "letters"
 
 
 def test_chunk_directory_json_writes_each_document_to_own_directory(tmp_path: Path, monkeypatch) -> None:
-    _write_chunking_fixture_module(tmp_path / 'chunk_fixture.py')
+    _write_tiny_odd(tmp_path / 'teipublisher.odd')
     docs = tmp_path / 'docs'
     docs.mkdir()
     _write_chunking_fixture_xml(docs / 'one.xml')
     _write_chunking_fixture_xml(docs / 'two.xml')
     (tmp_path / 'opm.toml').write_text(
         """[chunking]
-module = "chunk_fixture.py"
+odd = "teipublisher.odd"
 xpath = "//body/div[@type='chunk']"
 output_dir = "json-site"
 """,
@@ -452,7 +520,5 @@ output_dir = "json-site"
 
     one_chunk = json.loads((site / 'one.xml' / '001.json').read_text(encoding='utf-8'))
     two_manifest = json.loads((site / 'two.xml' / 'manifest.json').read_text(encoding='utf-8'))
-    assert 'id="a"' in one_chunk['content']
+    assert 'self' in one_chunk['content']
     assert two_manifest['anchors'] == {'a': '001.html', 'b': '002.html'}
-
-

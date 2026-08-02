@@ -16,6 +16,7 @@ dependencies = [
     "jinja2>=3.1",
     "babel",
     "python-docx>=1.1",
+    "platformdirs>=4.10.0",
 ]
 
 [dependency-groups]
@@ -37,11 +38,17 @@ opm = "opm.cli:main"
 packages = ["src/opm"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"src/opm/templates/default_document.html.j2" = "opm/templates/default_document.html.j2"
-"src/opm/templates/default_document.typ.j2" = "opm/templates/default_document.typ.j2"
+"src/opm/resources/templates/default_document.html.j2" = "opm/resources/templates/default_document.html.j2"
+"src/opm/resources/templates/default_document.typ.j2" = "opm/resources/templates/default_document.typ.j2"
+"src/opm/resources/odd/teipublisher.odd" = "opm/resources/odd/teipublisher.odd"
+"src/opm/resources/odd/tp.css" = "opm/resources/odd/tp.css"
+"src/opm/resources/styles/default-styles.css" = "opm/resources/styles/default-styles.css"
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "src/opm/templates/default_document.html.j2",
-    "src/opm/templates/default_document.typ.j2",
+    "src/opm/resources/templates/default_document.html.j2",
+    "src/opm/resources/templates/default_document.typ.j2",
+    "src/opm/resources/odd/teipublisher.odd",
+    "src/opm/resources/odd/tp.css",
+    "src/opm/resources/styles/default-styles.css",
 ]

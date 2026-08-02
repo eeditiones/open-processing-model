@@ -815,9 +815,14 @@ def chunk_document(
 ) -> None:
     """Chunk a document using the specified configuration."""
     resolved_module = module_path or config.module
+    if resolved_module is None and config.odd is not None:
+        from opm.odd_cache import ensure_compiled_module
+
+        resolved_module, _ = ensure_compiled_module(config.odd, output_mode='web')
     if resolved_module is None:
         raise ValueError(
-            'No transform module specified. Pass a module path or set chunking.module in your config.'
+            'No transform module specified. Pass a module path, set chunking.odd '
+            'in your config, or use the packaged teipublisher ODD.',
         )
 
     tree = etree.parse(str(xml_path))

@@ -19,9 +19,9 @@ xpath_extensions = [
 # ]
 
 [transform.web]
-# Compiled web module used when --module/-m and --type/-t are omitted,
-# and when ``opm transform --type web`` is selected.
-# module = "modules/teipublisher-web.py"
+# ODD compiled on demand into the user cache. When omitted, the packaged
+# teipublisher ODD is used.
+# odd = "odd/teipublisher.odd"
 
 [document]
 # Jinja2 template used to wrap full-document HTML output.
@@ -31,14 +31,12 @@ xpath_extensions = [
 # css = "templates/default.css"
 
 [transform.docx]
-# Compiled module selected by ``opm transform --type docx``.
-# module = "modules/teipublisher-docx.py"
+# odd = "odd/teipublisher.odd"
 # Word style template used for DOCX output.
 # template = "templates/corporate.docx"
 
 [transform.typst]
-# Compiled module selected by ``opm transform --type typst``.
-# module = "modules/teipublisher-typst.py"
+# odd = "odd/teipublisher.odd"
 # Typst document-shell template used for Typst output.
 # template = "templates/book.typ.j2"
 
@@ -53,8 +51,8 @@ enabled = false
 # version = "3.0.5"
 
 [chunking]
-# Transform module used for chunking; falls back to [transform.web].module when omitted.
-# module = "modules/teipublisher-web.py"
+# ODD compiled on demand. Falls back to [transform.web] / packaged default when omitted.
+# odd = "odd/teipublisher.odd"
 
 # XPath expression selecting chunk root elements.
 # xpath = "//text/body/div"
@@ -93,10 +91,12 @@ enabled = false
 # name = "toc"
 # scope = "global"
 # xpath = "//text/body"
-# module = "modules/teipublisher-web.py"
+# odd = "odd/teipublisher.odd"
 # parameters = { mode = "toc" }
 #
 # [[chunking.fragments]]
 # name = "notes"
 # scope = "per-chunk"
 # xpath = ".//note"
+# odd = "odd/teipublisher.odd"
+# mode = "markdown"

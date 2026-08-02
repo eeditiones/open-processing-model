@@ -7,10 +7,12 @@ Three entry points at increasing levels of abstraction:
     lxml element; the function serializes and optionally wraps the result in the
     Jinja2 document template::
 
+        from opm.odd_cache import ensure_compiled_module
         from opm.transform import load_transform_module, run_transform
         from lxml import etree
 
-        mod = load_transform_module(Path('modules/teipublisher-web.py'))
+        path, _ = ensure_compiled_module(Path('odd/teipublisher.odd'))
+        mod = load_transform_module(path)
         root = etree.parse('document.xml').getroot()
 
         html     = run_transform(mod, root)                 # full document
@@ -20,27 +22,23 @@ Three entry points at increasing levels of abstraction:
     Mid level. Loads the module from *script_path* and, if *xpath* is given,
     selects the target element before transforming::
 
+        from opm.odd_cache import ensure_compiled_module
         from opm.transform import transform_node
         from lxml import etree
 
+        path, _ = ensure_compiled_module(Path('odd/teipublisher.odd'))
         root = etree.parse('document.xml').getroot()
-        html = transform_node(
-            Path('modules/teipublisher-web.py'),
-            root,
-            xpath='//body/div[1]',
-        )
+        html = transform_node(path, root, xpath='//body/div[1]')
 
 ``transform_file(module_path, xml_path, *, xpath=None, ...)``
     Highest level. Also parses the XML file and reads ``opm.toml``
     for defaults (extensions, webcomponents, template)::
 
+        from opm.odd_cache import ensure_compiled_module
         from opm.transform import transform_file
 
-        html = transform_file(
-            Path('modules/teipublisher-web.py'),
-            Path('document.xml'),
-            xpath='//body/div[1]',
-        )
+        path, _ = ensure_compiled_module(Path('odd/teipublisher.odd'))
+        html = transform_file(path, Path('document.xml'), xpath='//body/div[1]')
 
 ``xpath_select(root, expr, ...)``
     Utility for evaluating XPath against a parsed document without any
@@ -96,7 +94,7 @@ def load_transform_module(script_path: Path) -> ModuleType:
         )
     if not hasattr(mod, 'transform_output_channels'):
         raise AttributeError(
-            f'{path} has no transform_output_channels() — expected a module emitted by opm compile',
+            f'{path} has no transform_output_channels() — expected a compiled ODD transform module',
         )
     return mod
 

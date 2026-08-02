@@ -7,25 +7,25 @@ xpath_extensions = [
 ]
 
 [transform.web]
-module = "modules/docbook-web.py"
+odd = "odd/docbook.odd"
 
 [transform.web.webcomponents]
 # Enable TEI Publisher web-component output mode by default.
 enabled = true
 
 [transform.docx]
-module = "modules/docbook-docx.py"
+odd = "odd/docbook.odd"
 template = "templates/default.docx"
 
 [transform.typst]
-module = "modules/docbook-typst.py"
+odd = "odd/docbook.odd"
 template = "templates/documentation.typ.j2"
 
 [transform.markdown]
-module = "modules/docbook-markdown.py"
+odd = "odd/docbook.odd"
 
 [chunking]
-module = "modules/docbook-web.py"
+odd = "odd/docbook.odd"
 selector = "opm.navigation.dbk_section_chunks"
 depth = 2
 output_dir = "chunks"

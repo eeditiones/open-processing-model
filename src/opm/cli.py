@@ -1,4 +1,8 @@
-"""Unified CLI: ``opm compile``, ``opm transform``, and ``opm chunk``."""
+"""Unified CLI: ``opm transform``, ``opm chunk``, and ``opm serve``.
+
+ODDs are compiled on demand into the user cache (``platformdirs``); there is no
+separate ``compile`` command.
+"""
 
 from __future__ import annotations
 
@@ -15,8 +19,16 @@ from typer.main import get_command
 
 from lxml import etree
 
-from opm.config import DEFAULT_CDN_TEMPLATE, DEFAULT_VERSION, load_project_config
-from opm.odd_compiler import compile_odd, PythonGenerator
+from opm.config import (
+    DEFAULT_CDN_TEMPLATE,
+    DEFAULT_VERSION,
+    ChunkingConfig,
+    FragmentConfig,
+    ProjectConfig,
+    load_project_config,
+)
+from opm.odd_cache import ResolvedTransform, resolve_transform_module
+from opm.resources import packaged_default_css
 from opm.runtime.pm_runtime import resolve_context_element
 from opm.transform import load_transform_module, load_xpath_documents, run_transform
 from opm.runtime.pm_runtime import xpath_runtime_context
@@ -24,7 +36,10 @@ from opm.chunking import chunk_document
 
 app = typer.Typer(
     name='opm',
-    help='Open Processing Model: compile ODD to Python, or run a transform on XML.',
+    help=(
+        'Open Processing Model: transform XML via ODD processing models '
+        '(ODDs compile on demand into the user cache).'
+    ),
     no_args_is_help=True,
     context_settings={'help_option_names': ['-h', '--help']},
 )
@@ -98,11 +113,78 @@ def _parameters_from_cli(param_list: list[str] | None) -> dict[str, str]:
 
 
 def _resolve_user_css(css_path: Path | None) -> str | None:
-    """Return CSS text from ``--css`` or ``styles/default-styles.css`` if that file exists."""
-    path = css_path if css_path is not None else Path('styles/default-styles.css')
-    if css_path is None and not path.is_file():
-        return None
-    return path.read_text(encoding='utf-8')
+    """Return CSS text from ``--css``, CWD ``styles/default-styles.css``, or the package."""
+    if css_path is not None:
+        return css_path.read_text(encoding='utf-8')
+    path = Path('styles/default-styles.css')
+    if path.is_file():
+        return path.read_text(encoding='utf-8')
+    packaged = packaged_default_css()
+    if packaged is not None and packaged.is_file():
+        return packaged.read_text(encoding='utf-8')
+    return None
+
+
+def _report_resolved_module(resolved: ResolvedTransform) -> None:
+    """Print the cache path when the module was produced from an ODD."""
+    if resolved.source_odd is None:
+        return
+    styled = typer.style(str(resolved.module_path), fg=typer.colors.GREEN, bold=True)
+    if resolved.freshly_compiled:
+        typer.echo(f'Compiled {resolved.source_odd} → {styled}', err=True)
+    else:
+        typer.echo(f'Cached module: {styled}', err=True)
+
+
+def _resolve_cli_transform(
+    *,
+    cfg: ProjectConfig,
+    odd: Path | None,
+    transform_type: str | None,
+) -> ResolvedTransform:
+    """Resolve ``--odd`` / config odd / packaged default for transform."""
+    mode = (transform_type or 'web').strip().lower() or 'web'
+
+    if odd is not None:
+        return resolve_transform_module(odd=odd, output_mode=mode)
+
+    cfg_odd = cfg.odd_for_type(mode)
+    if cfg_odd is not None:
+        return resolve_transform_module(odd=cfg_odd, output_mode=mode)
+
+    return resolve_transform_module(output_mode=mode)
+
+
+def _materialize_chunking_modules(config: ChunkingConfig) -> tuple[ChunkingConfig, list[ResolvedTransform]]:
+    """Compile ``odd`` entries on *config* into runtime ``module`` paths."""
+    reported: list[ResolvedTransform] = []
+
+    main = resolve_transform_module(
+        odd=config.odd,
+        output_mode='web',
+        use_packaged_default=config.odd is None,
+    )
+    reported.append(main)
+
+    new_fragments: list[FragmentConfig] | None = None
+    if config.fragments:
+        new_fragments = []
+        for frag in config.fragments:
+            if frag.odd is None:
+                new_fragments.append(replace(frag, module=None))
+                continue
+            resolved = resolve_transform_module(
+                odd=frag.odd,
+                output_mode=frag.mode,
+                use_packaged_default=False,
+            )
+            reported.append(resolved)
+            new_fragments.append(replace(frag, module=resolved.module_path))
+
+    return (
+        replace(config, module=main.module_path, odd=config.odd, fragments=new_fragments),
+        reported,
+    )
 
 
 def _chunk_input_files(input_path: Path) -> list[Path]:
@@ -124,64 +206,17 @@ def _append_output_dir(base_output_dir: str, xml_path: Path) -> str:
     return f'{base_output_dir.rstrip("/")}/{xml_path.name}'
 
 
-@app.command('compile')
-def compile_cmd(
-    odd: Annotated[Path, typer.Argument(help='Path to the .odd file')],
-    output: Annotated[
-        Optional[Path],
-        typer.Option(
-            '--output',
-            '-o',
-            help=(
-                'Write generated code to this file (default: '
-                'modules/<odd-basename>-<mode>.<ext> below the current working directory)'
-            ),
-        ),
-    ] = None,
-    module_name: Annotated[
-        str,
-        typer.Option(help='Logical module name (recorded in the generated docstring only)'),
-    ] = 'generated_odd',
-    mode: Annotated[
-        str,
-        typer.Option(
-            '--mode',
-            '-m',
-            help='ODD processing-model output channel: web (HTML), markdown, typst, docx, … (@output on models; default: web).',
-        ),
-    ] = 'web',
-    target: Annotated[
-        str,
-        typer.Option(
-            '--target',
-            '-t',
-            help='Target language for code generation (currently only python).',
-        ),
-    ] = 'python',
-) -> None:
-    """Emit a transformation module from an ODD processing model."""
-    src = compile_odd(str(odd), target=target, module_name=module_name, output_mode=mode)
-    if output is not None:
-        dest = output
-    else:
-        ext = PythonGenerator().file_extension if target == 'python' else f'.{target}'
-        dest = Path('modules') / f'{odd.stem}-{mode}{ext}'
-        dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(src, encoding='utf-8')
-    typer.echo(f'Compiled {odd} → {typer.style(str(dest), fg=typer.colors.GREEN, bold=True)}')
-
-
 @app.command('transform')
 def transform_cmd(
     input_xml: Annotated[Optional[Path], typer.Argument(help='Input XML file')] = None,
-    transform_script: Annotated[
+    odd: Annotated[
         Optional[Path],
         typer.Option(
-            '--module',
-            '-m',
+            '--odd',
+            '-d',
             help=(
-                'Path to the .py file (must define transform()). '
-                'Overrides --type and transform.<type>.module keys in config.'
+                'ODD file to compile on demand into the user cache. '
+                'Overrides transform.<type>.odd in config.'
             ),
         ),
     ] = None,
@@ -192,9 +227,9 @@ def transform_cmd(
             '-t',
             metavar='TYPE',
             help=(
-                'Transform type (web, docx, typst, markdown, …). When --module is omitted, '
-                'selects the module from the matching transform.<type> table in config '
-                '(e.g. transform.web.module, transform.docx.module).'
+                'Transform type / ODD output channel (web, docx, typst, markdown, …). '
+                'Selects transform.<type>.odd from config when --odd '
+                'is omitted; also sets the compile mode for --odd.'
             ),
         ),
     ] = None,
@@ -286,7 +321,7 @@ def transform_cmd(
         ),
     ] = None,
 ) -> None:
-    """Load a transformation script and print the result (HTML, markdown, …) for an XML document."""
+    """Transform an XML document via an ODD with processing instructions and return the result (HTML, markdown, …)."""
     try:
         cfg = load_project_config(config)
         for p in cfg.pythonpath:
@@ -294,31 +329,17 @@ def transform_cmd(
             if entry not in sys.path:
                 sys.path.insert(0, entry)
 
-        if transform_script is not None:
-            effective_script = transform_script
-        elif transform_type is not None:
-            effective_script = cfg.module_for_type(transform_type)
-            if effective_script is None:
-                section = f'[transform.{transform_type.strip().lower()}].module'
-                typer.echo(
-                    f'opm: error: no module configured for type {transform_type!r}. '
-                    f'Set {section} in your config, or pass --module.',
-                    err=True,
-                )
-                raise SystemExit(1)
-        else:
-            effective_script = cfg.transform_module
-        if effective_script is None:
-            typer.echo(
-                'opm: error: transform script is required. '
-                'Pass --module, use --type with a matching config section, '
-                'or set transform.web.module in your config.',
-                err=True,
-            )
-            raise SystemExit(1)
         if input_xml is None:
             typer.echo('opm: error: input XML file is required.', err=True)
             raise SystemExit(1)
+
+        resolved = _resolve_cli_transform(
+            cfg=cfg,
+            odd=odd,
+            transform_type=transform_type,
+        )
+        _report_resolved_module(resolved)
+        effective_script = resolved.module_path
 
         effective_webcomponents = webcomponents if webcomponents is not None else (cfg.webcomponents_enabled or False)
         mod = load_transform_module(effective_script)
@@ -422,11 +443,12 @@ def chunk(
             help='XML file to transform and chunk, or a directory of XML files for --format pb-view.',
         ),
     ] = None,
-    transform_script: Annotated[
+    odd: Annotated[
         Optional[Path],
         typer.Option(
-            '--module', '-m',
-            help='Path to a Python transform script. Falls back to chunking.module in config.',
+            '--odd',
+            '-d',
+            help='ODD file to compile on demand for chunking (overrides chunking.odd in config).',
         ),
     ] = None,
     output_dir: Annotated[
@@ -534,7 +556,13 @@ def chunk(
             chunking_config.output_dir = str(output_dir)
         if template:
             chunking_config.template = template
-        
+        if odd is not None:
+            chunking_config = replace(chunking_config, module=None, odd=odd)
+
+        chunking_config, resolved_list = _materialize_chunking_modules(chunking_config)
+        for resolved in resolved_list:
+            _report_resolved_module(resolved)
+
         if output_format not in ('html', 'json', 'pb-view'):
             typer.echo(
                 'opm: error: --format must be "html", "json" or "pb-view", '
@@ -581,7 +609,7 @@ def chunk(
         )
 
         # Chunk the document(s)
-        effective_chunk_script = transform_script or (cfg.chunking.module if cfg.chunking else None)
+        effective_chunk_script = chunking_config.module
         if input_xml.is_dir():
             typer.echo(
                 f'Chunking {len(input_files)} XML files from {input_xml} '
@@ -613,7 +641,7 @@ def chunk(
                 )
 
                 chunk_document(
-                    module_path=transform_script or None,
+                    module_path=chunking_config.module,
                     xml_path=xml_file,
                     config=effective_chunking_config,
                     project_root=Path.cwd(),
@@ -637,7 +665,7 @@ def chunk(
                 data_subdir = f'{effective_doc_path}/' if effective_doc_path else ''
             typer.echo(f'  - {data_subdir}index.json: pb-view lookup table')
             typer.echo(f'  - {data_subdir}<xml:id>.json: part files')
-            resolved_module = transform_script or chunking_config.module
+            resolved_module = chunking_config.module
             odd_name = getattr(load_transform_module(resolved_module), 'ODD_NAME', '') if resolved_module else ''
             typer.echo(f'  - css/{odd_name}.css: ODD stylesheet')
         else:

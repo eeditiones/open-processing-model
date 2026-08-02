@@ -26,17 +26,18 @@ One can also combine `opm` with TEI Publisher, e.g. to preprocess TEI content, s
 ## How it works
 
 ```
-ODD file ──compile──▶ Python transform module ──transform──▶ HTML / Markdown / DOCX / Typst
-                                              └──chunk──────▶ pages + manifest (for static sites)
+ODD file ──(compile on demand)──▶ cached Python module ──transform──▶ HTML / Markdown / DOCX / Typst
+                                                           └──chunk──────▶ pages + manifest (for static sites)
 ```
 
-1. **Compile** — an ODD file describes a processing model: which elements match
-   which *models*, and what *behaviour* each produces. `opm compile` turns this
-   into a Python module with a `transform()` function and a `_dispatch()` router.
-2. **Transform** — `opm transform` loads that module (via `--module` or
-   `--type`/`-t` looking up `[<type>].module` in config), parses an XML document
-   with lxml, and walks the element tree. Each element is routed through
-   `_dispatch` to a handler that emits output through a concrete
+1. **Compile on demand** — an ODD file describes a processing model: which
+   elements match which *models*, and what *behaviour* each produces. The first
+   time you transform or chunk with an ODD, `opm` compiles it into a Python
+   module in the user cache and prints that path on stderr.
+2. **Transform** — `opm transform` loads that module (via `--odd`/`-d` or
+   `--type`/`-t` looking up config), parses an XML document with lxml, and
+   walks the element tree. Each element is routed through `_dispatch` to a
+   handler that emits output through a concrete
    [`ProcessingModelFunctions`](api/output-functions.md) implementation
    (HTML, Markdown, Typst, or DOCX) — so the same generated code serves every
    format.

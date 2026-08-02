@@ -1,7 +1,8 @@
 # Output formats
 
 A single ODD drives every output format. The format is chosen at **compile**
-time with `--mode`, which selects the ODD `@output` channel and the concrete
+time via `--type` / `-t` (or the matching config table), which selects the ODD
+`@output` channel and the concrete
 [`ProcessingModelFunctions`](../api/output-functions.md) implementation used to
 emit output.
 
@@ -19,40 +20,40 @@ ignores those models. Among models that match the compile mode, the usual ODD
 rule applies: the first whose conditions apply wins.
 
 ```bash
-uv run opm compile odd/teipublisher.odd --mode web        # → modules/teipublisher-web.py
-uv run opm compile odd/teipublisher.odd --mode markdown   # → modules/teipublisher-markdown.py
-uv run opm compile odd/teipublisher.odd --mode docx       # → modules/teipublisher-docx.py
-uv run opm compile odd/teipublisher.odd --mode typst      # → modules/teipublisher-typst.py
+uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t web --preview
+uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t markdown --preview
+uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t docx -o out.docx
+uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t typst -o out.typ
 ```
 
-The generated module records its channel via `transform_output_channels()`, so
-`opm transform` knows how to handle the result.
+Each compile writes (or reuses) a cached module under the user cache directory;
+the path is printed on stderr.
 
-## Choosing a module at transform time
+## Choosing an ODD at transform time
 
-Pass a compiled module with `--module`/`-m`, or select it from your TOML config
-with `--type`/`-t` (and `-c` if the config is not `opm.toml`):
+Pass an ODD with `--odd`/`-d`, or select from your TOML config with `--type`/`-t`
+(and `-c` if the config is not `opm.toml`):
 
 | `--type` | Config key |
 | --- | --- |
-| `web` | `[transform.web].module` |
-| `docx` | `[transform.docx].module` |
-| `typst` | `[transform.typst].module` |
-| `markdown`, `print`, … | `[transform.<type>].module` |
+| `web` | `[transform.web].odd` |
+| `docx` | `[transform.docx].odd` |
+| `typst` | `[transform.typst].odd` |
+| `markdown`, `print`, … | `[transform.<type>].odd` |
 
 ```bash
-# Explicit module path
-uv run opm transform demo/tei-test.xml -m modules/teipublisher-web.py --preview
+# Explicit ODD (compiled on demand)
+uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd --preview
 
-# Module looked up from config (see Configuration)
+# Looked up from config (see Configuration)
 uv run opm transform demo/tei-test.xml -c teipublisher.toml -t web --preview
 uv run opm transform demo/tei-test.xml -c teipublisher.toml -t typst -o out.typ
 uv run opm transform demo/tei-test.xml -c teipublisher.toml -t docx -o out.docx
 ```
 
-`--module` overrides `--type` when both are given. Omitting both falls back to
-`[transform.web].module`. Details and the full TOML schema are in
-[Configuration](configuration.md#selecting-a-module-by-type).
+`--odd`/`-d` overrides `--type` config lookup. Omitting both falls back to
+`[transform.web]` or the packaged stock teipublisher ODD. Details are in
+[Configuration](configuration.md#selecting-an-odd-by-type).
 
 ## HTML (`web`)
 
@@ -61,14 +62,14 @@ ODD-generated CSS, a user stylesheet, and optional tei-publisher web components.
 See [Templates & CSS](templates-and-css.md).
 
 ```bash
-uv run opm transform demo/tei-test.xml -m modules/teipublisher-web.py \
+uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd \
   --preview --template templates/tufte.html.j2
 ```
 
 ## Markdown
 
 ```bash
-uv run opm transform demo/tei-test.xml -m modules/teipublisher-markdown.py --preview
+uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t markdown --preview
 ```
 
 `--preview` renders the Markdown in the terminal with
@@ -83,7 +84,7 @@ the output. Missing built-in styles (`Hyperlink`, `footnote text`,
 `footnote reference`) are injected automatically.
 
 ```bash
-uv run opm transform demo/tei-test.xml -m modules/teipublisher-docx.py -o report.docx \
+uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t docx -o report.docx \
   --template templates/corporate.docx
 # Or: -c teipublisher.toml -t docx -o report.docx
 ```

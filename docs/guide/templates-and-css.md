@@ -8,10 +8,10 @@ you select a single element with `--xpath` — is **not** wrapped.
 
 Pass a template with `--template`, or set a default under `[document]` in
 `opm.toml`. If none is given, a packaged default template is used. Example
-templates ship in `templates/` (`tufte.html.j2`, `bootstrap.html.j2`, …).
+templates ship in `templates/` (`tufte.html.j2`, `bootstrap.html.j2`, `chapbook.html.j2`, …).
 
 ```bash
-uv run opm transform modules/teipublisher-web.py demo/tei-test.xml \
+uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd \
   --template templates/tufte.html.j2 --css styles/main.css -o out.html
 ```
 

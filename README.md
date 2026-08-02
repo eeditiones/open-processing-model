@@ -16,14 +16,14 @@
 ```bash
 uv sync                                              # install dependencies
 
-# Compile an ODD into a transform module
-uv run opm compile odd/teipublisher.odd             # → modules/teipublisher-web.py
-
-# Transform a document — HTML preview in the browser
-uv run opm transform demo/tei-test.xml -m modules/teipublisher-web.py \
+# Transform a document — ODD compiles on demand into the user cache
+uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd \
   --preview --template templates/tufte.html.j2
 
-# Or pick the module from TOML with --type (web / docx / typst / …)
+# Or omit --odd to use the packaged stock teipublisher ODD
+# uv run opm transform demo/tei-test.xml --preview
+
+# Or pick the ODD/module from TOML with --type (web / docx / typst / …)
 # uv run opm transform demo/tei-test.xml -c teipublisher.toml -t web --preview
 
 # Chunk a large document into pages for a static site

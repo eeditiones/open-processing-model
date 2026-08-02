@@ -1,6 +1,6 @@
 """Project-level configuration loaded from ``opm.toml``.
 
-All relative paths in the config (modules, templates, CSS, documents,
+All relative paths in the config (templates, CSS, documents, ODDs,
 ``pythonpath``) are resolved relative to the directory containing the
 config file, so ``opm`` commands work regardless of the current working
 directory.
@@ -21,7 +21,7 @@ DEFAULT_VERSION = '3.0.5'
 
 CONFIG_FILENAME = 'opm.toml'
 
-# Output types that may declare ``[transform.<type>]`` (module + optional template).
+# Output types that may declare ``[transform.<type>]`` (odd + optional template).
 TRANSFORM_TYPE_SECTIONS = ('web', 'docx', 'typst', 'markdown', 'print')
 
 
@@ -29,7 +29,7 @@ def _section_table(value: Any) -> dict[str, Any]:
     """Return *value* if it is a TOML table, else an empty dict.
 
     Nested keys like ``[transform.docx]`` appear as dicts under ``transform``;
-    scalar keys (``module``, ``xpath_extensions``, …) must be ignored.
+    scalar keys (``odd``, ``xpath_extensions``, …) must be ignored.
     """
     return value if isinstance(value, dict) else {}
 
@@ -41,6 +41,11 @@ class FragmentConfig:
     xpath: str
     parameters: dict[str, Any] | None = None
     module: Path | None = None
+    """Resolved compiled transform path (set after compile-on-demand, not from TOML)."""
+    odd: Path | None = None
+    """ODD to compile on demand for this fragment."""
+    mode: str = 'web'
+    """Output channel used when compiling ``odd`` (default: web)."""
 
 
 @dataclass
@@ -53,6 +58,9 @@ class ChunkingConfig:
     fragments: list[FragmentConfig] | None = None
     link_pattern: str | None = None
     module: Path | None = None
+    """Resolved compiled transform path (set after compile-on-demand, not from TOML)."""
+    odd: Path | None = None
+    """ODD to compile on demand for chunking."""
     view: str = "div"
     """View mode (``div``, ``page`` or ``single``) used in pb-view lookup keys."""
     map: str | None = None
@@ -100,14 +108,14 @@ class ProjectConfig:
     """User parameters bound to XPath ``$parameters`` (from ``[transform.parameters]``)."""
     chunking: ChunkingConfig | None = None
     pythonpath: tuple[Path, ...] = ()
-    transform_module: Path | None = None
-    """Web transform module from ``[transform.web].module``."""
-    transform_modules: dict[str, Path] = field(default_factory=dict)
-    """Map of transform type (``web``, ``docx``, ``typst``, …) → module path."""
+    transform_odd: Path | None = None
+    """Web transform ODD from ``[transform.web].odd``."""
+    transform_odds: dict[str, Path] = field(default_factory=dict)
+    """Map of transform type → ODD path (compiled on demand)."""
 
-    def module_for_type(self, transform_type: str) -> Path | None:
-        """Return the configured module for *transform_type*, or ``None``."""
-        return self.transform_modules.get(transform_type.strip().lower())
+    def odd_for_type(self, transform_type: str) -> Path | None:
+        """Return the configured ODD for *transform_type*, or ``None``."""
+        return self.transform_odds.get(transform_type.strip().lower())
 
 
 def _resolve_type_section(
@@ -197,19 +205,20 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         for frag_data in chunking_data.get('fragments', []):
             if not isinstance(frag_data, dict):
                 continue
-            raw_frag_module = frag_data.get('module')
+            raw_frag_odd = frag_data.get('odd')
             fragment = FragmentConfig(
                 name=frag_data.get('name', ''),
                 scope=frag_data.get('scope', 'per-chunk'),
                 xpath=frag_data.get('xpath', '.'),
                 parameters=frag_data.get('parameters'),
-                module=config_path.parent / raw_frag_module if raw_frag_module else None,
+                odd=config_path.parent / str(raw_frag_odd) if raw_frag_odd else None,
+                mode=str(frag_data.get('mode', 'web')).strip().lower() or 'web',
             )
             if fragment.name and fragment.scope in ('global', 'per-chunk'):
                 fragments.append(fragment)
 
         chunking_template = chunking_data.get('template')
-        raw_chunking_module = chunking_data.get('module')
+        raw_chunking_odd = chunking_data.get('odd')
         chunking = ChunkingConfig(
             xpath=chunking_data.get('xpath'),
             selector=chunking_data.get('selector'),
@@ -218,7 +227,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
             template=config_path.parent / str(chunking_template) if chunking_template else None,
             fragments=fragments if fragments else None,
             link_pattern=chunking_data.get('link_pattern'),
-            module=config_path.parent / raw_chunking_module if raw_chunking_module else None,
+            odd=config_path.parent / str(raw_chunking_odd) if raw_chunking_odd else None,
             view=chunking_data.get('view', 'div'),
             map=chunking_data.get('map'),
             parameters=chunking_data.get('parameters'),
@@ -230,12 +239,12 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         raw_pythonpath = [raw_pythonpath]
     pythonpath = tuple(config_path.parent / p for p in raw_pythonpath)
 
-    transform_modules: dict[str, Path] = {}
+    transform_odds: dict[str, Path] = {}
     for type_name, section in type_sections.items():
-        raw_type_module = section.get('module')
-        if raw_type_module:
-            transform_modules[type_name] = config_path.parent / str(raw_type_module)
-    transform_module = transform_modules.get('web')
+        raw_type_odd = section.get('odd')
+        if raw_type_odd:
+            transform_odds[type_name] = config_path.parent / str(raw_type_odd)
+    transform_odd = transform_odds.get('web')
 
     return ProjectConfig(
         webcomponents_enabled=wc.get('enabled'),
@@ -249,6 +258,6 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         parameters=parameters,
         chunking=chunking,
         pythonpath=pythonpath,
-        transform_module=transform_module,
-        transform_modules=transform_modules,
+        transform_odd=transform_odd,
+        transform_odds=transform_odds,
     )

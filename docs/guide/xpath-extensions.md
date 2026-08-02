@@ -51,7 +51,7 @@ ships reusable functions you can register directly or copy:
 Per transform on the command line (repeatable):
 
 ```bash
-uv run opm transform modules/teipublisher-web.py demo/tei-test.xml \
+uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd \
   --xpath-extensions extensions.my_functions
 ```
 
