@@ -16,6 +16,14 @@ from opm.runtime.typst_output_functions import (
 )
 
 
+def test_finish_cleanup_does_not_stub_css_classes() -> None:
+    """Custom classes use ``#opm-css``; finish cleanup must not invent ``#let`` stubs."""
+    body = 'la#opm-css("inverted")[n]guish #tei_l1[line]'
+    out = apply_typst_finish_cleanup(body)
+    assert '#let inverted' not in out
+    assert '#opm-css("inverted")[n]' in out
+
+
 def test_wrap_typst_classes_innermost_first() -> None:
     inner = 'text'
     config = {'typst_functions': frozenset({'tei_pb', 'tei_pb2'})}
@@ -30,7 +38,7 @@ def test_wrap_typst_classes_css_class_only() -> None:
         ['tei-title', 'tei-title10', 'r', 'title'],
         'Section',
     )
-    assert wrapped == '#title[Section]'
+    assert wrapped == '#opm-css("title")[Section]'
 
 
 def test_wrap_typst_classes_output_rendition_and_css_class() -> None:
@@ -40,7 +48,7 @@ def test_wrap_typst_classes_output_rendition_and_css_class() -> None:
         ['tei-emphasis', 'tei-emphasis1', 'r', 'customEmph'],
         'text',
     )
-    assert wrapped == '#customEmph[#tei_emphasis1[text]]'
+    assert wrapped == '#opm-css("customEmph")[#tei_emphasis1[text]]'
 
 
 def test_wrap_typst_classes_skips_undefined_renditions() -> None:
@@ -53,13 +61,13 @@ def test_wrap_typst_classes_skips_undefined_renditions() -> None:
 def test_wrap_typst_classes_wraps_css_class() -> None:
     config: dict = {'typst_functions': frozenset()}
     wrapped = _wrap_typst_classes(config, ['tei-guilabel', 'tei-guilabel1', 'r', 'guilabel'], 'Save')
-    assert wrapped == '#guilabel[Save]'
+    assert wrapped == '#opm-css("guilabel")[Save]'
 
 
 def test_wrap_typst_classes_wraps_multiple_css_classes() -> None:
     config: dict = {'typst_functions': frozenset()}
     wrapped = _wrap_typst_classes(config, ['r', 'persName', 'context'], 'Name')
-    assert wrapped == '#context[#persName[Name]]'
+    assert wrapped == '#opm-css("context")[#opm-css("persName")[Name]]'
 
 
 def test_apply_inline_styling_wraps_output_rendition() -> None:
@@ -93,7 +101,7 @@ def test_apply_inline_styling_wraps_output_rendition_and_css_class() -> None:
         ['tei-emphasis', 'tei-emphasis1', 'r', 'customEmph'],
         'Demo Collection',
     )
-    assert result == '#customEmph[#tei_emphasis1[Demo Collection]]'
+    assert result == '#opm-css("customEmph")[#tei_emphasis1[Demo Collection]]'
 
 
 def test_apply_inline_styling_rend_bold() -> None:
@@ -134,7 +142,7 @@ def test_typst_heading_wraps_css_class() -> None:
         level=1,
     )
     text = ''.join(result)
-    assert text == '\n= #doc_title[My Title]\n\n'
+    assert text == '\n= #opm-css("doc_title")[My Title]\n\n'
 
 
 def test_typst_heading_wraps_output_rendition() -> None:
@@ -156,7 +164,7 @@ def test_typst_heading_wraps_output_rendition() -> None:
         level=1,
     )
     text = ''.join(result)
-    assert text == '\n= #doc_title[#tei_title9[My Title]]\n\n'
+    assert text == '\n= #opm-css("doc_title")[#tei_title9[My Title]]\n\n'
 
 
 def test_strip_html_markup_removes_tags_and_unescapes() -> None:
@@ -310,6 +318,30 @@ def test_typst_note_emits_inline_footnote() -> None:
     result = pmf.note(config, Node(), [], ['note text'], None, None)
     assert result == ['#footnote[note text]']
     assert 'footnotes' not in config
+
+
+def test_typst_note_margin_emits_marginnote() -> None:
+    class Node:
+        def get(self, key):
+            return None
+
+    pmf = TypstOutputFunctions()
+    config: dict = {
+        'apply_children': lambda cfg, node, content, buf: buf.extend(content),
+    }
+    result = pmf.note(config, Node(), [], ['42'], 'margin', None)
+    assert result == ['#marginnote[42]']
+    # ODD XPath often yields a singleton sequence for string params.
+    result_seq = pmf.note(config, Node(), [], ['42'], ['margin'], None)
+    assert result_seq == ['#marginnote[42]']
+
+
+def test_apply_typst_finish_cleanup_preserves_marginnote() -> None:
+    """Direct ``#marginnote`` aliases from the shell must survive finish cleanup."""
+    raw = 'text|#marginnote[12] more'
+    cleaned = apply_typst_finish_cleanup(raw)
+    assert '#marginnote[12]' in cleaned
+    assert '#let marginnote' not in cleaned
 
 
 def test_escape_typst_at_signs_escapes_attribute_mentions() -> None:

@@ -30,6 +30,18 @@ from opm.runtime.output_functions import (
 
 TYPST_INDENT = '  '
 
+
+def _param_str(value) -> str:
+    """Coerce an ODD behaviour parameter (string or singleton sequence) to text."""
+    if value is None:
+        return ''
+    if isinstance(value, (list, tuple)):
+        if not value:
+            return ''
+        value = value[0]
+    return str(value).strip()
+
+
 _HTML_COMMENT_RE = re.compile(r'<!--.*?-->', re.DOTALL)
 _HTML_TAG_RE = re.compile(r'<[^>]+>')
 _FENCED_CODE_RE = re.compile(r'```[^\n]*\n.*?```', re.DOTALL)
@@ -210,11 +222,13 @@ def _wrap_buf_dispatch_classes(config: dict, cls: list, buf: list) -> None:
 
 
 def _typst_wrap_class_names(cls: list, defined: frozenset[str]) -> list[str]:
-    """Return class names to wrap as ``#ident[content]``, innermost first.
+    """Return class names to wrap, innermost first.
 
     - ``tei-*`` / ``simple_*`` with an ODD-generated ``#let`` (in *defined*)
-    - any other dispatch class (from ``@cssClass``); the project Typst template
-      must define matching ``#let`` functions
+      become ``#ident[content]``
+    - any other dispatch class (from ``@cssClass`` / ``@rend``) becomes
+      ``#opm-css("ident")[content]``; the Typst shell decides whether a
+      handler exists or the content passes through
 
     Tokens containing ``(`` (e.g. ``color(red)`` from ``@rend``) are skipped
     because they are not valid Typst identifiers.
@@ -255,12 +269,23 @@ def _css_classes_without_typst_wrap(config: dict, cls: list) -> list:
     return filtered
 
 
+def _typst_string_literal(value: str) -> str:
+    """Return *value* as a Typst ``"…"`` string literal."""
+    escaped = value.replace('\\', '\\\\').replace('"', '\\"')
+    return f'"{escaped}"'
+
+
 def _wrap_typst_classes(config: dict, cls: list, inner: str) -> str:
     """Wrap *inner* in Typst functions for ODD renditions and ``@cssClass`` names."""
     defined = _get_typst_functions(config)
     for name in _typst_wrap_class_names(cls, defined):
         fn = typst_ident_from_class(name)
-        inner = f'#{fn}[{inner}]'
+        if name.startswith(('tei-', 'simple_')):
+            inner = f'#{fn}[{inner}]'
+        else:
+            # Project templates register handlers in ``opm-css-fns``; unknown
+            # names pass through unchanged (no Python-side stub list).
+            inner = f'#opm-css({_typst_string_literal(fn)})[{inner}]'
     return inner
 
 
@@ -329,6 +354,10 @@ def apply_typst_finish_cleanup(text: str) -> str:
     Character escaping (#, $, @, *, _) is handled at the text-node level via
     ``config['text_escape']`` (see ``escape_typst_text_node``).  Only HTML tag
     stripping and structural markdown normalisation are performed here.
+
+    Custom ``@cssClass`` / ``@rend`` wrappers are emitted as ``#opm-css("…")[…]``
+    so missing handlers fall through in Typst; no identity ``#let`` stubs are
+    injected here.
     """
     text, fenced = _protect_fenced_code_blocks(text)
     text = strip_html_markup(text)
@@ -571,10 +600,14 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         return [f'#image("{href}")']
 
     def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
-        _ = place, label
+        _ = label
         buf: list = []
         config['apply_children'](config, node, content, buf)
         body = _join_buf(buf).strip()
+        place_s = _param_str(place)
+        if place_s and place_s.lower() == 'margin':
+            # Document shells define ``#marginnote``; finish cleanup will not stub it.
+            return [f'#marginnote[{body}]']
         return [f'#footnote[{body}]']
 
     def cit(self, config, node, cls, content, source=None) -> PMResult:

@@ -25,26 +25,37 @@
 #set heading(numbering: "1.")
 #set par(justify: true)
 
-#let guilabel(body) = text(fill: blue)[#body]
-#let guibutton(body) = box(
+#let opm-css-fns = (
+  pb: (body) => {
+    pagebreak(weak: true)
+    body
+  },
+  marginnote: (body) => {
+    box(width: 0pt, inset: 0pt, outset: 0pt, {
+      place(top + right, dx: 0.6em, dy: 0em,
+        box(width: 2.4cm, text(size: 0.75em, fill: luma(100))[#body]))
+    })
+  },
+  guilabel: (body) => text(fill: blue)[#body],
+  guibutton: (body) => box(
     stroke: 1pt,
     inset: 2pt,
     radius: 3pt,
-    baseline: 2pt
-)[ #text(size: 0.8em)[#body] ]
+    baseline: 2pt,
+  )[ #text(size: 0.8em)[#body] ],
+  code: (body) => text(font: "DejaVu Sans Mono", size: 0.8em)[#body],
+  guimenuitem: (body) => box(
+    fill: color.mix((blue, 15%), (white, 85%)),
+    inset: (left: 0.2em, right: 0.2em, top: 0.1em, bottom: 0.1em),
+    radius: 3pt,
+  )[#body],
+  note: (body) => box(
+    inset: (left: 0.8em, top: 0.3em, bottom: 0.3em),
+    stroke: (left: (paint: rgb(246, 166, 35), thickness: 3pt)),
+    radius: 0pt,
+  )[#body],
+)
 
-#let code(body) = text(font: "DejaVu Sans Mono", size: 0.8em)[#body]
-
-#let guimenuitem(body) = box(
-  fill: color.mix((blue, 15%), (white, 85%)),
-  inset: (left: 0.2em, right: 0.2em, top: 0.1em, bottom: 0.1em),
-  radius: 3pt,
-)[#body]
-
-#let note(content) = box(
-  inset: (left: 0.8em, top: 0.3em, bottom: 0.3em),
-  stroke: ( left: (paint: rgb(246, 166, 35), thickness: 3pt) ),
-  radius: 0pt,
-)[ #content ]
+{% include "opm_css.typ.j2" %}
 
 {{ content_typst }}

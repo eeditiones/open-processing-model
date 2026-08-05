@@ -100,6 +100,16 @@ def render_document_template(
     )
 
 
+def _typst_template_loader(template_path: Path) -> FileSystemLoader:
+    """Load templates from *template_path*'s directory and packaged defaults."""
+    searchpaths = [str(template_path.parent)]
+    packaged = default_template_path(DEFAULT_TYPST_TEMPLATE_NAME).parent
+    packaged_str = str(packaged)
+    if packaged_str not in searchpaths:
+        searchpaths.append(packaged_str)
+    return FileSystemLoader(searchpaths)
+
+
 def render_typst_document_template(
     *,
     content_typst: str,
@@ -110,7 +120,7 @@ def render_typst_document_template(
 ) -> str:
     """Render Typst body content through the selected Jinja2 document shell."""
     env = Environment(
-        loader=FileSystemLoader(str(template_path.parent)),
+        loader=_typst_template_loader(template_path),
         autoescape=False,
     )
     try:

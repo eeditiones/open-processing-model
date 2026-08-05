@@ -32,9 +32,25 @@ def test_render_typst_document_template() -> None:
         odd_typst='#let tei_pb2(body) = body\n',
         parameters={'title': 'Test'},
     )
+    assert '#let opm-css(name, body)' in out
+    assert '#let pb(body) = opm-css("pb", body)' in out
     assert '#let tei_pb2(body)' in out
     assert '= Hello' in out
     assert 'title: "Test"' in out
+
+
+def test_render_typst_project_template_includes_packaged_opm_css() -> None:
+    tpl = Path('templates/documentation.typ.j2')
+    out = render_typst_document_template(
+        content_typst='= Hello\n',
+        template_path=tpl,
+        odd_typst='',
+        parameters={},
+        metadata={'title': ['Doc Title']},
+    )
+    assert '#let opm-css(name, body)' in out
+    assert 'guilabel:' in out
+    assert '= Hello' in out
 
 
 def test_resolve_typst_template_path_raises_for_missing(tmp_path: Path) -> None:

@@ -1,0 +1,14 @@
+// Default handlers for ODD @cssClass names. Extend in a project template, e.g.:
+//   #let opm-css-fns = opm-css-fns + ( center: (body) => align(center, body), )
+#let opm-css-fns = (
+  pb: (body) => {
+    pagebreak(weak: true)
+    body
+  },
+  marginnote: (body) => {
+    box(width: 0pt, inset: 0pt, outset: 0pt, {
+      place(top + right, dx: 0.6em, dy: 0em,
+        box(width: 2.4cm, text(size: 0.75em, fill: luma(100))[#body]))
+    })
+  },
+)
