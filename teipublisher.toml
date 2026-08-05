@@ -2,30 +2,22 @@
 pythonpath = ["extensions"]
 
 [transform]
+odd = "odd/docbook.odd"
 xpath_extensions = [
     "opm.runtime.common_xpath_functions"
 ]
-
-[transform.web]
-odd = "odd/docbook.odd"
 
 [transform.web.webcomponents]
 # Enable TEI Publisher web-component output mode by default.
 enabled = true
 
 [transform.docx]
-odd = "odd/docbook.odd"
 template = "templates/default.docx"
 
 [transform.typst]
-odd = "odd/docbook.odd"
 template = "templates/documentation.typ.j2"
 
-[transform.markdown]
-odd = "odd/docbook.odd"
-
 [chunking]
-odd = "odd/docbook.odd"
 selector = "opm.navigation.dbk_section_chunks"
 depth = 2
 output_dir = "chunks"

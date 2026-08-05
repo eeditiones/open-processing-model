@@ -4,6 +4,10 @@
 # pythonpath = ["extensions"]
 
 [transform]
+# Default ODD for every output mode (compiled on demand into the user cache).
+# Per-type tables may override with their own odd = "...".
+# odd = "odd/teipublisher.odd"
+
 # XPath extension modules loaded into the tp: namespace.
 xpath_extensions = [
     "opm.runtime.common_xpath_functions"
@@ -19,9 +23,7 @@ xpath_extensions = [
 # ]
 
 [transform.web]
-# ODD compiled on demand into the user cache. When omitted, the packaged
-# teipublisher ODD is used.
-# odd = "odd/teipublisher.odd"
+# Optional override: odd = "odd/web-only.odd"
 
 [transform.web.webcomponents]
 # Enable TEI Publisher web-component output mode by default.
@@ -34,12 +36,12 @@ enabled = false
 # version = "3.0.5"
 
 [transform.docx]
-# odd = "odd/teipublisher.odd"
+# Optional override: odd = "odd/docx-only.odd"
 # Word style template used for DOCX output.
 # template = "templates/corporate.docx"
 
 [transform.typst]
-# odd = "odd/teipublisher.odd"
+# Optional override: odd = "odd/typst-only.odd"
 # Typst document-shell template used for Typst output.
 # template = "templates/book.typ.j2"
 
@@ -51,7 +53,7 @@ enabled = false
 # css = "templates/default.css"
 
 [chunking]
-# ODD compiled on demand. Falls back to [transform.web] / packaged default when omitted.
+# ODD compiled on demand. Falls back to [transform].odd / packaged default when omitted.
 # odd = "odd/teipublisher.odd"
 
 # XPath expression selecting chunk root elements.

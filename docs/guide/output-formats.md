@@ -34,12 +34,12 @@ the path is printed on stderr.
 Pass an ODD with `--odd`/`-d`, or select from your TOML config with `--type`/`-t`
 (and `-c` if the config is not `opm.toml`):
 
-| `--type` | Config key |
-| --- | --- |
-| `web` | `[transform.web].odd` |
-| `docx` | `[transform.docx].odd` |
-| `typst` | `[transform.typst].odd` |
-| `markdown`, `print`, … | `[transform.<type>].odd` |
+| `--type` | Config key (override) | Falls back to |
+| --- | --- | --- |
+| `web` | `[transform.web].odd` | `[transform].odd` |
+| `docx` | `[transform.docx].odd` | `[transform].odd` |
+| `typst` | `[transform.typst].odd` | `[transform].odd` |
+| `markdown`, `print`, … | `[transform.<type>].odd` | `[transform].odd` |
 
 ```bash
 # Explicit ODD (compiled on demand)
@@ -51,8 +51,9 @@ uv run opm transform demo/tei-test.xml -c teipublisher.toml -t typst -o out.typ
 uv run opm transform demo/tei-test.xml -c teipublisher.toml -t docx -o out.docx
 ```
 
-`--odd`/`-d` overrides `--type` config lookup. Omitting both falls back to
-`[transform.web]` or the packaged stock teipublisher ODD. Details are in
+`--odd`/`-d` overrides config lookup. Omitting both falls back to
+`[transform.<type>].odd`, then `[transform].odd`, then the packaged stock
+teipublisher ODD. Details are in
 [Configuration](configuration.md#selecting-an-odd-by-type).
 
 ## HTML (`web`)

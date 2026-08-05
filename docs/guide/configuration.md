@@ -15,22 +15,20 @@ the config file.
 pythonpath = ["extensions"]
 
 [transform]
+# Default ODD for every output mode (compiled on demand)
+odd = "odd/teipublisher.odd"
 # XPath extension modules loaded for every transform (see XPath extensions guide)
 xpath_extensions = ["extensions.my_functions"]
 # XML documents available to XPath doc(); paths are relative to this config file
 documents = ["data/authority.xml", "data/lookup.xml"]
 
-[transform.web]
-# ODD compiled on demand into the user cache
-odd = "odd/teipublisher.odd"
-
 [transform.docx]
-odd = "odd/teipublisher.odd"
+# Optional per-mode ODD override; omit to use [transform].odd
+# odd = "odd/docx-special.odd"
 # Default Word style template for DOCX output (overridable with --template)
 template = "templates/corporate.docx"
 
 [transform.typst]
-odd = "odd/teipublisher.odd"
 # Default Typst (.typ.j2) template for Typst output
 template = "templates/book.typ.j2"
 
@@ -47,8 +45,8 @@ template = "templates/default.html.j2"
 css = "styles/main.css"
 
 [chunking]
-# ODD used for chunking (falls back to [transform.web] / packaged default)
-odd = "odd/teipublisher.odd"
+# ODD used for chunking (falls back to [transform].odd / packaged default)
+# odd = "odd/teipublisher.odd"
 # XPath expression selecting chunk root elements
 xpath = "//text/body/div"
 # Python callable for custom chunk selection logic
@@ -68,11 +66,11 @@ link_pattern = "/{stem}/"
 | Section | Purpose | Related guide |
 | --- | --- | --- |
 | `[project]` | `pythonpath` additions so local extension modules import | [XPath extensions](xpath-extensions.md) |
-| `[transform]` | Shared settings (`xpath_extensions`, `documents`, `parameters`) | [Output formats](output-formats.md) |
-| `[transform.web]` | Web transform `odd` | [Output formats](output-formats.md) |
-| `[transform.docx]` | DOCX transform `odd` and Word style `template` | [Output formats](output-formats.md#docx) |
-| `[transform.typst]` | Typst transform `odd` and Typst `template` | [Output formats](output-formats.md#typst) |
-| `[transform.markdown]`, … | Other per-type `odd` (and optional `template`) entries | [Output formats](output-formats.md) |
+| `[transform]` | Shared settings (`odd`, `xpath_extensions`, `documents`, `parameters`) | [Output formats](output-formats.md) |
+| `[transform.web]` | Optional web-only `odd` override | [Output formats](output-formats.md) |
+| `[transform.docx]` | Optional DOCX `odd` override and Word style `template` | [Output formats](output-formats.md#docx) |
+| `[transform.typst]` | Optional Typst `odd` override and Typst `template` | [Output formats](output-formats.md#typst) |
+| `[transform.markdown]`, … | Other optional per-type `odd` (and `template`) overrides | [Output formats](output-formats.md) |
 | `[transform.web.webcomponents]` | Web-only `enabled` flag and `cdn` URL for pb-components | [Templates & CSS](templates-and-css.md#web-components) |
 | `[document]` | HTML `template` and `css` | [Templates & CSS](templates-and-css.md) |
 | `[chunking]` | Splitting rules, output, templates, fragments | [Chunking](chunking.md) |
@@ -93,16 +91,23 @@ to that input document's URI and must match one of the configured document URIs.
 `opm transform --type|-t` picks the ODD from config without passing `--odd`.
 ODDs are compiled on demand into the user cache.
 
-| `--type` | Config key |
-| --- | --- |
-| `web` (default when `--type` is omitted) | `[transform.web].odd` |
-| `docx` | `[transform.docx].odd` |
-| `typst` | `[transform.typst].odd` |
-| `markdown`, `print`, … | `[transform.<type>].odd` |
+Precedence for each mode:
 
-`--odd`/`-d` always wins when given; then the config key for the selected type;
-then the packaged stock teipublisher ODD. Legacy top-level `[docx]` /
-`[typst]` sections are still accepted as a fallback.
+1. `--odd` / `-d` on the CLI
+2. `[transform.<type>].odd` for the selected `--type`
+3. `[transform].odd` (shared default)
+4. Packaged stock teipublisher ODD
+
+| `--type` | Config key (override) | Falls back to |
+| --- | --- | --- |
+| `web` (default when `--type` is omitted) | `[transform.web].odd` | `[transform].odd` |
+| `docx` | `[transform.docx].odd` | `[transform].odd` |
+| `typst` | `[transform.typst].odd` | `[transform].odd` |
+| `markdown`, `print`, … | `[transform.<type>].odd` | `[transform].odd` |
+
+Legacy configs that only set `[transform.web].odd` still work: that value is
+treated as the shared default when `[transform].odd` is omitted. Legacy
+top-level `[docx]` / `[typst]` sections are still accepted as a fallback.
 
 ```bash
 uv run opm transform demo/tei-test.xml -c teipublisher.toml -t web --preview
