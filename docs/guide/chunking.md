@@ -54,6 +54,16 @@ uv run opm chunk demo/tei-test.xml --format json -o _data/chunks
 uv run opm chunk demo/tei-test.xml --format pb-view --doc-path my-doc -o public
 ```
 
+Pass a directory of XML files to chunk every document. HTML and JSON write each
+document into its own subdirectory (`<output-dir>/<file>.xml/`); `pb-view`
+appends the filename to `--doc-path`.
+
+```bash
+uv run opm chunk docs/ -o chunks/ --force
+uv run opm chunk docs/ --format json -o _data/chunks
+uv run opm chunk docs/ --format pb-view --doc-path letters -o public
+```
+
 ## Fragments
 
 Alongside the main chunk content, you can extract **fragments** — secondary

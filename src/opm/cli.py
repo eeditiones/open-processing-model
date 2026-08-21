@@ -14,8 +14,12 @@ from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
-from click.exceptions import NoArgsIsHelpError, UsageError
 from typer.main import get_command
+
+try:
+    from typer._click.exceptions import NoArgsIsHelpError, UsageError
+except ImportError:  # typer < 0.27 still depends on the click package
+    from click.exceptions import NoArgsIsHelpError, UsageError
 
 from lxml import etree
 
@@ -440,7 +444,7 @@ def chunk(
     input_xml: Annotated[
         Optional[Path],
         typer.Argument(
-            help='XML file to transform and chunk, or a directory of XML files for --format pb-view.',
+            help='XML file to transform and chunk, or a directory of XML files.',
         ),
     ] = None,
     odd: Annotated[
@@ -573,12 +577,6 @@ def chunk(
 
         input_files = _chunk_input_files(input_xml)
         if input_xml.is_dir():
-            if output_format not in ('json', 'pb-view'):
-                typer.echo(
-                    'opm: error: directory input is currently supported only with --format json or --format pb-view.',
-                    err=True,
-                )
-                raise SystemExit(1)
             if not input_files:
                 typer.echo(
                     f'opm: error: no XML files found in directory {input_xml}.',
@@ -631,7 +629,7 @@ def chunk(
                         chunking_config,
                         output_dir=_append_output_dir(chunking_config.output_dir, xml_file),
                     )
-                    if input_xml.is_dir() and output_format == 'json'
+                    if input_xml.is_dir() and output_format != 'pb-view'
                     else chunking_config
                 )
                 effective_doc_path = (
@@ -670,7 +668,7 @@ def chunk(
             typer.echo(f'  - css/{odd_name}.css: ODD stylesheet')
         else:
             ext = 'json' if output_format == 'json' else 'html'
-            if input_xml.is_dir() and output_format == 'json':
+            if input_xml.is_dir():
                 typer.echo('  - <document>.xml/manifest.json: metadata for static site builders')
                 typer.echo(f'  - <document>.xml/*.{ext}: chunk files')
             else:

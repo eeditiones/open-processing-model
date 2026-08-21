@@ -549,3 +549,34 @@ output_dir = "json-site"
     two_manifest = json.loads((site / 'two.xml' / 'manifest.json').read_text(encoding='utf-8'))
     assert 'self' in one_chunk['content']
     assert two_manifest['anchors'] == {'a': '001.html', 'b': '002.html'}
+
+
+def test_chunk_directory_html_writes_each_document_to_own_directory(tmp_path: Path, monkeypatch) -> None:
+    _write_tiny_odd(tmp_path / 'teipublisher.odd')
+    docs = tmp_path / 'docs'
+    docs.mkdir()
+    _write_chunking_fixture_xml(docs / 'one.xml')
+    _write_chunking_fixture_xml(docs / 'two.xml')
+    (tmp_path / 'opm.toml').write_text(
+        """[chunking]
+odd = "teipublisher.odd"
+xpath = "//body/div[@type='chunk']"
+output_dir = "html-site"
+""",
+        encoding='utf-8',
+    )
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['chunk', 'docs', '--format', 'html', '-c', 'opm.toml'])
+
+    assert rc == 0
+    site = tmp_path / 'html-site'
+    assert (site / 'one.xml' / 'manifest.json').is_file()
+    assert (site / 'one.xml' / '001.html').is_file()
+    assert (site / 'two.xml' / 'manifest.json').is_file()
+    assert (site / 'two.xml' / '002.html').is_file()
+
+    one_html = (site / 'one.xml' / '001.html').read_text(encoding='utf-8')
+    two_manifest = json.loads((site / 'two.xml' / 'manifest.json').read_text(encoding='utf-8'))
+    assert 'self' in one_html
+    assert two_manifest['anchors'] == {'a': '001.html', 'b': '002.html'}
