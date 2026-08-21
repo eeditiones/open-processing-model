@@ -1,14 +1,29 @@
 // Default handlers for ODD @cssClass names. Extend in a project template, e.g.:
 //   #let opm-css-fns = opm-css-fns + ( center: (body) => align(center, body), )
+//
+// Margin notes use the marginalia package; templates must apply
+// ``#show: marginalia.setup.with(...)`` (see default_document.typ.j2).
+#import "@preview/marginalia:0.3.1" as marginalia: note
+
+#let opm-margin-note-width = 2.8cm
+#let opm-margin-note-sep = 0.75em
+#let opm-margin-note-far = 2cm
+
+#let opm-marginnote = note.with(
+  counter: none,
+  shift: false,
+  side: "outer",
+  text-style: (size: 0.75em, fill: luma(80)),
+  block-style: (
+    inset: (left: 0.45em),
+    stroke: (left: 0.4pt + luma(170)),
+  ),
+)
+
 #let opm-css-fns = (
   pb: (body) => {
     pagebreak(weak: true)
     body
   },
-  marginnote: (body) => {
-    box(width: 0pt, inset: 0pt, outset: 0pt, {
-      place(top + right, dx: 0.6em, dy: 0em,
-        box(width: 2.4cm, text(size: 0.75em, fill: luma(100))[#body]))
-    })
-  },
+  marginnote: (body) => opm-marginnote(body),
 )

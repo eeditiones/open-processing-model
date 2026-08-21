@@ -638,13 +638,16 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         return []
 
     def break_(self, config, node, cls, content, type=None, label=None) -> PMResult:
-        _ = content
+        _ = content, cls, label
         if (type or '').lower() == 'page':
             lb = _join_buf(normalize(label)) if label is not None else ''
             if lb:
                 return [f'\n#pagebreak()\n_{lb}_\n']
             return ['\n#pagebreak()\n']
-        return [' \\\n']
+        # Prefer #linebreak(); over \ so a break immediately before ] cannot
+        # form Typst's \] escape (e.g. end of #footnote[…]), and the trailing
+        # semicolon stops #(…) after the call from being parsed as more args.
+        return ['#linebreak();']
 
     def anchor(self, config, node, cls, content, id=None) -> PMResult:
         sid = str(id) if id else ''

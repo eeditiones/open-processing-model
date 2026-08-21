@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from lxml import etree
 
 from opm.runtime.markdown_output_functions import normalize_markdown_xml_text
@@ -68,6 +70,20 @@ def test_wrap_typst_classes_wraps_multiple_css_classes() -> None:
     config: dict = {'typst_functions': frozenset()}
     wrapped = _wrap_typst_classes(config, ['r', 'persName', 'context'], 'Name')
     assert wrapped == '#opm-css("context")[#opm-css("persName")[Name]]'
+
+
+def test_break_line_emits_typst_markup() -> None:
+    pmf = TypstOutputFunctions()
+    config: dict = {'typst_functions': frozenset()}
+
+    class Node:
+        def get(self, key):
+            return None
+
+    node = Node()
+    assert pmf.break_(
+        config, node, ['tei-lb', 'tei-lb2', 'r', 'lb'], node, type='line',
+    ) == ['#linebreak();']
 
 
 def test_apply_inline_styling_wraps_output_rendition() -> None:
@@ -498,3 +514,28 @@ def test_apply_inline_styling_rend_unknown_function_is_ignored() -> None:
     result = _apply_inline_styling(config, Node(), ['tei-hi', 'tei-hi1', 'unknown(value)'], 'text')
     assert 'unknown(value)' not in result
     assert result == 'text'
+
+
+def test_dta_odd_lb_uses_pass_through_template_for_typst(tmp_path) -> None:
+    """DTA ``<lb/>`` typst models use ``pass-through`` + ``pb:template``, not ``#opm-css("lb")[]``."""
+    from opm.odd_compiler import compile_odd
+    from opm.transform import load_transform_module, run_transform
+
+    tei = 'http://www.tei-c.org/ns/1.0'
+    root = etree.fromstring(
+        f'<TEI xmlns="{tei}"><text><body>'
+        f'<p>son<lb break="no"/>dern</p>'
+        f'<head>Title<lb/>(subtitle)</head>'
+        f'</body></text></TEI>'.encode()
+    )
+    odd_path = Path(__file__).resolve().parents[1] / 'odd' / 'dta.odd'
+    mod_path = tmp_path / 'dta_typst.py'
+    mod_path.write_text(compile_odd(str(odd_path), output_mode='typst'), encoding='utf-8')
+    mod = load_transform_module(mod_path)
+    body = run_transform(mod, root, apply_template=False)
+    assert '#opm-css("lb")' not in body
+    assert 'son-#linebreak();dern' in body
+    assert 'Title#linebreak();(subtitle)' in body
+    # Bare -\\ before ] would escape Typst's closing bracket (e.g. #footnote).
+    assert '-\\' not in body
+    assert '\\]' not in body

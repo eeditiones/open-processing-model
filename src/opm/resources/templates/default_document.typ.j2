@@ -3,6 +3,14 @@
 
 // Handlers for ODD @cssClass / @rend names emitted as #opm-css("name")[…].
 {% include "opm_css_fns_default.typ.j2" %}
+
+#show: marginalia.setup.with(
+  inner: (far: 2.5cm),
+  outer: (far: opm-margin-note-far, width: opm-margin-note-width, sep: opm-margin-note-sep),
+  top: 2.5cm,
+  bottom: 2.5cm,
+)
+
 {% include "opm_css.typ.j2" %}
 
 {{ odd_typst }}

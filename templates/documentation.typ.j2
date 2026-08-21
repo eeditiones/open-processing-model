@@ -20,22 +20,16 @@
 #set text(font: ("New Computer Modern", "Times New Roman"))
 #show raw: set text(font: ("Iosevka", "DejaVu Sans Mono", "Courier New"))
 
-{{ odd_typst }}
+{% include "opm_css_fns_default.typ.j2" %}
 
-#set heading(numbering: "1.")
-#set par(justify: true)
+#show: marginalia.setup.with(
+  inner: (far: 2.5cm),
+  outer: (far: opm-margin-note-far, width: opm-margin-note-width, sep: opm-margin-note-sep),
+  top: 2.5cm,
+  bottom: 2.5cm,
+)
 
-#let opm-css-fns = (
-  pb: (body) => {
-    pagebreak(weak: true)
-    body
-  },
-  marginnote: (body) => {
-    box(width: 0pt, inset: 0pt, outset: 0pt, {
-      place(top + right, dx: 0.6em, dy: 0em,
-        box(width: 2.4cm, text(size: 0.75em, fill: luma(100))[#body]))
-    })
-  },
+#let opm-css-fns = opm-css-fns + (
   guilabel: (body) => text(fill: blue)[#body],
   guibutton: (body) => box(
     stroke: 1pt,
@@ -55,6 +49,11 @@
     radius: 0pt,
   )[#body],
 )
+
+{{ odd_typst }}
+
+#set heading(numbering: "1.")
+#set par(justify: true)
 
 {% include "opm_css.typ.j2" %}
 
