@@ -41,7 +41,7 @@ uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t docx -o output
 ```
 
 With ODDs declared in a TOML config (see
-[Configuration](../guide/configuration.md#selecting-a-module-by-type)), omit
+[Configuration](../guide/configuration.md#selecting-an-odd-by-type)), omit
 `--odd` and select the format with `--type`/`-t`:
 
 ```bash

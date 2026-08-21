@@ -33,7 +33,7 @@ groups:
 
 ```bash
 uv sync --group dev     # pytest and other dev tools
-uv sync --group docs    # mkdocs-material + mkdocstrings (this site)
+uv sync --group docs    # zensical + mkdocstrings (this site)
 ```
 
 ## 3. Verify
@@ -54,6 +54,7 @@ uv run --group dev pytest tests/test_odd_compiler.py -q   # one file
 ## Building this documentation
 
 ```bash
-uv run --group docs mkdocs serve       # live-reload at http://127.0.0.1:8000
-uv run --group docs mkdocs build       # static site into ./site
+uv run python scripts/gen_cli_docs.py  # refresh CLI reference from the Typer app
+uv run --group docs zensical serve     # live-reload at http://127.0.0.1:8000
+uv run --group docs zensical build     # static site into ./site
 ```

@@ -41,11 +41,12 @@ uv run --group dev pytest tests/test_odd_compiler.py # single file
 
 ## Documentation
 
-The docs site is built with [MkDocs](https://www.mkdocs.org/) (Material theme +
-mkdocstrings). To preview locally:
+The docs site is built with [Zensical](https://zensical.org/) (successor to
+Material for MkDocs, plus mkdocstrings). To preview locally:
 
 ```bash
 uv sync --group docs
-uv run --group docs mkdocs serve                     # http://127.0.0.1:8000
-uv run --group docs mkdocs build                     # static site into ./site
+uv run python scripts/gen_cli_docs.py                # refresh CLI reference from the Typer app
+uv run --group docs zensical serve                   # http://127.0.0.1:8000
+uv run --group docs zensical build                   # static site into ./site
 ```

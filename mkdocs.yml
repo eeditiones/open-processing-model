@@ -6,6 +6,7 @@ edit_uri: edit/main/docs/
 
 theme:
   name: material
+  variant: classic
   logo: assets/logo.svg
   favicon: assets/logo.svg
   features:
@@ -49,9 +50,11 @@ markdown_extensions:
       alternate_style: true
   - pymdownx.details
 
+watch:
+  - src
+
 plugins:
   - search
-  - mkdocs-typer2
   - mkdocstrings:
       handlers:
         python:
