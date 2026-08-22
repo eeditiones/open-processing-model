@@ -5,7 +5,7 @@ from __future__ import annotations
 from lxml import etree
 
 from opm.config import ChunkingConfig
-from opm.navigation import tei_pb_chunks
+from opm.navigation import dbk_section_chunks, tei_pb_chunks
 from opm.runtime.output_functions import XML_ID
 
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
@@ -99,3 +99,24 @@ def test_tei_pb_chunks_prefers_existing_xml_id() -> None:
 def test_tei_pb_chunks_empty_without_pb() -> None:
     root = _parse(f'<TEI xmlns="{TEI_NS}"><text><body><div><p>x</p></div></body></text></TEI>')
     assert tei_pb_chunks(root, ChunkingConfig()) == []
+
+
+def test_dbk_intro_chunks_are_detached_copies() -> None:
+    """Fill intros are new elements; ``$parameters?root`` maps back via xml:id."""
+    dbk = 'http://docbook.org/ns/docbook'
+    root = etree.fromstring(
+        f'''<article xmlns="{dbk}">
+  <info><title>Guide</title></info>
+  <section xml:id="install">
+    <title>Install</title>
+    <para>Intro</para>
+    <section xml:id="pip"><title>pip</title><para>x</para></section>
+  </section>
+</article>'''.encode(),
+    )
+    chunks = dbk_section_chunks(root, ChunkingConfig(depth=2))
+    assert len(chunks) == 2
+    intro, pip = chunks
+    assert intro.get(XML_ID) == 'install'
+    assert intro.getroottree().getroot() is intro
+    assert pip.getroottree().getroot() is root

@@ -553,3 +553,134 @@ def test_select_chunks_resolves_default_namespace(tmp_path: Path) -> None:
     assert (out_dir / '001.json').is_file()
     assert (out_dir / '002.json').is_file()
     assert not (out_dir / '003.json').is_file()
+
+
+DOCBOOK_ODD = ROOT / 'odd' / 'docbook.odd'
+
+
+@pytest.mark.skipif(not DOCBOOK_ODD.is_file(), reason='odd/docbook.odd not found')
+def test_docbook_per_chunk_breadcrumbs(tmp_path: Path) -> None:
+    """Each DocBook section chunk gets a breadcrumb trail of ancestor titles.
+
+    Ancestor crumbs are rewritten to the owning chunk file; the current
+    section is unlinked.
+    """
+    from opm.odd_compiler import compile_odd
+
+    module_path = tmp_path / 'docbook_web.py'
+    module_path.write_text(compile_odd(str(DOCBOOK_ODD)), encoding='utf-8')
+
+    xml_path = tmp_path / 'guide.xml'
+    xml_path.write_text(
+        """<article xmlns="http://docbook.org/ns/docbook" version="5.0">
+  <info><title>Guide</title></info>
+  <section xml:id="install">
+    <title>Install</title>
+    <para>Intro</para>
+    <section xml:id="pip">
+      <title>Using pip</title>
+      <para>pip stuff</para>
+    </section>
+  </section>
+  <section xml:id="usage">
+    <title>Usage</title>
+    <para>use it</para>
+  </section>
+</article>
+""",
+        encoding='utf-8',
+    )
+
+    config = ChunkingConfig(
+        selector='opm.navigation.dbk_section_chunks',
+        depth=2,
+        output_dir='dbk-chunks',
+        fragments=[
+            FragmentConfig(
+                name='breadcrumbs',
+                scope='per-chunk',
+                xpath='.',
+                parameters={'mode': 'breadcrumb'},
+            ),
+        ],
+    )
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=config,
+        project_root=tmp_path,
+        output_format='json',
+        xpath_extensions=('opm.runtime.common_xpath_functions',),
+    )
+
+    out = tmp_path / 'dbk-chunks'
+    # depth=2: intro of "install", nested "pip", then "usage"
+    pip = json.loads((out / '002.json').read_text(encoding='utf-8'))
+    usage = json.loads((out / '003.json').read_text(encoding='utf-8'))
+
+    intro = json.loads((out / '001.json').read_text(encoding='utf-8'))
+    intro_crumbs = intro['fragments']['breadcrumbs']
+    assert 'aria-label="breadcrumb"' in intro_crumbs
+    assert 'Guide' in intro_crumbs
+    assert 'Install' in intro_crumbs
+    # Intro copy of a parent section: current crumb is unlinked
+    assert 'href="#install"' not in intro_crumbs
+    assert 'href="001.html#install"' not in intro_crumbs
+
+    crumbs = pip['fragments']['breadcrumbs']
+    assert 'aria-label="breadcrumb"' in crumbs
+    assert 'Guide' in crumbs
+    assert 'Install' in crumbs
+    assert 'Using pip' in crumbs
+    # Ancestor section links to the chunk that owns @xml:id="install"
+    assert 'href="001.html#install"' in crumbs
+    # Current page is not a link
+    assert 'href="#pip"' not in crumbs
+    assert 'href="002.html#pip"' not in crumbs
+
+    usage_crumbs = usage['fragments']['breadcrumbs']
+    assert 'Guide' in usage_crumbs
+    assert 'Usage' in usage_crumbs
+    assert 'href="#usage"' not in usage_crumbs
+    assert 'href="003.html#usage"' not in usage_crumbs
+
+
+def test_chapbook_running_head_uses_title_fragment(tmp_path: Path) -> None:
+    """Chapbook running head shows a global title fragment, not the 'Chapbook' fallback."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'guide.xml'
+    _write_chunking_fixture_module(module_path)
+    xml_path.write_text(
+        """<article xmlns="http://docbook.org/ns/docbook" version="5.0">
+  <info><title>The Book of Tests</title></info>
+  <section xml:id="one"><title>One</title><para>hello</para></section>
+</article>
+""",
+        encoding='utf-8',
+    )
+
+    config = ChunkingConfig(
+        xpath='//section',
+        output_dir='title-chunks',
+        template=ROOT / 'templates' / 'chapbook.html.j2',
+        fragments=[
+            FragmentConfig(
+                name='title',
+                scope='global',
+                xpath='string((/article/info/title, /book/info/title)[1])',
+            ),
+        ],
+    )
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=config,
+        project_root=tmp_path,
+        output_format='html',
+    )
+
+    html = (tmp_path / 'title-chunks' / '001.html').read_text(encoding='utf-8')
+    assert 'class="chap-running__work">The Book of Tests</span>' in html
+    assert '<title>The Book of Tests</title>' in html
+    assert 'class="chap-running__work">Chapbook</span>' not in html

@@ -129,6 +129,22 @@ class ChunkProcessor:
         """
         return getattr(self.module, 'ODD_NAME', '')
 
+    def _source_node(self, node: etree._Element) -> etree._Element:
+        """Original document node that *node* was copied from, else *node*.
+
+        tei-publisher-lib binds this as ``$parameters?root``. Intro copies from
+        :func:`opm.navigation.dbk_section_chunks` keep the source ``xml:id``.
+        """
+        if node.getroottree().getroot() is self.xml_root:
+            return node
+        xml_id = node.get(XML_ID)
+        if not xml_id:
+            return self.xml_root
+        for el in self.xml_root.iter():
+            if isinstance(el, etree._Element) and el.get(XML_ID) == xml_id:
+                return el
+        return self.xml_root
+
     def select_chunks(self) -> list[etree._Element]:
         """Find chunk elements.
 
@@ -284,6 +300,16 @@ class ChunkProcessor:
 
         # Project-wide parameters provide defaults; fragment params override them.
         params = {**self.parameters, **(fragment.parameters or {})}
+        view_root = (
+            self.xml_root if fragment.scope == 'global' else self._source_node(context)
+        )
+        params.update(
+            xpath_runtime_context(
+                base_uri=self.xpath_base_uri,
+                documents=self.xpath_documents,
+                root=view_root,
+            ),
+        )
 
         fragment_content = xpath_select(
             context,
@@ -306,9 +332,11 @@ class ChunkProcessor:
                 if fragment.module
                 else self.module
             )
-            params_key = frozenset(params.items())
+            params_key = frozenset(
+                (k, v) for k, v in params.items() if isinstance(v, str)
+            )
             if _cache is not None and mod is self.module:
-                cache_key = (id(fragment_content), params_key)
+                cache_key = (id(fragment_content), params_key, id(view_root))
                 if cache_key in _cache:
                     return _cache[cache_key]
             result = run_transform(
@@ -321,7 +349,7 @@ class ChunkProcessor:
                 xpath_documents=self.xpath_documents,
             )
             if _cache is not None and mod is self.module:
-                _cache[(id(fragment_content), params_key)] = result
+                _cache[(id(fragment_content), params_key, id(view_root))] = result
             return result
         elif isinstance(fragment_content, str):
             return fragment_content
@@ -383,6 +411,14 @@ class ChunkProcessor:
         cfg = self._transform_config
         # Reset per-chunk state.
         cfg['footnotes'] = []
+        cfg['parameters'] = {
+            **self.parameters,
+            **xpath_runtime_context(
+                base_uri=self.xpath_base_uri,
+                documents=self.xpath_documents,
+                root=self._source_node(chunk),
+            ),
+        }
         reset_counters()
         result = self.module.apply(cfg, [chunk])
         result = cfg['pmf'].finish(cfg, result)
