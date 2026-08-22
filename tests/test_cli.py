@@ -580,3 +580,20 @@ output_dir = "html-site"
     two_manifest = json.loads((site / 'two.xml' / 'manifest.json').read_text(encoding='utf-8'))
     assert 'self' in one_html
     assert two_manifest['anchors'] == {'a': '001.html', 'b': '002.html'}
+
+
+def test_bind_http_server_skips_busy_port() -> None:
+    import http.server
+
+    from opm.cli import _bind_http_server
+
+    handler = http.server.SimpleHTTPRequestHandler
+    occupied, occupied_port = _bind_http_server(handler, 0)
+    try:
+        httpd, chosen = _bind_http_server(handler, occupied_port)
+        try:
+            assert chosen != occupied_port
+        finally:
+            httpd.server_close()
+    finally:
+        occupied.server_close()

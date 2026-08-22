@@ -11,7 +11,7 @@ import tempfile
 import webbrowser
 from dataclasses import replace
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, Any, Optional
 
 import typer
 from typer.main import get_command
@@ -680,6 +680,32 @@ def chunk(
         raise SystemExit(1) from e
 
 
+_SERVE_PORT_TRIES = 20
+
+
+def _bind_http_server(handler: Any, port: int, tries: int = _SERVE_PORT_TRIES):
+    """Bind an HTTP server, skipping ports that are already in use.
+
+    Returns ``(httpd, bound_port)``. Raises the last ``OSError`` if every
+    candidate from *port* through *port + tries - 1* fails.
+    """
+    import errno
+    import http.server
+
+    last_error: OSError | None = None
+    for candidate in range(port, port + max(1, tries)):
+        try:
+            httpd = http.server.HTTPServer(('', candidate), handler)
+            bound = httpd.socket.getsockname()[1]
+            return httpd, bound
+        except OSError as e:
+            last_error = e
+            if e.errno != errno.EADDRINUSE:
+                raise
+    assert last_error is not None
+    raise last_error
+
+
 @app.command('serve')
 def serve_cmd(
     port: Annotated[
@@ -704,8 +730,9 @@ def serve_cmd(
     ] = None,
 ) -> None:
     """Start a local HTTP server rooted at the chunks output directory."""
-    import http.server
+    import errno
     import functools
+    import http.server
 
     cfg = load_project_config(config)
     if directory is not None:
@@ -723,8 +750,28 @@ def serve_cmd(
         http.server.SimpleHTTPRequestHandler,
         directory=str(root),
     )
-    with http.server.HTTPServer(('', port), handler) as httpd:
-        typer.echo(f'Serving {root} at http://localhost:{port}/ — press Ctrl-C to stop.')
+    try:
+        httpd, bound_port = _bind_http_server(handler, port)
+    except OSError as e:
+        if e.errno == errno.EADDRINUSE:
+            typer.echo(
+                f'opm: error: port {port} is already in use. '
+                f'Try a different port with -p.',
+                err=True,
+            )
+            raise SystemExit(1) from e
+        typer.echo(f'opm: error: {e}', err=True)
+        raise SystemExit(1) from e
+
+    if bound_port != port:
+        typer.echo(
+            f'Port {port} is in use; serving on {bound_port} instead.',
+            err=True,
+        )
+    with httpd:
+        typer.echo(
+            f'Serving {root} at http://localhost:{bound_port}/ — press Ctrl-C to stop.'
+        )
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
