@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="{{ lang|default('en') }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+{% set work_title = fragments.title | striptags | trim if fragments is defined and fragments.title else '' %}
+  <title>{{ work_title or 'Chapbook' }}</title>
+  <!-- chapbook template: multi-page, text-centric reading -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Literata:ital,opsz,wght@0,7..72,400..700;1,7..72,400..700&display=swap"
+    rel="stylesheet"
+  >
+  {{ head_html | safe }}
+  <style type="text/css">
+    {% include "chapbook.css" %}
+  </style>
+  {% if odd_css %}
+  <style type="text/css">
+{{ odd_css }}
+  </style>
+  {% endif %}
+  {% if user_css %}
+  <style type="text/css">
+{{ user_css }}
+  </style>
+  {% endif %}
+  {% if webcomponents_url %}
+  <script type="module" src="{{ webcomponents_url }}"></script>
+  {% endif %}
+</head>
+{% set is_chunk = chunk is defined and chunk %}
+{% if is_chunk %}
+  {% set folio = chunk.file.replace('.html', '') %}
+  {% set chapter_num = folio.lstrip('0') or '0' %}
+{% endif %}
+<body class="chapbook">
+  <header class="chap-running">
+    <span class="chap-running__work">{{ work_title or 'Chapbook' }}</span>
+    {% if is_chunk %}
+    <span class="chap-running__folio">Cap. {{ chapter_num }}</span>
+    {% endif %}
+  </header>
+
+  <main class="chap-page{% if is_chunk %} chap-page--chunk{% endif %}">
+    {% if is_chunk %}
+    <header class="chap-opening">
+      {% if fragments is defined and fragments.breadcrumbs %}
+      {{ fragments.breadcrumbs | safe }}
+      {% else %}
+      <span class="chap-opening__numeral" aria-hidden="true">{{ chapter_num }}</span>
+      <p class="chap-opening__label">Chapter {{ chapter_num }}</p>
+      {% endif %}
+    </header>
+    {% endif %}
+    <article class="content">
+      {{ content_html | safe }}
+    </article>
+  </main>
+
+  {% if is_chunk and (chunk.prev or chunk.next) %}
+  <nav class="chap-folio-nav" aria-label="Chapter navigation">
+    <div class="chap-folio-nav__prev">
+      {% if chunk.prev %}
+      <a href="{{ chunk.prev }}.html">
+        <span class="chap-folio-nav__label">Verso</span>
+        <span class="chap-folio-nav__chevron" aria-hidden="true">&lsaquo;</span>
+        <span class="chap-folio-nav__dir">Previous</span>
+      </a>
+      {% endif %}
+    </div>
+    <div class="chap-folio-nav__mark" aria-hidden="true">— {{ folio }} —</div>
+    <div class="chap-folio-nav__next">
+      {% if chunk.next %}
+      <a href="{{ chunk.next }}.html">
+        <span class="chap-folio-nav__label">Recto</span>
+        <span class="chap-folio-nav__dir">Next</span>
+        <span class="chap-folio-nav__chevron" aria-hidden="true">&rsaquo;</span>
+      </a>
+      {% endif %}
+    </div>
+  </nav>
+  {% endif %}
+</body>
+</html>
