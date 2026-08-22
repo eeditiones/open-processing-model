@@ -212,7 +212,13 @@ def xpath_runtime_context(
     documents: dict[str, Any] | None = None,
     root: 'etree._Element' | None = None,
 ) -> dict[str, Any]:
-    """Return internal parameters used to populate elementpath's dynamic context."""
+    """Return internal keys merged into the XPath ``$parameters`` map.
+
+    *root* is the node bound as ``$parameters?root`` (tei-publisher-lib: the
+    currently viewed element in the original document). Omit it to default to
+    the document element of the context node. *base_uri* and *documents*
+    populate ``doc()``.
+    """
     out: dict[str, Any] = {}
     if base_uri:
         out[_XPATH_BASE_URI_PARAM] = base_uri

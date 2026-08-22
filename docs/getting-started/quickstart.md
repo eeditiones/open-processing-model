@@ -57,6 +57,9 @@ uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd \
   -p mode=toc -p display=browse -o output.html
 ```
 
+`$parameters?root` is bound automatically to the viewed node — see
+[ODD files](../guide/odd-files.md#parametersroot).
+
 ## 2. Chunk a document for a static site
 
 ```bash

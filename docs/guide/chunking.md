@@ -49,6 +49,13 @@ view = "page"
   `pb-view` web component. Use `--doc-path` to place parts under a document
   subdirectory.
 
+Chunk roots are almost always inner elements (`div`, `section`, a reconstructed
+page), not the document element. The transform therefore emits an HTML
+**fragment**, not `<html>…</html>`. In the template (and in JSON as `head`),
+`head_html` is empty; ODD styles arrive as `odd_css`. See
+[Templates & CSS](templates-and-css.md#document-vs-fragment-output) for how to
+write a `<head>` that works for both `opm chunk` and `opm transform`.
+
 ```bash
 uv run opm chunk demo/tei-test.xml --format json -o _data/chunks
 uv run opm chunk demo/tei-test.xml --format pb-view --doc-path my-doc -o public
@@ -67,9 +74,64 @@ uv run opm chunk docs/ --format pb-view --doc-path letters -o public
 ## Fragments
 
 Alongside the main chunk content, you can extract **fragments** — secondary
-pieces pulled from each chunk, such as a table of contents or index entries.
-Fragments are configured under `[chunking]` and surface in the manifest and JSON
-output so a frontend can place them independently of the main body.
+pieces pulled from the document or from each chunk, such as a table of contents,
+breadcrumbs, or the work title. They are configured under `[chunking]` as an
+array of tables and surface in the template as `fragments.<name>`, in each JSON
+chunk, and (for `scope = "global"`) in the manifest.
+
+```toml
+[[chunking.fragments]]
+name = "title"
+scope = "global"
+xpath = "string((/article/info/title, /book/info/title)[1])"
+
+[[chunking.fragments]]
+name = "breadcrumbs"
+scope = "per-chunk"
+xpath = "."
+parameters = { mode = "breadcrumb" }
+```
+
+| Key | Meaning |
+| --- | --- |
+| `name` | Template / JSON key (`fragments.title`, `fragments.breadcrumbs`, …) |
+| `scope` | `global` — evaluate once against the document root; `per-chunk` — once per chunk with the chunk as context |
+| `xpath` | XPath 3.1 selecting the node(s) or string to emit (default `.`) |
+| `parameters` | Extra `$parameters` for that transform (e.g. `mode = "breadcrumb"`) |
+| `odd` / `mode` | Optional separate ODD and output channel for this fragment |
+
+A string result (as with `string(…)`) is used as-is. An element is transformed
+with the chunking ODD (or the fragment's own `odd`). In a Jinja template:
+
+```jinja
+<title>{{ fragments.title | striptags | trim }}</title>
+…
+{{ fragments.breadcrumbs | safe }}
+```
+
+## `$parameters?root`
+
+While a chunk is transformed, `$parameters?root` is the **original node** that
+chunk was copied from — the tei-publisher-lib convention documented under
+[ODD files](odd-files.md#parametersroot). The document node is
+`root($parameters?root)`.
+
+`dbk_section_chunks` and `tei_pb_chunks` sometimes yield a detached copy (a fill
+intro, a reconstructed page). The copy has no ancestors, but it keeps the
+source `xml:id`, so `opm` maps it back. ODD models that need the rest of the
+document should walk from `$parameters?root`, not from `.`:
+
+```xpath
+(($parameters?root)/ancestor::article/info/title,
+ ($parameters?root)/ancestor::section/title,
+ title)
+```
+
+`not($parameters?root is ..)` is then true only for ancestor titles, so the
+current chunk’s heading stays unlinked in a breadcrumb trail.
+
+`opm transform` (no chunking) binds `$parameters?root` to the document element,
+so `root($parameters?root)//…` still reaches the header.
 
 ## Manifest and navigation
 
