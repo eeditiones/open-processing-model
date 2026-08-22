@@ -229,6 +229,35 @@ def test_xpath_test_parent_axis_matches_namespaced_tei_elements() -> None:
     assert xpath_test(head, 'parent::figure', {}) is False
 
 
+def test_parameters_root_is_the_viewed_node_not_the_copy() -> None:
+    """``$parameters?root`` can be the original node while ``.`` is a fill-copy."""
+    from opm.runtime.pm_runtime import xpath_runtime_context
+
+    dbk = 'http://docbook.org/ns/docbook'
+    article = etree.fromstring(
+        f'''<article xmlns="{dbk}">
+  <info><title>Guide</title></info>
+  <section xml:id="install"><title>Install</title>
+    <section xml:id="pip"><title>pip</title></section>
+  </section>
+</article>'''.encode(),
+    )
+    install = article.xpath('//*[@xml:id="install"]')[0]
+    intro = etree.Element(install.tag, attrib=dict(install.attrib), nsmap=install.nsmap)
+    params = xpath_runtime_context(root=install)
+
+    assert xpath_select_nodes(
+        intro,
+        'string(($parameters?root)/ancestor::article/info/title)',
+        params,
+    ) == 'Guide'
+    assert xpath_select_nodes(
+        intro,
+        '$parameters?root is .',
+        params,
+    ) is False
+
+
 def test_serialize_after_inject() -> None:
     html = etree.Element('html')
     body = etree.SubElement(html, 'body')
