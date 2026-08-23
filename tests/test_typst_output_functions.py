@@ -539,3 +539,37 @@ def test_dta_odd_lb_uses_pass_through_template_for_typst(tmp_path) -> None:
     # Bare -\\ before ] would escape Typst's closing bracket (e.g. #footnote).
     assert '-\\' not in body
     assert '\\]' not in body
+
+
+def test_teipublisher_typst_fills_book_template_metadata(tmp_path) -> None:
+    """TEI header title/authors are keyed metadata consumed by ``book.typ.j2``."""
+    from opm.odd_compiler import compile_odd
+    from opm.transform import load_transform_module, run_transform
+
+    tei = 'http://www.tei-c.org/ns/1.0'
+    root = etree.fromstring(
+        f'<TEI xmlns="{tei}">'
+        f'<teiHeader><fileDesc><titleStmt>'
+        f'<title>The Greatest Markup</title>'
+        f'<author>Alice Smith</author>'
+        f'<author>Bob Jones</author>'
+        f'</titleStmt>'
+        f'<publicationStmt><p>n</p></publicationStmt>'
+        f'<sourceDesc><p>s</p></sourceDesc>'
+        f'</fileDesc></teiHeader>'
+        f'<text><body><p>Hello</p></body></text>'
+        f'</TEI>'.encode()
+    )
+    odd_path = Path(__file__).resolve().parents[1] / 'src' / 'opm' / 'resources' / 'odd' / 'teipublisher.odd'
+    mod_path = tmp_path / 'tei_typst.py'
+    mod_path.write_text(compile_odd(str(odd_path), output_mode='typst'), encoding='utf-8')
+    mod = load_transform_module(mod_path)
+    out = run_transform(
+        mod,
+        root,
+        typst_template_path=Path('templates/book.typ.j2'),
+    )
+    assert 'title: [The Greatest Markup]' in out
+    assert '"Alice Smith"' in out
+    assert '"Bob Jones"' in out
+    assert 'Your Title' not in out

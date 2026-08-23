@@ -92,8 +92,8 @@ uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t docx -o report
 
 ## Typst
 
-Typst output uses a `.typ.j2` Jinja2 template (e.g. a `book` or `documentation`
-layout), configured under `[transform.typst]` in `opm.toml`.
+Typst output uses a `.typ.j2` Jinja2 template (the default is `templates/book.typ.j2`),
+configured under `[transform.typst]` in `opm.toml`.
 
 ```bash
 uv run opm transform demo/tei-test.xml -c teipublisher.toml -t typst -o out.typ

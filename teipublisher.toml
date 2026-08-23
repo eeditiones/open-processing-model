@@ -15,14 +15,25 @@ enabled = true
 template = "templates/default.docx"
 
 [transform.typst]
-template = "templates/documentation.typ.j2"
+template = "templates/book.typ.j2"
 
 [chunking]
 selector = "opm.navigation.dbk_section_chunks"
 depth = 2
 output_dir = "chunks"
-template = "templates/bootstrap.html.j2"
+template = "templates/chapbook.html.j2"
 # Cross-chunk link pattern. Placeholders: {file}, {stem}, {anchor}.
 # Default (omitted): relative form, e.g. "002.html#Pers"
 # Uncomment and adjust to match your server's URL scheme:
 link_pattern = "/{stem}/"
+
+[[chunking.fragments]]
+name = "title"
+scope = "global"
+xpath = "string((/article/info/title, /book/info/title)[1])"
+
+[[chunking.fragments]]
+name = "breadcrumbs"
+scope = "per-chunk"
+xpath = "."
+parameters = { mode = "breadcrumb" }
