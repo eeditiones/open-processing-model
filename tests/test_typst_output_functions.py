@@ -399,6 +399,38 @@ def test_css_length_to_typst_converts_px() -> None:
     assert css_length_to_typst('10pt') == '10pt'
 
 
+def test_escape_typst_text_node_escapes_content_block_brackets() -> None:
+    """Square brackets in document text must not open a content block."""
+    from opm.runtime.typst_output_functions import escape_typst_text_node
+
+    assert escape_typst_text_node('illegible [†] here') == 'illegible \\[†\\] here'
+
+
+def test_escape_typst_text_node_escapes_leading_markup_markers() -> None:
+    """List, enum and heading markers only bite at the start of a line."""
+    from opm.runtime.typst_output_functions import escape_typst_text_node
+
+    # ``#emph[1. dieses]`` would otherwise be read as an enum item.
+    assert escape_typst_text_node('1. dieses') == '1\\. dieses'
+    assert escape_typst_text_node('- item') == '\\- item'
+    assert escape_typst_text_node('= heading') == '\\= heading'
+    # Mid-text markers are harmless and stay as they are.
+    assert escape_typst_text_node('am 1. dieses') == 'am 1. dieses'
+
+
+def test_finish_cleanup_escapes_round_bracket_after_content_block() -> None:
+    """``#marginnote[…](text)`` would be read as a call with arguments."""
+    raw = '#marginnote[er wird todgeschlagen.](welches eine arth von taback)'
+    cleaned = apply_typst_finish_cleanup(raw)
+    assert cleaned == '#marginnote[er wird todgeschlagen.]\\(welches eine arth von taback)'
+
+
+def test_finish_cleanup_leaves_escaped_brackets_alone() -> None:
+    """A bracket from document text is already escaped and closes nothing."""
+    raw = 'illegible \\[†\\](not a call)'
+    assert apply_typst_finish_cleanup(raw) == raw
+
+
 def test_escape_typst_underscores_preserves_emphasis() -> None:
     from opm.runtime.typst_output_functions import escape_typst_underscores
 
@@ -539,3 +571,4 @@ def test_dta_odd_lb_uses_pass_through_template_for_typst(tmp_path) -> None:
     # Bare -\\ before ] would escape Typst's closing bracket (e.g. #footnote).
     assert '-\\' not in body
     assert '\\]' not in body
+
