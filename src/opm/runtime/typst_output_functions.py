@@ -116,6 +116,15 @@ def escape_typst_text_node(text: str) -> str:
     text = text.replace('@', '\\@')
     text = text.replace('*', '\\*')
     text = text.replace('_', '\\_')
+    # Square brackets open and close a content block; unescaped, a bracketed
+    # word such as an editorial ``[†]`` swallows the following markup or is
+    # read as a second argument.
+    text = text.replace('[', '\\[').replace(']', '\\]')
+    # List, enum and heading markers only bite at the start of a line or of a
+    # content block. ``Den 1. dieses`` inside ``#emph[…]`` would otherwise turn
+    # into an enum item and break the paragraph apart.
+    text = re.sub(r'^([ \t]*)(\d+)\.', r'\1\2\\.', text, flags=re.MULTILINE)
+    text = re.sub(r'^([ \t]*)([-+=/])', r'\1\\\2', text, flags=re.MULTILINE)
     return text
 
 
@@ -348,12 +357,30 @@ def _restore_fenced_code_blocks(text: str, protected: list[str]) -> str:
     return text
 
 
+_BLOCK_THEN_PAREN_RE = re.compile(r'(?<!\\)\]\(')
+
+
+def _escape_call_parens_after_content_blocks(text: str) -> str:
+    """Keep a round bracket after a content block from being read as a call.
+
+    ``#marginnote[…](welches eine arth …)`` parses as a call with arguments.
+    Brackets coming from document text are escaped at the text-node level (see
+    ``escape_typst_text_node``), so an unescaped ``]`` at this point always
+    closes a generated content block.  Escaping the bracket that follows keeps
+    the text as it is; inserting a separator would add a space that is not in
+    the source.
+    """
+    return _BLOCK_THEN_PAREN_RE.sub(r']\\(', text)
+
+
 def apply_typst_finish_cleanup(text: str) -> str:
     """Post-process Typst body text after the transform tree is flattened.
 
-    Character escaping (#, $, @, *, _) is handled at the text-node level via
-    ``config['text_escape']`` (see ``escape_typst_text_node``).  Only HTML tag
-    stripping and structural markdown normalisation are performed here.
+    Character escaping (#, $, @, *, _, brackets, leading markers) is handled at
+    the text-node level via ``config['text_escape']`` (see
+    ``escape_typst_text_node``).  Here we strip HTML tags, normalise markdown
+    structure and escape a round bracket that directly follows a generated
+    content block, which needs the flattened output to be recognised.
 
     Custom ``@cssClass`` / ``@rend`` wrappers are emitted as ``#opm-css("…")[…]``
     so missing handlers fall through in Typst; no identity ``#let`` stubs are
@@ -362,6 +389,7 @@ def apply_typst_finish_cleanup(text: str) -> str:
     text, fenced = _protect_fenced_code_blocks(text)
     text = strip_html_markup(text)
     text = apply_markdown_finish_regexes(text)
+    text = _escape_call_parens_after_content_blocks(text)
     return _restore_fenced_code_blocks(text, fenced)
 
 
