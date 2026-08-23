@@ -43,7 +43,8 @@ enabled = false
 [transform.typst]
 # Optional override: odd = "odd/typst-only.odd"
 # Typst document-shell template used for Typst output.
-# template = "templates/book.typ.j2"
+# template = "templates/book.typ.j2"      # TEI (ilm)
+# template = "templates/docbook.typ.j2"   # DocBook (ilm + UI/callout classes)
 
 [document]
 # Jinja2 template used to wrap full-document HTML output.
