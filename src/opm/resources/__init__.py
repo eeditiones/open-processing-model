@@ -29,23 +29,32 @@ def _packaged_root():
     return resources.files(_PACKAGE).joinpath(_RESOURCES)
 
 
+def _sync_tree(src: Path, dest: Path) -> None:
+    """Copy *src* into *dest*, replacing files whose contents differ."""
+    dest.mkdir(parents=True, exist_ok=True)
+    src_files = {p.relative_to(src) for p in src.rglob('*') if p.is_file()}
+    dest_files = {p.relative_to(dest) for p in dest.rglob('*') if p.is_file()}
+    for rel in dest_files - src_files:
+        (dest / rel).unlink(missing_ok=True)
+    for rel in src_files:
+        s = src / rel
+        d = dest / rel
+        d.parent.mkdir(parents=True, exist_ok=True)
+        if not d.is_file() or d.read_bytes() != s.read_bytes():
+            shutil.copy2(s, d)
+
+
 def ensure_packaged_odd_dir() -> Path:
     """Mirror packaged ``resources/odd`` into the user cache and return that directory.
 
     Extracting the whole tree keeps ODD inheritance and sibling ``.css`` files
-    resolvable. The mirror is versioned so an upgrade refreshes stock files.
+    resolvable. The mirror is versioned so an upgrade refreshes stock files, and
+    file contents are compared so editable installs pick up ODD edits.
     """
     dest = user_opm_cache_dir() / 'resources' / opm_version() / 'odd'
-    if dest.is_dir() and any(dest.glob('*.odd')):
-        return dest
-
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    if dest.exists():
-        shutil.rmtree(dest)
-
     packaged = _packaged_root().joinpath('odd')
     with resources.as_file(packaged) as src:
-        shutil.copytree(src, dest)
+        _sync_tree(Path(src), dest)
     return dest
 
 
