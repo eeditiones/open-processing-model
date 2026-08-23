@@ -173,6 +173,15 @@
                         <pb:template xml:space="preserve">\title{[[content]]}</pb:template>
                     </model>
                     <model predicate="$parameters?mode='title'" behaviour="inline"/>
+                    <model output="opm-web" predicate="$parameters?mode='breadcrumb' and ../@xml:id and parent::section/section and not($parameters?root is ..)"
+                        behaviour="listItem">
+                        <desc>Ancestor section — link to the chunk that owns @xml:id</desc>
+                        <param name="id" value="../@xml:id"/>
+                        <pb:template xml:space="preserve"><a xmlns="" href="#[[id]]">[[content]]</a></pb:template>
+                    </model>
+                    <model output="opm-web" predicate="$parameters?mode='breadcrumb'" behaviour="listItem">
+                        <desc>Document title or current chunk — not a link</desc>
+                    </model>
                     <model predicate="$parameters?mode='breadcrumb' and not(parent::section)"
                         behaviour="listItem">
                         <pb:template xml:space="preserve"><a xmlns="" href="../browse.html?collection=doc">[[content]]</a></pb:template>
@@ -210,6 +219,15 @@
                     </model>
                 </elementSpec>
                 <elementSpec ident="section">
+                    <model output="opm-web" predicate="$parameters?mode='breadcrumb'" behaviour="pass-through">
+                        <param name="content" value="(($parameters?root)/ancestor::article/info/title, ($parameters?root)/ancestor::section/title, title)"/>
+                        <pb:template xml:space="preserve" xmlns=""><nav xmlns="" aria-label="breadcrumb">
+  <ul>[[ content ]]</ul>
+</nav></pb:template>
+                    </model>
+                    <model output="opm-web" predicate="$parameters?mode='title'" behaviour="inline">
+                        <param name="content" value="string-join((($parameters?root)/ancestor::article/info/title, ($parameters?root)/ancestor::section/title, title), ' – ')"/>
+                    </model>
                     <model predicate="$parameters?mode='breadcrumb'" behaviour="pass-through">
                         <param name="content" value="($get(.)/ancestor::article/info/title, $get(.)/ancestor::section/title, title)"/>
                         <pb:template xml:space="preserve" xmlns=""><nav xmlns="" aria-label="breadcrumb">
@@ -628,14 +646,8 @@ padding: 1em 0 1em .5em;
             color: red;
             </outputRendition>
                     </model>
-                    <model output="typst" behaviour="block">
-                        <param name="content" value="*[not(self::title)]"/>
-                        <param name="title" value="title"/>
-                        <pb:template xml:space="preserve">#note[
-[[title]]
-
-[[content]]
-]</pb:template>
+                    <model output="typst" behaviour="block" cssClass="note">
+                        <param name="content" value="(title, *[not(self::title)])"/>
                     </model>
                     <model output="web" behaviour="block" cssClass="note">
                         <param name="content" value="(title, *[not(self::title)])"/>

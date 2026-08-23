@@ -15,7 +15,7 @@ enabled = true
 template = "templates/default.docx"
 
 [transform.typst]
-template = "templates/book.typ.j2"
+template = "templates/docbook.typ.j2"
 
 [chunking]
 selector = "opm.navigation.dbk_section_chunks"

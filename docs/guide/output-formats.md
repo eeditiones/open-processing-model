@@ -92,8 +92,10 @@ uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t docx -o report
 
 ## Typst
 
-Typst output uses a `.typ.j2` Jinja2 template (the default is `templates/book.typ.j2`),
-configured under `[transform.typst]` in `opm.toml`.
+Typst output uses a `.typ.j2` Jinja2 template configured under `[transform.typst]`.
+Project templates include `templates/book.typ.j2` (TEI) and
+`templates/docbook.typ.j2` (DocBook UI classes); both use ilm. The packaged
+fallback is `default_document.typ.j2`.
 
 ```bash
 uv run opm transform demo/tei-test.xml -c teipublisher.toml -t typst -o out.typ
