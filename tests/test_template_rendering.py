@@ -41,8 +41,8 @@ def test_render_typst_document_template() -> None:
     assert 'title: "Test"' in out
 
 
-def test_render_typst_project_template_includes_packaged_opm_css() -> None:
-    tpl = Path('templates/book.typ.j2')
+def test_render_typst_docbook_template_includes_packaged_opm_css() -> None:
+    tpl = Path('templates/docbook.typ.j2')
     out = render_typst_document_template(
         content_typst='= Hello\n',
         template_path=tpl,
@@ -51,8 +51,10 @@ def test_render_typst_project_template_includes_packaged_opm_css() -> None:
         metadata={'title': ['Doc Title']},
     )
     assert '#let opm-css(name, body)' in out
+    assert '@preview/ilm' in out
     assert '@preview/marginalia' in out
     assert 'guilabel:' in out
+    assert 'note:' in out
     assert '= Hello' in out
     assert 'title: [Doc Title]' in out
     assert 'inner: (far: 2.5cm)' in out
@@ -70,9 +72,11 @@ def test_render_typst_book_template_fills_metadata() -> None:
     assert 'title: [Book Title]' in out
     assert '"Alice Smith"' in out
     assert '"Bob Jones"' in out
+    assert '@preview/ilm' in out
     assert '@preview/marginalia' in out
     assert '= Hello' in out
     assert 'Your Title' not in out
+    assert 'guilabel:' not in out
 
 
 def test_resolve_typst_template_path_raises_for_missing(tmp_path: Path) -> None:

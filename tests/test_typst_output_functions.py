@@ -573,3 +573,32 @@ def test_teipublisher_typst_fills_book_template_metadata(tmp_path) -> None:
     assert '"Alice Smith"' in out
     assert '"Bob Jones"' in out
     assert 'Your Title' not in out
+
+
+def test_docbook_typst_note_is_inflow_callout_not_marginnote(tmp_path) -> None:
+    """DocBook ``<note>`` uses ``cssClass="note"`` (orange bar), not ``#note`` / marginalia."""
+    from opm.odd_compiler import compile_odd
+    from opm.transform import load_transform_module, run_transform
+
+    dbk = 'http://docbook.org/ns/docbook'
+    root = etree.fromstring(
+        f'<article xmlns="{dbk}" version="5.0">'
+        f'<info><title>Guide</title></info>'
+        f'<section xml:id="tour"><title>Tour</title>'
+        f'<para>Before.</para>'
+        f'<note><para>If you installed without docker, you will only see two applications.</para></note>'
+        f'<para>After.</para>'
+        f'</section>'
+        f'</article>'.encode()
+    )
+    odd_path = Path(__file__).resolve().parents[1] / 'odd' / 'docbook.odd'
+    mod_path = tmp_path / 'docbook_typst.py'
+    mod_path.write_text(compile_odd(str(odd_path), output_mode='typst'), encoding='utf-8')
+    mod = load_transform_module(mod_path)
+    out = run_transform(mod, root, typst_template_path=Path('templates/docbook.typ.j2'))
+    assert '#opm-css("note")' in out
+    assert 'stroke: (left: 4pt + rgb("#d07f00"))' in out
+    assert 'If you installed without docker' in out
+    # The ODD must not emit marginalia's ``#note[…]`` for DocBook notes.
+    assert '#note[' not in out
+    assert '#marginnote[' not in out

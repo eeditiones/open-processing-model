@@ -1,5 +1,5 @@
-// TEI Typst document shell (ilm).
-// Override via [transform.typst] template in project config or --template
+// DocBook Typst document shell (ilm + DocBook UI/callout classes).
+// Selected via [transform.typst] template in teipublisher.toml.
 
 #import "@preview/zebraw:0.6.3": *
 #show: zebraw.with(..zebraw-themes.zebra, lang: true, lang-color: color.mix((blue, 15%), (white, 85%)))
@@ -29,16 +29,28 @@
   bottom: 2.5cm,
 )
 
-// Extra handlers for ODD @cssClass / @rend names (see templates/docbook.typ.j2):
-// #let opm-css-fns = opm-css-fns + (
-//   center: (body) => align(center, body),
-//   note: (body) => block(
-//     width: 100%,
-//     inset: (left: 0.8em, y: 0.35em),
-//     stroke: (left: 4pt + rgb("#d07f00")),
-//     body,
-//   ),
-// )
+#let opm-css-fns = opm-css-fns + (
+  guilabel: (body) => text(fill: blue)[#body],
+  guibutton: (body) => box(
+    stroke: 1pt,
+    inset: 2pt,
+    radius: 3pt,
+    baseline: 2pt,
+  )[ #text(size: 0.8em)[#body] ],
+  code: (body) => text(font: "DejaVu Sans Mono", size: 0.8em)[#body],
+  guimenuitem: (body) => box(
+    fill: color.mix((blue, 15%), (white, 85%)),
+    inset: (left: 0.2em, right: 0.2em, top: 0.1em, bottom: 0.1em),
+    radius: 3pt,
+  )[#body],
+  // DocBook <note>: in-flow callout (web/DOCX orange bar), not a marginalia note.
+  note: (body) => block(
+    width: 100%,
+    inset: (left: 0.8em, y: 0.35em),
+    stroke: (left: 4pt + rgb("#d07f00")),
+    body,
+  ),
+)
 
 {{ odd_typst }}
 
