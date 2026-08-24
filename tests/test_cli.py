@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
+import pytest
+
 from opm.cli import _preview_kind_from_module
+from opm.cli import _prepare_chunk_output_dir
 from opm.cli import _resolve_user_css
 from opm.cli import main
 from tests.test_chunking import _write_chunking_fixture_xml
@@ -580,6 +584,96 @@ output_dir = "html-site"
     two_manifest = json.loads((site / 'two.xml' / 'manifest.json').read_text(encoding='utf-8'))
     assert 'self' in one_html
     assert two_manifest['anchors'] == {'a': '001.html', 'b': '002.html'}
+
+
+def test_prepare_chunk_output_dir_noop_if_missing(tmp_path: Path) -> None:
+    out = tmp_path / 'chunks'
+    _prepare_chunk_output_dir(out, force=False)
+    assert not out.exists()
+
+
+def test_prepare_chunk_output_dir_force_removes_tree(tmp_path: Path) -> None:
+    out = tmp_path / 'chunks'
+    nested = out / 'nested'
+    nested.mkdir(parents=True)
+    leftover = nested / 'stale.html'
+    leftover.write_text('old', encoding='utf-8')
+    _prepare_chunk_output_dir(out, force=True)
+    assert not out.exists()
+
+
+def test_prepare_chunk_output_dir_force_removes_file(tmp_path: Path) -> None:
+    out = tmp_path / 'chunks'
+    out.write_text('not a directory', encoding='utf-8')
+    _prepare_chunk_output_dir(out, force=True)
+    assert not out.exists()
+
+
+def test_prepare_chunk_output_dir_errors_when_not_tty(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    out = tmp_path / 'chunks'
+    out.mkdir()
+    leftover = out / 'stale.html'
+    leftover.write_text('old', encoding='utf-8')
+    monkeypatch.setattr(sys.stdin, 'isatty', lambda: False)
+    with pytest.raises(SystemExit) as exc:
+        _prepare_chunk_output_dir(out, force=False)
+    assert exc.value.code == 1
+    assert leftover.is_file()
+    err = capsys.readouterr().err
+    assert 'already exists' in err
+    assert '--force' in err
+
+
+def test_prepare_chunk_output_dir_confirm_yes_removes(tmp_path: Path, monkeypatch) -> None:
+    out = tmp_path / 'chunks'
+    out.mkdir()
+    leftover = out / 'stale.html'
+    leftover.write_text('old', encoding='utf-8')
+    monkeypatch.setattr(sys.stdin, 'isatty', lambda: True)
+    monkeypatch.setattr('opm.cli.typer.confirm', lambda *a, **k: True)
+    _prepare_chunk_output_dir(out, force=False)
+    assert not out.exists()
+
+
+def test_prepare_chunk_output_dir_confirm_no_keeps(tmp_path: Path, monkeypatch) -> None:
+    out = tmp_path / 'chunks'
+    out.mkdir()
+    leftover = out / 'stale.html'
+    leftover.write_text('old', encoding='utf-8')
+    monkeypatch.setattr(sys.stdin, 'isatty', lambda: True)
+    monkeypatch.setattr('opm.cli.typer.confirm', lambda *a, **k: False)
+    with pytest.raises(SystemExit) as exc:
+        _prepare_chunk_output_dir(out, force=False)
+    assert exc.value.code == 1
+    assert leftover.is_file()
+
+
+def test_chunk_force_removes_stale_files(tmp_path: Path, monkeypatch) -> None:
+    _write_tiny_odd(tmp_path / 'teipublisher.odd')
+    xml = tmp_path / 'doc.xml'
+    _write_chunking_fixture_xml(xml)
+    (tmp_path / 'opm.toml').write_text(
+        """[chunking]
+odd = "teipublisher.odd"
+xpath = "//body/div[@type='chunk']"
+output_dir = "chunks"
+""",
+        encoding='utf-8',
+    )
+    stale = tmp_path / 'chunks'
+    stale.mkdir()
+    leftover = stale / 'stale.html'
+    leftover.write_text('old', encoding='utf-8')
+    monkeypatch.setattr('opm.odd_cache.modules_cache_dir', lambda: tmp_path / 'cache' / 'modules')
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['chunk', 'doc.xml', '--force', '-c', 'opm.toml'])
+
+    assert rc == 0
+    assert not leftover.exists()
+    assert (tmp_path / 'chunks' / 'manifest.json').is_file()
 
 
 def test_bind_http_server_skips_busy_port() -> None:

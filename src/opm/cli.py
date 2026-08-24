@@ -6,6 +6,7 @@ separate ``compile`` command.
 
 from __future__ import annotations
 
+import shutil
 import sys
 import tempfile
 import webbrowser
@@ -290,6 +291,33 @@ def _append_output_dir(base_output_dir: str, xml_path: Path) -> str:
     return f'{base_output_dir.rstrip("/")}/{xml_path.name}'
 
 
+def _prepare_chunk_output_dir(out_dir: Path, *, force: bool) -> None:
+    """Remove *out_dir* if it already exists.
+
+    With ``--force``, the directory (or file) is deleted immediately. Otherwise
+    an interactive terminal is prompted; non-interactive runs error so scripts
+    must pass ``--force``.
+    """
+    if not out_dir.exists():
+        return
+    if not force:
+        prompt = f'Output directory {out_dir} already exists. Remove it and continue?'
+        if sys.stdin.isatty():
+            if not typer.confirm(prompt, default=False):
+                raise SystemExit(1)
+        else:
+            typer.echo(
+                f'opm: error: output directory {out_dir} already exists. '
+                'Use --force to replace it.',
+                err=True,
+            )
+            raise SystemExit(1)
+    if out_dir.is_dir():
+        shutil.rmtree(out_dir)
+    else:
+        out_dir.unlink()
+
+
 @app.command('transform')
 def transform_cmd(
     input_xml: Annotated[Optional[Path], typer.Argument(help='Input XML file')] = None,
@@ -560,7 +588,7 @@ def chunk(
         typer.Option(
             '--force',
             '-f',
-            help='Overwrite existing output directory.',
+            help='Remove the existing output directory without prompting.',
         ),
     ] = False,
     webcomponents: Annotated[
@@ -666,15 +694,8 @@ def chunk(
                 )
                 raise SystemExit(1)
 
-        # Check if output directory exists
         out_dir = Path.cwd() / chunking_config.output_dir
-        if out_dir.exists() and not force:
-            typer.echo(
-                f'opm: error: output directory {out_dir} already exists. '
-                'Use --force to overwrite.',
-                err=True
-            )
-            raise SystemExit(1)
+        _prepare_chunk_output_dir(out_dir, force=force)
         
         # Config templates are already resolved relative to the config file;
         # a --template CLI path is relative to the current working directory.
