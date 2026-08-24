@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from importlib import resources
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,10 @@ from opm.template_rendering import DEFAULT_TYPST_TEMPLATE_NAME
 from opm.template_rendering import default_template_path
 from opm.template_rendering import render_typst_document_template
 from opm.template_rendering import resolve_template_path
+
+
+def _scaffold_template(name: str) -> Path:
+    return Path(str(resources.files('opm').joinpath(f'resources/scaffold/templates/{name}')))
 
 
 def test_default_template_is_packaged_and_resolvable() -> None:
@@ -42,7 +47,7 @@ def test_render_typst_document_template() -> None:
 
 
 def test_render_typst_docbook_template_includes_packaged_opm_css() -> None:
-    tpl = Path('templates/docbook.typ.j2')
+    tpl = _scaffold_template('docbook.typ.j2')
     out = render_typst_document_template(
         content_typst='= Hello\n',
         template_path=tpl,
@@ -61,7 +66,7 @@ def test_render_typst_docbook_template_includes_packaged_opm_css() -> None:
 
 
 def test_render_typst_book_template_fills_metadata() -> None:
-    tpl = Path('templates/book.typ.j2')
+    tpl = _scaffold_template('book.typ.j2')
     out = render_typst_document_template(
         content_typst='= Hello\n',
         template_path=tpl,

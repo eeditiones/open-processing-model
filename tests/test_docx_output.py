@@ -1,8 +1,8 @@
 """Integration tests for DOCX output mode.
 
-Compiles ``odd/teipublisher.odd`` for docx mode, transforms ``tests/test-docx.xml``
-using the project config from ``teipublisher.toml``, and asserts the structural
-properties of the resulting Word document.
+Compiles packaged ``teipublisher.odd`` for docx mode, transforms ``tests/test-docx.xml``
+with the packaged Word template, and asserts the structural properties of the
+resulting Word document.
 """
 
 from __future__ import annotations
@@ -16,10 +16,11 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
+from opm.resources import packaged_default_docx, packaged_odd
+
 ROOT = Path(__file__).resolve().parents[1]
-ODD = ROOT / 'odd' / 'teipublisher.odd'
+ODD = packaged_odd('teipublisher')
 TEST_XML = ROOT / 'tests' / 'test-docx.xml'
-CONFIG_TOML = ROOT / 'teipublisher.toml'
 
 W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 
@@ -69,20 +70,18 @@ def _compile_docx_module(tmp_path: Path) -> object:
 
 @pytest.fixture(scope='module')
 def docx_bytes(tmp_path_factory: pytest.TempPathFactory) -> bytes:
-    """Compile ODD, transform test-docx.xml with teipublisher.toml, return raw .docx bytes."""
-    from opm.config import load_project_config
+    """Compile ODD, transform test-docx.xml with the packaged Word template, return raw .docx bytes."""
     from opm.transform import run_transform
 
     tmp = tmp_path_factory.mktemp('docx')
     mod = _compile_docx_module(tmp)
 
-    cfg = load_project_config(CONFIG_TOML)
     root = etree.parse(str(TEST_XML)).getroot()
     result = run_transform(
         mod,
         root,
         parameters={'input_path': str(TEST_XML)},
-        docx_template=cfg.document_docx_template,
+        docx_template=packaged_default_docx(),
     )
     assert isinstance(result, bytes), 'transform must return bytes for docx mode'
     return result

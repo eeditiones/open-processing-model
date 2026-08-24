@@ -8,9 +8,9 @@ from pathlib import Path
 
 from lxml import etree
 
-ROOT = Path(__file__).resolve().parents[1]
-ODD = ROOT / 'odd' / 'teipublisher.odd'
-SHAKESPEARE_ODD = ROOT / 'odd' / 'shakespeare.odd'
+from opm.resources import packaged_odd
+
+ODD = packaged_odd('teipublisher')
 
 
 def test_compile_teipublisher_odd_emits_valid_python(tmp_path: Path) -> None:
@@ -330,20 +330,53 @@ def test_teipublisher_web_injects_generated_css_in_head(tmp_path: Path) -> None:
     assert out.count('/* Generated stylesheet. Do not edit. */') == 1
 
 
-def test_compile_inherited_odd_loads_parent_then_overwrites_child() -> None:
+def test_compile_inherited_odd_loads_parent_then_overwrites_child(tmp_path: Path) -> None:
     """Child ODD inherits elementSpec from source ODD and overwrites duplicate idents."""
     from opm.odd_compiler import compile_odd
 
-    src = compile_odd(str(SHAKESPEARE_ODD))
+    (tmp_path / 'child.css').write_text('.tei-speaker { font-style: italic; }\n', encoding='utf-8')
+    child = tmp_path / 'custom.odd'
+    child.write_text(
+        '''<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader>
+    <fileDesc>
+      <titleStmt><title>child</title></titleStmt>
+      <publicationStmt><p>test</p></publicationStmt>
+      <sourceDesc><p>test</p></sourceDesc>
+    </fileDesc>
+    <encodingDesc>
+      <tagsDecl>
+        <rendition source="child.css"/>
+      </tagsDecl>
+    </encodingDesc>
+  </teiHeader>
+  <text><body>
+    <schemaSpec ident="custom" start="TEI teiCorpus" source="teipublisher.odd">
+      <elementSpec ident="lb" mode="change">
+        <model behaviour="omit"/>
+      </elementSpec>
+      <elementSpec ident="titleStmt" mode="change">
+        <model predicate="$parameters?mode=('breadcrumb', 'title')" behaviour="inline">
+          <desc>for breadcrumbs, pick title/@type='statement'</desc>
+          <param name="content" value="title[@type='statement']"/>
+        </model>
+      </elementSpec>
+    </schemaSpec>
+  </body></text>
+</TEI>
+''',
+        encoding='utf-8',
+    )
+    src = compile_odd(str(child))
 
-    # Inherited from opm.odd (not declared in shakespeare.odd).
+    # Inherited from packaged teipublisher.odd (not declared in the child).
     assert "case 'ab':" in src
 
-    # Overwritten by shakespeare.odd for ident='lb' (mode is ignored).
+    # Overwritten by the child for ident='lb' (mode is ignored).
     assert "case 'lb':" in src
     assert "return pmf.omit(config, node, ['tei-lb', 'tei-lb1', r], node)" in src
     # Inherited + local tagsDecl rendition sources are included in generated CSS.
-    assert 'external styles loaded from shakespeare.css' in src
+    assert 'external styles loaded from child.css' in src
     assert '.simple_bold { font-weight: bold; }' in src
     # <desc> from models is preserved as generated Python comments.
     assert "# for breadcrumbs, pick title/@type='statement'" in src

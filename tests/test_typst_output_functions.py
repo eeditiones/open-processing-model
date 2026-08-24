@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from importlib import resources
 from pathlib import Path
 
 from lxml import etree
 
+from opm.resources import packaged_odd
 from opm.runtime.markdown_output_functions import normalize_markdown_xml_text
 from opm.runtime.output_functions import TemplateOutput
 from opm.runtime.pm_runtime import apply_children
@@ -16,6 +18,10 @@ from opm.runtime.typst_output_functions import (
     apply_typst_finish_cleanup,
     strip_html_markup,
 )
+
+
+def _scaffold_template(name: str) -> Path:
+    return Path(str(resources.files('opm').joinpath(f'resources/scaffold/templates/{name}')))
 
 
 def test_finish_cleanup_does_not_stub_css_classes() -> None:
@@ -516,8 +522,8 @@ def test_apply_inline_styling_rend_unknown_function_is_ignored() -> None:
     assert result == 'text'
 
 
-def test_dta_odd_lb_uses_pass_through_template_for_typst(tmp_path) -> None:
-    """DTA ``<lb/>`` typst models use ``pass-through`` + ``pb:template``, not ``#opm-css("lb")[]``."""
+def test_lb_pass_through_template_for_typst(tmp_path) -> None:
+    """Typst ``<lb/>`` models may use ``pass-through`` + ``pb:template``, not ``#opm-css("lb")[]``."""
     from opm.odd_compiler import compile_odd
     from opm.transform import load_transform_module, run_transform
 
@@ -528,9 +534,33 @@ def test_dta_odd_lb_uses_pass_through_template_for_typst(tmp_path) -> None:
         f'<head>Title<lb/>(subtitle)</head>'
         f'</body></text></TEI>'.encode()
     )
-    odd_path = Path(__file__).resolve().parents[1] / 'odd' / 'dta.odd'
-    mod_path = tmp_path / 'dta_typst.py'
-    mod_path.write_text(compile_odd(str(odd_path), output_mode='typst'), encoding='utf-8')
+    odd = tmp_path / 'lb_typst.odd'
+    odd.write_text(
+        '''<?xml version="1.0"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:pb="http://teipublisher.com/1.0">
+  <teiHeader><fileDesc>
+    <titleStmt><title>t</title></titleStmt>
+    <publicationStmt><p>p</p></publicationStmt>
+    <sourceDesc><p>s</p></sourceDesc>
+  </fileDesc></teiHeader>
+  <text><body>
+    <schemaSpec ident="lb_typst" ns="http://www.tei-c.org/ns/1.0">
+      <elementSpec ident="lb" mode="change">
+        <model output="typst" predicate="@break='no'" behaviour="pass-through">
+          <pb:template xml:space="preserve">-#linebreak();</pb:template>
+        </model>
+        <model output="typst" predicate="parent::p or parent::head" behaviour="break">
+          <param name="type" value="'line'"/>
+        </model>
+      </elementSpec>
+    </schemaSpec>
+  </body></text>
+</TEI>
+''',
+        encoding='utf-8',
+    )
+    mod_path = tmp_path / 'lb_typst.py'
+    mod_path.write_text(compile_odd(str(odd), output_mode='typst'), encoding='utf-8')
     mod = load_transform_module(mod_path)
     body = run_transform(mod, root, apply_template=False)
     assert '#opm-css("lb")' not in body
@@ -560,14 +590,14 @@ def test_teipublisher_typst_fills_book_template_metadata(tmp_path) -> None:
         f'<text><body><p>Hello</p></body></text>'
         f'</TEI>'.encode()
     )
-    odd_path = Path(__file__).resolve().parents[1] / 'src' / 'opm' / 'resources' / 'odd' / 'teipublisher.odd'
+    odd_path = packaged_odd('teipublisher')
     mod_path = tmp_path / 'tei_typst.py'
     mod_path.write_text(compile_odd(str(odd_path), output_mode='typst'), encoding='utf-8')
     mod = load_transform_module(mod_path)
     out = run_transform(
         mod,
         root,
-        typst_template_path=Path('templates/book.typ.j2'),
+        typst_template_path=_scaffold_template('book.typ.j2'),
     )
     assert 'title: [The Greatest Markup]' in out
     assert '"Alice Smith"' in out
@@ -591,11 +621,11 @@ def test_docbook_typst_note_is_inflow_callout_not_marginnote(tmp_path) -> None:
         f'</section>'
         f'</article>'.encode()
     )
-    odd_path = Path(__file__).resolve().parents[1] / 'odd' / 'docbook.odd'
+    odd_path = packaged_odd('docbook')
     mod_path = tmp_path / 'docbook_typst.py'
     mod_path.write_text(compile_odd(str(odd_path), output_mode='typst'), encoding='utf-8')
     mod = load_transform_module(mod_path)
-    out = run_transform(mod, root, typst_template_path=Path('templates/docbook.typ.j2'))
+    out = run_transform(mod, root, typst_template_path=_scaffold_template('docbook.typ.j2'))
     assert '#opm-css("note")' in out
     assert 'stroke: (left: 4pt + rgb("#d07f00"))' in out
     assert 'If you installed without docker' in out

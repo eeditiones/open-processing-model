@@ -4,16 +4,18 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from importlib import resources
 from pathlib import Path
 
-import pytest
 from lxml import etree
 
 from opm.chunking import chunk_document
 from opm.config import ChunkingConfig, FragmentConfig
+from opm.resources import packaged_odd
 
-ROOT = Path(__file__).resolve().parents[1]
-WIBORADA_ODD = ROOT / 'odd' / 'wiborada.odd'
+
+def _scaffold_template(name: str) -> Path:
+    return Path(str(resources.files('opm').joinpath(f'resources/scaffold/templates/{name}')))
 
 
 def _write_chunking_fixture_module(path: Path) -> None:
@@ -481,14 +483,36 @@ def test_chunk_document_pb_view_synthesizes_id_for_idless_chunks(tmp_path: Path)
     assert index['odd=teipublisher.odd&root=a&view=div'] == 'a.json'
 
 
-@pytest.mark.skipif(not WIBORADA_ODD.is_file(), reason='Fixture odd/wiborada.odd not found')
-def test_wiborada_web_div_with_n_preserves_xml_id(tmp_path: Path) -> None:
+def test_web_div_with_n_preserves_xml_id(tmp_path: Path) -> None:
+    """HTML output keeps ``@xml:id`` when the same element also has ``@n``."""
     from opm.odd_compiler import compile_odd
     from opm.runtime.pm_runtime import serialize
 
-    module_path = tmp_path / 'wiborada_web.py'
-    module_path.write_text(compile_odd(str(WIBORADA_ODD)), encoding='utf-8')
-    spec = importlib.util.spec_from_file_location('wiborada_web', str(module_path))
+    odd = tmp_path / 'div_id.odd'
+    odd.write_text(
+        '''<?xml version="1.0"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader><fileDesc>
+    <titleStmt><title>t</title></titleStmt>
+    <publicationStmt><p>p</p></publicationStmt>
+    <sourceDesc><p>s</p></sourceDesc>
+  </fileDesc></teiHeader>
+  <text><body>
+    <schemaSpec ident="x" ns="http://www.tei-c.org/ns/1.0">
+      <elementSpec ident="div" mode="change">
+        <model behaviour="webcomponent">
+          <param name="name" value="'section'"/>
+        </model>
+      </elementSpec>
+    </schemaSpec>
+  </body></text>
+</TEI>
+''',
+        encoding='utf-8',
+    )
+    module_path = tmp_path / 'div_id_web.py'
+    module_path.write_text(compile_odd(str(odd)), encoding='utf-8')
+    spec = importlib.util.spec_from_file_location('div_id_web', str(module_path))
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -502,6 +526,7 @@ def test_wiborada_web_div_with_n_preserves_xml_id(tmp_path: Path) -> None:
     rendered = serialize(module.transform(root))
 
     assert 'id="intro"' in rendered
+    assert 'id="I"' not in rendered
 
 
 def _write_tei_namespaced_fixture_xml(path: Path) -> None:
@@ -555,10 +580,9 @@ def test_select_chunks_resolves_default_namespace(tmp_path: Path) -> None:
     assert not (out_dir / '003.json').is_file()
 
 
-DOCBOOK_ODD = ROOT / 'odd' / 'docbook.odd'
+DOCBOOK_ODD = packaged_odd('docbook')
 
 
-@pytest.mark.skipif(not DOCBOOK_ODD.is_file(), reason='odd/docbook.odd not found')
 def test_docbook_per_chunk_breadcrumbs(tmp_path: Path) -> None:
     """Each DocBook section chunk gets a breadcrumb trail of ancestor titles.
 
@@ -663,7 +687,7 @@ def test_chapbook_running_head_uses_title_fragment(tmp_path: Path) -> None:
     config = ChunkingConfig(
         xpath='//section',
         output_dir='title-chunks',
-        template=ROOT / 'templates' / 'chapbook.html.j2',
+        template=_scaffold_template('chapbook.html.j2'),
         fragments=[
             FragmentConfig(
                 name='title',

@@ -1,4 +1,4 @@
-"""Integration test: compile odd/docbook.odd (docx mode), transform tests/test-docx-docbook.xml,
+"""Integration test: compile packaged docbook.odd (docx mode), transform tests/test-docx-docbook.xml,
 verify list numbering and hyperlink styling.
 """
 
@@ -12,10 +12,11 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
+from opm.resources import packaged_default_docx, packaged_odd
+
 ROOT = Path(__file__).resolve().parents[1]
-ODD = ROOT / 'odd' / 'docbook.odd'
+ODD = packaged_odd('docbook')
 TEST_XML = ROOT / 'tests' / 'test-docx-docbook.xml'
-TOML_CONFIG = ROOT / 'teipublisher.toml'
 
 W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 
@@ -50,7 +51,6 @@ def _list_paras(doc_root: etree._Element) -> list[dict]:
 @pytest.fixture(scope='module')
 def docx_parts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, etree._Element]:
     """Compile docbook.odd for docx, transform test-docx-docbook.xml, return parsed parts."""
-    from opm.config import load_project_config
     from opm.odd_compiler import compile_odd
     from opm.transform import load_transform_module, run_transform
 
@@ -59,9 +59,8 @@ def docx_parts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, etree._Ele
     path.write_text(compile_odd(str(ODD), output_mode='docx'), encoding='utf-8')
     mod = load_transform_module(path)
 
-    cfg = load_project_config(TOML_CONFIG)
     root = etree.parse(str(TEST_XML)).getroot()
-    result = run_transform(mod, root, docx_template=cfg.document_docx_template)
+    result = run_transform(mod, root, docx_template=packaged_default_docx())
     assert isinstance(result, bytes), 'transform must return bytes for docx mode'
     return _parse_docx(result)
 

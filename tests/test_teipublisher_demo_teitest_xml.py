@@ -1,4 +1,4 @@
-"""Integration test: compile ``odd/teipublisher.odd`` and transform demo XML."""
+"""Integration test: compile packaged ``teipublisher.odd`` and transform demo XML."""
 
 from __future__ import annotations
 
@@ -9,8 +9,10 @@ from pathlib import Path
 import pytest
 from lxml import etree
 
+from opm.resources import packaged_odd
+
 ROOT = Path(__file__).resolve().parents[1]
-ODD = ROOT / 'odd' / 'teipublisher.odd'
+ODD = packaged_odd('teipublisher')
 DEMO_TEI_TEST_XML = ROOT / 'demo' / 'tei-test.xml'
 
 
@@ -19,7 +21,7 @@ DEMO_TEI_TEST_XML = ROOT / 'demo' / 'tei-test.xml'
     reason='Fixture demo/tei-test.xml not found',
 )
 def test_teipublisher_odd_teitest_xml_choice_abbr_expan_alternate_html(tmp_path: Path) -> None:
-    """Compile ``odd/teipublisher.odd``, transform ``demo/tei-test.xml``, check ``choice``/``alternate`` HTML.
+    """Compile packaged ``teipublisher.odd``, transform ``demo/tei-test.xml``, check ``choice``/``alternate`` HTML.
 
     Catches regressions where XPath results stayed as elementpath wrappers so ``apply_children``
     skipped content (empty ``alternate`` containers).

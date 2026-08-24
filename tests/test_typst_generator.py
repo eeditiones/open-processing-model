@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from opm.odd_compiler.typst_generator import (
     collect_odd_generated_typst,
     css_body_to_typst_function,
     typst_ident_from_class,
 )
+from opm.resources import packaged_odd
 
-ROOT = Path(__file__).resolve().parents[1]
-ODD = ROOT / 'odd' / 'teipublisher.odd'
+ODD = packaged_odd('teipublisher')
 
 
 def test_typst_ident_from_class_replaces_hyphens() -> None:
