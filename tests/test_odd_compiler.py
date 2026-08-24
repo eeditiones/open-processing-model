@@ -347,3 +347,28 @@ def test_compile_inherited_odd_loads_parent_then_overwrites_child() -> None:
     assert '.simple_bold { font-weight: bold; }' in src
     # <desc> from models is preserved as generated Python comments.
     assert "# for breadcrumbs, pick title/@type='statement'" in src
+
+
+def test_compile_child_odd_inherits_packaged_teipublisher(tmp_path: Path) -> None:
+    """schemaSpec/@source falls back to packaged stock ODDs when no sibling exists."""
+    from opm.odd_compiler import compile_odd
+
+    child = tmp_path / 'custom.odd'
+    child.write_text(
+        '''<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader><fileDesc>
+    <titleStmt><title>child</title></titleStmt>
+    <publicationStmt><p>test</p></publicationStmt>
+    <sourceDesc><p>test</p></sourceDesc>
+  </fileDesc></teiHeader>
+  <text><body>
+    <schemaSpec ident="custom" start="TEI teiCorpus" source="teipublisher.odd">
+    </schemaSpec>
+  </body></text>
+</TEI>
+''',
+        encoding='utf-8',
+    )
+    src = compile_odd(str(child))
+    assert "case 'p':" in src
+    assert 'external styles loaded from tp.css' in src

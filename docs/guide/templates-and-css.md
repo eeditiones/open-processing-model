@@ -9,8 +9,9 @@ section — is **not** a complete HTML document; the template supplies the shell
 
 Pass a template with `--template`, or set a default under `[document]` in
 `opm.toml`. Chunk pages use `chunking.template` instead. If none is given, a
-packaged default template is used. Example templates ship in `templates/`
-(`tufte.html.j2`, `bootstrap.html.j2`, `chapbook.html.j2`, …).
+packaged default template is used. `opm init` copies editable shells into
+`templates/` (chapbook HTML plus Typst and Word templates). Example templates
+in this repo (`tufte.html.j2`, `bootstrap.html.j2`, …) are demos, not packaged.
 
 ```bash
 uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd \
@@ -139,6 +140,9 @@ ecosystem.
 ## Typst and DOCX templates
 
 - **Typst** uses `.typ.j2` Jinja2 templates configured under `[transform.typst]`.
+  `opm init` copies `book.typ.j2` (TEI) or `docbook.typ.j2` (DocBook). If none
+  is given, the packaged `default_document.typ.j2` is used.
 - **DOCX** uses a binary `.docx` file as a *style* template (not Jinja2),
-  configured under `[transform.docx]` or passed with `--template` — see
-  [Output formats](output-formats.md#docx).
+  configured under `[transform.docx]` or passed with `--template`. `opm init`
+  copies `templates/default.docx`; a one-off transform falls back to that same
+  packaged file — see [Output formats](output-formats.md#docx).

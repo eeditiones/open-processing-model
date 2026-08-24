@@ -1,4 +1,4 @@
-"""Unified CLI: ``opm transform``, ``opm chunk``, and ``opm serve``.
+"""Unified CLI: ``opm init``, ``opm transform``, ``opm chunk``, and ``opm serve``.
 
 ODDs are compiled on demand into the user cache (``platformdirs``); there is no
 separate ``compile`` command.
@@ -32,7 +32,8 @@ from opm.config import (
     load_project_config,
 )
 from opm.odd_cache import ResolvedTransform, resolve_transform_module
-from opm.resources import packaged_default_css
+from opm.resources import packaged_default_css, packaged_default_docx
+from opm.scaffold import InitOptions, ScaffoldError, VOCABULARIES, scaffold
 from opm.runtime.pm_runtime import resolve_context_element
 from opm.transform import load_transform_module, load_xpath_documents, run_transform
 from opm.runtime.pm_runtime import xpath_runtime_context
@@ -47,6 +48,85 @@ app = typer.Typer(
     no_args_is_help=True,
     context_settings={'help_option_names': ['-h', '--help']},
 )
+
+
+@app.command('init')
+def init_cmd(
+    directory: Annotated[
+        Path,
+        typer.Argument(help='Project directory (default: current directory).'),
+    ] = Path('.'),
+    force: Annotated[
+        bool,
+        typer.Option('--force', help='Overwrite existing generated files.'),
+    ] = False,
+    vocabulary: Annotated[
+        str,
+        typer.Option(
+            '--vocabulary',
+            help=f'Source vocabulary: {" or ".join(VOCABULARIES)} (default: tei).',
+        ),
+    ] = 'tei',
+    no_sample: Annotated[
+        bool,
+        typer.Option('--no-sample', help='Do not copy a sample XML document.'),
+    ] = False,
+    copy_base_odd: Annotated[
+        bool,
+        typer.Option(
+            '--copy-base-odd',
+            help='TEI only: also copy packaged teipublisher.odd and tp.css into odd/.',
+        ),
+    ] = False,
+    title: Annotated[
+        Optional[str],
+        typer.Option('--title', help='Edition title used in README (default: directory name).'),
+    ] = None,
+) -> None:
+    """Create a local project (config, templates, ODD) from packaged defaults."""
+    vocab = vocabulary.strip().lower()
+    if copy_base_odd and vocab == 'docbook':
+        typer.echo(
+            'opm: note: --copy-base-odd is TEI-only; DocBook already copies odd/docbook.odd.',
+            err=True,
+        )
+    try:
+        result = scaffold(
+            InitOptions(
+                directory=directory,
+                force=force,
+                title=title,
+                vocabulary=vocab,
+                copy_base_odd=copy_base_odd and vocab == 'tei',
+                include_sample=not no_sample,
+            )
+        )
+    except ScaffoldError as e:
+        typer.echo(f'opm: error: {e}', err=True)
+        raise SystemExit(1) from e
+
+    typer.echo(f'Created project in {result.directory}')
+    for path in result.written:
+        try:
+            rel = path.relative_to(result.directory)
+        except ValueError:
+            rel = path
+        typer.echo(f'  {rel}')
+    if result.skipped:
+        typer.echo('Skipped existing files (pass --force to overwrite):', err=True)
+        for path in result.skipped:
+            try:
+                rel = path.relative_to(result.directory)
+            except ValueError:
+                rel = path
+            typer.echo(f'  {rel}', err=True)
+
+    sample = 'data/sample.xml' if result.include_sample else 'your.xml'
+    typer.echo('')
+    typer.echo('Next:')
+    typer.echo(f'  opm transform {sample} --preview')
+    typer.echo(f'  opm chunk {sample} --force')
+    typer.echo('  opm serve')
 
 
 def _preview_kind_from_module(mod) -> str:
@@ -360,6 +440,8 @@ def transform_cmd(
         elif primary == 'docx':
             effective_template = None
             effective_docx_template = template if template is not None else cfg.document_docx_template
+            if effective_docx_template is None:
+                effective_docx_template = packaged_default_docx()
         else:
             effective_template = template if template is not None else cfg.document_template
             effective_docx_template = None

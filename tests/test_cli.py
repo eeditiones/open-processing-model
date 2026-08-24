@@ -597,3 +597,116 @@ def test_bind_http_server_skips_busy_port() -> None:
             httpd.server_close()
     finally:
         occupied.server_close()
+
+
+def test_init_tei_creates_project(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    dest = tmp_path / 'edition'
+    rc = main(['init', str(dest), '--title', 'Test Edition'])
+    assert rc == 0
+    assert (dest / 'opm.toml').is_file()
+    assert (dest / 'odd' / 'custom.odd').is_file()
+    assert not (dest / 'odd' / 'teipublisher.odd').exists()
+    assert (dest / 'templates' / 'chapbook.html.j2').is_file()
+    assert (dest / 'templates' / 'chapbook.css').is_file()
+    assert (dest / 'templates' / 'book.typ.j2').is_file()
+    assert (dest / 'templates' / 'default.docx').is_file()
+    assert (dest / 'styles' / 'default-styles.css').is_file()
+    assert (dest / 'data' / 'sample.xml').is_file()
+    assert (dest / 'extensions' / '__init__.py').is_file()
+    cfg = load_project_config(dest / 'opm.toml')
+    assert cfg.chunking is not None
+    assert cfg.chunking.selector == 'opm.navigation.tei_div_chunks'
+    assert cfg.transform_odd is not None
+    assert cfg.transform_odd.name == 'custom.odd'
+    assert cfg.document_docx_template is not None
+    assert cfg.typst_template is not None
+    assert 'Test Edition' in (dest / 'README.md').read_text(encoding='utf-8')
+
+
+def test_init_refuses_existing_config_without_force(tmp_path: Path) -> None:
+    dest = tmp_path / 'edition'
+    assert main(['init', str(dest)]) == 0
+    marker = dest / 'odd' / 'custom.odd'
+    marker.write_text('keep-me', encoding='utf-8')
+    rc = main(['init', str(dest)])
+    assert rc == 1
+    assert marker.read_text(encoding='utf-8') == 'keep-me'
+
+
+def test_init_force_overwrites(tmp_path: Path) -> None:
+    dest = tmp_path / 'edition'
+    assert main(['init', str(dest)]) == 0
+    (dest / 'odd' / 'custom.odd').write_text('stale', encoding='utf-8')
+    rc = main(['init', str(dest), '--force'])
+    assert rc == 0
+    text = (dest / 'odd' / 'custom.odd').read_text(encoding='utf-8')
+    assert 'stale' not in text
+    assert 'source="teipublisher.odd"' in text
+
+
+def test_init_invalid_vocabulary(tmp_path: Path) -> None:
+    rc = main(['init', str(tmp_path / 'x'), '--vocabulary', 'nroff'])
+    assert rc == 1
+    assert not (tmp_path / 'x' / 'opm.toml').exists()
+
+
+def test_init_docbook_copies_stock_odd(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    dest = tmp_path / 'dbk'
+    rc = main(['init', str(dest), '--vocabulary', 'docbook'])
+    assert rc == 0
+    assert (dest / 'odd' / 'docbook.odd').is_file()
+    assert (dest / 'odd' / 'docbook.css').is_file()
+    assert not (dest / 'odd' / 'custom.odd').exists()
+    sample = (dest / 'data' / 'sample.xml').read_text(encoding='utf-8')
+    assert 'docbook.org/ns/docbook' in sample
+    cfg = load_project_config(dest / 'opm.toml')
+    assert cfg.chunking is not None
+    assert cfg.chunking.selector == 'opm.navigation.dbk_section_chunks'
+    assert cfg.transform_odd is not None
+    assert cfg.transform_odd.name == 'docbook.odd'
+    assert (dest / 'templates' / 'docbook.typ.j2').is_file()
+
+
+def test_init_copy_base_odd_tei(tmp_path: Path) -> None:
+    dest = tmp_path / 'with-base'
+    rc = main(['init', str(dest), '--copy-base-odd'])
+    assert rc == 0
+    assert (dest / 'odd' / 'teipublisher.odd').is_file()
+    assert (dest / 'odd' / 'tp.css').is_file()
+
+
+def test_init_tei_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
+    dest = tmp_path / 'edition'
+    assert main(['init', str(dest)]) == 0
+    monkeypatch.chdir(dest)
+    html = dest / 'out.html'
+    assert main(['transform', 'data/sample.xml', '-o', str(html)]) == 0
+    assert '<html' in html.read_text(encoding='utf-8').lower()
+    assert main(['transform', 'data/sample.xml', '-t', 'markdown', '-o', str(dest / 'out.md')]) == 0
+    assert (dest / 'out.md').read_text(encoding='utf-8').strip()
+    assert main(['transform', 'data/sample.xml', '-t', 'typst', '-o', str(dest / 'out.typ')]) == 0
+    assert (dest / 'out.typ').read_text(encoding='utf-8').strip()
+    assert main(['transform', 'data/sample.xml', '-t', 'docx', '-o', str(dest / 'out.docx')]) == 0
+    assert (dest / 'out.docx').stat().st_size > 0
+    assert main(['chunk', 'data/sample.xml', '--force']) == 0
+    chunk_files = list((dest / 'chunks').glob('*.html'))
+    assert len(chunk_files) >= 2
+
+
+def test_init_docbook_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
+    dest = tmp_path / 'dbk'
+    assert main(['init', str(dest), '--vocabulary', 'docbook']) == 0
+    monkeypatch.chdir(dest)
+    html = dest / 'out.html'
+    assert main(['transform', 'data/sample.xml', '-o', str(html)]) == 0
+    assert '<html' in html.read_text(encoding='utf-8').lower()
+    assert main(['transform', 'data/sample.xml', '-t', 'markdown', '-o', str(dest / 'out.md')]) == 0
+    assert main(['transform', 'data/sample.xml', '-t', 'typst', '-o', str(dest / 'out.typ')]) == 0
+    assert main(['transform', 'data/sample.xml', '-t', 'docx', '-o', str(dest / 'out.docx')]) == 0
+    assert (dest / 'out.docx').stat().st_size > 0
+    assert main(['chunk', 'data/sample.xml', '--force']) == 0
+    assert list((dest / 'chunks').glob('*.html'))

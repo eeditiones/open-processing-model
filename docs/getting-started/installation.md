@@ -1,18 +1,35 @@
 # Installation
 
-`opm` uses [`uv`](https://docs.astral.sh/uv/) as its package manager.
+The minimum supported Python version is **3.12**.
 
-## Python version
+## Users
 
-The minimum supported Python version is **3.12**
-(`pyproject.toml` → `requires-python = ">=3.12"`). `uv` does not force-upgrade
-your system Python, but it can provision a compatible interpreter:
+Install the published package, then scaffold a project:
+
+```bash
+pip install open-processing-model
+# or: uv add open-processing-model
+opm init
+```
+
+`opm init` writes `opm.toml`, templates, a stub ODD, and a sample document into
+the current directory (or a path you pass). Use `--vocabulary docbook` for a
+DocBook project. See the [Quickstart](quickstart.md).
+
+A one-off transform needs no project files: `opm transform my.xml --preview`
+uses the packaged stock ODD, HTML/Typst templates, CSS, and Word style template.
+
+## Contributors
+
+This repository uses [`uv`](https://docs.astral.sh/uv/) as its package manager.
+`uv` does not force-upgrade your system Python, but it can provision a
+compatible interpreter:
 
 ```bash
 uv python install 3.12
 ```
 
-## 1. Install `uv`
+### 1. Install `uv`
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -20,7 +37,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 Restart your shell (or source your profile) so `uv` is on `PATH`.
 
-## 2. Install dependencies
+### 2. Install dependencies
 
 From the project root:
 
@@ -36,7 +53,7 @@ uv sync --group dev     # pytest and other dev tools
 uv sync --group docs    # zensical + mkdocstrings (this site)
 ```
 
-## 3. Verify
+### 3. Verify
 
 ```bash
 uv run opm --help

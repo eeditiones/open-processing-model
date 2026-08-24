@@ -23,9 +23,38 @@ opm [OPTIONS] COMMAND [ARGS]...
 
 **Commands:**
 
+- [`init`](#opm-init): Create a local project (config, templates,...
 - [`transform`](#opm-transform): Transform an XML document via an ODD with...
 - [`chunk`](#opm-chunk): Chunk a large XML document into smaller...
 - [`serve`](#opm-serve): Start a local HTTP server rooted at the...
+
+### `opm init`
+
+Create a local project (config, templates, ODD) from packaged defaults.
+
+**Usage:**
+
+```text
+opm init [OPTIONS] [DIRECTORY]
+```
+
+**Arguments:**
+
+| Argument | Description |
+| --- | --- |
+| `DIRECTORY` | Project directory (default: current directory). |
+
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--force` | Overwrite existing generated files. |
+| `--vocabulary TEXT` | Source vocabulary: tei or docbook (default: tei). |
+| `--no-sample` | Do not copy a sample XML document. |
+| `--copy-base-odd` | TEI only: also copy packaged teipublisher.odd and tp.css into odd/. |
+| `--title TEXT` | Edition title used in README (default: directory name). |
+| `--help` | Show this message and exit. |
 
 ### `opm transform`
 

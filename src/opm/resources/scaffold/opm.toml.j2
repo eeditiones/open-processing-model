@@ -1,0 +1,46 @@
+[project]
+pythonpath = ["extensions"]
+
+[transform]
+odd = "{{ odd_path }}"
+xpath_extensions = [
+    "opm.runtime.common_xpath_functions"
+]
+
+[transform.web.webcomponents]
+enabled = {{ 'true' if webcomponents else 'false' }}
+
+{% if 'docx' in outputs -%}
+[transform.docx]
+template = "templates/default.docx"
+{% endif %}
+{% if 'typst' in outputs -%}
+[transform.typst]
+template = "{{ typst_template }}"
+{% endif %}
+{% if 'markdown' in outputs -%}
+[transform.markdown]
+# Optional per-type ODD override: odd = "{{ odd_path }}"
+{% endif %}
+[document]
+template = "templates/chapbook.html.j2"
+css = "styles/default-styles.css"
+
+{% if chunk_selector -%}
+[chunking]
+selector = "{{ chunk_selector }}"
+depth = {{ chunk_depth }}
+output_dir = "chunks"
+template = "templates/chapbook.html.j2"
+
+[[chunking.fragments]]
+name = "title"
+scope = "global"
+xpath = "{{ title_xpath }}"
+
+[[chunking.fragments]]
+name = "breadcrumbs"
+scope = "per-chunk"
+xpath = "."
+parameters = { mode = "breadcrumb" }
+{% endif -%}

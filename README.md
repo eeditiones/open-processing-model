@@ -11,23 +11,34 @@
 
 ## Quick start
 
-`opm` uses [`uv`](https://docs.astral.sh/uv/) (Python ≥ 3.12). Install `uv`, then:
+Python ≥ 3.12. Install the package, then scaffold a project:
 
 ```bash
-uv sync                                              # install dependencies
+pip install open-processing-model
+# or: uv add open-processing-model
 
-# Transform a document — ODD compiles on demand into the user cache
-uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd \
-  --preview --template templates/tufte.html.j2
+opm init                          # TEI project in the current directory
+# opm init --vocabulary docbook   # DocBook instead
 
-# Or omit --odd to use the packaged stock teipublisher ODD
-# uv run opm transform demo/tei-test.xml --preview
+opm transform data/sample.xml --preview
+opm chunk data/sample.xml --force
+opm serve
+```
 
-# Or pick the ODD/module from TOML with --type (web / docx / typst / …)
-# uv run opm transform demo/tei-test.xml -c teipublisher.toml -t web --preview
+A one-off transform needs no project files (`opm transform my.xml --preview`
+uses the packaged stock ODD and templates). `opm init` writes editable
+`opm.toml`, templates, CSS, and an ODD.
 
-# Chunk a large document into pages for a static site
-uv run opm chunk demo/tei-test.xml -o chunks/ --force
+## Contributors
+
+This repository uses [`uv`](https://docs.astral.sh/uv/). From a clone:
+
+```bash
+uv sync
+
+uv run opm transform demo/tei-test.xml --preview
+uv run opm transform demo/tei-test.xml -c teipublisher.toml -t web --preview
+uv run opm chunk demo/tei-test.xml -c teipublisher.toml -o chunks/ --force
 uv run opm serve -d chunks/
 ```
 

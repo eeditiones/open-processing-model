@@ -32,17 +32,31 @@ def _schema_spec(root) -> etree._Element:
     return spec
 
 
+def resolve_schema_source(token: str, odd_path: Path) -> Path:
+    """Resolve one ``schemaSpec/@source`` token to an ODD file.
+
+    Relative tokens are tried next to *odd_path* first, then as a packaged
+    stock ODD (``teipublisher.odd``, ``docbook.odd``, …).
+    """
+    p = Path(token)
+    if p.is_absolute():
+        return p
+    sibling = (odd_path.parent / p).resolve()
+    if sibling.is_file():
+        return sibling
+    try:
+        from opm.resources import packaged_odd
+
+        return packaged_odd(p.name).resolve()
+    except FileNotFoundError:
+        return sibling
+
+
 def _resolve_source_paths(schema_spec, odd_path: Path) -> list[Path]:
     raw = (schema_spec.get('source') or '').strip()
     if not raw:
         return []
-    out: list[Path] = []
-    for token in raw.split():
-        p = Path(token)
-        if not p.is_absolute():
-            p = (odd_path.parent / p).resolve()
-        out.append(p)
-    return out
+    return [resolve_schema_source(token, odd_path) for token in raw.split()]
 
 
 def _collect_element_specs(odd_path: Path, seen: set[Path]) -> list:

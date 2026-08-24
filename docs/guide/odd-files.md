@@ -8,11 +8,20 @@ To learn more about ODD, it is best to read the [TEI Publisher documentation](ht
 It also includes a small tutorial in the [Gentle Introduction](https://teipublisher.org/doc/quickstart.xml?id=pm-tutorial#pm-tutorial) document.
 
 Example ODD files ship in the repo under `odd/` for demos and tests. The library
-packages only the stock `teipublisher` ODD (plus `tp.css`) as the default when
-no `--odd` / config entry is given:
+packages two stock models:
 
-- `odd/teipublisher.odd` — main TEI Publisher model (also packaged)
-- `odd/docbook.odd`, `odd/shakespeare.odd`, … — project examples, not packaged
+- `teipublisher.odd` (+ `tp.css`) — main TEI Publisher model, and the fallback
+  when `--odd` is omitted
+- `docbook.odd` (+ `docbook.css`) — DocBook v5 model (`opm init --vocabulary docbook`)
+
+`opm init` writes a short `odd/custom.odd` that inherits packaged `teipublisher`,
+or copies `docbook.odd` into the project. Other files under repo `odd/`
+(`shakespeare.odd`, …) are examples, not packaged.
+
+`schemaSpec/@source` is resolved next to the child ODD first, then as a packaged
+stock ODD — so `source="teipublisher.odd"` works after a pip install without
+copying the parent file. Pass `--copy-base-odd` to snapshot `teipublisher.odd`
+into the project.
 
 ## Compiling on demand
 

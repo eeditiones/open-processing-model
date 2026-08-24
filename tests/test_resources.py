@@ -28,3 +28,14 @@ def test_ensure_packaged_odd_dir_refreshes_stale_mirror(tmp_path: Path, monkeypa
 
     dest = ensure_packaged_odd_dir()
     assert dest == cache / 'resources' / '0' / 'odd'
+
+
+def test_packaged_stock_odds_and_docx_exist() -> None:
+    from opm.resources import packaged_default_docx, packaged_odd
+
+    assert packaged_odd('teipublisher').is_file()
+    assert packaged_odd('docbook').is_file()
+    css = packaged_odd('docbook').with_suffix('.css')
+    assert css.is_file()
+    docx = packaged_default_docx()
+    assert docx is not None and docx.is_file()

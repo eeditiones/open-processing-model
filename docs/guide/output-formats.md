@@ -81,8 +81,9 @@ uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t markdown --pre
 DOCX is binary, so `-o` is required (it cannot be previewed). A custom Word
 `.docx` can be supplied as a **style template** via `--template` or the
 `[transform.docx] template` config key; its paragraph and character styles are reused in
-the output. Missing built-in styles (`Hyperlink`, `footnote text`,
-`footnote reference`) are injected automatically.
+the output. If none is given, the packaged `default.docx` is used (the same file
+`opm init` copies into `templates/`). Missing built-in styles (`Hyperlink`,
+`footnote text`, `footnote reference`) are injected automatically.
 
 ```bash
 uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t docx -o report.docx \

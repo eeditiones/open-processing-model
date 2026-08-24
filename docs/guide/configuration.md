@@ -1,9 +1,9 @@
 # Configuration (`opm.toml`)
 
 Place an `opm.toml` file in the project root to set defaults for all CLI
-commands. Every section is optional, and CLI options always override config
-values. Pass a different file with `-c` (for example `teipublisher.toml` for a
-project-specific setup).
+commands. `opm init` writes a working file; every section is optional, and CLI
+options always override config values. Pass a different file with `-c` (for
+example `teipublisher.toml` for a project-specific setup).
 
 The schema below is loaded into
 [`opm.config.ProjectConfig`](../api/config.md); paths are resolved relative to

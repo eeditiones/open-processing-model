@@ -9,6 +9,7 @@ from pathlib import Path
 from lxml import etree
 
 from opm.odd_compiler import compile_odd
+from opm.odd_compiler.parse_odd import resolve_schema_source
 from opm.resources import opm_version, user_opm_cache_dir
 
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
@@ -42,7 +43,7 @@ def _iter_input_files(odd_path: Path, *, leaf_dir: Path, seen: set[Path]) -> lis
 
     for spec in root.iter(f'{{{TEI_NS}}}schemaSpec'):
         for token in (spec.get('source') or '').split():
-            parent = (odd_path.parent / token).resolve()
+            parent = resolve_schema_source(token, odd_path)
             files.extend(_iter_input_files(parent, leaf_dir=leaf_dir, seen=seen))
 
     for rend in root.iter(f'{{{TEI_NS}}}rendition'):

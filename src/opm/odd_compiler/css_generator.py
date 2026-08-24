@@ -38,10 +38,17 @@ def _normalize_css_body(text: str) -> str:
     return ' '.join(text.split())
 
 
-def _collect_tagsdecl_renditions(parsed: ParsedOdd) -> tuple[dict[str, str], list[str]]:
-    """Collect inherited tagsDecl renditions: parent ODDs first, child overwrites by xml:id."""
+def _collect_tagsdecl_renditions(
+    parsed: ParsedOdd,
+) -> tuple[dict[str, str], list[tuple[str, str]]]:
+    """Collect inherited tagsDecl renditions: parent ODDs first, child overwrites by xml:id.
+
+    External ``@source`` entries are ``(filename, declaring_odd_path)`` so CSS
+    can be resolved next to the parent ODD as well as the leaf project ODD.
+    """
     simple_rules: dict[str, str] = {}
-    sources: list[str] = []
+    sources: list[tuple[str, str]] = []
+    seen_src: set[str] = set()
 
     for odd_file in parsed.odd_chain:
         root = etree.parse(odd_file, etree.XMLParser(collect_ids=False)).getroot()
@@ -54,8 +61,9 @@ def _collect_tagsdecl_renditions(parsed: ParsedOdd) -> tuple[dict[str, str], lis
             if rid and body:
                 simple_rules[rid] = body
             src = (rend.get('source') or '').strip()
-            if src and src not in sources:
-                sources.append(src)
+            if src and src not in seen_src:
+                seen_src.add(src)
+                sources.append((src, odd_file))
     return simple_rules, sources
 
 
@@ -73,11 +81,15 @@ def collect_odd_generated_css(parsed: ParsedOdd, output_mode: str = 'web') -> st
     simple_rules, sources = _collect_tagsdecl_renditions(parsed)
     for rid, body in simple_rules.items():
         chunks.append(f'.simple_{rid} {{ {body} }}')
-    for src in sources:
-        path = odd_dir / src
-        if path.is_file():
+    for src, odd_file in sources:
+        found = None
+        for candidate in (odd_dir / src, Path(odd_file).parent / src):
+            if candidate.is_file():
+                found = candidate
+                break
+        if found is not None:
             chunks.append(f'/* external styles loaded from {src} */')
-            chunks.append(path.read_text(encoding='utf-8'))
+            chunks.append(found.read_text(encoding='utf-8'))
         else:
             chunks.append(f'/* external styles not found: {src} */')
 

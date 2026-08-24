@@ -72,14 +72,23 @@ def packaged_odd(name: str = 'teipublisher') -> Path:
 
 def packaged_default_css() -> Path | None:
     """Return the packaged ``default-styles.css``, or ``None`` if absent."""
-    packaged = _packaged_root().joinpath('styles', 'default-styles.css')
+    return _mirror_packaged_file(('styles', 'default-styles.css'))
+
+
+def packaged_default_docx() -> Path | None:
+    """Return the packaged Word style template, or ``None`` if absent."""
+    return _mirror_packaged_file(('templates', 'default.docx'))
+
+
+def _mirror_packaged_file(parts: tuple[str, ...]) -> Path | None:
+    """Copy a packaged resource into the user cache and return that path."""
+    packaged = _packaged_root().joinpath(*parts)
     try:
         with resources.as_file(packaged) as path:
             if path.is_file():
-                # Keep the mirrored copy fresh across editable installs.
-                dest = user_opm_cache_dir() / 'resources' / opm_version() / 'styles'
-                dest.mkdir(parents=True, exist_ok=True)
-                out = dest / 'default-styles.css'
+                dest_dir = user_opm_cache_dir() / 'resources' / opm_version() / Path(*parts[:-1])
+                dest_dir.mkdir(parents=True, exist_ok=True)
+                out = dest_dir / parts[-1]
                 shutil.copy2(path, out)
                 return out
     except (FileNotFoundError, TypeError, OSError):
