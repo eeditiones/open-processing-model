@@ -241,7 +241,17 @@ class ChunkProcessor:
         pattern = self.config.link_pattern
         if pattern:
             stem = Path(target_file).stem
-            return pattern.format(file=target_file, stem=stem, anchor=anchor)
+            doc = (self.config.link_doc or '').strip('/')
+            url = pattern.format(file=target_file, stem=stem, anchor=anchor, doc=doc)
+            # Drop empty {doc} path segments without touching "http://" / "https://".
+            if not doc:
+                if '://' in url:
+                    scheme, sep, rest = url.partition('://')
+                    url = scheme + sep + rest.replace('//', '/')
+                else:
+                    while '//' in url:
+                        url = url.replace('//', '/')
+            return url
         return f'{target_file}#{anchor}'
 
     def _rewrite_html_fragment(
@@ -665,6 +675,13 @@ class ChunkProcessor:
             params[f'user.{name}'] = str(value)
         return params
 
+    def _pb_view_fragment_params(self, fragment: FragmentConfig) -> dict[str, str]:
+        """Base pb-view params plus this fragment's ``user.*`` overrides."""
+        params = self._pb_view_base_params()
+        for name, value in (fragment.parameters or {}).items():
+            params[f'user.{name}'] = str(value)
+        return params
+
     def export_pb_view(
         self,
         doc_path: str | None = None,
@@ -680,6 +697,10 @@ class ChunkProcessor:
           computed parameter keys to part files
         - ``<output_dir>/<doc_path>/<xml:id>.json`` — one part per chunk, mirroring
           the response of TEI Publisher's ``/api/parts/<doc>/json`` endpoint
+        - ``<output_dir>/<doc_path>/<name>.json`` — one part per global fragment
+          (e.g. ``toc.json``), keyed by the fragment xpath and ``user.*`` params;
+          a sibling ``<name>.html`` is written with the same HTML content
+        - ``<output_dir>/<doc_path>/<name>-<xml:id>.json`` — per-chunk fragments
         - ``<output_dir>/css/<odd>.css`` — stylesheet, shared by every document
           under the same static root
 
@@ -729,6 +750,34 @@ class ChunkProcessor:
         base_params = self._pb_view_base_params()
         index: dict[str, str] = {}
         total = len(self.chunks)
+
+        # Global fragments once: {name}.json (+ sibling {name}.html), keyed by
+        # xpath + fragment user params. Also register under every chunk id/root
+        # so a subscribed pb-view that re-fetches on navigation still resolves
+        # to the same file. Links stay as in-document anchors (same as main
+        # chunk content) so pb-view client navigation can resolve them.
+        global_frags = [f for f in (self.config.fragments or []) if f.scope == 'global']
+        for frag in global_frags:
+            frag_html = self.process_fragment(frag)
+            if isinstance(frag_html, bytes):
+                frag_html = frag_html.decode('utf-8')
+
+            frag_filename = f'{frag.name}.json'
+            (data_dir / frag_filename).write_text(
+                json.dumps({'content': frag_html}, indent=2, ensure_ascii=False),
+                encoding='utf-8',
+            )
+            (data_dir / f'{frag.name}.html').write_text(frag_html, encoding='utf-8')
+
+            frag_params = self._pb_view_fragment_params(frag)
+            index[_compute_part_key({**frag_params, 'xpath': frag.xpath})] = frag_filename
+            for xml_id in chunk_ids:
+                index[_compute_part_key({**frag_params, 'id': xml_id, 'xpath': frag.xpath})] = (
+                    frag_filename
+                )
+                index[_compute_part_key({**frag_params, 'root': xml_id, 'xpath': frag.xpath})] = (
+                    frag_filename
+                )
 
         # Pre-select per-chunk fragment elements, aligned by position with main chunks.
         per_chunk_frags = [f for f in (self.config.fragments or []) if f.scope == 'per-chunk']
@@ -783,13 +832,27 @@ class ChunkProcessor:
             index[_compute_part_key({**base_params, 'root': xml_id})] = filename
 
             # Per-chunk fragment files: {name}-{xml_id}.json
+            # Elements are pre-selected and aligned by position with main chunks
+            # (parallel-column pattern); transform each node directly so absolute
+            # fragment xpaths are not re-evaluated from the wrong context.
             for frag in per_chunk_frags:
                 frag_elems = frag_elements.get(frag.name, [])
                 if i >= len(frag_elems):
                     continue
                 frag_mod = self._fragment_modules.get(str(frag.module)) if frag.module else self.module
+                transform_params = {
+                    **self.parameters,
+                    **(frag.parameters or {}),
+                    **xpath_runtime_context(
+                        base_uri=self.xpath_base_uri,
+                        documents=self.xpath_documents,
+                        root=self._source_node(frag_elems[i]),
+                    ),
+                }
                 frag_html = run_transform(
-                    frag_mod, frag_elems[i],
+                    frag_mod,
+                    frag_elems[i],
+                    parameters=transform_params,
                     xpath_extensions=self.xpath_extensions or None,
                     apply_template=False,
                     xpath_base_uri=self.xpath_base_uri,
@@ -812,11 +875,16 @@ class ChunkProcessor:
                     encoding='utf-8',
                 )
 
+                frag_params = self._pb_view_fragment_params(frag)
                 if i == 0:
-                    index[_compute_part_key({**base_params, 'xpath': frag.xpath})] = frag_filename
+                    index[_compute_part_key({**frag_params, 'xpath': frag.xpath})] = frag_filename
                 for node_id in ids:
-                    index[_compute_part_key({**base_params, 'id': node_id, 'xpath': frag.xpath})] = frag_filename
-                index[_compute_part_key({**base_params, 'root': xml_id, 'xpath': frag.xpath})] = frag_filename
+                    index[
+                        _compute_part_key({**frag_params, 'id': node_id, 'xpath': frag.xpath})
+                    ] = frag_filename
+                index[
+                    _compute_part_key({**frag_params, 'root': xml_id, 'xpath': frag.xpath})
+                ] = frag_filename
 
             if on_progress is not None:
                 on_progress(i + 1, total)

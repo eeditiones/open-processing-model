@@ -114,7 +114,7 @@ opm chunk [OPTIONS] [INPUT_XML]
 | `--odd, -d PATH` | ODD file to compile on demand for chunking (overrides chunking.odd in config). |
 | `--output-dir, -o PATH` | Directory to write chunked files (overrides chunking.output_dir in config). |
 | `--template, -t FILE` | Jinja2 template for chunk pages (overrides chunking.template in config). |
-| `--force, -f` | Overwrite existing output directory. |
+| `--force, -f` | Remove the existing output directory without prompting. |
 | `--webcomponents, --no-webcomponents` | Enable/disable tei-publisher web components mode. Falls back to transform.web.webcomponents.enabled in the project config. |
 | `--xpath-extensions TEXT` | Dotted import path(s) of Python module(s) whose public callables become XPath functions in the tp: namespace (repeatable). Falls back to transform.xpath_extensions in opm.toml. |
 | `--format TEXT` | Output format for chunk files: "html" (default, rendered via Jinja2 template), "json" (one JSON file per chunk containing content, head, odd_css, and fragments — suitable for static site generators such as Eleventy), or "pb-view" (index.json lookup table plus one part file per chunk, consumable by the dynamic pb-view web component in static mode). |

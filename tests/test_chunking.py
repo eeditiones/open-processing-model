@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from dataclasses import replace
 from importlib import resources
 from pathlib import Path
 
@@ -244,6 +245,30 @@ def test_chunk_html_template_includes_odd_css(tmp_path: Path) -> None:
     assert '<style>' in html
 
 
+def test_link_pattern_includes_doc_subdirectory(tmp_path: Path) -> None:
+    """link_pattern = '/{doc}/{file}' prefixes per-document output dirs."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    config = _chunking_config('lp-doc-chunks', link_pattern='/{doc}/{file}')
+    config = replace(config, link_doc='quickstart.xml')
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=config,
+        project_root=tmp_path,
+        output_format='json',
+    )
+
+    chunk_one = json.loads((tmp_path / 'lp-doc-chunks' / '001.json').read_text(encoding='utf-8'))
+    assert 'href="#a"' in chunk_one['content']
+    assert 'href="/quickstart.xml/002.html"' in chunk_one['content']
+    toc = chunk_one['fragments']['toc']
+    assert 'href="/quickstart.xml/002.html"' in toc
+
+
 def test_link_pattern_stem_anchor(tmp_path: Path) -> None:
     """link_pattern = '/{stem}#{anchor}' produces absolute paths without extension."""
     module_path = tmp_path / 'chunk_fixture.py'
@@ -439,6 +464,63 @@ def test_pb_view_export_per_chunk_fragments(tmp_path: Path) -> None:
     assert index["id=zh1&odd=teipublisher.odd&view=div&xpath=//body/div[@xml:lang='en']"] == 'en-zh1.json'
     # No positional suffix anywhere.
     assert "[1]" not in str(index)
+
+
+def test_pb_view_export_global_fragments(tmp_path: Path) -> None:
+    """Global fragments (e.g. TOC) produce {name}.json/.html and index keys with user params."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    config = ChunkingConfig(
+        xpath="//body/div[@type='chunk']",
+        output_dir='pb-global',
+        view='div',
+        fragments=[
+            FragmentConfig(
+                name='toc',
+                scope='global',
+                xpath="//body/div[@type='toc']",
+                parameters={'mode': 'toc'},
+            ),
+            FragmentConfig(
+                name='title',
+                scope='global',
+                xpath="string(//body/div[@type='toc']/p/ref[1])",
+            ),
+        ],
+    )
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=config,
+        project_root=tmp_path,
+        output_format='pb-view',
+    )
+
+    out = tmp_path / 'pb-global'
+    toc = json.loads((out / 'toc.json').read_text(encoding='utf-8'))
+    title = json.loads((out / 'title.json').read_text(encoding='utf-8'))
+    toc_html = (out / 'toc.html').read_text(encoding='utf-8')
+    title_html = (out / 'title.html').read_text(encoding='utf-8')
+
+    assert 'class="toc"' in toc['content']
+    assert 'href="#a"' in toc['content']
+    assert 'href="#b"' in toc['content']
+    assert toc_html == toc['content']
+    assert title['content'].strip() == 'A'
+    assert title_html == title['content']
+
+    index = json.loads((out / 'index.json').read_text(encoding='utf-8'))
+    toc_xpath = "//body/div[@type='toc']"
+    assert index[f'odd=teipublisher.odd&user.mode=toc&view=div&xpath={toc_xpath}'] == 'toc.json'
+    # Same TOC file resolves when a subscribed view re-fetches with root/id.
+    assert index[f'odd=teipublisher.odd&root=a&user.mode=toc&view=div&xpath={toc_xpath}'] == 'toc.json'
+    assert index[f'id=b&odd=teipublisher.odd&user.mode=toc&view=div&xpath={toc_xpath}'] == 'toc.json'
+    title_xpath = "string(//body/div[@type='toc']/p/ref[1])"
+    assert index[f'odd=teipublisher.odd&view=div&xpath={title_xpath}'] == 'title.json'
 
 
 def test_chunk_document_pb_view_synthesizes_id_for_idless_chunks(tmp_path: Path) -> None:

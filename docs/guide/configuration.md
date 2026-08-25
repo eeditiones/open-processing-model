@@ -57,8 +57,8 @@ depth = 2
 output_dir = "chunks"
 # Jinja2 template for chunk pages
 template = "templates/chunk.html.j2"
-# URL pattern for cross-chunk links ({file}, {stem}, {anchor} placeholders)
-link_pattern = "/{stem}/"
+# URL pattern for cross-chunk links ({file}, {stem}, {anchor}, {doc} placeholders)
+link_pattern = "/{doc}/{file}"
 ```
 
 ## Sections

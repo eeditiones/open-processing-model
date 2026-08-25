@@ -727,14 +727,20 @@ def chunk(
             base_doc_path = doc_path or chunking_config.doc_path
 
             for xml_file in input_files:
-                effective_chunking_config = (
-                    replace(
+                if input_xml.is_dir() and output_format != 'pb-view':
+                    effective_chunking_config = replace(
                         chunking_config,
                         output_dir=_append_output_dir(chunking_config.output_dir, xml_file),
+                        link_doc=xml_file.name,
                     )
-                    if input_xml.is_dir() and output_format != 'pb-view'
-                    else chunking_config
-                )
+                else:
+                    # Single-file output into …/<name>.xml/ should still expand {doc}.
+                    out = Path(chunking_config.output_dir)
+                    effective_chunking_config = (
+                        replace(chunking_config, link_doc=xml_file.name)
+                        if out.name == xml_file.name
+                        else chunking_config
+                    )
                 effective_doc_path = (
                     _append_doc_path(base_doc_path, xml_file)
                     if input_xml.is_dir() and output_format == 'pb-view'
@@ -772,10 +778,10 @@ def chunk(
         else:
             ext = 'json' if output_format == 'json' else 'html'
             if input_xml.is_dir():
-                typer.echo('  - <document>.xml/manifest.json: metadata for static site builders')
+                typer.echo('  - <document>.xml/manifest.json: metadata for page navigation and linking')
                 typer.echo(f'  - <document>.xml/*.{ext}: chunk files')
             else:
-                typer.echo('  - manifest.json: metadata for static site builders')
+                typer.echo('  - manifest.json: metadata for page navigation and linking')
                 typer.echo(f'  - *.{ext}: chunk files')
         
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:

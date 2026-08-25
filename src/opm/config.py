@@ -57,6 +57,29 @@ class ChunkingConfig:
     template: Path | None = None
     fragments: list[FragmentConfig] | None = None
     link_pattern: str | None = None
+    """Optional URL template for cross-chunk links.
+
+    Placeholders:
+      ``{file}``   – full filename, e.g. ``002.html``
+      ``{stem}``   – stem without extension, e.g. ``002``
+      ``{anchor}`` – the fragment identifier, e.g. ``Pers``
+      ``{doc}``    – document subdirectory when directory-chunking, e.g.
+                     ``quickstart.xml`` (empty for a single-file output)
+
+    When *None* (default) the rewriter falls back to the relative form
+    ``{file}#{anchor}``.  Example values::
+
+        link_pattern = "/{doc}/{file}"              # per-document absolute paths
+        link_pattern = "/{doc}/{stem}/"             # clean URLs under the doc dir
+        link_pattern = "/{stem}#{anchor}"           # site-root absolute (single doc)
+        link_pattern = "http://localhost:8080/{stem}#{anchor}"
+    """
+    link_doc: str | None = None
+    """Document path segment for ``{doc}`` in ``link_pattern`` (not from TOML).
+
+    Set by the CLI when chunking a directory of XML files into per-document
+    output subdirectories (e.g. ``quickstart.xml``).
+    """
     module: Path | None = None
     """Resolved compiled transform path (set after compile-on-demand, not from TOML)."""
     odd: Path | None = None
@@ -78,19 +101,6 @@ class ChunkingConfig:
     written to ``<output_dir>/<doc_path>/`` (CSS stays shared at
     ``<output_dir>/css/``). Must match the ``path`` of the consuming
     ``pb-document``. When unset the data is written directly into ``output_dir``.
-    """
-    """Optional URL template for cross-chunk links.
-
-    Placeholders:
-      ``{file}``   – full filename, e.g. ``002.html``
-      ``{stem}``   – stem without extension, e.g. ``002``
-      ``{anchor}`` – the fragment identifier, e.g. ``Pers``
-
-    When *None* (default) the rewriter falls back to the relative form
-    ``{file}#{anchor}``.  Example values::
-
-        link_pattern = "/{stem}#{anchor}"           # absolute path, no extension
-        link_pattern = "http://localhost:8080/{stem}#{anchor}"
     """
 
 

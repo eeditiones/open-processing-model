@@ -77,13 +77,24 @@ Alongside the main chunk content, you can extract **fragments** — secondary
 pieces pulled from the document or from each chunk, such as a table of contents,
 breadcrumbs, or the work title. They are configured under `[chunking]` as an
 array of tables and surface in the template as `fragments.<name>`, in each JSON
-chunk, and (for `scope = "global"`) in the manifest.
+chunk, and (for `scope = "global"`) in the manifest. With `--format pb-view`,
+global fragments become `{name}.json` part files (e.g. `toc.json`) plus a
+sibling `{name}.html` with the same markup, and per-chunk fragments become
+`{name}-{xml:id}.json`; both JSON parts are registered in `index.json` under
+the fragment xpath and any `user.*` parameters so a second `pb-view` can load
+them in static mode.
 
 ```toml
 [[chunking.fragments]]
 name = "title"
 scope = "global"
 xpath = "string((/article/info/title, /book/info/title)[1])"
+
+[[chunking.fragments]]
+name = "toc"
+scope = "global"
+xpath = "(/article, /book)[1]"
+parameters = { mode = "toc" }
 
 [[chunking.fragments]]
 name = "breadcrumbs"
@@ -137,12 +148,13 @@ so `root($parameters?root)//…` still reaches the header.
 
 Chunking writes a manifest JSON describing every chunk: its file, anchors,
 fragment locations, and `prev`/`next` navigation links. Cross-chunk links follow
-`chunking.link_pattern` (placeholders `{file}`, `{stem}`, `{anchor}`), so you can
-match your site's URL scheme:
+`chunking.link_pattern` (placeholders `{file}`, `{stem}`, `{anchor}`, `{doc}`),
+so you can match your site's URL scheme. `{doc}` is the per-document
+subdirectory when chunking a directory of XML files (empty otherwise):
 
 ```toml
 [chunking]
-link_pattern = "/{stem}/"
+link_pattern = "/{doc}/{file}"
 ```
 
 ## Previewing
