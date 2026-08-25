@@ -22,15 +22,23 @@ selector = "opm.navigation.dbk_section_chunks"
 depth = 2
 output_dir = "chunks"
 template = "templates/chapbook.html.j2"
-# Cross-chunk link pattern. Placeholders: {file}, {stem}, {anchor}.
+# Cross-chunk link pattern. Placeholders: {file}, {stem}, {anchor}, {doc}.
+# {doc} is the per-document subdirectory when chunking a directory of XML files.
 # Default (omitted): relative form, e.g. "002.html#Pers"
-# Uncomment and adjust to match your server's URL scheme:
-link_pattern = "/{stem}/"
+link_pattern = "/{doc}/{file}"
+doc_path = "doc"
 
 [[chunking.fragments]]
 name = "title"
 scope = "global"
-xpath = "string((/article/info/title, /book/info/title)[1])"
+xpath = "(/article/info/title, /book/info/title)[1]"
+parameters = { mode = "title" }
+
+[[chunking.fragments]]
+name = "toc"
+scope = "global"
+xpath = "(/article, /book)[1]"
+parameters = { mode = "toc" }
 
 [[chunking.fragments]]
 name = "breadcrumbs"

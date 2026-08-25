@@ -88,7 +88,8 @@ them in static mode.
 [[chunking.fragments]]
 name = "title"
 scope = "global"
-xpath = "string((/article/info/title, /book/info/title)[1])"
+xpath = "(/article/info/title, /book/info/title)[1]"
+parameters = { mode = "title" }
 
 [[chunking.fragments]]
 name = "toc"
@@ -108,11 +109,13 @@ parameters = { mode = "breadcrumb" }
 | `name` | Template / JSON key (`fragments.title`, `fragments.breadcrumbs`, …) |
 | `scope` | `global` — evaluate once against the document root; `per-chunk` — once per chunk with the chunk as context |
 | `xpath` | XPath 3.1 selecting the node(s) or string to emit (default `.`) |
-| `parameters` | Extra `$parameters` for that transform (e.g. `mode = "breadcrumb"`) |
-| `odd` / `mode` | Optional separate ODD and output channel for this fragment |
+| `parameters` | Extra `$parameters` for that transform (e.g. `mode = "breadcrumb"`). DocBook `mode = "toc"` uses OPM's `opm-web` models (`details`/`pb-link`, matching `dapi:toc-div`) so a jinks `pb-load` of `toc.html` works with `toc.js`. Optional `target` overrides the pb-link emit channel (default `transcription`); `collapse = true` starts nested entries closed. |
+| `odd` / `mode` | Rare. Use a different ODD for this fragment only (`odd`), compiled for output channel `mode` (`web` by default — not the same as `$parameters?mode` above). Omit to reuse the chunking ODD. |
 
-A string result (as with `string(…)`) is used as-is. An element is transformed
-with the chunking ODD (or the fragment's own `odd`). In a Jinja template:
+A string result (as with a bare `string(…)` xpath) is used as-is — fine inside a
+Jinja template, but not valid as a standalone `.html` file. Prefer selecting an
+element and transforming it (e.g. `parameters = { mode = "title" }`) when the
+fragment is also written to disk. In a Jinja template:
 
 ```jinja
 <title>{{ fragments.title | striptags | trim }}</title>

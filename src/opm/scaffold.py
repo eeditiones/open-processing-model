@@ -12,8 +12,8 @@ from jinja2 import Environment, PackageLoader
 VOCABULARIES = ('tei', 'docbook')
 DEFAULT_OUTPUTS = frozenset({'web', 'typst', 'docx', 'markdown'})
 
-_TEI_TITLE_XPATH = "string((//teiHeader/fileDesc/titleStmt/title)[1])"
-_DBK_TITLE_XPATH = "string((/article/info/title, /book/info/title)[1])"
+_TEI_TITLE_XPATH = "(//teiHeader/fileDesc/titleStmt/title)[1]"
+_DBK_TITLE_XPATH = "(/article/info/title, /book/info/title)[1]"
 
 
 @dataclass

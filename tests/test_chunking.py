@@ -774,7 +774,8 @@ def test_chapbook_running_head_uses_title_fragment(tmp_path: Path) -> None:
             FragmentConfig(
                 name='title',
                 scope='global',
-                xpath='string((/article/info/title, /book/info/title)[1])',
+                xpath='(/article/info/title, /book/info/title)[1]',
+                parameters={'mode': 'title'},
             ),
         ],
     )

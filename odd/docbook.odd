@@ -94,9 +94,7 @@
                     <model predicate="$parameters?mode='toc'" behaviour="pass-through">
                         <desc>Table of contents: top-level sections only</desc>
                         <param name="content" value="section"/>
-                        <pb:template xml:space="preserve"><nav xmlns="" class="toc" aria-label="Table of contents">
-  <ul>[[content]]</ul>
-</nav></pb:template>
+                        <pb:template xml:space="preserve"><ul xmlns="">[[content]]</ul></pb:template>
                     </model>
                     <model behaviour="document"/>
                 </elementSpec>
@@ -104,9 +102,7 @@
                     <model predicate="$parameters?mode='toc'" behaviour="pass-through">
                         <desc>Table of contents: top-level chapters/sections</desc>
                         <param name="content" value="section|chapter"/>
-                        <pb:template xml:space="preserve"><nav xmlns="" class="toc" aria-label="Table of contents">
-  <ul>[[content]]</ul>
-</nav></pb:template>
+                        <pb:template xml:space="preserve"><ul xmlns="">[[content]]</ul></pb:template>
                     </model>
                     <model behaviour="document"/>
                 </elementSpec>
@@ -220,13 +216,11 @@
                             </h1>
                         </pb:template>
                     </model>
-                    <model output="opm-web" predicate="$parameters?mode='toc' and ../@xml:id" behaviour="inline">
-                        <desc>TOC entry linking to the section's @xml:id</desc>
-                        <param name="id" value="../@xml:id"/>
-                        <pb:template xml:space="preserve"><a xmlns="" href="#[[id]]">[[content]]</a></pb:template>
+                    <model output="opm-web" predicate="$parameters?mode='toc'" behaviour="inline">
+                        <desc>Label only; section opm-web TOC models wrap pb-link (API-compatible)</desc>
                     </model>
                     <model predicate="$parameters?mode='toc' and ../@xml:id" behaviour="inline">
-                        <desc>TOC entry for pb-view / webcomponents</desc>
+                        <desc>TOC entry for tei-publisher-lib / webcomponents</desc>
                         <param name="id" value="../@xml:id"/>
                         <param name="hash" value="../@xml:id"/>
                         <pb:template xml:space="preserve"><pb-link xmlns="" xml-id="[[id]]" hash="[[hash]]" emit="transcription">[[content]]</pb-link></pb:template>
@@ -265,8 +259,49 @@
                     <model predicate="$parameters?mode='title'" behaviour="inline">
                         <param name="content" value="string-join(($get(.)/ancestor::article/info/title, $get(.)/ancestor::section/title, title), ' – ')"/>
                     </model>
+                    <model output="opm-web" predicate="$parameters?mode='toc' and section and not($parameters?collapse)"
+                        behaviour="pass-through">
+                        <desc>API-compatible TOC (dapi:toc-div / nav:toc-entry): nested, expanded</desc>
+                        <param name="id" value="@xml:id"/>
+                        <param name="heading" value="title"/>
+                        <param name="children" value="section"/>
+                        <param name="target" value="($parameters?target, 'transcription')[1]"/>
+                        <pb:template xml:space="preserve"><li xmlns="">
+  <details open="open">
+    <summary>
+      <pb-link xml-id="[[id]]" emit="[[target]]" subscribe="[[target]]">[[heading]]</pb-link>
+    </summary>
+    <ul>[[children]]</ul>
+  </details>
+</li></pb:template>
+                    </model>
+                    <model output="opm-web" predicate="$parameters?mode='toc' and section and $parameters?collapse"
+                        behaviour="pass-through">
+                        <desc>API-compatible TOC: nested, collapsed</desc>
+                        <param name="id" value="@xml:id"/>
+                        <param name="heading" value="title"/>
+                        <param name="children" value="section"/>
+                        <param name="target" value="($parameters?target, 'transcription')[1]"/>
+                        <pb:template xml:space="preserve"><li xmlns="">
+  <details>
+    <summary>
+      <pb-link xml-id="[[id]]" emit="[[target]]" subscribe="[[target]]">[[heading]]</pb-link>
+    </summary>
+    <ul>[[children]]</ul>
+  </details>
+</li></pb:template>
+                    </model>
+                    <model output="opm-web" predicate="$parameters?mode='toc'" behaviour="pass-through">
+                        <desc>API-compatible TOC: leaf entry</desc>
+                        <param name="id" value="@xml:id"/>
+                        <param name="heading" value="title"/>
+                        <param name="target" value="($parameters?target, 'transcription')[1]"/>
+                        <pb:template xml:space="preserve"><li xmlns="">
+  <pb-link xml-id="[[id]]" emit="[[target]]" subscribe="[[target]]">[[heading]]</pb-link>
+</li></pb:template>
+                    </model>
                     <model predicate="$parameters?mode='toc' and section" behaviour="pass-through">
-                        <desc>TOC entry with nested child sections</desc>
+                        <desc>TOC entry with nested child sections (tei-publisher-lib)</desc>
                         <param name="heading" value="title"/>
                         <param name="children" value="section"/>
                         <pb:template xml:space="preserve"><li xmlns="">[[heading]]
@@ -274,7 +309,7 @@
 </li></pb:template>
                     </model>
                     <model predicate="$parameters?mode='toc'" behaviour="listItem">
-                        <desc>Leaf TOC entry</desc>
+                        <desc>Leaf TOC entry (tei-publisher-lib)</desc>
                         <param name="content" value="title"/>
                     </model>
                     <model output="print" behaviour="section"/>
