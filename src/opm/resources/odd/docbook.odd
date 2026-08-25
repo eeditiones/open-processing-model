@@ -386,19 +386,19 @@ font-style: italic;
                             )
                         </pb:template>
                     </model>
-                    <model output="latex">
+                    <model output="latex" behaviour="block">
                         <param name="content" value="varlistentry"/>
                         <pb:template xml:space="preserve">\begin{description}
 [[content]]
 \end{description}</pb:template>
                     </model>
-                    <model output="fo">
+                    <model output="fo" behaviour="pass-through">
                         <param name="content" value="varlistentry"/>
                         <pb:template xml:space="preserve">
                             <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format">[[content]]</fo:block>
                         </pb:template>
                     </model>
-                    <model>
+                    <model behaviour="pass-through">
                         <param name="content" value="varlistentry"/>
                         <pb:template xml:space="preserve">
                             <dl xmlns="">[[content]]</dl>
@@ -416,19 +416,19 @@ font-style: italic;
                             [*[[term]]*], [[[definition]]],
                         </pb:template>
                     </model>
-                    <model output="latex">
+                    <model output="latex" behaviour="block">
                         <param name="term" value="term/node()"/>
                         <param name="content" value="listitem/node()"/>
                         <pb:template xml:space="preserve">\item [[[term]]] [[content]]</pb:template>
                     </model>
-                    <model output="fo">
+                    <model output="fo" behaviour="pass-through">
                         <param name="term" value="term/node()"/>
                         <param name="content" value="listitem/node()"/>
                         <pb:template xml:space="preserve">
                             <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format">[[content]]</fo:block>
                         </pb:template>
                     </model>
-                    <model>
+                    <model behaviour="pass-through">
                         <param name="term" value="term/node()"/>
                         <param name="content" value="listitem/node()"/>
                         <pb:template xml:space="preserve">
@@ -507,7 +507,7 @@ white-space: pre-wrap;
 
             </outputRendition>
                     </model>
-                    <model output="latex">
+                    <model output="latex" behaviour="block">
                         <desc>Code listing</desc>
                         <param name="language"
                             value="if (@language = ('xml', 'html', 'sh', 'bash')) then '[language=' || @language || ']' else ()"/>
@@ -564,7 +564,7 @@ white-space: pre-wrap;
 
             </outputRendition>
                     </model>
-                    <model output="latex">
+                    <model output="latex" behaviour="block">
                         <desc>Code listing</desc>
                         <param name="language"
                             value="if (@language = ('xml', 'html', 'sh', 'bash')) then '[language=' || @language || ']' else ()"/>
@@ -714,7 +714,7 @@ padding: 1em 0 1em .5em;
 Not available in PDF edition. Go to \url{[[content]]} to view.
 \end{center}</pb:template>
                     </model>
-                    <model>
+                    <model behaviour="pass-through">
                         <param name="width" value="@width"/>
                         <param name="height" value="@depth"/>
                         <param name="src" value="@fileref"/>

@@ -91,6 +91,23 @@
                     <model predicate="$parameters?mode='title'" behaviour="block">
                         <param name="content" value="info"/>
                     </model>
+                    <model predicate="$parameters?mode='toc'" behaviour="pass-through">
+                        <desc>Table of contents: top-level sections only</desc>
+                        <param name="content" value="section"/>
+                        <pb:template xml:space="preserve"><nav xmlns="" class="toc" aria-label="Table of contents">
+  <ul>[[content]]</ul>
+</nav></pb:template>
+                    </model>
+                    <model behaviour="document"/>
+                </elementSpec>
+                <elementSpec ident="book">
+                    <model predicate="$parameters?mode='toc'" behaviour="pass-through">
+                        <desc>Table of contents: top-level chapters/sections</desc>
+                        <param name="content" value="section|chapter"/>
+                        <pb:template xml:space="preserve"><nav xmlns="" class="toc" aria-label="Table of contents">
+  <ul>[[content]]</ul>
+</nav></pb:template>
+                    </model>
                     <model behaviour="document"/>
                 </elementSpec>
                 <elementSpec ident="info">
@@ -203,6 +220,17 @@
                             </h1>
                         </pb:template>
                     </model>
+                    <model output="opm-web" predicate="$parameters?mode='toc' and ../@xml:id" behaviour="inline">
+                        <desc>TOC entry linking to the section's @xml:id</desc>
+                        <param name="id" value="../@xml:id"/>
+                        <pb:template xml:space="preserve"><a xmlns="" href="#[[id]]">[[content]]</a></pb:template>
+                    </model>
+                    <model predicate="$parameters?mode='toc' and ../@xml:id" behaviour="inline">
+                        <desc>TOC entry for pb-view / webcomponents</desc>
+                        <param name="id" value="../@xml:id"/>
+                        <param name="hash" value="../@xml:id"/>
+                        <pb:template xml:space="preserve"><pb-link xmlns="" xml-id="[[id]]" hash="[[hash]]" emit="transcription">[[content]]</pb-link></pb:template>
+                    </model>
                     <model predicate="$parameters?mode='toc'" behaviour="inline"/>
                     <model predicate="parent::note" behaviour="heading">
                         <param name="level" value="4"/>
@@ -236,6 +264,18 @@
                     </model>
                     <model predicate="$parameters?mode='title'" behaviour="inline">
                         <param name="content" value="string-join(($get(.)/ancestor::article/info/title, $get(.)/ancestor::section/title, title), ' – ')"/>
+                    </model>
+                    <model predicate="$parameters?mode='toc' and section" behaviour="pass-through">
+                        <desc>TOC entry with nested child sections</desc>
+                        <param name="heading" value="title"/>
+                        <param name="children" value="section"/>
+                        <pb:template xml:space="preserve"><li xmlns="">[[heading]]
+  <ul>[[children]]</ul>
+</li></pb:template>
+                    </model>
+                    <model predicate="$parameters?mode='toc'" behaviour="listItem">
+                        <desc>Leaf TOC entry</desc>
+                        <param name="content" value="title"/>
                     </model>
                     <model output="print" behaviour="section"/>
                     <model output="web" behaviour="block">
@@ -386,19 +426,19 @@ font-style: italic;
                             )
                         </pb:template>
                     </model>
-                    <model output="latex">
+                    <model output="latex" behaviour="block">
                         <param name="content" value="varlistentry"/>
                         <pb:template xml:space="preserve">\begin{description}
 [[content]]
 \end{description}</pb:template>
                     </model>
-                    <model output="fo">
+                    <model output="fo" behaviour="pass-through">
                         <param name="content" value="varlistentry"/>
                         <pb:template xml:space="preserve">
                             <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format">[[content]]</fo:block>
                         </pb:template>
                     </model>
-                    <model>
+                    <model behaviour="pass-through">
                         <param name="content" value="varlistentry"/>
                         <pb:template xml:space="preserve">
                             <dl xmlns="">[[content]]</dl>
@@ -416,19 +456,19 @@ font-style: italic;
                             [*[[term]]*], [[[definition]]],
                         </pb:template>
                     </model>
-                    <model output="latex">
+                    <model output="latex" behaviour="block">
                         <param name="term" value="term/node()"/>
                         <param name="content" value="listitem/node()"/>
                         <pb:template xml:space="preserve">\item [[[term]]] [[content]]</pb:template>
                     </model>
-                    <model output="fo">
+                    <model output="fo" behaviour="pass-through">
                         <param name="term" value="term/node()"/>
                         <param name="content" value="listitem/node()"/>
                         <pb:template xml:space="preserve">
                             <fo:block xmlns:fo="http://www.w3.org/1999/XSL/Format">[[content]]</fo:block>
                         </pb:template>
                     </model>
-                    <model>
+                    <model behaviour="pass-through">
                         <param name="term" value="term/node()"/>
                         <param name="content" value="listitem/node()"/>
                         <pb:template xml:space="preserve">
@@ -507,7 +547,7 @@ white-space: pre-wrap;
 
             </outputRendition>
                     </model>
-                    <model output="latex">
+                    <model output="latex" behaviour="block">
                         <desc>Code listing</desc>
                         <param name="language"
                             value="if (@language = ('xml', 'html', 'sh', 'bash')) then '[language=' || @language || ']' else ()"/>
@@ -564,7 +604,7 @@ white-space: pre-wrap;
 
             </outputRendition>
                     </model>
-                    <model output="latex">
+                    <model output="latex" behaviour="block">
                         <desc>Code listing</desc>
                         <param name="language"
                             value="if (@language = ('xml', 'html', 'sh', 'bash')) then '[language=' || @language || ']' else ()"/>
@@ -714,7 +754,7 @@ padding: 1em 0 1em .5em;
 Not available in PDF edition. Go to \url{[[content]]} to view.
 \end{center}</pb:template>
                     </model>
-                    <model>
+                    <model behaviour="pass-through">
                         <param name="width" value="@width"/>
                         <param name="height" value="@depth"/>
                         <param name="src" value="@fileref"/>
