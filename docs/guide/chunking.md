@@ -48,7 +48,8 @@ view = "page"
   generators that consume data files.
 - **`pb-view`** — an index table plus part files for the tei-publisher
   `pb-view` web component. Use `--doc-path` to place parts under a document
-  subdirectory.
+  subdirectory. See [Integration with TEI Publisher](tei-publisher.md) for
+  uploading those files into an app and switching `pb-view` to static mode.
 
 Chunk roots are almost always inner elements (`div`, `section`, a reconstructed
 page), not the document element. The transform therefore emits an HTML

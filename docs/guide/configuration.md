@@ -3,7 +3,8 @@
 Place an `opm.toml` file in the project root to set defaults for all CLI
 commands. `opm init` writes a working file; every section is optional, and CLI
 options always override config values. Pass a different file with `-c` (for
-example `teipublisher.toml` for a project-specific setup).
+example `teipublisher.toml` for a project-specific setup — see
+[Integration with TEI Publisher](tei-publisher.md)).
 
 The schema below is loaded into
 [`opm.config.ProjectConfig`](../api/config.md); paths are resolved relative to

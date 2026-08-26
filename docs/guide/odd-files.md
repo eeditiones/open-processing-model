@@ -2,7 +2,7 @@
 
 An **ODD** (One Document Does it all) file is a TEI XML document which includes
 *processing model* instructions. `opm` compiles an ODD on demand into a Python
-transform module cached under the platform user cache directory.
+transform module. The compiled module will automatically be cached for further use.
 
 To learn more about ODD, it is best to read the [TEI Publisher documentation](https://teipublisher.org/doc/documentation.xml?id=odd#odd).
 It also includes a small tutorial in the [Gentle Introduction](https://teipublisher.org/doc/quickstart.xml?id=pm-tutorial#pm-tutorial) document.

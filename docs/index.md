@@ -7,43 +7,37 @@
 
 **Open Processing Model** (`opm`) is an implementation of the [TEI Processing Model](https://tei-c.org/release/doc/tei-p5-doc/en/html/TD.html#TDPM) 
 in Python. It provides a Python CLI and library for transforming
-XML documents — TEI, DocBook, and others — into HTML, Markdown, DOCX, and Typst.
+XML documents — TEI, DocBook, and others — into (currently) HTML, Markdown, DOCX, and [Typst](https://typst.app/).
 The transformation rules are not hard-coded: they are declared in an **ODD** file
 using the TEI Processing Model, and `opm` compiles that ODD into a reusable
 Python transform module.
 
+To learn more about ODD, it is best to read the [TEI Publisher documentation](https://teipublisher.org/doc/documentation.xml?id=odd#odd).
+It also includes a small tutorial in the [Gentle Introduction](https://teipublisher.org/doc/quickstart.xml?id=pm-tutorial#pm-tutorial) document.
+
 The implementation is a Python port of the core library of TEI Publisher: [`tei-publisher-lib`](https://github.com/eeditiones/tei-publisher-lib).
 While `tei-publisher-lib` compiles the processing model instructions found in an ODD into XQuery code, `opm` outputs Python instead. If you compare
-the generated code of both, you'll notice a lot of similarities.
+the generated code of both, you'll notice a lot of similarities. However, `tei-publisher-lib` uses the full power of XQuery 3.1 inside an eXist-db database. `opm`, on the other hand, is limited to XPath 3.1 and completely file-system based.
 
-However, `tei-publisher-lib` uses the full power of XQuery 3.1 inside an eXist-db database. `opm`, on the other hand, is limited to XPath 3.1. For most ODDs  this should not be a problem. Other differences:
+## Uses
 
-- `opm` processes one file at a time, while `tei-publisher-lib` can access any resource in the database.
-- `opm` is very fast for batch processing.
+Typical usage scenarios for `opm` include:
 
-One can also combine `opm` with TEI Publisher, e.g. to preprocess TEI content, so TEI Publisher can serve it as static content without having to transform it on the fly.
+* quick transformation of XML documents on the command line
+* split large documents into chunks, so they can be read page by page
+* prepare HTML data to be used by other systems such as static site generators
+* provide [pre-rendered content for TEI Publisher](guide/tei-publisher.md) to speed up load times
 
-## How it works
+## Design
+
+`opm` was designed to use pure Python with minimal dependencies. It implements the full _TEI Processing Model_ including most of the extensions provided by _TEI Publisher_: mainly **templates**, context **parameter** passing and the possibility to define XPath extension functions. This means that most ODDs will be compatible and can be exchanged between _TEI Publisher_ and `opm`, allowing us to combine the benefits of a dynamic, database-backed website with the speed of static rendering.
+
+ODD files are **compiled on demand** into Python modules and cached:
 
 ```
-ODD file ──(compile on demand)──▶ cached Python module ──transform──▶ HTML / Markdown / DOCX / Typst
-                                                           └──chunk──────▶ pages + manifest (for static sites)
+ODD file ── (compile on demand) ──▶ cached Python module ── transform ──▶ HTML / Markdown / DOCX / Typst
+                                                        └── chunk ──────▶ pages + manifest (for static sites)
 ```
-
-1. **Compile on demand** — an ODD file describes a processing model: which
-   elements match which *models*, and what *behaviour* each produces. The first
-   time you transform or chunk with an ODD, `opm` compiles it into a Python
-   module in the user cache and prints that path on stderr.
-2. **Transform** — `opm transform` loads that module (via `--odd`/`-d` or
-   `--type`/`-t` looking up config), parses an XML document with lxml, and
-   walks the element tree. Each element is routed through `_dispatch` to a
-   handler that emits output through a concrete
-   [`ProcessingModelFunctions`](api/output-functions.md) implementation
-   (HTML, Markdown, Typst, or DOCX) — so the same generated code serves every
-   format.
-3. **Chunk** — `opm chunk` splits a large document by an XPath selector,
-   transforms each chunk, and writes pages plus a manifest, ready for a static
-   site generator or the tei-publisher web components.
 
 ## Where to go next
 
@@ -53,6 +47,7 @@ ODD file ──(compile on demand)──▶ cached Python module ──transform
   [Output formats](guide/output-formats.md),
   [XPath extensions](guide/xpath-extensions.md),
   [Templates & CSS](guide/templates-and-css.md),
-  [Chunking](guide/chunking.md), and the
+  [Chunking](guide/chunking.md),
+  [Integration with TEI Publisher](guide/tei-publisher.md), and the
   [`opm.toml` configuration](guide/configuration.md).
 - Reference: the [CLI](cli.md) and the [Python API](api/index.md).

@@ -81,6 +81,7 @@ nav:
       - XPath extensions: guide/xpath-extensions.md
       - Templates & CSS: guide/templates-and-css.md
       - Chunking: guide/chunking.md
+      - Integration with TEI Publisher: guide/tei-publisher.md
       - Configuration (opm.toml): guide/configuration.md
   - CLI Reference: cli.md
   - API Reference:
