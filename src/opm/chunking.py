@@ -682,6 +682,79 @@ class ChunkProcessor:
             params[f'user.{name}'] = str(value)
         return params
 
+    @staticmethod
+    def _is_chunk_context_xpath(xpath: str) -> bool:
+        """True when *xpath* means "the current chunk" (not a document-wide select).
+
+        Used for per-chunk fragments such as breadcrumbs (``xpath="."``): the
+        expression is evaluated against each chunk, matching
+        :meth:`process_fragment`, rather than pre-selected once from the
+        document root (which would yield a single node and skip later chunks).
+        """
+        return xpath.strip() in ('.', './', 'self::node()', 'self::*')
+
+    def _pb_view_part_nav(
+        self, index: int, chunk_ids: list[str], xml_id: str
+    ) -> dict[str, Any]:
+        """Build navigation fields mirroring ``/api/parts/.../json``.
+
+        ``id`` / ``nextId`` / ``previousId`` carry xml:ids (or synthetic ids).
+        ``root`` is always ``None``: ``pb-view`` assigns ``nodeId = resp.root``,
+        and a subscribed *dynamic* view would then call the parts API with
+        ``root=<xml:id>``, which expects an eXist node id and fails with
+        ``NumberFormatException``.
+
+        ``next`` / ``previous`` stay populated (same values as the ``*Id``
+        fields) so ``pb-view.navigate()`` sees a truthy next/previous; when
+        ``*Id`` is set it loads by ``id`` and does not send ``root``.
+        ``rootNode`` repeats the chunk id as a stable stand-in (no eXist
+        node ids offline).
+        """
+        total = len(chunk_ids)
+        nav: dict[str, Any] = {
+            'id': xml_id,
+            'root': None,
+            'rootNode': xml_id,
+        }
+        if index > 0:
+            nav['previous'] = chunk_ids[index - 1]
+            nav['previousId'] = chunk_ids[index - 1]
+        if index < total - 1:
+            nav['next'] = chunk_ids[index + 1]
+            nav['nextId'] = chunk_ids[index + 1]
+        return nav
+
+    def _register_fragment_index_keys(
+        self,
+        index: dict[str, str],
+        frag: FragmentConfig,
+        filename: str,
+        ids: set[str],
+        xml_id: str,
+        *,
+        first_chunk: bool,
+    ) -> None:
+        """Register pb-view lookup keys for a fragment part file.
+
+        Chunk-context xpaths (``.``) are transform context only — the
+        consuming ``pb-view`` typically has no ``xpath`` attribute — so those
+        keys omit ``xpath``. Absolute fragment xpaths (parallel columns) keep
+        ``xpath`` in the key, matching ``pb-view`` when it sends one.
+        """
+        frag_params = self._pb_view_fragment_params(frag)
+        if self._is_chunk_context_xpath(frag.xpath):
+            key_variants: list[dict[str, str]] = [frag_params]
+        else:
+            with_xpath = {**frag_params, 'xpath': frag.xpath}
+            key_variants = [with_xpath]
+
+        for base in key_variants:
+            if first_chunk:
+                index[_compute_part_key(base)] = filename
+            for node_id in ids:
+                index[_compute_part_key({**base, 'id': node_id})] = filename
+            index[_compute_part_key({**base, 'root': xml_id})] = filename
+
     def export_pb_view(
         self,
         doc_path: str | None = None,
@@ -709,9 +782,10 @@ class ChunkProcessor:
         document at the static root).
 
         Chunks carrying an ``xml:id`` are addressed by it; chunks without one get
-        a stable synthetic id. ``pb-view`` navigates ``view="single"`` by echoing
-        the ``previous``/``next`` values we emit back as the ``root`` parameter, so
-        a real ``xml:id`` is never required for paging.
+        a stable synthetic id. ``pb-view`` navigates via ``nextId``/``previousId``
+        (xml:ids) when present; ``next``/``previous`` are kept truthy for
+        ``navigate()`` but ``root`` is left null so subscribed dynamic views do
+        not call the parts API with ``root=<xml:id>``.
 
         ``on_progress`` is an optional callback ``(current, total)`` invoked after
         each chunk is written.
@@ -727,8 +801,8 @@ class ChunkProcessor:
 
         # Resolve each chunk's identifier up front so we can wire prev/next links.
         # Chunks with an xml:id are addressed by it; chunks without one get a
-        # stable synthetic id so they can still be paged through by pb-view, which
-        # navigates by echoing our previous/next values back as the root param.
+        # stable synthetic id so they can still be paged through by pb-view via
+        # nextId/previousId (and index keys for id=/root=).
         existing_ids = {
             e.get(XML_ID)
             for e in self.xml_root.xpath('//*[@xml:id]', namespaces=xml_ns)
@@ -779,10 +853,14 @@ class ChunkProcessor:
                     frag_filename
                 )
 
-        # Pre-select per-chunk fragment elements, aligned by position with main chunks.
+        # Pre-select per-chunk fragment elements for absolute xpaths (parallel
+        # columns), aligned by position with main chunks. Chunk-context xpaths
+        # (".") are resolved per chunk below instead.
         per_chunk_frags = [f for f in (self.config.fragments or []) if f.scope == 'per-chunk']
         frag_elements: dict[str, list[etree._Element]] = {}
         for frag in per_chunk_frags:
+            if self._is_chunk_context_xpath(frag.xpath):
+                continue
             elements = xpath_select(
                 self.xml_root,
                 frag.xpath,
@@ -796,15 +874,8 @@ class ChunkProcessor:
             content_html, _ = self._render_chunk_html(chunk)
             response: dict[str, Any] = {
                 'content': content_html,
-                'id': xml_id,
-                'root': xml_id,
+                **self._pb_view_part_nav(i, chunk_ids, xml_id),
             }
-            if i > 0:
-                response['previous'] = chunk_ids[i - 1]
-                response['previousId'] = chunk_ids[i - 1]
-            if i < total - 1:
-                response['next'] = chunk_ids[i + 1]
-                response['nextId'] = chunk_ids[i + 1]
 
             filename = f'{xml_id}.json'
             (data_dir / filename).write_text(
@@ -832,13 +903,17 @@ class ChunkProcessor:
             index[_compute_part_key({**base_params, 'root': xml_id})] = filename
 
             # Per-chunk fragment files: {name}-{xml_id}.json
-            # Elements are pre-selected and aligned by position with main chunks
-            # (parallel-column pattern); transform each node directly so absolute
-            # fragment xpaths are not re-evaluated from the wrong context.
+            # Absolute xpaths: pre-selected and aligned by position (parallel
+            # columns). Chunk-context xpaths ("."): transform the chunk itself,
+            # matching process_fragment.
             for frag in per_chunk_frags:
-                frag_elems = frag_elements.get(frag.name, [])
-                if i >= len(frag_elems):
-                    continue
+                if self._is_chunk_context_xpath(frag.xpath):
+                    frag_node = chunk
+                else:
+                    frag_elems = frag_elements.get(frag.name, [])
+                    if i >= len(frag_elems):
+                        continue
+                    frag_node = frag_elems[i]
                 frag_mod = self._fragment_modules.get(str(frag.module)) if frag.module else self.module
                 transform_params = {
                     **self.parameters,
@@ -846,12 +921,12 @@ class ChunkProcessor:
                     **xpath_runtime_context(
                         base_uri=self.xpath_base_uri,
                         documents=self.xpath_documents,
-                        root=self._source_node(frag_elems[i]),
+                        root=self._source_node(frag_node),
                     ),
                 }
                 frag_html = run_transform(
                     frag_mod,
-                    frag_elems[i],
+                    frag_node,
                     parameters=transform_params,
                     xpath_extensions=self.xpath_extensions or None,
                     apply_template=False,
@@ -861,13 +936,10 @@ class ChunkProcessor:
                 if isinstance(frag_html, bytes):
                     frag_html = frag_html.decode('utf-8')
 
-                frag_response: dict[str, Any] = {'content': frag_html, 'id': xml_id, 'root': xml_id}
-                if i > 0:
-                    frag_response['previous'] = chunk_ids[i - 1]
-                    frag_response['previousId'] = chunk_ids[i - 1]
-                if i < total - 1:
-                    frag_response['next'] = chunk_ids[i + 1]
-                    frag_response['nextId'] = chunk_ids[i + 1]
+                frag_response: dict[str, Any] = {
+                    'content': frag_html,
+                    **self._pb_view_part_nav(i, chunk_ids, xml_id),
+                }
 
                 frag_filename = f'{frag.name}-{xml_id}.json'
                 (data_dir / frag_filename).write_text(
@@ -875,16 +947,14 @@ class ChunkProcessor:
                     encoding='utf-8',
                 )
 
-                frag_params = self._pb_view_fragment_params(frag)
-                if i == 0:
-                    index[_compute_part_key({**frag_params, 'xpath': frag.xpath})] = frag_filename
-                for node_id in ids:
-                    index[
-                        _compute_part_key({**frag_params, 'id': node_id, 'xpath': frag.xpath})
-                    ] = frag_filename
-                index[
-                    _compute_part_key({**frag_params, 'root': xml_id, 'xpath': frag.xpath})
-                ] = frag_filename
+                self._register_fragment_index_keys(
+                    index,
+                    frag,
+                    frag_filename,
+                    ids,
+                    xml_id,
+                    first_chunk=(i == 0),
+                )
 
             if on_progress is not None:
                 on_progress(i + 1, total)

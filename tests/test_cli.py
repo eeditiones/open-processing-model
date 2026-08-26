@@ -676,6 +676,69 @@ output_dir = "chunks"
     assert (tmp_path / 'chunks' / 'manifest.json').is_file()
 
 
+def test_chunk_preview_starts_serve(tmp_path: Path, monkeypatch) -> None:
+    _write_tiny_odd(tmp_path / 'teipublisher.odd')
+    xml = tmp_path / 'doc.xml'
+    _write_chunking_fixture_xml(xml)
+    (tmp_path / 'opm.toml').write_text(
+        """[chunking]
+odd = "teipublisher.odd"
+xpath = "//body/div[@type='chunk']"
+output_dir = "chunks"
+""",
+        encoding='utf-8',
+    )
+    monkeypatch.setattr('opm.odd_cache.modules_cache_dir', lambda: tmp_path / 'cache' / 'modules')
+    monkeypatch.chdir(tmp_path)
+
+    called: list[tuple[Path, int]] = []
+
+    def _fake_serve(root: Path, port: int) -> None:
+        called.append((root, port))
+
+    monkeypatch.setattr('opm.cli._serve_directory', _fake_serve)
+
+    rc = main(['chunk', 'doc.xml', '--force', '--preview', '-p', '9090', '-c', 'opm.toml'])
+
+    assert rc == 0
+    assert len(called) == 1
+    assert called[0][0] == (tmp_path / 'chunks')
+    assert called[0][1] == 9090
+    assert (tmp_path / 'chunks' / 'manifest.json').is_file()
+
+
+def test_chunk_depth_overrides_config(tmp_path: Path, monkeypatch) -> None:
+    _write_tiny_odd(tmp_path / 'teipublisher.odd')
+    xml = tmp_path / 'doc.xml'
+    _write_chunking_fixture_xml(xml)
+    (tmp_path / 'opm.toml').write_text(
+        """[chunking]
+odd = "teipublisher.odd"
+xpath = "//body/div[@type='chunk']"
+depth = 2
+output_dir = "chunks"
+""",
+        encoding='utf-8',
+    )
+    monkeypatch.setattr('opm.odd_cache.modules_cache_dir', lambda: tmp_path / 'cache' / 'modules')
+    monkeypatch.chdir(tmp_path)
+
+    seen: list[int] = []
+
+    def _fake_chunk_document(**kwargs):
+        seen.append(kwargs['config'].depth)
+        out = Path.cwd() / kwargs['config'].output_dir
+        out.mkdir(parents=True, exist_ok=True)
+        (out / 'manifest.json').write_text('{"chunks":[]}', encoding='utf-8')
+
+    monkeypatch.setattr('opm.cli.chunk_document', _fake_chunk_document)
+
+    rc = main(['chunk', 'doc.xml', '--depth', '1', '-c', 'opm.toml'])
+
+    assert rc == 0
+    assert seen == [1]
+
+
 def test_bind_http_server_skips_busy_port() -> None:
     import http.server
 

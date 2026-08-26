@@ -345,10 +345,11 @@ def test_chunk_document_pb_view_export(tmp_path: Path) -> None:
     part_a = json.loads((out / 'a.json').read_text(encoding='utf-8'))
     part_b = json.loads((out / 'b.json').read_text(encoding='utf-8'))
 
-    assert part_a['id'] == 'a' and part_a['root'] == 'a'
+    assert part_a['id'] == 'a' and part_a['root'] is None and part_a['rootNode'] == 'a'
     assert part_a['next'] == 'b' and part_a['nextId'] == 'b'
     assert 'previous' not in part_a
     assert part_b['previous'] == 'a' and part_b['previousId'] == 'a'
+    assert part_b['root'] is None and part_b['rootNode'] == 'b'
     assert 'next' not in part_b
     assert 'id="a"' in part_a['content']
 
@@ -550,8 +551,8 @@ def test_chunk_document_pb_view_synthesizes_id_for_idless_chunks(tmp_path: Path)
     # The id-less first chunk gets a synthetic id; the others keep their xml:id.
     assert (out / '_chunk1.json').is_file()
     part_toc = json.loads((out / '_chunk1.json').read_text(encoding='utf-8'))
-    assert part_toc['id'] == '_chunk1' and part_toc['root'] == '_chunk1'
-    assert part_toc['next'] == 'a' and 'previous' not in part_toc
+    assert part_toc['id'] == '_chunk1' and part_toc['root'] is None and part_toc['rootNode'] == '_chunk1'
+    assert part_toc['next'] == 'a' and part_toc['nextId'] == 'a' and 'previous' not in part_toc
 
     part_a = json.loads((out / 'a.json').read_text(encoding='utf-8'))
     assert part_a['previous'] == '_chunk1' and part_a['previousId'] == '_chunk1'
@@ -750,6 +751,84 @@ def test_docbook_per_chunk_breadcrumbs(tmp_path: Path) -> None:
     assert 'Usage' in usage_crumbs
     assert 'href="#usage"' not in usage_crumbs
     assert 'href="003.html#usage"' not in usage_crumbs
+
+
+
+def test_pb_view_export_per_chunk_breadcrumbs_xpath_dot(tmp_path: Path) -> None:
+    """xpath='.' breadcrumbs are emitted for every chunk, not only the first.
+
+    Keys omit xpath because the breadcrumb pb-view has no xpath attribute —
+    only user.mode=breadcrumb — matching pb-view's static createKey().
+    Part JSON leaves root null so subscribed dynamic views do not call the
+    parts API with root=<xml:id>.
+    """
+    from opm.odd_compiler import compile_odd
+
+    module_path = tmp_path / 'docbook_web.py'
+    module_path.write_text(compile_odd(str(DOCBOOK_ODD)), encoding='utf-8')
+
+    xml_path = tmp_path / 'guide.xml'
+    xml_path.write_text(
+        """<article xmlns="http://docbook.org/ns/docbook" version="5.0">
+  <info><title>Guide</title></info>
+  <section xml:id="install">
+    <title>Install</title>
+    <para>Intro</para>
+    <section xml:id="pip">
+      <title>Using pip</title>
+      <para>pip stuff</para>
+    </section>
+  </section>
+  <section xml:id="usage">
+    <title>Usage</title>
+    <para>use it</para>
+  </section>
+</article>
+""",
+        encoding='utf-8',
+    )
+
+    config = ChunkingConfig(
+        selector='opm.navigation.dbk_section_chunks',
+        depth=2,
+        output_dir='pb-crumbs',
+        view='div',
+        fragments=[
+            FragmentConfig(
+                name='breadcrumbs',
+                scope='per-chunk',
+                xpath='.',
+                parameters={'mode': 'breadcrumb'},
+            ),
+        ],
+    )
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=config,
+        project_root=tmp_path,
+        output_format='pb-view',
+        xpath_extensions=('opm.runtime.common_xpath_functions',),
+    )
+
+    out = tmp_path / 'pb-crumbs'
+    # depth=2 yields install intro, pip, usage — one breadcrumbs file each
+    for xml_id in ('install', 'pip', 'usage'):
+        path = out / f'breadcrumbs-{xml_id}.json'
+        assert path.is_file(), xml_id
+        part = json.loads(path.read_text(encoding='utf-8'))
+        assert part['id'] == xml_id
+        assert part['root'] is None
+        assert part['rootNode'] == xml_id
+        assert 'aria-label="breadcrumb"' in part['content']
+
+    index = json.loads((out / 'index.json').read_text(encoding='utf-8'))
+    # No xpath in keys — breadcrumb pb-view does not send xpath=.
+    assert 'xpath=.' not in str(index)
+    assert index['odd=docbook.odd&user.mode=breadcrumb&view=div'] == 'breadcrumbs-install.json'
+    assert index['id=pip&odd=docbook.odd&user.mode=breadcrumb&view=div'] == 'breadcrumbs-pip.json'
+    assert index['odd=docbook.odd&root=usage&user.mode=breadcrumb&view=div'] == 'breadcrumbs-usage.json'
 
 
 def test_chapbook_running_head_uses_title_fragment(tmp_path: Path) -> None:
