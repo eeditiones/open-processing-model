@@ -126,8 +126,7 @@ def init_cmd(
     typer.echo('')
     typer.echo('Next:')
     typer.echo(f'  opm transform {sample} --preview')
-    typer.echo(f'  opm chunk {sample} --force')
-    typer.echo('  opm serve')
+    typer.echo(f'  opm chunk {sample} --force --preview')
 
 
 def _preview_kind_from_module(mod) -> str:
@@ -591,6 +590,13 @@ def chunk(
             help='Remove the existing output directory without prompting.',
         ),
     ] = False,
+    depth: Annotated[
+        Optional[int],
+        typer.Option(
+            '--depth',
+            help='Maximum division/section depth for chunk splitting (overrides chunking.depth in config).',
+        ),
+    ] = None,
     webcomponents: Annotated[
         Optional[bool],
         typer.Option(
@@ -636,6 +642,22 @@ def chunk(
             ),
         ),
     ] = None,
+    preview: Annotated[
+        bool,
+        typer.Option(
+            '--preview',
+            '-v',
+            help='After chunking, start a local HTTP server rooted at the output directory.',
+        ),
+    ] = False,
+    port: Annotated[
+        int,
+        typer.Option(
+            '--port',
+            '-p',
+            help='Port for --preview (default: 8080).',
+        ),
+    ] = 8080,
     config: Annotated[
         Optional[Path],
         typer.Option(
@@ -670,6 +692,8 @@ def chunk(
             chunking_config.output_dir = str(output_dir)
         if template:
             chunking_config.template = template
+        if depth is not None:
+            chunking_config = replace(chunking_config, depth=depth)
         if odd is not None:
             chunking_config = replace(chunking_config, module=None, odd=odd)
 
@@ -783,7 +807,10 @@ def chunk(
             else:
                 typer.echo('  - manifest.json: metadata for page navigation and linking')
                 typer.echo(f'  - *.{ext}: chunk files')
-        
+
+        if preview:
+            _serve_directory(out_dir, port)
+
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
         typer.echo(f'opm: error: {e}', err=True)
         raise SystemExit(1) from e
@@ -815,42 +842,13 @@ def _bind_http_server(handler: Any, port: int, tries: int = _SERVE_PORT_TRIES):
     raise last_error
 
 
-@app.command('serve')
-def serve_cmd(
-    port: Annotated[
-        int,
-        typer.Option('--port', '-p', help='Port to listen on (default: 8080).'),
-    ] = 8080,
-    directory: Annotated[
-        Optional[Path],
-        typer.Option(
-            '--directory',
-            '-d',
-            help='Directory to serve (default: chunking.output_dir from config, or "chunks").',
-        ),
-    ] = None,
-    config: Annotated[
-        Optional[Path],
-        typer.Option(
-            '--config',
-            '-c',
-            help='Path to a TOML configuration file (default: opm.toml in the current directory).',
-        ),
-    ] = None,
-) -> None:
-    """Start a local HTTP server rooted at the chunks output directory."""
+def _serve_directory(root: Path, port: int) -> None:
+    """Serve *root* over HTTP until interrupted (same behaviour as ``opm serve``)."""
     import errno
     import functools
     import http.server
 
-    cfg = load_project_config(config)
-    if directory is not None:
-        root = directory.resolve()
-    elif cfg.chunking:
-        root = (Path.cwd() / cfg.chunking.output_dir).resolve()
-    else:
-        root = (Path.cwd() / 'chunks').resolve()
-
+    root = root.resolve()
     if not root.is_dir():
         typer.echo(f'opm: error: directory {root} does not exist.', err=True)
         raise SystemExit(1)
@@ -885,6 +883,41 @@ def serve_cmd(
             httpd.serve_forever()
         except KeyboardInterrupt:
             pass
+
+
+@app.command('serve')
+def serve_cmd(
+    port: Annotated[
+        int,
+        typer.Option('--port', '-p', help='Port to listen on (default: 8080).'),
+    ] = 8080,
+    directory: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--directory',
+            '-d',
+            help='Directory to serve (default: chunking.output_dir from config, or "chunks").',
+        ),
+    ] = None,
+    config: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--config',
+            '-c',
+            help='Path to a TOML configuration file (default: opm.toml in the current directory).',
+        ),
+    ] = None,
+) -> None:
+    """Start a local HTTP server rooted at the chunks output directory."""
+    cfg = load_project_config(config)
+    if directory is not None:
+        root = directory.resolve()
+    elif cfg.chunking:
+        root = (Path.cwd() / cfg.chunking.output_dir).resolve()
+    else:
+        root = (Path.cwd() / 'chunks').resolve()
+
+    _serve_directory(root, port)
 
 
 def main(argv: list[str] | None = None) -> int:

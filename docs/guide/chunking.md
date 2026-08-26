@@ -6,6 +6,7 @@ manifest — ideal for static site generators and web components.
 
 ```bash
 uv run opm chunk demo/tei-test.xml -o chunks/ --force
+uv run opm chunk demo/tei-test.xml --depth 1 --force   # override chunking.depth
 ```
 
 Most settings come from the `[chunking]` section of `opm.toml`; CLI options
@@ -162,7 +163,13 @@ link_pattern = "/{doc}/{file}"
 
 ## Previewing
 
-Serve a chunked HTML directory locally:
+Chunk and preview in one step:
+
+```bash
+uv run opm chunk demo/tei-test.xml -o chunks/ --force --preview
+```
+
+Or serve an existing chunk directory:
 
 ```bash
 uv run opm serve -d chunks/

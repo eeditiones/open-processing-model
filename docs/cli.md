@@ -115,10 +115,13 @@ opm chunk [OPTIONS] [INPUT_XML]
 | `--output-dir, -o PATH` | Directory to write chunked files (overrides chunking.output_dir in config). |
 | `--template, -t FILE` | Jinja2 template for chunk pages (overrides chunking.template in config). |
 | `--force, -f` | Remove the existing output directory without prompting. |
+| `--depth INTEGER` | Maximum division/section depth for chunk splitting (overrides chunking.depth in config). |
 | `--webcomponents, --no-webcomponents` | Enable/disable tei-publisher web components mode. Falls back to transform.web.webcomponents.enabled in the project config. |
 | `--xpath-extensions TEXT` | Dotted import path(s) of Python module(s) whose public callables become XPath functions in the tp: namespace (repeatable). Falls back to transform.xpath_extensions in opm.toml. |
 | `--format TEXT` | Output format for chunk files: "html" (default, rendered via Jinja2 template), "json" (one JSON file per chunk containing content, head, odd_css, and fragments — suitable for static site generators such as Eleventy), or "pb-view" (index.json lookup table plus one part file per chunk, consumable by the dynamic pb-view web component in static mode). |
 | `--doc-path TEXT` | For --format pb-view: document path subdirectory. Data is written to <output-dir>/<doc-path>/ and must match the pb-document @path; CSS stays shared at <output-dir>/css/. Falls back to chunking.doc_path in config. |
+| `--preview, -v` | After chunking, start a local HTTP server rooted at the output directory. |
+| `--port, -p INTEGER` | Port for --preview (default: 8080). |
 | `--config, -c PATH` | Path to a TOML configuration file (default: opm.toml in the current directory). |
 | `--help` | Show this message and exit. |
 

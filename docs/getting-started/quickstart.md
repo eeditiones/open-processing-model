@@ -65,7 +65,13 @@ Or emit JSON data files for a static site generator (Eleventy, Hugo, …):
 opm chunk data/sample.xml --format json -o _data/chunks
 ```
 
-## 4. Preview the chunked site
+Add `--preview` to chunk and serve in one step:
+
+```bash
+opm chunk data/sample.xml --force --preview
+```
+
+Or serve an existing output directory:
 
 ```bash
 opm serve
@@ -85,5 +91,5 @@ uv run opm transform demo/tei-test.xml --preview
 uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd \
   --preview --template templates/tufte.html.j2
 uv run opm transform demo/tei-test.xml -c teipublisher.toml -t web --preview
-uv run opm chunk demo/tei-test.xml -c teipublisher.toml -o chunks/ --force
+uv run opm chunk demo/tei-test.xml -c teipublisher.toml -o chunks/ --force --preview
 ```
