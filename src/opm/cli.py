@@ -114,7 +114,11 @@ def init_cmd(
             rel = path
         typer.echo(f'  {rel}')
     if result.skipped:
-        typer.echo('Skipped existing files (pass --force to overwrite):', err=True)
+        typer.echo(
+            'Skipped existing files (pass --force to overwrite; '
+            'AGENTS.md / CLAUDE.md are never overwritten):',
+            err=True,
+        )
         for path in result.skipped:
             try:
                 rel = path.relative_to(result.directory)

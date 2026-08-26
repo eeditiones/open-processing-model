@@ -145,6 +145,34 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         skipped,
         _write_text(dest_dir / 'README.md', readme_text, force=force),
     )
+
+    # Agent guidance: never overwrite existing CLAUDE.md / AGENTS.md (even with --force).
+    agent_ctx = {
+        'vocabulary': vocab,
+        'odd_path': odd_path,
+        'include_sample': options.include_sample,
+    }
+    agent_tpl = env.get_template('agent_guidance.md.j2')
+    for name, heading, intro in (
+        (
+            'AGENTS.md',
+            'Agent guidance',
+            'Guidance for AI coding agents working in this project.',
+        ),
+        (
+            'CLAUDE.md',
+            'CLAUDE.md',
+            'This file provides guidance to Claude Code (claude.ai/code) when working with this project.',
+        ),
+    ):
+        text = agent_tpl.render(heading=heading, intro=intro, **agent_ctx)
+        _record(
+            dest_dir / name,
+            written,
+            skipped,
+            _write_text(dest_dir / name, text, force=False),
+        )
+
     _record(
         dest_dir / '.gitignore',
         written,

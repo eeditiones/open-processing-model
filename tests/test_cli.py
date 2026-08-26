@@ -772,6 +772,12 @@ def test_init_tei_creates_project(tmp_path: Path) -> None:
     assert (dest / 'styles' / 'default-styles.css').is_file()
     assert (dest / 'data' / 'sample.xml').is_file()
     assert (dest / 'extensions' / '__init__.py').is_file()
+    assert (dest / 'AGENTS.md').is_file()
+    assert (dest / 'CLAUDE.md').is_file()
+    agents = (dest / 'AGENTS.md').read_text(encoding='utf-8')
+    assert 'opm transform' in agents
+    assert 'odd/custom.odd' in agents
+    assert 'Claude Code' in (dest / 'CLAUDE.md').read_text(encoding='utf-8')
     cfg = load_project_config(dest / 'opm.toml')
     assert cfg.chunking is not None
     assert cfg.chunking.selector == 'opm.navigation.tei_div_chunks'
@@ -780,6 +786,20 @@ def test_init_tei_creates_project(tmp_path: Path) -> None:
     assert cfg.document_docx_template is not None
     assert cfg.typst_template is not None
     assert 'Test Edition' in (dest / 'README.md').read_text(encoding='utf-8')
+
+
+def test_init_preserves_existing_agent_files(tmp_path: Path) -> None:
+    dest = tmp_path / 'edition'
+    dest.mkdir()
+    (dest / 'AGENTS.md').write_text('custom-agents', encoding='utf-8')
+    (dest / 'CLAUDE.md').write_text('custom-claude', encoding='utf-8')
+    assert main(['init', str(dest)]) == 0
+    assert (dest / 'AGENTS.md').read_text(encoding='utf-8') == 'custom-agents'
+    assert (dest / 'CLAUDE.md').read_text(encoding='utf-8') == 'custom-claude'
+    # --force still must not overwrite agent guidance
+    assert main(['init', str(dest), '--force']) == 0
+    assert (dest / 'AGENTS.md').read_text(encoding='utf-8') == 'custom-agents'
+    assert (dest / 'CLAUDE.md').read_text(encoding='utf-8') == 'custom-claude'
 
 
 def test_init_refuses_existing_config_without_force(tmp_path: Path) -> None:

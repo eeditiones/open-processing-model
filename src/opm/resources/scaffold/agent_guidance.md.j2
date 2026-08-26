@@ -1,0 +1,58 @@
+# {{ heading }}
+
+{% if intro -%}
+{{ intro }}
+
+{% endif -%}
+This is an [Open Processing Model](https://tei-publisher.com/) (`opm`) project.
+XML ({{ vocabulary|upper }}) is transformed via ODD processing models configured in `opm.toml`.
+
+## Commands
+
+```bash
+{% if include_sample -%}
+opm transform data/sample.xml --preview
+opm transform data/sample.xml -t markdown --preview
+opm transform data/sample.xml -t typst -o output.typ
+opm transform data/sample.xml -t docx -o output.docx
+opm chunk data/sample.xml --force --preview
+{% else -%}
+opm transform your.xml --preview
+opm transform your.xml -t markdown --preview
+opm transform your.xml -t typst -o output.typ
+opm transform your.xml -t docx -o output.docx
+opm chunk your.xml --force --preview
+{% endif -%}
+opm serve
+```
+
+ODDs compile on demand into the user cache — there is no separate compile step.
+Defaults (ODD path, templates, chunking) come from `opm.toml`; CLI flags override them.
+
+## Layout
+
+| Path | Role |
+| --- | --- |
+| `opm.toml` | Project config (ODD, templates, CSS, chunking, XPath extensions) |
+| `{{ odd_path }}` | Processing model (edit this to change rendering) |
+| `templates/` | HTML / Typst / DOCX shells |
+| `styles/` | Shared CSS |
+| `extensions/` | Project-local Python XPath extensions (`[project] pythonpath`) |
+{% if include_sample -%}
+| `data/sample.xml` | Sample source document |
+{% endif -%}
+
+## Customizing output
+
+1. Prefer editing `{{ odd_path }}` (element behaviours, CSS in the ODD `tagsDecl`).
+2. Adjust HTML/chunk chrome in `templates/chapbook.html.j2` or `templates/handbook.html.j2`.
+3. Add XPath helpers under `extensions/` and list modules in `[transform] xpath_extensions`.
+4. Keep relative paths in `opm.toml` relative to that file's directory.
+
+## Patterns agents should respect
+
+- Unprefixed XPath names resolve against the document default namespace — no extra prefix bookkeeping.
+- Runtime parameters (`-p key=value`) are available in ODD XPath as `$parameters`.
+- Chunking uses `[chunking]` in `opm.toml` (selector, depth, fragments such as title/breadcrumbs).
+- Do not invent a separate compile or build pipeline; `opm transform` / `opm chunk` are enough.
+- Do not overwrite `CLAUDE.md` or `AGENTS.md` if the user already customized them.

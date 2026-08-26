@@ -11,9 +11,11 @@ opm init
 # or: opm init --vocabulary docbook
 ```
 
-That writes `opm.toml`, templates, CSS, an ODD, and `data/sample.xml` (skip the
-sample with `--no-sample`). TEI is the default: `odd/custom.odd` inherits the
-packaged `teipublisher` model. DocBook copies `odd/docbook.odd` into the project.
+That writes `opm.toml`, templates, CSS, an ODD, `AGENTS.md` / `CLAUDE.md`
+(agent guidance; existing copies are left untouched), and `data/sample.xml`
+(skip the sample with `--no-sample`). TEI is the default: `odd/custom.odd`
+inherits the packaged `teipublisher` model. DocBook copies `odd/docbook.odd`
+into the project.
 
 ## 2. Transform a document
 

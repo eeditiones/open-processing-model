@@ -12,9 +12,11 @@ pip install open-processing-model
 opm init
 ```
 
-`opm init` writes `opm.toml`, templates, a stub ODD, and a sample document into
-the current directory (or a path you pass). Use `--vocabulary docbook` for a
-DocBook project. See the [Quickstart](quickstart.md).
+`opm init` writes `opm.toml`, templates, a stub ODD, agent guidance
+(`AGENTS.md`, `CLAUDE.md`), and a sample document into the current directory
+(or a path you pass). Existing `AGENTS.md` / `CLAUDE.md` files are never
+overwritten. Use `--vocabulary docbook` for a DocBook project. See the
+[Quickstart](quickstart.md).
 
 A one-off transform needs no project files: `opm transform my.xml --preview`
 uses the packaged stock ODD, HTML/Typst templates, CSS, and Word style template.
