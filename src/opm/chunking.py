@@ -80,7 +80,7 @@ class ChunkProcessor:
         webcomponents: bool = False,
         xpath_extensions: tuple[str, ...] | None = None,
         xpath_base_uri: str | None = None,
-        xpath_documents: dict[str, etree._ElementTree] | None = None,
+        xpath_documents: dict[str, Any] | None = None,
     ):
         self.module = load_transform_module(module_path)
         self._fragment_modules: dict[str, Any] = {}

@@ -59,6 +59,7 @@ from types import ModuleType
 from pathlib import Path
 from typing import Any, Sequence
 
+from elementpath.tree_builders import get_node_tree
 from lxml import etree
 
 from opm.config import (
@@ -142,12 +143,24 @@ def xpath_select(
     return result if isinstance(result, list) else [result]
 
 
-def load_xpath_documents(paths: Sequence[Path]) -> dict[str, etree._ElementTree]:
-    """Parse configured XPath documents keyed by their absolute file URI."""
-    documents: dict[str, etree._ElementTree] = {}
+def load_xpath_documents(paths: Sequence[Path]) -> dict[str, Any]:
+    """Parse configured XPath documents keyed by their absolute file URI.
+
+    Each tree is wrapped in its elementpath node tree once, here, rather than
+    left as a bare ``_ElementTree``. ``XPathContext.__init__`` runs
+    ``get_node_tree()`` over every entry of ``documents`` on *each*
+    construction, and for a bare lxml tree that means a full
+    ``build_lxml_node_tree()`` walk every time — with a context built per
+    ``doc()``-using predicate, the register documents were being re-wrapped
+    thousands of times per chunked file. ``get_node_tree()`` short-circuits on
+    an already-wrapped ``DocumentNode``, so pre-wrapping turns that back into a
+    dict lookup. Mirrors what ``_xpath_root_wrapped()`` does for the main root.
+    """
+    documents: dict[str, Any] = {}
     for path in paths:
         resolved = path.resolve()
-        documents[resolved.as_uri()] = etree.parse(str(resolved))
+        uri = resolved.as_uri()
+        documents[uri] = get_node_tree(etree.parse(str(resolved)), None, uri)
     return documents
 
 
@@ -165,7 +178,7 @@ def run_transform(
     docx_template: Path | None = None,
     typst_template_path: Path | None = None,
     xpath_base_uri: str | None = None,
-    xpath_documents: dict[str, etree._ElementTree] | None = None,
+    xpath_documents: dict[str, Any] | None = None,
 ) -> str | bytes:
     """Run *mod* against *root* and return the serialized output.
 
@@ -260,7 +273,7 @@ def transform_node(
     docx_template: Path | None = None,
     typst_template_path: Path | None = None,
     xpath_base_uri: str | None = None,
-    xpath_documents: dict[str, etree._ElementTree] | None = None,
+    xpath_documents: dict[str, Any] | None = None,
 ) -> str | bytes:
     """Load *script_path* as a transform module and apply it to *root*.
 
