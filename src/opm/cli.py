@@ -937,7 +937,11 @@ def _serve_directory(root: Path, port: int) -> None:
         )
     with httpd:
         typer.echo(
-            f'Serving {root} at http://localhost:{bound_port}/ — press Ctrl-C to stop.'
+            f'Serving {root} at ' + typer.style(
+                f'http://localhost:{bound_port}/',
+                fg=typer.colors.GREEN,
+                bold=True,
+            ) + ' — press Ctrl-C to stop.'
         )
         try:
             httpd.serve_forever()
