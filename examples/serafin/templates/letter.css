@@ -1,47 +1,76 @@
 /* ===========================================================================
-   Letter — parallel transcription / translation with a tabbed register rail.
-   Retunes the chapbook surface to the Serafin edition's palette and type:
-   Belleza headings, Albert Sans text, warm paper, muted dark-red entities.
-   Loaded after chapbook.css; the ODD stylesheet still owns the TEI content.
+   Serafin — a reading surface for correspondence.
+
+   Parallel transcription / translation with a tabbed register rail, a
+   parchment breadcrumb band, and folio navigation between letters. The ODD's
+   generated stylesheet owns the TEI content itself.
+
+   Copied into <output>/assets/ by chunking.assets and linked from each page,
+   so parchment.jpg beside it is addressed by plain filename.
+
+   Palette and type follow the dynamic Serafin app: Belleza headings, Albert
+   Sans text, warm paper, muted dark red for entities.
    =========================================================================== */
 
 :root {
-  /* Serafin edition palette (matches the dynamic app) */
-  --chap-paper: #fffef9;
-  --chap-ink: #24211d;
-  --chap-muted: #6f6b5d;
-  --chap-rule: #ddd5c0;
-  --chap-accent: #8a0000;
-  --chap-accent-soft: rgba(138, 0, 0, 0.1);
-  --chap-display: "Belleza", "Optima", "Gill Sans", sans-serif;
-  --chap-body: "Albert Sans", "Helvetica Neue", Arial, sans-serif;
-  --chap-meta: "Albert Sans", "Helvetica Neue", Arial, sans-serif;
-
+  /* Palette */
+  --letter-paper: #fffef9;
+  --letter-ink: #24211d;
+  --letter-muted: #6f6b5d;
+  --letter-rule: #ddd5c0;
+  --letter-accent: #8a0000;
+  --letter-accent-soft: rgba(138, 0, 0, 0.1);
   --letter-parchment: #f3eddd;
   --letter-title: #2a2925;
   --letter-menubar-bg: #62543a;
   --letter-menubar-ink: #fcfcf8;
+
+  /* Type */
+  --letter-font-display: "Belleza", "Optima", "Gill Sans", sans-serif;
+  --letter-font-body: "Albert Sans", "Helvetica Neue", Arial, sans-serif;
+  --letter-font-meta: "Albert Sans", "Helvetica Neue", Arial, sans-serif;
+
+  /* Metrics */
+  --letter-pad: clamp(1.25rem, 4vw, 2.5rem);
+  /* One column of text reads at a book measure; transcription and translation
+     side by side need roughly double. */
+  --letter-measure: 42rem;
+  --letter-measure-parallel: 60rem;
+  --letter-pane-gap: 2rem;
+  --letter-register-width: 15rem;
+  --letter-rail-gap: 2.5rem;
+  --letter-folio-rail: 2.5rem;
   /* Taller than the app's 44px bar: it carries the two-line wordmark rather
      than the monogram, and needs the vertical room to stay legible. */
   --letter-menubar-height: 3.5rem;
   --letter-toolbar-height: 4rem;
-  --letter-pane-gap: 2rem;
-  --letter-measure: 60rem;
-  --letter-register-width: 15rem;
-  --letter-rail-gap: 2.5rem;
+
+  /* Entity popovers (pb-popover / tippy) */
+  --pb-popover-font-size: 1rem;
+  --pb-popover-line-height: 1.35;
 }
 
-/* The app sets its text at a 16px base; chapbook enlarges to 112.5%. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html {
-  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
-/* Flat warm paper instead of the chapbook's cool gradient. */
 body.letter {
-  background: var(--chap-paper);
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--letter-paper);
+  color: var(--letter-ink);
+  font-family: var(--letter-font-body);
   font-weight: 400;
   line-height: 1.6;
-  font-feature-settings: normal;
+  text-rendering: optimizeLegibility;
 }
 
 /* ── Application menubar ──────────────────────────────────── */
@@ -55,7 +84,7 @@ body.letter {
   justify-content: space-between;
   gap: 1rem;
   height: var(--letter-menubar-height);
-  padding: 0 var(--chap-pad);
+  padding: 0 var(--letter-pad);
   background: var(--letter-menubar-bg);
   color: var(--letter-menubar-ink);
 }
@@ -84,7 +113,7 @@ body.letter {
 
 .app-menubar__folio {
   flex: none;
-  font-family: var(--chap-meta);
+  font-family: var(--letter-font-meta);
   font-size: 0.72rem;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -102,8 +131,8 @@ body.letter {
   display: flex;
   align-items: center;
   min-height: var(--letter-toolbar-height);
-  padding: 0.6rem var(--chap-pad);
-  border-bottom: 1px solid var(--chap-rule);
+  padding: 0.6rem var(--letter-pad);
+  border-bottom: 1px solid var(--letter-rule);
   background-color: #fffcf8;
   /* Readability wash over the manuscript texture — the gradient stops are the
      profile's own (resources/css/serafin.css). */
@@ -118,7 +147,7 @@ body.letter {
       rgba(243, 237, 221, 0.72) 75%,
       rgba(243, 237, 221, 0.88) 88%,
       rgba(243, 237, 221, 0.94) 100%),
-    var(--letter-texture);
+    url("parchment.jpg");
   /* One value per layer, or the texture falls back to auto and tiles. */
   background-size: 100% 100%, cover;
   background-repeat: no-repeat, no-repeat;
@@ -127,7 +156,7 @@ body.letter {
 
 .app-breadcrumb {
   min-width: 0;
-  font-family: var(--chap-display);
+  font-family: var(--letter-font-display);
   font-size: 1.05rem;
   font-weight: 400;
   line-height: 1.35;
@@ -148,6 +177,30 @@ body.letter {
   font-style: normal;
 }
 
+/* ── Page shell ───────────────────────────────────────────── */
+
+.letter-page {
+  flex: 1;
+  width: min(100%, calc(var(--letter-measure) + 2 * var(--letter-pad)));
+  margin: 0 auto;
+  padding: clamp(1.75rem, 5vh, 3rem) var(--letter-pad) 2rem;
+}
+
+/* A letter shown with its translation needs room for both columns. */
+.letter-page--parallel {
+  width: min(100%, calc(var(--letter-measure-parallel) + 2 * var(--letter-pad)));
+}
+
+.letter-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.letter-page .content {
+  min-width: 0;
+}
+
 /* ── Letter head: title, source note, date ────────────────── */
 
 .letter-head {
@@ -157,7 +210,7 @@ body.letter {
 .letter-head h1,
 .letter-head .tei-title {
   margin: 0 0 0.75rem;
-  font-family: var(--chap-display);
+  font-family: var(--letter-font-display);
   font-size: 1.6rem;
   font-weight: 400;
   /* The ODD's default `.tei-title { font-style: italic }` would otherwise
@@ -173,7 +226,7 @@ body.letter {
   margin: 0 0 0.5rem;
   font-size: 0.8rem;
   line-height: 1.5;
-  color: var(--chap-muted);
+  color: var(--letter-muted);
 }
 
 /* The sent-date closes the head block, set right against the columns. */
@@ -182,15 +235,10 @@ body.letter {
   margin-top: 1rem;
   font-size: 1.05rem;
   text-align: right;
-  color: var(--chap-ink);
+  color: var(--letter-ink);
 }
 
 /* ── Parallel panes ───────────────────────────────────────── */
-
-.chap-page--parallel,
-.chap-page--parallel:has(.tei-cb) {
-  width: min(100%, calc(var(--letter-measure) + 2 * var(--chap-pad)));
-}
 
 .letter-parallel {
   display: grid;
@@ -208,12 +256,221 @@ body.letter {
   min-width: 0;
 }
 
-/* ── Entity popovers ──────────────────────────────────────── */
-
-:root {
-  --pb-popover-font-size: 1rem;
-  --pb-popover-line-height: 1.35;
+/* The translation is the secondary reading: same measure, slightly softened,
+   and divided from the transcription by a hairline once they sit side by side. */
+.letter-pane--translation .content {
+  color: color-mix(in srgb, var(--letter-ink) 86%, var(--letter-muted));
 }
+
+@media (min-width: 60em) {
+  .letter-parallel:not(.letter-parallel--single) .letter-pane--translation {
+    padding-left: var(--letter-pane-gap);
+    border-left: 1px solid color-mix(in srgb, var(--letter-rule) 70%, transparent);
+  }
+}
+
+/* ── Content typography ───────────────────────────────────── */
+
+.letter-page .content > :first-child {
+  margin-top: 0;
+}
+
+.letter-page .content :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--letter-font-display);
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  color: var(--letter-title);
+  text-wrap: balance;
+}
+
+.letter-page .content h1 {
+  margin: 0 0 1.25rem;
+  font-size: 1.6rem;
+}
+
+.letter-page .content h2 {
+  margin: 2.2rem 0 0.8rem;
+  font-size: 1.3rem;
+}
+
+.letter-page .content h3 {
+  margin: 1.8rem 0 0.65rem;
+  font-size: 1.12rem;
+}
+
+.letter-page .content :is(h4, h5, h6) {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+/* Opening heading of a chunk: no extra space above (it may sit inside
+   section / pb-observable wrappers). */
+.letter-page--chunk .content > :is(h1, h2, h3, h4, h5, h6):first-child,
+.letter-page--chunk .content > :first-child > :is(h1, h2, h3, h4, h5, h6):first-child,
+.letter-page--chunk .content > :first-child > :first-child > :is(h1, h2, h3, h4, h5, h6):first-child {
+  margin-top: 0;
+}
+
+.letter-page .content p {
+  margin: 0 0 1em;
+  hyphens: auto;
+}
+
+.letter-page .content a {
+  color: var(--letter-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  text-decoration-color: color-mix(in srgb, var(--letter-accent) 45%, transparent);
+  transition: text-decoration-color 0.15s ease, background-color 0.15s ease;
+}
+
+.letter-page .content a:hover {
+  text-decoration-color: var(--letter-accent);
+  background-color: var(--letter-accent-soft);
+}
+
+.letter-page .content a:focus-visible {
+  outline: 2px solid var(--letter-accent);
+  outline-offset: 2px;
+}
+
+.letter-page .content blockquote {
+  margin: 1.4em 0;
+  padding: 0.15em 0 0.15em 1.15em;
+  border-left: 2px solid var(--letter-accent);
+  color: var(--letter-muted);
+  font-style: italic;
+}
+
+.letter-page .content :is(em, i) {
+  font-style: italic;
+}
+
+.letter-page .content :is(strong, b) {
+  font-weight: 600;
+}
+
+.letter-page .content hr {
+  margin: 2.25em auto;
+  width: 4rem;
+  border: 0;
+  border-top: 1px solid var(--letter-rule);
+}
+
+.letter-page .content :is(ul, ol) {
+  margin: 0 0 1em;
+  padding-left: 1.35em;
+}
+
+.letter-page .content li {
+  margin-bottom: 0.35em;
+}
+
+.letter-page .content figure {
+  margin: 1.75em 0;
+}
+
+.letter-page .content figcaption,
+.letter-page .content .tei-figDesc {
+  margin-top: 0.5em;
+  font-family: var(--letter-font-meta);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--letter-muted);
+}
+
+.letter-page .content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.letter-page .content table {
+  width: 100%;
+  margin: 1.5em 0;
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+
+.letter-page .content :is(th, td) {
+  padding: 0.4em 0.55em;
+  border-bottom: 1px solid var(--letter-rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+.letter-page .content th {
+  font-family: var(--letter-font-meta);
+  font-size: 0.85em;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--letter-muted);
+}
+
+.letter-page .content .tei-note {
+  font-size: 0.9em;
+  color: var(--letter-muted);
+}
+
+/* ── Alternate readings ───────────────────────────────────── */
+
+/* Default reading stays visible; the alternative is a hover/focus popover.
+   Used when the page runs without pb-components. */
+.letter-page .content .alternate {
+  position: relative;
+  display: inline;
+  cursor: help;
+  border-bottom: 1px dotted color-mix(in srgb, var(--letter-accent) 55%, transparent);
+  text-decoration: none;
+}
+
+.letter-page .content .alternate .altcontent {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 0.35rem);
+  z-index: 20;
+  min-width: 8rem;
+  max-width: min(22rem, 70vw);
+  padding: 0.45rem 0.65rem;
+  transform: translateX(-50%);
+  border: 1px solid var(--letter-rule);
+  border-radius: 2px;
+  background: var(--letter-paper);
+  box-shadow: 0 6px 18px rgba(36, 33, 29, 0.14);
+  color: var(--letter-ink);
+  font-family: var(--letter-font-body);
+  font-size: 0.88rem;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.45;
+  text-transform: none;
+  white-space: normal;
+}
+
+.letter-page .content .alternate .altcontent::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-bottom-color: var(--letter-rule);
+}
+
+.letter-page .content .alternate:hover .altcontent,
+.letter-page .content .alternate:focus-within .altcontent {
+  display: block;
+}
+
+.letter-page .content pb-popover {
+  --pb-popover-theme: "light-border";
+}
+
+/* ── Entity popovers (tippy) ──────────────────────────────── */
 
 /* In the app the panel is built inside pb-view's shadow root, so the column
    caps its width at ~470px. The static pages have no pb-view: tippy appends to
@@ -226,25 +483,25 @@ body.letter {
 /* tippy's own theme stylesheet is injected at runtime, after this file, and
    uses the same specificity — hence the leading `body` to win the cascade. */
 body .tippy-box[data-theme~="light-border"] {
-  border-color: var(--chap-rule);
-  background-color: var(--chap-paper);
-  color: var(--chap-ink);
-  font-family: var(--chap-body);
-  box-shadow: 0 6px 20px rgba(22, 24, 28, 0.12);
+  border-color: var(--letter-rule);
+  background-color: var(--letter-paper);
+  color: var(--letter-ink);
+  font-family: var(--letter-font-body);
+  box-shadow: 0 6px 20px rgba(36, 33, 29, 0.14);
 }
 
 body .tippy-box[data-theme~="light-border"] > .tippy-backdrop {
-  background-color: var(--chap-paper);
+  background-color: var(--letter-paper);
 }
 
 body .tippy-box[data-theme~="light-border"] > .tippy-arrow::after,
 body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:first-child {
-  border-color: var(--chap-rule);
-  fill: var(--chap-rule);
+  border-color: var(--letter-rule);
+  fill: var(--letter-rule);
 }
 
 body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child {
-  fill: var(--chap-paper);
+  fill: var(--letter-paper);
 }
 
 .tippy-box .tippy-content {
@@ -255,7 +512,7 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
 /* Entry heading: name in Belleza, place/date qualifier beside it. */
 .tippy-box h1 {
   margin: 0 0 0.6rem;
-  font-family: var(--chap-display);
+  font-family: var(--letter-font-display);
   font-size: 1.3rem;
   font-weight: 400;
   font-style: normal;
@@ -266,10 +523,10 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
 .tippy-box h1 small,
 .tippy-box h1 .tei-placeName + small {
   margin-left: 0.4rem;
-  font-family: var(--chap-meta);
+  font-family: var(--letter-font-meta);
   font-size: 0.72rem;
   letter-spacing: 0.04em;
-  color: var(--chap-muted);
+  color: var(--letter-muted);
 }
 
 .tippy-box p {
@@ -278,7 +535,7 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
   line-height: 1.5;
   text-indent: 0;
   text-align: left;
-  color: color-mix(in srgb, var(--chap-ink) 90%, var(--chap-muted));
+  color: color-mix(in srgb, var(--letter-ink) 90%, var(--letter-muted));
 }
 
 /* The register template nests <p> inside <p>; the parser leaves an empty one. */
@@ -293,9 +550,9 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
   gap: 0.75rem;
   margin: 0.7rem 0 0;
   padding: 0.55rem 0 0;
-  border-top: 1px solid color-mix(in srgb, var(--chap-rule) 70%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--letter-rule) 70%, transparent);
   list-style: none;
-  font-family: var(--chap-meta);
+  font-family: var(--letter-font-meta);
   font-size: 0.72rem;
   letter-spacing: 0.04em;
 }
@@ -305,9 +562,9 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
 }
 
 .tippy-box a {
-  color: var(--chap-accent);
+  color: var(--letter-accent);
   text-decoration: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--chap-accent) 35%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--letter-accent) 35%, transparent);
 }
 
 .tippy-box a:hover {
@@ -316,22 +573,39 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
 
 /* ── Register rail ────────────────────────────────────────── */
 
+/* Narrow screens: the register falls below the text. */
+.letter-register {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--letter-rule);
+  font-size: 0.85rem;
+}
+
 /* Room for the rail alongside the reading columns. */
 @media (min-width: 82em) {
-  .chap-page--parallel.chap-page--with-register,
-  .chap-page--parallel.chap-page--with-register:has(.tei-cb) {
+  .letter-page--with-register {
     width: min(
       100%,
       calc(
         var(--letter-measure) + var(--letter-register-width) +
-        var(--letter-rail-gap) + 2 * var(--chap-pad)
+        var(--letter-rail-gap) + 2 * var(--letter-pad)
+      )
+    );
+  }
+
+  .letter-page--parallel.letter-page--with-register {
+    width: min(
+      100%,
+      calc(
+        var(--letter-measure-parallel) + var(--letter-register-width) +
+        var(--letter-rail-gap) + 2 * var(--letter-pad)
       )
     );
   }
 
   /* Head and columns share the left track; the rail runs beside both, so it
      starts level with the title the way the dynamic app's sidebar does. */
-  .chap-page--with-register .chap-body {
+  .letter-page--with-register .letter-body {
     display: grid;
     grid-template-columns: minmax(0, 1fr) var(--letter-register-width);
     grid-template-areas:
@@ -341,19 +615,16 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
     align-items: start;
   }
 
-  .chap-page--with-register .letter-head {
+  .letter-page--with-register .letter-head {
     grid-area: head;
   }
 
-  .chap-page--with-register .letter-parallel {
+  .letter-page--with-register .letter-parallel {
     grid-area: text;
   }
 
-  .chap-page--with-register .letter-register {
+  .letter-page--with-register .letter-register {
     grid-area: rail;
-  }
-
-  .chap-page--with-register .letter-register {
     position: sticky;
     /* Clear of the sticky menubar + toolbar. */
     top: calc(var(--letter-menubar-height) + var(--letter-toolbar-height) + 1rem);
@@ -366,14 +637,6 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
     padding-top: 0;
     border-top: 0;
   }
-}
-
-/* Narrow screens: the register falls below the text. */
-.letter-register {
-  margin-top: 2.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--chap-rule);
-  font-size: 0.85rem;
 }
 
 /* ── Register tabs (CSS-only, radio driven) ───────────────── */
@@ -394,23 +657,23 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
   display: flex;
   gap: 1.25rem;
   margin-bottom: 1.1rem;
-  border-bottom: 1px solid var(--chap-rule);
+  border-bottom: 1px solid var(--letter-rule);
 }
 
 .register-tabs__tab {
   padding: 0 0 0.55rem;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
-  font-family: var(--chap-meta);
+  font-family: var(--letter-font-meta);
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--chap-muted);
+  color: var(--letter-muted);
   cursor: pointer;
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .register-tabs__tab:hover {
-  color: var(--chap-ink);
+  color: var(--letter-ink);
 }
 
 .register-tabs__panel {
@@ -419,8 +682,8 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
 
 #register-tab-people:checked ~ .register-tabs__strip .register-tabs__tab--people,
 #register-tab-places:checked ~ .register-tabs__strip .register-tabs__tab--places {
-  border-bottom-color: var(--chap-accent);
-  color: var(--chap-ink);
+  border-bottom-color: var(--letter-accent);
+  color: var(--letter-ink);
 }
 
 #register-tab-people:checked ~ .register-tabs__panel--people,
@@ -431,7 +694,7 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
 /* Keyboard focus has to be visible on the label, not the hidden radio. */
 .register-tabs__radio:focus-visible ~ .register-tabs__strip .register-tabs__tab--people,
 .register-tabs__radio:focus-visible ~ .register-tabs__strip .register-tabs__tab--places {
-  outline: 2px solid var(--chap-accent);
+  outline: 2px solid var(--letter-accent);
   outline-offset: 2px;
 }
 
@@ -441,9 +704,186 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
   margin: 0;
 }
 
+/* ── Folio navigation ─────────────────────────────────────── */
+
+.letter-folio {
+  width: min(100%, calc(var(--letter-measure) + 2 * var(--letter-pad)));
+  margin: 0 auto;
+  /* Matches the page above it, so the rule lines up with the text. */
+  padding: 1.5rem var(--letter-pad) 2.75rem;
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid var(--letter-rule);
+  font-family: var(--letter-font-meta);
+}
+
+body.letter:has(.letter-page--parallel) .letter-folio {
+  width: min(100%, calc(var(--letter-measure-parallel) + 2 * var(--letter-pad)));
+}
+
+/* Fixed vertical spine rails; the mark stays as a page-end folio. The gutters
+   keep the reading measure clear of the rails. */
+body.letter:has(.letter-folio__prev a) :is(.letter-page, .letter-folio) {
+  padding-left: calc(var(--letter-pad) + var(--letter-folio-rail));
+}
+
+body.letter:has(.letter-folio__next a) :is(.letter-page, .letter-folio) {
+  padding-right: calc(var(--letter-pad) + var(--letter-folio-rail));
+}
+
+.letter-folio__prev:has(a),
+.letter-folio__next:has(a) {
+  position: fixed;
+  top: 50%;
+  z-index: 3;
+  transform: translateY(-50%);
+  padding: 0.75rem 0.28rem;
+  color: var(--letter-ink);
+  font-size: 0.92rem;
+  letter-spacing: 0.02em;
+  background: color-mix(in srgb, var(--letter-paper) 82%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.letter-folio__prev:has(a) {
+  left: 0;
+  border-right: 1px solid color-mix(in srgb, var(--letter-rule) 75%, transparent);
+}
+
+.letter-folio__next:has(a) {
+  right: 0;
+  text-align: center;
+  border-left: 1px solid color-mix(in srgb, var(--letter-rule) 75%, transparent);
+}
+
+.letter-folio__prev a,
+.letter-folio__next a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.letter-folio__prev a:hover,
+.letter-folio__next a:hover {
+  color: var(--letter-accent);
+}
+
+.letter-folio__prev a:focus-visible,
+.letter-folio__next a:focus-visible {
+  outline: 2px solid var(--letter-accent);
+  outline-offset: 3px;
+}
+
+.letter-folio__mark {
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  color: var(--letter-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.letter-folio__label {
+  display: none;
+}
+
+.letter-folio__dir {
+  writing-mode: vertical-rl;
+  font-size: 0.82rem;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.letter-folio__chevron {
+  order: -1;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+/* ── Collection index ─────────────────────────────────────── */
+
+.letter-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.letter-list__item {
+  padding: 1.1rem 0;
+  border-bottom: 1px solid var(--letter-rule);
+}
+
+.letter-list__item:last-child {
+  border-bottom: 0;
+}
+
+/* The ODD's browse models emit the heading and its link; style them in place
+   rather than wrapping them in anything of our own. */
+.letter-list__entry h5 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 400;
+}
+
+.letter-list__entry .tei-title {
+  font-family: var(--letter-font-display);
+  font-style: normal;
+  letter-spacing: 0.01em;
+  color: var(--letter-title);
+}
+
+.letter-list__entry a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.letter-list__entry a:hover .tei-title {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--letter-accent) 55%, transparent);
+  text-underline-offset: 0.18em;
+}
+
+.letter-list__entry .tei-placeName,
+.letter-list__entry .tei-date {
+  color: var(--letter-muted);
+}
+
+/* Empty wrappers appear where a letter has no author or description. */
+.letter-list__entry div:empty {
+  display: none;
+}
+
+.letter-list__meta {
+  margin-top: 0.25rem;
+  font-family: var(--letter-font-meta);
+  font-size: 0.78rem;
+  color: var(--letter-muted);
+}
+
+.letter-list__meta a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--letter-rule) 80%, transparent);
+}
+
+.letter-list__meta a:hover {
+  color: var(--letter-accent);
+  border-bottom-color: currentColor;
+}
+
 /* ── Print ────────────────────────────────────────────────── */
 
 @media print {
+  .app-menubar,
+  .letter-folio {
+    display: none;
+  }
+
   .letter-parallel:not(.letter-parallel--single) {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
@@ -466,12 +906,12 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
     display: block;
     margin-bottom: 0.7rem;
     padding-bottom: 0.35rem;
-    border-bottom: 1px solid var(--chap-rule);
+    border-bottom: 1px solid var(--letter-rule);
     font-size: 0.78rem;
     font-weight: 600;
     letter-spacing: 0.09em;
     text-transform: uppercase;
-    color: var(--chap-muted);
+    color: var(--letter-muted);
   }
 
   .register-tabs__panel--people::before {
