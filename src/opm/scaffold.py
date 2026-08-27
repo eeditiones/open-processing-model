@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Scaffold a local opm project from packaged resources."""
 
 from __future__ import annotations

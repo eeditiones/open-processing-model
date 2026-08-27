@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Access packaged stock ODDs, CSS, and related resources."""
 
 from __future__ import annotations

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Built-in chunk-selection algorithms for TEI, DocBook and JATS documents. Those determine how a
 large XML document is split into smaller sections to be viewed on one page.
 

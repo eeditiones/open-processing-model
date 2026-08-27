@@ -1,5 +1,7 @@
-"""Unified CLI: ``opm init``, ``opm transform``, ``opm chunk``, ``opm index``,
-``opm coverage``, and ``opm serve``.
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+"""Unified CLI: ``opm init``, ``opm transform``, ``opm chunk``, and ``opm serve``.
 
 ODDs are compiled on demand into the user cache (``platformdirs``); there is no
 separate ``compile`` command.

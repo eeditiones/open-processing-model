@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Helpers for wrapping transform output in Jinja2 templates (HTML and Typst)."""
 
 from __future__ import annotations

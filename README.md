@@ -66,6 +66,9 @@ with and fails on the new import.
 Note that `.venv/bin/opm` shadows the tool whenever the project venv is on
 `PATH`; `which -a opm` shows which one you are about to run.
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request — contributions
+require a one-click [contributor license agreement](CLA.md).
+
 ## Tests
 
 ```bash

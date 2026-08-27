@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """DOCX serialisation for the TEI processing model (docx-functions.xql equivalent).
 
 Uses python-docx for OPC packaging and raw lxml OOXML elements for content.

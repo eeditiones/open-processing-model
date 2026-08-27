@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Markdown serialisation for the TEI processing model (``markdown-functions.xql`` equivalent)."""
 
 from __future__ import annotations
