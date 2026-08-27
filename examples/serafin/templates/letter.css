@@ -1,0 +1,481 @@
+/* ===========================================================================
+   Letter — parallel transcription / translation with a tabbed register rail.
+   Retunes the chapbook surface to the Serafin edition's palette and type:
+   Belleza headings, Albert Sans text, warm paper, muted dark-red entities.
+   Loaded after chapbook.css; the ODD stylesheet still owns the TEI content.
+   =========================================================================== */
+
+:root {
+  /* Serafin edition palette (matches the dynamic app) */
+  --chap-paper: #fffef9;
+  --chap-ink: #24211d;
+  --chap-muted: #6f6b5d;
+  --chap-rule: #ddd5c0;
+  --chap-accent: #8a0000;
+  --chap-accent-soft: rgba(138, 0, 0, 0.1);
+  --chap-display: "Belleza", "Optima", "Gill Sans", sans-serif;
+  --chap-body: "Albert Sans", "Helvetica Neue", Arial, sans-serif;
+  --chap-meta: "Albert Sans", "Helvetica Neue", Arial, sans-serif;
+
+  --letter-parchment: #f3eddd;
+  --letter-title: #2a2925;
+  --letter-menubar-bg: #62543a;
+  --letter-menubar-ink: #fcfcf8;
+  /* Taller than the app's 44px bar: it carries the two-line wordmark rather
+     than the monogram, and needs the vertical room to stay legible. */
+  --letter-menubar-height: 3.5rem;
+  --letter-toolbar-height: 4rem;
+  --letter-pane-gap: 2rem;
+  --letter-measure: 60rem;
+  --letter-register-width: 15rem;
+  --letter-rail-gap: 2.5rem;
+}
+
+/* The app sets its text at a 16px base; chapbook enlarges to 112.5%. */
+html {
+  font-size: 100%;
+}
+
+/* Flat warm paper instead of the chapbook's cool gradient. */
+body.letter {
+  background: var(--chap-paper);
+  font-weight: 400;
+  line-height: 1.6;
+  font-feature-settings: normal;
+}
+
+/* ── Application menubar ──────────────────────────────────── */
+
+.app-menubar {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  height: var(--letter-menubar-height);
+  padding: 0 var(--chap-pad);
+  background: var(--letter-menubar-bg);
+  color: var(--letter-menubar-ink);
+}
+
+.app-logo {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* The wordmark's dark half is set to currentColor so it reads on the bar;
+   the gold half keeps its own fill. */
+.app-logo__mark {
+  display: block;
+  width: auto;
+  height: 2.25rem;
+  color: var(--letter-menubar-ink);
+}
+
+.app-menubar__folio {
+  flex: none;
+  font-family: var(--chap-meta);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--letter-menubar-ink) 80%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Breadcrumb toolbar: parchment band ───────────────────── */
+
+.app-toolbar {
+  position: sticky;
+  top: var(--letter-menubar-height);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  min-height: var(--letter-toolbar-height);
+  padding: 0.6rem var(--chap-pad);
+  border-bottom: 1px solid var(--chap-rule);
+  background-color: #fffcf8;
+  /* Readability wash over the manuscript texture — the gradient stops are the
+     profile's own (resources/css/serafin.css). */
+  background-image:
+    linear-gradient(90deg,
+      rgba(243, 237, 221, 0.72) 0%,
+      rgba(243, 237, 221, 0.65) 10%,
+      rgba(243, 237, 221, 0.45) 18%,
+      rgba(243, 237, 221, 0.36) 28%,
+      rgba(243, 237, 221, 0.36) 50%,
+      rgba(243, 237, 221, 0.52) 62%,
+      rgba(243, 237, 221, 0.72) 75%,
+      rgba(243, 237, 221, 0.88) 88%,
+      rgba(243, 237, 221, 0.94) 100%),
+    var(--letter-texture);
+  /* One value per layer, or the texture falls back to auto and tiles. */
+  background-size: 100% 100%, cover;
+  background-repeat: no-repeat, no-repeat;
+  background-position: center, center;
+}
+
+.app-breadcrumb {
+  min-width: 0;
+  font-family: var(--chap-display);
+  font-size: 1.05rem;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0.08em;
+  color: var(--letter-title);
+  text-shadow:
+    0 0 4px rgba(255, 252, 248, 1),
+    0 0 10px rgba(255, 252, 248, 0.92),
+    0 1px 2px rgba(255, 252, 248, 0.85);
+}
+
+/* The breadcrumb fragment is a nest of tei-* spans — flatten it to one line. */
+.app-breadcrumb .tei-title,
+.app-breadcrumb span {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  font-style: normal;
+}
+
+/* ── Letter head: title, source note, date ────────────────── */
+
+.letter-head {
+  margin-bottom: 2.25rem;
+}
+
+.letter-head h1,
+.letter-head .tei-title {
+  margin: 0 0 0.75rem;
+  font-family: var(--chap-display);
+  font-size: 1.6rem;
+  font-weight: 400;
+  /* The ODD's default `.tei-title { font-style: italic }` would otherwise
+     force a synthetic oblique — Belleza ships no italic face. */
+  font-style: normal;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  color: var(--letter-title);
+}
+
+.letter-head .tei-msDesc,
+.letter-head p {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--chap-muted);
+}
+
+/* The sent-date closes the head block, set right against the columns. */
+.letter-head .tei-date {
+  display: block;
+  margin-top: 1rem;
+  font-size: 1.05rem;
+  text-align: right;
+  color: var(--chap-ink);
+}
+
+/* ── Parallel panes ───────────────────────────────────────── */
+
+.chap-page--parallel,
+.chap-page--parallel:has(.tei-cb) {
+  width: min(100%, calc(var(--letter-measure) + 2 * var(--chap-pad)));
+}
+
+.letter-parallel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--letter-pane-gap);
+}
+
+@media (min-width: 60em) {
+  .letter-parallel:not(.letter-parallel--single) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.letter-pane {
+  min-width: 0;
+}
+
+/* ── Entity popovers ──────────────────────────────────────── */
+
+:root {
+  --pb-popover-font-size: 1rem;
+  --pb-popover-line-height: 1.35;
+}
+
+/* In the app the panel is built inside pb-view's shadow root, so the column
+   caps its width at ~470px. The static pages have no pb-view: tippy appends to
+   the body and the panel runs the full viewport width. tippy writes
+   `max-width: none` as an inline style, so only !important can cap it. */
+.tippy-box {
+  max-width: min(480px, calc(100vw - 2rem)) !important;
+}
+
+/* tippy's own theme stylesheet is injected at runtime, after this file, and
+   uses the same specificity — hence the leading `body` to win the cascade. */
+body .tippy-box[data-theme~="light-border"] {
+  border-color: var(--chap-rule);
+  background-color: var(--chap-paper);
+  color: var(--chap-ink);
+  font-family: var(--chap-body);
+  box-shadow: 0 6px 20px rgba(22, 24, 28, 0.12);
+}
+
+body .tippy-box[data-theme~="light-border"] > .tippy-backdrop {
+  background-color: var(--chap-paper);
+}
+
+body .tippy-box[data-theme~="light-border"] > .tippy-arrow::after,
+body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:first-child {
+  border-color: var(--chap-rule);
+  fill: var(--chap-rule);
+}
+
+body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child {
+  fill: var(--chap-paper);
+}
+
+.tippy-box .tippy-content {
+  padding: 0.85rem 1.05rem 0.95rem;
+  text-align: left;
+}
+
+/* Entry heading: name in Belleza, place/date qualifier beside it. */
+.tippy-box h1 {
+  margin: 0 0 0.6rem;
+  font-family: var(--chap-display);
+  font-size: 1.3rem;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.2;
+  color: var(--letter-title);
+}
+
+.tippy-box h1 small,
+.tippy-box h1 .tei-placeName + small {
+  margin-left: 0.4rem;
+  font-family: var(--chap-meta);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--chap-muted);
+}
+
+.tippy-box p {
+  margin: 0.35rem 0 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  text-indent: 0;
+  text-align: left;
+  color: color-mix(in srgb, var(--chap-ink) 90%, var(--chap-muted));
+}
+
+/* The register template nests <p> inside <p>; the parser leaves an empty one. */
+.tippy-box p:empty {
+  display: none;
+}
+
+/* Authority links (geonames, wikidata, …) as a compact footer row. */
+.tippy-box ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0.7rem 0 0;
+  padding: 0.55rem 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--chap-rule) 70%, transparent);
+  list-style: none;
+  font-family: var(--chap-meta);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+.tippy-box li {
+  margin: 0;
+}
+
+.tippy-box a {
+  color: var(--chap-accent);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--chap-accent) 35%, transparent);
+}
+
+.tippy-box a:hover {
+  border-bottom-color: currentColor;
+}
+
+/* ── Register rail ────────────────────────────────────────── */
+
+/* Room for the rail alongside the reading columns. */
+@media (min-width: 82em) {
+  .chap-page--parallel.chap-page--with-register,
+  .chap-page--parallel.chap-page--with-register:has(.tei-cb) {
+    width: min(
+      100%,
+      calc(
+        var(--letter-measure) + var(--letter-register-width) +
+        var(--letter-rail-gap) + 2 * var(--chap-pad)
+      )
+    );
+  }
+
+  /* Head and columns share the left track; the rail runs beside both, so it
+     starts level with the title the way the dynamic app's sidebar does. */
+  .chap-page--with-register .chap-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--letter-register-width);
+    grid-template-areas:
+      "head rail"
+      "text rail";
+    column-gap: var(--letter-rail-gap);
+    align-items: start;
+  }
+
+  .chap-page--with-register .letter-head {
+    grid-area: head;
+  }
+
+  .chap-page--with-register .letter-parallel {
+    grid-area: text;
+  }
+
+  .chap-page--with-register .letter-register {
+    grid-area: rail;
+  }
+
+  .chap-page--with-register .letter-register {
+    position: sticky;
+    /* Clear of the sticky menubar + toolbar. */
+    top: calc(var(--letter-menubar-height) + var(--letter-toolbar-height) + 1rem);
+    max-height: calc(
+      100vh - var(--letter-menubar-height) - var(--letter-toolbar-height) - 2.5rem
+    );
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+
+/* Narrow screens: the register falls below the text. */
+.letter-register {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--chap-rule);
+  font-size: 0.85rem;
+}
+
+/* ── Register tabs (CSS-only, radio driven) ───────────────── */
+
+.register-tabs__radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.register-tabs__strip {
+  display: flex;
+  gap: 1.25rem;
+  margin-bottom: 1.1rem;
+  border-bottom: 1px solid var(--chap-rule);
+}
+
+.register-tabs__tab {
+  padding: 0 0 0.55rem;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-family: var(--chap-meta);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--chap-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.register-tabs__tab:hover {
+  color: var(--chap-ink);
+}
+
+.register-tabs__panel {
+  display: none;
+}
+
+#register-tab-people:checked ~ .register-tabs__strip .register-tabs__tab--people,
+#register-tab-places:checked ~ .register-tabs__strip .register-tabs__tab--places {
+  border-bottom-color: var(--chap-accent);
+  color: var(--chap-ink);
+}
+
+#register-tab-people:checked ~ .register-tabs__panel--people,
+#register-tab-places:checked ~ .register-tabs__panel--places {
+  display: block;
+}
+
+/* Keyboard focus has to be visible on the label, not the hidden radio. */
+.register-tabs__radio:focus-visible ~ .register-tabs__strip .register-tabs__tab--people,
+.register-tabs__radio:focus-visible ~ .register-tabs__strip .register-tabs__tab--places {
+  outline: 2px solid var(--chap-accent);
+  outline-offset: 2px;
+}
+
+/* The .register list itself is styled by the ODD stylesheet; only the
+   rail-specific spacing is set here. */
+.letter-register .register ul {
+  margin: 0;
+}
+
+/* ── Print ────────────────────────────────────────────────── */
+
+@media print {
+  .letter-parallel:not(.letter-parallel--single) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .letter-register {
+    break-inside: avoid;
+  }
+
+  /* Both registers on paper — tabs mean nothing in print, so the labels
+     they carried come back as headings. */
+  .register-tabs__panel {
+    display: block;
+  }
+
+  .register-tabs__panel + .register-tabs__panel {
+    margin-top: 1.5rem;
+  }
+
+  .register-tabs__panel::before {
+    display: block;
+    margin-bottom: 0.7rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--chap-rule);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--chap-muted);
+  }
+
+  .register-tabs__panel--people::before {
+    content: "People";
+  }
+
+  .register-tabs__panel--places::before {
+    content: "Places";
+  }
+
+  .register-tabs__strip {
+    display: none;
+  }
+}

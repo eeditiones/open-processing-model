@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="{{ lang|default('en') }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+{% set work_title = fragments.breadcrumbs | striptags | trim if fragments is defined and fragments.breadcrumbs else '' %}
+  <title>{{ work_title or 'Serafin' }}</title>
+  <!-- letter template: parallel transcription / translation, tabbed register rail -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@0,300..700;1,300..700&family=Belleza&display=swap"
+    rel="stylesheet"
+  >
+  {{ head_html | safe }}
+  <style type="text/css">
+    {% include "chapbook.css" %}
+  </style>
+  <style type="text/css">
+    {% include "parchment.css" %}
+  </style>
+  <style type="text/css">
+    {% include "letter.css" %}
+  </style>
+  {% if odd_css %}
+  <style type="text/css">
+{{ odd_css }}
+  </style>
+  {% endif %}
+  {% if user_css %}
+  <style type="text/css">
+{{ user_css }}
+  </style>
+  {% endif %}
+  {% if webcomponents_url %}
+  <script type="module" src="{{ webcomponents_url }}"></script>
+  {% endif %}
+</head>
+{% set is_chunk = chunk is defined and chunk %}
+{% if is_chunk %}
+  {% set folio = chunk.file.replace('.html', '') %}
+  {% set letter_num = folio.lstrip('0') or '0' %}
+{% endif %}
+{% set has_translation = fragments is defined and fragments.translation %}
+{% set has_people = fragments is defined and fragments.register_people %}
+{% set has_places = fragments is defined and fragments.register_places %}
+{% set has_register = has_people or has_places %}
+<body class="chapbook letter">
+  <nav class="app-menubar" aria-label="Edition">
+    <span class="app-logo">{% include "logo-textmark.svg" %}</span>
+    {% if is_chunk %}
+    <span class="app-menubar__folio">Ep. {{ letter_num }}</span>
+    {% endif %}
+  </nav>
+
+  <div class="app-toolbar">
+    <nav class="app-breadcrumb" aria-label="breadcrumb">
+      {% if fragments is defined and fragments.breadcrumbs %}
+      {{ fragments.breadcrumbs | safe }}
+      {% else %}
+      {{ work_title or 'Serafin' }}
+      {% endif %}
+    </nav>
+  </div>
+
+  <main class="chap-page{% if is_chunk %} chap-page--chunk{% endif %}{% if has_translation %} chap-page--parallel{% endif %}{% if has_register %} chap-page--with-register{% endif %}">
+    <div class="chap-body">
+      {% if fragments is defined and fragments.letter_head %}
+      <header class="letter-head">
+        {{ fragments.letter_head | safe }}
+      </header>
+      {% elif is_chunk %}
+      <header class="letter-head letter-head--plain">
+        <h1>Letter {{ letter_num }}</h1>
+      </header>
+      {% endif %}
+
+      <div class="letter-parallel{% if not has_translation %} letter-parallel--single{% endif %}">
+        <section class="letter-pane letter-pane--source" aria-label="Transcription">
+          <article class="content">
+            {{ content_html | safe }}
+          </article>
+        </section>
+
+        {% if has_translation %}
+        <section class="letter-pane letter-pane--translation" aria-label="Translation">
+          <article class="content">
+            {{ fragments.translation | safe }}
+          </article>
+        </section>
+        {% endif %}
+      </div>
+
+      {% if has_register %}
+      <aside class="letter-register">
+        {% if has_people %}
+        <input type="radio" name="register-tab" id="register-tab-people" class="register-tabs__radio" checked autocomplete="off">
+        {% endif %}
+        {% if has_places %}
+        <input type="radio" name="register-tab" id="register-tab-places" class="register-tabs__radio"{% if not has_people %} checked{% endif %} autocomplete="off">
+        {% endif %}
+
+        <div class="register-tabs__strip">
+          {% if has_people %}
+          <label for="register-tab-people" class="register-tabs__tab register-tabs__tab--people">People</label>
+          {% endif %}
+          {% if has_places %}
+          <label for="register-tab-places" class="register-tabs__tab register-tabs__tab--places">Places</label>
+          {% endif %}
+        </div>
+
+        {% if has_people %}
+        <div class="register-tabs__panel register-tabs__panel--people">
+          {{ fragments.register_people | safe }}
+        </div>
+        {% endif %}
+        {% if has_places %}
+        <div class="register-tabs__panel register-tabs__panel--places">
+          {{ fragments.register_places | safe }}
+        </div>
+        {% endif %}
+      </aside>
+      {% endif %}
+    </div>
+  </main>
+
+  {% if is_chunk and (chunk.prev or chunk.next) %}
+  <nav class="chap-folio-nav" aria-label="Letter navigation">
+    <div class="chap-folio-nav__prev">
+      {% if chunk.prev %}
+      <a href="{{ chunk.prev }}.html">
+        <span class="chap-folio-nav__label">Verso</span>
+        <span class="chap-folio-nav__chevron" aria-hidden="true">&lsaquo;</span>
+        <span class="chap-folio-nav__dir">Previous</span>
+      </a>
+      {% endif %}
+    </div>
+    <div class="chap-folio-nav__mark" aria-hidden="true">— {{ folio }} —</div>
+    <div class="chap-folio-nav__next">
+      {% if chunk.next %}
+      <a href="{{ chunk.next }}.html">
+        <span class="chap-folio-nav__label">Recto</span>
+        <span class="chap-folio-nav__dir">Next</span>
+        <span class="chap-folio-nav__chevron" aria-hidden="true">&rsaquo;</span>
+      </a>
+      {% endif %}
+    </div>
+  </nav>
+  {% endif %}
+</body>
+</html>

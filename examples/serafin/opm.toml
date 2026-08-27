@@ -1,0 +1,65 @@
+[project]
+pythonpath = ["extensions"]
+
+[transform]
+odd = "odd/serafin.odd"
+xpath_extensions = [
+    "opm.runtime.common_xpath_functions"
+]
+
+# Registers, reachable from XPath as collection($global:register-root).
+# `uri` is used verbatim, so it matches the eXist app's $config:register-root
+# and the ODD needs no opm-specific variants.
+[[transform.collections]]
+uri = "/db/apps/serafin/data/registers"
+documents = [
+    "data/registers/persons.xml",
+    "data/registers/places.xml",
+    "data/registers/organizations.xml",
+    "data/registers/works.xml",
+]
+
+[transform.namespaces]
+global = "http://teipublisher.com/global"
+
+[transform.variables.global]
+register-root = "/db/apps/serafin/data/registers"
+
+[transform.web.webcomponents]
+enabled = true
+
+[document]
+template = "templates/letter.html.j2"
+
+[chunking]
+odd = "odd/serafin.odd"
+xpath = ".//text[@type='source']/div"
+xpath_dynamic = "//text[@type = 'source']"
+output_dir = "chunks"
+template = "templates/letter.html.j2"
+doc_path = "letters"
+
+[[chunking.fragments]]
+name = "translation"
+xpath = "//text[@type='translation']/div"
+xpath_dynamic = "//text[@type = 'translation']"
+
+[[chunking.fragments]]
+name = "breadcrumbs"
+xpath = "./ancestor::TEI"
+parameters = { mode = "breadcrumb" }
+
+[[chunking.fragments]]
+name = "letter_head"
+xpath = "./ancestor::TEI"
+parameters = { mode = "letter-head" }
+
+[[chunking.fragments]]
+name = "register_people"
+xpath = "./ancestor::TEI"
+parameters = { mode = "register", category = "people" }
+
+[[chunking.fragments]]
+name = "register_places"
+xpath = "./ancestor::TEI"
+parameters = { mode = "register", category = "places" }
