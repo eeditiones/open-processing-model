@@ -294,6 +294,25 @@ def _append_doc_path(base_doc_path: str | None, xml_path: Path) -> str:
     return f'{base_doc_path.rstrip("/")}/{xml_path.name}'
 
 
+_BAR_BLOCKS = ('\u2588', '\u2591')   # FULL BLOCK / LIGHT SHADE
+_BAR_ASCII = ('#', '-')
+
+
+def _progress_chars() -> tuple[str, str]:
+    """Progress-bar glyphs, falling back to ASCII when they cannot be encoded.
+
+    Click writes the bar straight to the output stream, so a stream that cannot
+    represent the block glyphs — a pipe under an ASCII locale, an older Windows
+    console — would raise UnicodeEncodeError part-way through a run.
+    """
+    encoding = getattr(sys.stdout, 'encoding', None) or 'ascii'
+    try:
+        ''.join(_BAR_BLOCKS).encode(encoding)
+    except (LookupError, UnicodeEncodeError):
+        return _BAR_ASCII
+    return _BAR_BLOCKS
+
+
 def _append_output_dir(base_output_dir: str, xml_path: Path) -> str:
     """Append the XML filename to the chunk output directory."""
     return f'{base_output_dir.rstrip("/")}/{xml_path.name}'
@@ -760,8 +779,29 @@ def chunk(
             )
         else:
             typer.echo(f'Chunking {input_xml} using {effective_chunk_script or "module from config"}...')
-        with typer.progressbar(length=0, label='Processing chunks') as progress:
+        # ``on_progress`` counts chunks *within one document*, so for a directory
+        # the first document's count would be taken for the whole job — with one
+        # chunk per file the bar hits 100% on file 1 and the rest run behind it.
+        # Count files instead when there is more than one; keep chunk-level
+        # granularity for a single document, where it is the useful unit.
+        per_file = len(input_files) > 1
+        bar_fill, bar_empty = _progress_chars()
+        # Colour only the bar itself, not the label or the ETA. Safe inside the
+        # template: Click measures the line with term_len(), which strips ANSI,
+        # and echo() drops the codes entirely when stdout is not a terminal.
+        bar_template = (
+            '%(label)s  [' + typer.style('%(bar)s', fg=typer.colors.CYAN) + ']  %(info)s'
+        )
+        with typer.progressbar(
+            length=len(input_files) if per_file else 0,
+            label='Processing chunks',
+            fill_char=bar_fill,
+            empty_char=bar_empty,
+            bar_template=bar_template,
+        ) as progress:
             def _on_progress(current: int, total: int) -> None:
+                if per_file:
+                    return
                 if progress.length == 0:
                     progress.length = total  # type: ignore[assignment]
                 progress.update(1)
@@ -802,7 +842,9 @@ def chunk(
                     output_format=output_format,
                     doc_path=effective_doc_path,
                 )
-        
+                if per_file:
+                    progress.update(1)
+
         typer.echo(f'Chunks written to {out_dir}/')
         if output_format == 'pb-view':
             if input_xml.is_dir():
