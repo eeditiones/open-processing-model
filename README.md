@@ -120,3 +120,17 @@ Development of `opm` is supported by:
     <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/e-editiones-logo-white.svg"><img src="docs/assets/e-editiones-logo-color.svg" alt="e-editiones" height="40"></picture>
   </a>
 </p>
+
+## License
+
+Copyright © 2026 e-editiones. Licensed under the [GNU Affero General Public License,
+version 3 or later](LICENSE).
+
+The AGPL means that if you build on `opm` and offer it to others — including as a hosted
+service — your users are entitled to the source. Institutional members of
+[e-editiones](https://www.e-editiones.org/) may instead use `opm` under LGPL terms,
+which lift that obligation: see [LICENSE-MEMBER-GRANT.md](LICENSE-MEMBER-GRANT.md).
+Membership funds the long-term maintenance of TEI Publisher and its tooling.
+
+Documents you transform with `opm` are your own; the licence does not reach the output.
+See [the licensing guide](docs/license.md) for where the line falls in practice.
