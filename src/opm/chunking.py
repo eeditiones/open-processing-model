@@ -320,8 +320,18 @@ class ChunkProcessor:
         fragment: FragmentConfig,
         context_node: etree._Element | None = None,
         _cache: dict[tuple, str] | None = None,
+        chunk_index: int | None = None,
     ) -> str:
-        """Process a fragment transform."""
+        """Process a fragment transform.
+
+        The xpath is evaluated with the chunk as context node, so a
+        chunk-relative expression (``../../text[@type='translation']/div``)
+        picks that chunk's counterpart. An absolute expression that yields one
+        element per chunk (``//body/div[@xml:lang='en']``) is instead aligned by
+        position — the parallel-column case — using *chunk_index*. Both formats
+        pass the index, so ``--format pb-view`` and the HTML output resolve
+        fragments identically.
+        """
         if fragment.scope == 'global':
             context = self.xml_root
         else:
@@ -360,6 +370,14 @@ class ChunkProcessor:
 
         if isinstance(fragment_content, list) and len(fragment_content) == 1:
             fragment_content = fragment_content[0]
+        elif (
+            isinstance(fragment_content, list)
+            and chunk_index is not None
+            and len(fragment_content) == len(self.chunks)
+            and chunk_index < len(fragment_content)
+        ):
+            # Parallel columns: one fragment element per chunk, aligned by position.
+            fragment_content = fragment_content[chunk_index]
 
         if isinstance(fragment_content, etree._Element):
             mod = (
@@ -515,7 +533,7 @@ class ChunkProcessor:
             for fragment in self.config.fragments:
                 if fragment.scope == 'per-chunk':
                     fragments[fragment.name] = self._rewrite_html_fragment(
-                        self.process_fragment(fragment, chunk, _cache),
+                        self.process_fragment(fragment, chunk, _cache, index),
                         current_file=metadata.file,
                     )
 
@@ -783,10 +801,11 @@ class ChunkProcessor:
         ``xpath`` in the key, matching ``pb-view`` when it sends one.
         """
         frag_params = self._pb_view_fragment_params(frag)
-        if self._is_chunk_context_xpath(frag.xpath):
+        frag_key_xpath = frag.xpath_dynamic or frag.xpath
+        if frag.xpath_dynamic is None and self._is_chunk_context_xpath(frag.xpath):
             key_variants: list[dict[str, str]] = [frag_params]
         else:
-            with_xpath = {**frag_params, 'xpath': frag.xpath}
+            with_xpath = {**frag_params, 'xpath': frag_key_xpath}
             key_variants = [with_xpath]
 
         for base in key_variants:
@@ -885,34 +904,20 @@ class ChunkProcessor:
             (data_dir / f'{frag.name}.html').write_text(frag_html, encoding='utf-8')
 
             frag_params = self._pb_view_fragment_params(frag)
-            index[_compute_part_key({**frag_params, 'xpath': frag.xpath})] = frag_filename
+            frag_key_xpath = frag.xpath_dynamic or frag.xpath
+            index[_compute_part_key({**frag_params, 'xpath': frag_key_xpath})] = frag_filename
             for xml_id in chunk_ids:
-                index[_compute_part_key({**frag_params, 'id': xml_id, 'xpath': frag.xpath})] = (
+                index[_compute_part_key({**frag_params, 'id': xml_id, 'xpath': frag_key_xpath})] = (
                     frag_filename
                 )
-                index[_compute_part_key({**frag_params, 'root': xml_id, 'xpath': frag.xpath})] = (
+                index[_compute_part_key({**frag_params, 'root': xml_id, 'xpath': frag_key_xpath})] = (
                     frag_filename
                 )
 
-        # Pre-select per-chunk fragment elements for absolute xpaths (parallel
-        # columns), aligned by position with main chunks. Chunk-context xpaths
-        # (".") are resolved per chunk below instead.
         per_chunk_frags = [f for f in (self.config.fragments or []) if f.scope == 'per-chunk']
-        frag_elements: dict[str, list[etree._Element]] = {}
-        for frag in per_chunk_frags:
-            if self._is_chunk_context_xpath(frag.xpath):
-                continue
-            elements = xpath_select(
-                self.xml_root,
-                frag.xpath,
-                xpath_extensions=self.xpath_extensions or None,
-                xpath_base_uri=self.xpath_base_uri,
-                xpath_documents=self.xpath_documents,
-                xpath_collections=self.xpath_collections,
-                xpath_variables=self.xpath_variables,
-                xpath_namespaces=self.xpath_namespaces,
-            )
-            frag_elements[frag.name] = [e for e in elements if isinstance(e, etree._Element)]
+        # Shared by process_fragment across chunks, as in process_chunk: identical
+        # (node, params) pairs are transformed once.
+        frag_cache: dict[tuple, str] = {}
 
         for i, (chunk, xml_id) in enumerate(zip(self.chunks, chunk_ids)):
             content_html, _ = self._render_chunk_html(chunk)
@@ -931,8 +936,12 @@ class ChunkProcessor:
             # neither id nor root; also register the configured xpath as-is.
             if i == 0:
                 index[_compute_part_key(base_params)] = filename
-                if self.config.xpath:
-                    index[_compute_part_key({**base_params, 'xpath': self.config.xpath})] = filename
+                # pb-view looks itself up by its own ``xpath`` attribute, which
+                # names the region it displays — not the expression that selected
+                # the chunk roots. ``xpath_dynamic`` supplies the former.
+                key_xpath = self.config.xpath_dynamic or self.config.xpath
+                if key_xpath:
+                    index[_compute_part_key({**base_params, 'xpath': key_xpath})] = filename
 
             # Register every xml:id contained in the chunk so navigation by id
             # (gotoId, prev/next) and by root resolves to this file.
@@ -947,41 +956,14 @@ class ChunkProcessor:
             index[_compute_part_key({**base_params, 'root': xml_id})] = filename
 
             # Per-chunk fragment files: {name}-{xml_id}.json
-            # Absolute xpaths: pre-selected and aligned by position (parallel
-            # columns). Chunk-context xpaths ("."): transform the chunk itself,
-            # matching process_fragment.
+            # Rendered through process_fragment, exactly as the HTML format does,
+            # so both evaluate the fragment xpath with the chunk as context node
+            # and share one set of runtime options (collections, variables,
+            # namespaces, web-component mode).
             for frag in per_chunk_frags:
-                if self._is_chunk_context_xpath(frag.xpath):
-                    frag_node = chunk
-                else:
-                    frag_elems = frag_elements.get(frag.name, [])
-                    if i >= len(frag_elems):
-                        continue
-                    frag_node = frag_elems[i]
-                frag_mod = self._fragment_modules.get(str(frag.module)) if frag.module else self.module
-                transform_params = {
-                    **self.parameters,
-                    **(frag.parameters or {}),
-                    **xpath_runtime_context(
-                        base_uri=self.xpath_base_uri,
-                        documents=self.xpath_documents,
-                        collections=self.xpath_collections,
-                        variables=self.xpath_variables,
-                namespaces=self.xpath_namespaces,
-                        root=self._source_node(frag_node),
-                    ),
-                }
-                frag_html = run_transform(
-                    frag_mod,
-                    frag_node,
-                    parameters=transform_params,
-                    xpath_extensions=self.xpath_extensions or None,
-                    apply_template=False,
-                    xpath_base_uri=self.xpath_base_uri,
-                    xpath_documents=self.xpath_documents,
-                )
-                if isinstance(frag_html, bytes):
-                    frag_html = frag_html.decode('utf-8')
+                frag_html = self.process_fragment(frag, chunk, frag_cache, i)
+                if not frag_html:
+                    continue
 
                 frag_response: dict[str, Any] = {
                     'content': frag_html,

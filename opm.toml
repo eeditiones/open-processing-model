@@ -22,6 +22,43 @@ xpath_extensions = [
 #     "data/lookup.xml",
 # ]
 
+# Namespace prefixes for XPath written inside the ODD.
+# Merged over the ODD root's own xmlns declarations, and these win on a clash.
+# Binding a prefix here rather than in the ODD matters most for variables: a
+# prefix inside an attribute value is not an XML name, so it should not depend
+# on which ODD is loaded.
+#
+# [transform.namespaces]
+# global = "http://teipublisher.com/global"
+
+# Values for XPath variables, grouped by the prefix declared above — that prefix
+# plus the local name is how the ODD refers to one: $global:register-root. A
+# namespace URI works as the key too, and scalars directly under
+# [transform.variables] are variables in no namespace ($name).
+# Values keep their TOML type — quote strings, leave booleans bare. (A quoted
+# "false" is a non-empty string, which XPath treats as true.)
+# These five are the ones teipublisher.odd reads:
+#
+# [transform.variables.global]
+# register-root = "/db/apps/myapp/data/registers"   # collection() of person/place records
+#
+# A model whose variable or collection is not configured falls back to rendering
+# the element itself, so leaving these unset is safe.
+
+# Documents reachable from XPath collection(), keyed by the URI used in the call.
+# `uri` is matched verbatim after resolution, so it can be the very collection
+# path an eXist app uses; a relative URI is rejected, since it would resolve
+# against each source document in turn. Repeat the block for further
+# collections — repeating a uri merges the members rather than replacing them.
+# Members are also registered for doc()/id(), which fn:id needs to resolve.
+#
+# [[transform.collections]]
+# uri = "/db/apps/myapp/data/registers"
+# documents = [
+#     "data/registers/persons.xml",
+#     "data/registers/places.xml",
+# ]
+
 [transform.web]
 # Optional override: odd = "odd/web-only.odd"
 
@@ -33,7 +70,7 @@ enabled = false
 # cdn = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@{version}/dist/pb-components-bundle.js"
 
 # pb-components version used by the default CDN template.
-# version = "3.0.5"
+# version = "3.6.7"
 
 [transform.docx]
 # Optional override: odd = "odd/docx-only.odd"
@@ -59,6 +96,9 @@ enabled = false
 
 # XPath expression selecting chunk root elements.
 # xpath = "//text/body/div"
+# When using --format pb-view, the xpath passed by the dynamic pb-view may differ from the xpath used by opm.
+# Specify the expected dynamic xpath here, so lookups will pass.
+# xpath_dynamic = "//text/body/div"
 
 # Python callable for custom chunk selection logic.
 # selector = "opm.navigation.tei_div_chunks"

@@ -40,6 +40,12 @@ class FragmentConfig:
     name: str
     scope: str  # "global" or "per-chunk"
     xpath: str
+    xpath_dynamic: str | None = None
+    """The ``xpath`` the consuming ``pb-view`` sends, when it differs from *xpath*.
+
+    Used only to build ``--format pb-view`` index keys. See
+    :attr:`ChunkingConfig.xpath_dynamic`.
+    """
     parameters: dict[str, Any] | None = None
     module: Path | None = None
     """Resolved compiled transform path (set after compile-on-demand, not from TOML)."""
@@ -52,6 +58,19 @@ class FragmentConfig:
 @dataclass
 class ChunkingConfig:
     xpath: str | None = None
+    xpath_dynamic: str | None = None
+    """The ``xpath`` the consuming ``pb-view`` sends, when it differs from *xpath*.
+
+    ``--format pb-view`` writes an ``index.json`` whose keys mirror
+    ``createKey()`` in ``pb-view.js``, and pb-view looks itself up by the
+    literal value of its own ``xpath`` attribute. That attribute names the
+    *region a view displays* (``//text[@type = 'source']``), while *xpath* here
+    selects *chunk roots* (``.//text[@type='source']/div``) — different
+    expressions that are nonetheless compared as exact strings, so the lookup
+    misses and pb-view requests a URL ending in ``undefined``. Set this to the
+    attribute's exact value to register the key pb-view will ask for. Only the
+    index key changes; chunk selection still uses *xpath*.
+    """
     selector: str | None = None
     depth: int = 1
     output_dir: str = "chunks"
@@ -344,6 +363,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
                 name=frag_data.get('name', ''),
                 scope=frag_data.get('scope', 'per-chunk'),
                 xpath=frag_data.get('xpath', '.'),
+                xpath_dynamic=frag_data.get('xpath_dynamic'),
                 parameters=frag_data.get('parameters'),
                 odd=config_path.parent / str(raw_frag_odd) if raw_frag_odd else None,
                 mode=str(frag_data.get('mode', 'web')).strip().lower() or 'web',
@@ -355,6 +375,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         raw_chunking_odd = chunking_data.get('odd')
         chunking = ChunkingConfig(
             xpath=chunking_data.get('xpath'),
+            xpath_dynamic=chunking_data.get('xpath_dynamic'),
             selector=chunking_data.get('selector'),
             depth=chunking_data.get('depth', 1),
             output_dir=chunking_data.get('output_dir', 'chunks'),
