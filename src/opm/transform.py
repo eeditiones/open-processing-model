@@ -65,6 +65,7 @@ from lxml import etree
 from opm.config import (
     DEFAULT_CDN_TEMPLATE,
     DEFAULT_VERSION,
+    CollectionConfig,
     ProjectConfig,
     load_project_config,
 )
@@ -107,6 +108,9 @@ def xpath_select(
     xpath_extensions: Sequence[str] | None = None,
     xpath_base_uri: str | None = None,
     xpath_documents: dict[str, Any] | None = None,
+    xpath_collections: dict[str, list] | None = None,
+    xpath_variables: dict[str, Any] | None = None,
+    xpath_namespaces: dict[str, str] | None = None,
 ) -> list:
     """Evaluate XPath 3.1 *expr* against *root*, returning a plain list.
 
@@ -131,7 +135,13 @@ def xpath_select(
 
     effective_params: dict[str, Any] = dict(params or {})
     effective_params.update(
-        xpath_runtime_context(base_uri=xpath_base_uri, documents=xpath_documents),
+        xpath_runtime_context(
+            base_uri=xpath_base_uri,
+            documents=xpath_documents,
+            collections=xpath_collections,
+            variables=xpath_variables,
+            namespaces=xpath_namespaces,
+        ),
     )
     result = xpath_select_nodes(
         root,
@@ -164,6 +174,40 @@ def load_xpath_documents(paths: Sequence[Path]) -> dict[str, Any]:
     return documents
 
 
+def load_xpath_collections(
+    collections: Sequence[CollectionConfig],
+    documents: dict[str, Any] | None = None,
+) -> tuple[dict[str, list], dict[str, Any]]:
+    """Return ``(collections, documents)`` maps for the XPath dynamic context.
+
+    Each member document is parsed and wrapped once (see
+    :func:`load_xpath_documents`) and registered in *both* returned maps. The
+    second registration is not redundant: ``fn:id`` resolves its target document
+    through ``XPathContext.get_root()``, which searches ``root`` and
+    ``documents`` but never ``collections``. Without it,
+    ``collection($uri)/id($key)`` returns the empty sequence — silently, with no
+    error — which is the shape most register lookups take.
+
+    *documents* is merged into (and takes precedence in) the returned document
+    map, so a file listed both in ``[transform] documents`` and in a collection
+    is parsed once and shared as the same node object.
+    """
+    merged_documents: dict[str, Any] = dict(documents or {})
+    result: dict[str, list] = {}
+    for entry in collections:
+        members: list = []
+        for path in entry.documents:
+            resolved = path.resolve()
+            uri = resolved.as_uri()
+            node = merged_documents.get(uri)
+            if node is None:
+                node = get_node_tree(etree.parse(str(resolved)), None, uri)
+                merged_documents[uri] = node
+            members.append(node)
+        result.setdefault(entry.uri, []).extend(members)
+    return result, merged_documents
+
+
 def run_transform(
     mod: ModuleType,
     root: etree._Element,
@@ -179,6 +223,9 @@ def run_transform(
     typst_template_path: Path | None = None,
     xpath_base_uri: str | None = None,
     xpath_documents: dict[str, Any] | None = None,
+    xpath_collections: dict[str, list] | None = None,
+    xpath_variables: dict[str, Any] | None = None,
+    xpath_namespaces: dict[str, str] | None = None,
 ) -> str | bytes:
     """Run *mod* against *root* and return the serialized output.
 
@@ -205,7 +252,13 @@ def run_transform(
 
     transform_opts: dict[str, Any] = dict(parameters or {})
     transform_opts.update(
-        xpath_runtime_context(base_uri=xpath_base_uri, documents=xpath_documents),
+        xpath_runtime_context(
+            base_uri=xpath_base_uri,
+            documents=xpath_documents,
+            collections=xpath_collections,
+            variables=xpath_variables,
+            namespaces=xpath_namespaces,
+        ),
     )
     if xpath_extensions:
         transform_opts['xpath_extensions'] = list(xpath_extensions)
@@ -274,6 +327,9 @@ def transform_node(
     typst_template_path: Path | None = None,
     xpath_base_uri: str | None = None,
     xpath_documents: dict[str, Any] | None = None,
+    xpath_collections: dict[str, list] | None = None,
+    xpath_variables: dict[str, Any] | None = None,
+    xpath_namespaces: dict[str, str] | None = None,
 ) -> str | bytes:
     """Load *script_path* as a transform module and apply it to *root*.
 
@@ -300,7 +356,13 @@ def transform_node(
     effective_extensions: tuple[str, ...] = tuple(xpath_extensions) if xpath_extensions else ()
     effective_parameters: dict[str, Any] = dict(parameters or {})
     effective_parameters.update(
-        xpath_runtime_context(base_uri=xpath_base_uri, documents=xpath_documents),
+        xpath_runtime_context(
+            base_uri=xpath_base_uri,
+            documents=xpath_documents,
+            collections=xpath_collections,
+            variables=xpath_variables,
+            namespaces=xpath_namespaces,
+        ),
     )
     element = (
         resolve_context_element(
@@ -326,6 +388,9 @@ def transform_node(
         typst_template_path=typst_template_path,
         xpath_base_uri=xpath_base_uri,
         xpath_documents=xpath_documents,
+        xpath_collections=xpath_collections,
+        xpath_variables=xpath_variables,
+        xpath_namespaces=xpath_namespaces,
     )
 
 
@@ -377,6 +442,11 @@ def transform_file(
     doc_root = etree.parse(str(xml_path)).getroot()
     xpath_base_uri = xml_path.resolve().as_uri()
     xpath_documents = load_xpath_documents(cfg.xpath_documents)
+    xpath_collections, xpath_documents = load_xpath_collections(
+        cfg.xpath_collections, xpath_documents,
+    )
+    xpath_variables = dict(cfg.xpath_variables)
+    xpath_namespaces = dict(cfg.xpath_namespaces)
 
     return transform_node(
         module_path,
@@ -392,4 +462,7 @@ def transform_file(
         typst_template_path=template if template is not None else cfg.typst_template,
         xpath_base_uri=xpath_base_uri,
         xpath_documents=xpath_documents,
+        xpath_collections=xpath_collections,
+        xpath_variables=xpath_variables,
+        xpath_namespaces=xpath_namespaces,
     )

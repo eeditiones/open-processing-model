@@ -36,7 +36,12 @@ from opm.odd_cache import ResolvedTransform, resolve_transform_module
 from opm.resources import packaged_default_css, packaged_default_docx
 from opm.scaffold import InitOptions, ScaffoldError, VOCABULARIES, scaffold
 from opm.runtime.pm_runtime import resolve_context_element
-from opm.transform import load_transform_module, load_xpath_documents, run_transform
+from opm.transform import (
+    load_transform_module,
+    load_xpath_collections,
+    load_xpath_documents,
+    run_transform,
+)
 from opm.runtime.pm_runtime import xpath_runtime_context
 from opm.chunking import chunk_document
 
@@ -488,8 +493,17 @@ def transform_cmd(
         parameters['input_path'] = str(input_xml)
         xpath_base_uri = input_xml.resolve().as_uri()
         xpath_documents = load_xpath_documents(cfg.xpath_documents)
+        xpath_collections, xpath_documents = load_xpath_collections(
+            cfg.xpath_collections, xpath_documents,
+        )
         parameters.update(
-            xpath_runtime_context(base_uri=xpath_base_uri, documents=xpath_documents),
+            xpath_runtime_context(
+                base_uri=xpath_base_uri,
+                documents=xpath_documents,
+                collections=xpath_collections,
+                variables=dict(cfg.xpath_variables),
+                namespaces=dict(cfg.xpath_namespaces),
+            ),
         )
         user_css = _resolve_user_css(effective_css)
 

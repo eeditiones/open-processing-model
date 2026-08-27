@@ -38,6 +38,9 @@ from .xpath_extensions import (
 # Reusing it avoids build_lxml_node_tree() on every xpath_test / xpath_select_nodes.
 _document_xpath_roots: dict[int, object] = {}
 _XPATH_DOCUMENTS_PARAM = '__opm_xpath_documents'
+_XPATH_COLLECTIONS_PARAM = '__opm_xpath_collections'
+_XPATH_VARIABLES_PARAM = '__opm_xpath_variables'
+_XPATH_NAMESPACES_PARAM = '__opm_xpath_namespaces'
 _XPATH_BASE_URI_PARAM = '__opm_xpath_base_uri'
 # Original viewed node for ``$parameters?root`` (tei-publisher-lib convention).
 _XPATH_ROOT_PARAM = '__opm_xpath_root'
@@ -78,6 +81,9 @@ def _params_cache_key(params: dict | None) -> tuple[tuple[str, str], ...]:
             for k, v in params.items()
             if k not in (
                 _XPATH_DOCUMENTS_PARAM,
+                _XPATH_COLLECTIONS_PARAM,
+                _XPATH_VARIABLES_PARAM,
+                _XPATH_NAMESPACES_PARAM,
                 _XPATH_BASE_URI_PARAM,
                 _XPATH_ROOT_PARAM,
             )
@@ -210,6 +216,9 @@ def xpath_runtime_context(
     *,
     base_uri: str | None = None,
     documents: dict[str, Any] | None = None,
+    collections: dict[str, list] | None = None,
+    variables: dict[str, Any] | None = None,
+    namespaces: dict[str, str] | None = None,
     root: 'etree._Element' | None = None,
 ) -> dict[str, Any]:
     """Return internal keys merged into the XPath ``$parameters`` map.
@@ -224,6 +233,12 @@ def xpath_runtime_context(
         out[_XPATH_BASE_URI_PARAM] = base_uri
     if documents:
         out[_XPATH_DOCUMENTS_PARAM] = documents
+    if collections:
+        out[_XPATH_COLLECTIONS_PARAM] = collections
+    if variables:
+        out[_XPATH_VARIABLES_PARAM] = variables
+    if namespaces:
+        out[_XPATH_NAMESPACES_PARAM] = namespaces
     if root is not None:
         out[_XPATH_ROOT_PARAM] = root
     return out
@@ -241,6 +256,45 @@ def _xpath_documents(params: dict | None) -> dict[str, Any] | None:
         return None
     value = params.get(_XPATH_DOCUMENTS_PARAM)
     return value if isinstance(value, dict) else None
+
+
+def _xpath_collections(params: dict | None) -> dict[str, list] | None:
+    if not params:
+        return None
+    value = params.get(_XPATH_COLLECTIONS_PARAM)
+    return value if isinstance(value, dict) else None
+
+
+def _xpath_variables(params: dict | None) -> dict[str, Any] | None:
+    if not params:
+        return None
+    value = params.get(_XPATH_VARIABLES_PARAM)
+    return value if isinstance(value, dict) else None
+
+
+def _xpath_config_namespaces(params: dict | None) -> dict[str, str] | None:
+    if not params:
+        return None
+    value = params.get(_XPATH_NAMESPACES_PARAM)
+    return value if isinstance(value, dict) else None
+
+
+def _merged_namespaces(
+    params: dict | None,
+    namespaces: dict[str, str] | None,
+) -> dict[str, str] | None:
+    """Union the ODD's NSMAP with ``[transform.namespaces]``; config wins on clash.
+
+    Prefixes used by XPath inside ODD attribute values are not XML names, so the
+    ODD root cannot be the only place they may be declared — a project has to be
+    able to bind them (variable prefixes above all) without editing the ODD.
+    """
+    config_ns = _xpath_config_namespaces(params)
+    if not config_ns:
+        return namespaces
+    merged = dict(namespaces or {})
+    merged.update(config_ns)
+    return merged
 
 
 def _xpath_view_root(
@@ -289,11 +343,21 @@ def make_context(node: etree._Element, params: dict | None = None) -> XPathConte
         pmap = _cached_parameters_map(params_key)
     else:
         pmap = _parameters_map_with_root(params_key, view_root)
+    # ODD-declared variables (e.g. $global:register-root) sit alongside
+    # $parameters; a config key never shadows the parameters map.
+    variables: dict[str, Any] = {'parameters': pmap}
+    extra_variables = _xpath_variables(params)
+    if extra_variables:
+        for name, value in extra_variables.items():
+            if name != 'parameters':
+                variables[name] = value
+
     return XPathContext(
         root=wrapped,  # type: ignore[arg-type]
         item=wrapped.elements[node],  # type: ignore[union-attr,index]
-        variables={'parameters': pmap},
+        variables=variables,
         documents=_xpath_documents(params),
+        collections=_xpath_collections(params),
     )
 
 
@@ -330,7 +394,8 @@ def xpath_test(
     """Boolean XPath 3.1 test against *node* (ODD @predicate strings)."""
     try:
         ext_fp = _extension_fingerprint(xpath_extensions)
-        ns_key = frozenset(namespaces.items()) if namespaces else None
+        merged_ns = _merged_namespaces(params, namespaces)
+        ns_key = frozenset(merged_ns.items()) if merged_ns else None
         base_uri = _xpath_base_uri(params)
         token = _compiled_xpath(
             expr,
@@ -360,7 +425,8 @@ def xpath_count(
     """Count nodes matched by *expr* from *node* (sequence length), not ``count()`` in XPath."""
     try:
         ext_fp = _extension_fingerprint(xpath_extensions)
-        ns_key = frozenset((namespaces or {}).items()) if namespaces else None
+        merged_ns = _merged_namespaces(params, namespaces)
+        ns_key = frozenset(merged_ns.items()) if merged_ns else None
         base_uri = _xpath_base_uri(params)
         token = _compiled_xpath(
             expr,
@@ -413,7 +479,8 @@ def xpath_select_nodes(
     """
     try:
         ext_fp = _extension_fingerprint(xpath_extensions)
-        ns_key = frozenset(namespaces.items()) if namespaces else None
+        merged_ns = _merged_namespaces(params, namespaces)
+        ns_key = frozenset(merged_ns.items()) if merged_ns else None
         base_uri = _xpath_base_uri(params)
         token = _compiled_xpath(
             expr,
@@ -426,6 +493,49 @@ def xpath_select_nodes(
         raw = _xpath_raw_to_pipeline_values(raw)
         return _unwrap_singleton_xpath_result(raw)
     except elementpath.ElementPathError:
+        return []
+
+
+def xpath_select_nodes_or_node(
+    node: etree._Element,
+    expr: str,
+    params: dict | None = None,
+    *,
+    xpath_extensions: str | list[str] | tuple[str, ...] | None = None,
+    namespaces: dict[str, str] | None = None,
+):
+    """Like :func:`xpath_select_nodes`, but returns *node* when *expr* is unconfigured.
+
+    Used for ODD params that reference ``collection()`` or an external variable
+    (``$global:register-root`` and friends). Those resolve only when the project
+    supplies ``[[transform.collections]]`` / ``[transform.variables.<ns>]`` /
+    ``[transform.namespaces]``. Without that configuration the expression raises
+    — unbound prefix, unbound variable, or an unknown collection URI — and the
+    historical behaviour was to fall back to the context node, which the bundled
+    teipublisher.odd still relies on for its in-document listPerson register.
+
+    Only those three "not configured here" errors fall back. Any other XPath
+    error keeps :func:`xpath_select_nodes` semantics (an empty sequence), so a
+    genuinely broken expression is not silently replaced by the whole element.
+    """
+    try:
+        ext_fp = _extension_fingerprint(xpath_extensions)
+        merged_ns = _merged_namespaces(params, namespaces)
+        ns_key = frozenset(merged_ns.items()) if merged_ns else None
+        token = _compiled_xpath(
+            expr,
+            _default_element_namespace_uri(node),
+            ext_fp,
+            ns_key,
+            _xpath_base_uri(params),
+        )
+        raw = _xpath_raw_to_pipeline_values(list(token.select(make_context(node, params))))
+        return _unwrap_singleton_xpath_result(raw)
+    except elementpath.ElementPathError as exc:
+        # XPST0081 unbound prefix / XPST0008 unbound variable / FODC0002 unknown
+        # collection all mean "this project did not configure it".
+        if any(code in str(exc) for code in ('XPST0081', 'XPST0008', 'FODC0002')):
+            return node
         return []
 
 

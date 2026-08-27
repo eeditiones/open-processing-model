@@ -31,9 +31,18 @@ _TEMPLATE_HAS_CONTENT_PLACEHOLDER = re.compile(r'\[\[\s*content\s*\]\]')
 
 _RESERVED_PARAM_ALIASES: dict[str, str] = {}
 
+# A prefixed variable reference ($ns:name) — its value comes from project config,
+# never from the document.
+_EXTERNAL_VAR_RE = re.compile(r'\$[A-Za-z_][\w.-]*:')
+# Any prefixed name in an expression, for the compile-time syntax check.
+_PREFIX_RE = re.compile(r'(?<![\w.-])([A-Za-z_][\w.-]*):[A-Za-z_]')
+
 
 class PythonGenerator(CodeGenerator):
     """Generate Python source from a parsed ODD."""
+
+    #: Set per :meth:`generate_module` call from the ODD root's namespace map.
+    _odd_nsmap: dict[str, str] = {}
 
     @property
     def target_name(self) -> str:
@@ -85,6 +94,7 @@ class PythonGenerator(CodeGenerator):
             odd_css_config = 'ODD_GENERATED_CSS'
         # Generate NSMAP from ODD namespace declarations for XPath expressions
         nsmap_literal = self._python_nsmap_literal(parsed.nsmap)
+        self._odd_nsmap = dict(parsed.nsmap or {})
 
         helpers = self._TemplateHelperRegistry()
         cases = []
@@ -195,7 +205,19 @@ from opm.runtime.pm_runtime import (
     ns as _ns,
     xpath_test,
     xpath_select_nodes,
+    xpath_select_nodes_or_node,
 )
+
+def xpath_content_or_node(node, expr, params=None, xpath_extensions=None):
+    """collection()/external-variable params: fall back to the node if unconfigured."""
+    return xpath_select_nodes_or_node(
+        node,
+        expr,
+        params,
+        xpath_extensions=xpath_extensions,
+        namespaces=NSMAP,
+    )
+
 
 def xpath_content(node, expr, params=None, xpath_extensions=None):
     return xpath_select_nodes(
@@ -303,13 +325,56 @@ def transform(root, options=None):
             s = f'{s}_'
         return s
 
-    @staticmethod
-    def _param_tier_ok(value: str) -> bool:
+    def _param_tier_ok(self, value: str) -> bool:
         v = value.strip()
         if not v or v == '.':
             return True
-        # Reject legacy XQuery util: and eXist-db specific functions
-        if 'util:' in v or '$global' in v or 'collection(' in v:
+        # util:* is eXist-specific with no Python equivalent — always rejected.
+        if 'util:' in v:
+            return False
+        # ``collection()`` and ``$global:*`` need two things to compile:
+        #
+        # 1. The ODD must declare the ``global`` prefix on its root element.
+        #    That declaration binds the prefix in NSMAP (without it
+        #    ``$global:register-root`` could not resolve anyway) and marks the
+        #    ODD as opting in. An ODD that has not opted in keeps the historical
+        #    fallback to the context node, which the bundled teipublisher.odd
+        #    relies on for its in-document listPerson register.
+        # 2. The expression must parse as XPath 3.1. Many eXist models are
+        #    XQuery, not XPath — chained ``let $a := ... let $b := ...`` clauses
+        #    are the common case, legal in XQuery but XPST0003 here. Those keep
+        #    the fallback too, rather than compiling into something that throws
+        #    (and is swallowed) at transform time.
+        #
+        # Opting in also means supplying [[transform.collections]] and
+        # [transform.variables.<ns>] in opm.toml.
+        if self._needs_external_context(v):
+            return self._parses_as_xpath(v)
+        return True
+
+    @staticmethod
+    def _needs_external_context(expr: str) -> bool:
+        """True if *expr* depends on project config (a collection or a variable)."""
+        return 'collection(' in expr or _EXTERNAL_VAR_RE.search(expr) is not None
+
+    def _parses_as_xpath(self, expr: str) -> bool:
+        """True if *expr* is XPath 3.1 syntax rather than XQuery.
+
+        Prefix bindings are irrelevant to the question being asked, and are not
+        known at compile time anyway (``[transform.namespaces]`` is project
+        config, and compiled modules are cached per ODD). So every prefix the
+        expression mentions is bound to a placeholder URI first; what remains is
+        a pure syntax check. It catches the common eXist idiom of chained
+        ``let $a := ... let $b := ...`` clauses, legal XQuery but XPST0003 here.
+        """
+        from elementpath.xpath31.xpath31_parser import XPath31Parser  # noqa: PLC0415
+
+        namespaces = dict(self._odd_nsmap)
+        for prefix in set(_PREFIX_RE.findall(expr)):
+            namespaces.setdefault(prefix, f'urn:opm:placeholder:{prefix}')
+        try:
+            XPath31Parser(namespaces=namespaces).parse(expr)
+        except Exception:
             return False
         return True
 
@@ -337,8 +402,9 @@ def transform(root, options=None):
         m = re.match(r'^"([^"]*)"$', v)
         if m:
             return repr(m.group(1))
+        fn = 'xpath_content_or_node' if self._needs_external_context(v) else 'xpath_content'
         return (
-            'xpath_content(node, '
+            f'{fn}(node, '
             f'{repr(v)}, params, xpath_extensions=config.get("xpath_extensions"))'
         )
 
@@ -449,14 +515,26 @@ def transform(root, options=None):
         allowed, allows_var_kw = self._accepted_method_kwargs(output_mode, method)
         emitted: set[str] = set()
         kw_parts: list[str] = []
+        # ``webcomponent`` turns every model param other than ``name`` into an
+        # attribute on the generated element; they are collected here and passed
+        # through the method's ``optional`` mapping. Keys keep their ODD spelling
+        # (``highlight-self``, not ``highlight_self``) because they become
+        # attribute names verbatim.
+        attribute_params: dict[str, str] = {}
         for name, value in pm.items():
             if name == 'content':
                 continue
             py_name = self._normalize_param_name(name)
             if not allows_var_kw and py_name not in allowed:
+                if method == 'webcomponent':
+                    attribute_params[name] = self._param_to_expr(value)
                 continue
             kw_parts.append(f'{py_name}={self._param_to_expr(value)}')
             emitted.add(py_name)
+        if attribute_params and 'optional' not in emitted:
+            items = ', '.join(f'{k!r}: {v}' for k, v in attribute_params.items())
+            kw_parts.append('optional={' + items + '}')
+            emitted.add('optional')
         # Keep legacy behaviour: for required kwargs not provided by the ODD model,
         # pass None explicitly (old emitter always provided defaults via P(..., None)).
         for name, param in allowed.items():
@@ -478,7 +556,7 @@ def transform(root, options=None):
                 param_items.append(
                     f"{name!r}: apply_template_param_value(config, node, node)"
                 )
-            elif expr.startswith('xpath_content('):
+            elif expr.startswith(('xpath_content(', 'xpath_content_or_node(')):
                 # XPath may return the context element; expand that via children, not raw node.
                 param_items.append(
                     f"{name!r}: apply_template_param_value(config, node, {expr})"

@@ -14,7 +14,13 @@ from typing import Any, Callable
 from lxml import etree
 
 from opm.config import ChunkingConfig, FragmentConfig, ProjectConfig, DEFAULT_CDN_TEMPLATE, DEFAULT_VERSION
-from opm.transform import load_transform_module, load_xpath_documents, run_transform, xpath_select
+from opm.transform import (
+    load_transform_module,
+    load_xpath_collections,
+    load_xpath_documents,
+    run_transform,
+    xpath_select,
+)
 from opm.runtime.pm_runtime import xpath_runtime_context
 from opm.template_rendering import resolve_template_path, _inner_html
 from opm.runtime.pm_runtime import serialize as _default_serialize, inject_cached_footnotes
@@ -81,6 +87,9 @@ class ChunkProcessor:
         xpath_extensions: tuple[str, ...] | None = None,
         xpath_base_uri: str | None = None,
         xpath_documents: dict[str, Any] | None = None,
+        xpath_collections: dict[str, list] | None = None,
+        xpath_variables: dict[str, Any] | None = None,
+        xpath_namespaces: dict[str, str] | None = None,
     ):
         self.module = load_transform_module(module_path)
         self._fragment_modules: dict[str, Any] = {}
@@ -109,6 +118,13 @@ class ChunkProcessor:
         self.parameters: dict[str, str] = dict(cfg.parameters)
         self.xpath_base_uri = xpath_base_uri
         self.xpath_documents = xpath_documents or {}
+        self.xpath_collections = xpath_collections or {}
+        self.xpath_variables = dict(
+            xpath_variables if xpath_variables is not None else cfg.xpath_variables,
+        )
+        self.xpath_namespaces = dict(
+            xpath_namespaces if xpath_namespaces is not None else cfg.xpath_namespaces,
+        )
         self.odd_css: str = getattr(self.module, 'ODD_GENERATED_CSS', '') or ''
         self.user_css: str = _load_user_css(cfg.document_css, project_root)
         self.chunks: list[etree._Element] = []
@@ -168,6 +184,9 @@ class ChunkProcessor:
                 xpath_extensions=self.xpath_extensions or None,
                 xpath_base_uri=self.xpath_base_uri,
                 xpath_documents=self.xpath_documents,
+                xpath_collections=self.xpath_collections,
+                xpath_variables=self.xpath_variables,
+                xpath_namespaces=self.xpath_namespaces,
             )
 
         if not isinstance(chunks, list):
@@ -317,6 +336,9 @@ class ChunkProcessor:
             xpath_runtime_context(
                 base_uri=self.xpath_base_uri,
                 documents=self.xpath_documents,
+                collections=self.xpath_collections,
+                variables=self.xpath_variables,
+                namespaces=self.xpath_namespaces,
                 root=view_root,
             ),
         )
@@ -328,6 +350,9 @@ class ChunkProcessor:
             xpath_extensions=self.xpath_extensions or None,
             xpath_base_uri=self.xpath_base_uri,
             xpath_documents=self.xpath_documents,
+            xpath_collections=self.xpath_collections,
+            xpath_variables=self.xpath_variables,
+                xpath_namespaces=self.xpath_namespaces,
         )
 
         if not fragment_content:
@@ -354,9 +379,19 @@ class ChunkProcessor:
                 fragment_content,
                 parameters=params,
                 xpath_extensions=self.xpath_extensions or None,
+                # Fragments must use the same output mode as the chunk body.
+                # Without it an `alternate` model degrades to the non-component
+                # form, which inlines the alternate content in a <span> — and
+                # register entries are block markup (<h1>, <p>, <ul>), so the
+                # HTML parser closes the enclosing <p> and the entry spills into
+                # the running text instead of staying a popover.
+                webcomponents=self.webcomponents,
                 apply_template=False,
                 xpath_base_uri=self.xpath_base_uri,
                 xpath_documents=self.xpath_documents,
+                xpath_collections=self.xpath_collections,
+                xpath_variables=self.xpath_variables,
+                xpath_namespaces=self.xpath_namespaces,
             )
             if _cache is not None and mod is self.module:
                 _cache[(id(fragment_content), params_key, id(view_root))] = result
@@ -403,6 +438,9 @@ class ChunkProcessor:
             xpath_runtime_context(
                 base_uri=self.xpath_base_uri,
                 documents=self.xpath_documents,
+                collections=self.xpath_collections,
+                variables=self.xpath_variables,
+                namespaces=self.xpath_namespaces,
             ),
         )
         if normalize_text is not None:
@@ -426,6 +464,9 @@ class ChunkProcessor:
             **xpath_runtime_context(
                 base_uri=self.xpath_base_uri,
                 documents=self.xpath_documents,
+                collections=self.xpath_collections,
+                variables=self.xpath_variables,
+                namespaces=self.xpath_namespaces,
                 root=self._source_node(chunk),
             ),
         }
@@ -867,6 +908,9 @@ class ChunkProcessor:
                 xpath_extensions=self.xpath_extensions or None,
                 xpath_base_uri=self.xpath_base_uri,
                 xpath_documents=self.xpath_documents,
+                xpath_collections=self.xpath_collections,
+                xpath_variables=self.xpath_variables,
+                xpath_namespaces=self.xpath_namespaces,
             )
             frag_elements[frag.name] = [e for e in elements if isinstance(e, etree._Element)]
 
@@ -921,6 +965,9 @@ class ChunkProcessor:
                     **xpath_runtime_context(
                         base_uri=self.xpath_base_uri,
                         documents=self.xpath_documents,
+                        collections=self.xpath_collections,
+                        variables=self.xpath_variables,
+                namespaces=self.xpath_namespaces,
                         root=self._source_node(frag_node),
                     ),
                 }
@@ -1010,6 +1057,9 @@ def chunk_document(
     root = tree.getroot()
     cfg = project_config or ProjectConfig()
     xpath_documents = load_xpath_documents(cfg.xpath_documents)
+    xpath_collections, xpath_documents = load_xpath_collections(
+        cfg.xpath_collections, xpath_documents,
+    )
 
     processor = ChunkProcessor(
         resolved_module, root, config, project_root,
@@ -1018,6 +1068,9 @@ def chunk_document(
         xpath_extensions=xpath_extensions,
         xpath_base_uri=xml_path.resolve().as_uri(),
         xpath_documents=xpath_documents,
+        xpath_collections=xpath_collections,
+        xpath_variables=dict(cfg.xpath_variables),
+        xpath_namespaces=dict(cfg.xpath_namespaces),
     )
     if output_format == 'pb-view':
         processor.export_pb_view(doc_path=doc_path, on_progress=on_progress)

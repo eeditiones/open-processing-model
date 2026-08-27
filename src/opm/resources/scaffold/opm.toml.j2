@@ -7,6 +7,29 @@ xpath_extensions = [
     "opm.runtime.common_xpath_functions"
 ]
 
+# Prefixes for XPath written inside the ODD. `global` is what teipublisher.odd
+# uses for its eXist-side settings; binding it here rather than in the ODD keeps
+# these values a property of the project, not of the ODD.
+[transform.namespaces]
+global = "http://teipublisher.com/global"
+
+# Values for those settings, grouped by the prefix declared above. Until a
+# variable is given a value here (and, for the collection ones, a matching
+# [[transform.collections]] below), models that use it fall back to rendering the
+# element itself — which is what standalone opm projects have always done.
+[transform.variables.global]
+# Register of persons/places/organisations, resolved as collection($global:register-root).
+register-root = "/db/apps/{{ project_name }}/data/registers"
+
+# Point a collection URI at the files it contains. Uncomment and list your
+# register files to make collection($global:register-root) resolve.
+# [[transform.collections]]
+# uri = "/db/apps/{{ project_name }}/data/registers"
+# documents = [
+#     "data/registers/persons.xml",
+#     "data/registers/places.xml",
+# ]
+
 [transform.web.webcomponents]
 enabled = {{ 'true' if webcomponents else 'false' }}
 

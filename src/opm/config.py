@@ -12,12 +12,13 @@ import tomllib
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 DEFAULT_CDN_TEMPLATE = (
     'https://cdn.jsdelivr.net/npm/@teipublisher/pb-components'
     '@{version}/dist/pb-components-bundle.js'
 )
-DEFAULT_VERSION = '3.0.5'
+DEFAULT_VERSION = '3.6.7'
 
 CONFIG_FILENAME = 'opm.toml'
 
@@ -105,6 +106,22 @@ class ChunkingConfig:
 
 
 @dataclass
+class CollectionConfig:
+    """One ``fn:collection`` URI and the documents it contains.
+
+    *uri* is matched against the argument of ``collection()`` after elementpath
+    resolves it (``get_absolute_uri``). A URI with a scheme, or an absolute path
+    such as ``/db/apps/serafin/data/registers``, is passed through verbatim, so
+    the same string an eXist ``$config:register-root`` holds can be used here and
+    will match from any source document. A relative URI would instead resolve
+    against each document's own base URI, so it is rejected.
+    """
+
+    uri: str
+    documents: tuple[Path, ...]
+
+
+@dataclass
 class ProjectConfig:
     webcomponents_enabled: bool | None = None
     webcomponents_cdn: str | None = None
@@ -114,6 +131,22 @@ class ProjectConfig:
     typst_template: Path | None = None
     xpath_extensions: tuple[str, ...] = ()
     xpath_documents: tuple[Path, ...] = ()
+    xpath_collections: tuple[CollectionConfig, ...] = ()
+    """Collections addressable from XPath via ``fn:collection`` (``[[transform.collections]]``)."""
+    xpath_variables: dict[str, Any] = field(default_factory=dict)
+    """XPath variables in Clark notation (``{ns}local``).
+
+    From ``[transform.variables.<prefix>]``, where *prefix* is one declared in
+    ``[transform.namespaces]``; a namespace URI may be used as the key instead.
+    Scalars directly under ``[transform.variables]`` are in no namespace.
+    """
+    xpath_namespaces: dict[str, str] = field(default_factory=dict)
+    """Prefix -> namespace URI for XPath in the ODD (``[transform.namespaces]``).
+
+    Merged over the ODD root's own declarations, so a project can bind prefixes
+    the ODD never declares — variables in particular, whose prefix is meaningful
+    only to XPath and has no XML meaning inside an attribute value.
+    """
     parameters: dict[str, str] = field(default_factory=dict)
     """User parameters bound to XPath ``$parameters`` (from ``[transform.parameters]``)."""
     chunking: ChunkingConfig | None = None
@@ -205,6 +238,90 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         )
     xpath_documents = tuple(config_path.parent / str(path) for path in raw_xpath_documents)
 
+    raw_collections = transform.get('collections', [])
+    if isinstance(raw_collections, dict):
+        raw_collections = [raw_collections]
+    elif not isinstance(raw_collections, list):
+        raise ValueError(
+            'opm.toml: transform.collections must be an array of tables',
+        )
+    collections: list[CollectionConfig] = []
+    for entry in raw_collections:
+        if not isinstance(entry, dict):
+            raise ValueError('opm.toml: each transform.collections entry must be a table')
+        uri = str(entry.get('uri', '')).strip()
+        if not uri:
+            raise ValueError('opm.toml: transform.collections entry is missing "uri"')
+        parts = urlsplit(uri)
+        if not parts.scheme and not parts.netloc and not parts.path.startswith('/'):
+            raise ValueError(
+                f'opm.toml: transform.collections uri {uri!r} must be absolute — a relative '
+                'URI resolves against each source document, so it would not match reliably',
+            )
+        raw_members = entry.get('documents', [])
+        if isinstance(raw_members, str):
+            raw_members = [raw_members]
+        elif not isinstance(raw_members, list):
+            raise ValueError(
+                f'opm.toml: transform.collections["{uri}"].documents must be a string or list',
+            )
+        collections.append(
+            CollectionConfig(
+                uri=uri,
+                documents=tuple(config_path.parent / str(p) for p in raw_members),
+            ),
+        )
+
+    raw_namespaces = transform.get('namespaces', {})
+    if not isinstance(raw_namespaces, dict):
+        raise ValueError('opm.toml: transform.namespaces must be a table of prefix = uri')
+    xpath_namespaces: dict[str, str] = {}
+    for prefix, uri in raw_namespaces.items():
+        if not isinstance(uri, str):
+            raise ValueError(
+                f'opm.toml: transform.namespaces["{prefix}"] must be a namespace URI string',
+            )
+        xpath_namespaces[str(prefix)] = uri
+
+    raw_variables = transform.get('variables', {})
+    if not isinstance(raw_variables, dict):
+        raise ValueError('opm.toml: transform.variables must be a table')
+    xpath_variables: dict[str, Any] = {}
+
+    def _scalar(value: Any, where: str) -> Any:
+        # Keep TOML scalars typed. Stringifying a boolean is actively wrong:
+        # ``str(False)`` is 'False', a non-empty string, whose effective boolean
+        # value in XPath is *true* — so ``if ($global:address-by-id)`` would take
+        # the wrong branch for ``address-by-id = false``.
+        if isinstance(value, (bool, int, float, str)):
+            return value
+        raise ValueError(f'opm.toml: {where} must be a string, number or boolean')
+
+    for key, entries in raw_variables.items():
+        if not isinstance(entries, dict):
+            # A scalar straight under [transform.variables] is a variable in no
+            # namespace, referenced as ``$name``.
+            xpath_variables[str(key)] = _scalar(entries, f'transform.variables.{key}')
+            continue
+        # A sub-table groups variables by the namespace *prefix* declared in
+        # [transform.namespaces], so the URI is written once. A key that is
+        # itself a URI is still accepted, for a namespace used only here.
+        if ':' in key or '/' in key:
+            namespace = str(key)
+        else:
+            namespace = xpath_namespaces.get(str(key), '')
+            if not namespace:
+                known = ', '.join(sorted(xpath_namespaces)) or '(none declared)'
+                raise ValueError(
+                    f'opm.toml: transform.variables.{key} — prefix "{key}" is not declared in '
+                    f'[transform.namespaces]. Declared prefixes: {known}',
+                )
+        for local_name, value in entries.items():
+            where = f'transform.variables.{key}.{local_name}'
+            # Clark notation: elementpath accepts it directly as a variable key.
+            clark = f'{{{namespace}}}{local_name}' if namespace else str(local_name)
+            xpath_variables[clark] = _scalar(value, where)
+
     raw_parameters = transform.get('parameters', {})
     if not isinstance(raw_parameters, dict):
         raise ValueError('opm.toml: transform.parameters must be a table')
@@ -285,6 +402,9 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         typst_template=config_path.parent / typst_template_file if typst_template_file else None,
         xpath_extensions=xpath_extensions,
         xpath_documents=xpath_documents,
+        xpath_collections=tuple(collections),
+        xpath_variables=xpath_variables,
+        xpath_namespaces=xpath_namespaces,
         parameters=parameters,
         chunking=chunking,
         pythonpath=pythonpath,
