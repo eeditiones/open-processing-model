@@ -28,6 +28,7 @@ class CodeGenerator(ABC):
         module_name: str,
         *,
         output_mode: str = 'web',
+        base_css: str | None = None,
     ) -> str:
         """Generate target language source code from a parsed ODD.
 

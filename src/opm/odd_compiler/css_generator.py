@@ -67,13 +67,47 @@ def _collect_tagsdecl_renditions(
     return simple_rules, sources
 
 
-def collect_odd_generated_css(parsed: ParsedOdd, output_mode: str = 'web') -> str:
+def default_base_css() -> str:
+    """Return the packaged rules every ODD-rendered document needs.
+
+    These describe markup the runtime emits rather than anything a particular
+    ODD declares — the ``.alternate`` / ``.altcontent`` popover behind
+    ``choice``, the ``.tei-cb`` column break, margin notes — so they belong with
+    the ODD stylesheet and travel wherever it goes, including
+    ``--format pb-view`` output loaded by a TEI Publisher app.
+
+    A project replaces them wholesale with ``[document] css`` / ``--css``; see
+    :func:`collect_odd_generated_css`.
+    """
+    from opm.resources import packaged_default_css
+
+    packaged = packaged_default_css()
+    if packaged is None or not packaged.is_file():
+        return ''
+    return packaged.read_text(encoding='utf-8')
+
+
+def collect_odd_generated_css(
+    parsed: ParsedOdd,
+    output_mode: str = 'web',
+    base_css: str | None = None,
+) -> str:
     """Build CSS from the ODD, matching ``css:generate-css`` in ``css.xql`` (web).
 
-    Emits ``.simple_{xml:id}`` rules from ``tagsDecl/tei:rendition`` and
-    ``.tei-{ident}{n}`` / ``.tei-{ident}{n}:{scope}`` from model ``outputRendition``.
+    Starts with *base_css* — the project's ``[document] css`` when set,
+    otherwise :func:`default_base_css` — then emits ``.simple_{xml:id}`` rules
+    from ``tagsDecl/tei:rendition`` and ``.tei-{ident}{n}`` /
+    ``.tei-{ident}{n}:{scope}`` from model ``outputRendition``.
+
+    The base comes first so an ODD's own ``outputRendition`` overrides it.
     """
     chunks: list[str] = ['/* Generated stylesheet. Do not edit. */', '']
+
+    base_rules = default_base_css() if base_css is None else base_css
+    if base_rules:
+        chunks.append('/* base rules for runtime-emitted markup */')
+        chunks.append(base_rules)
+        chunks.append('')
 
     # tagsDecl rendition (class names simple_* — see css:get-rendition / html output)
     root = parsed.tree.getroot()

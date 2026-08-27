@@ -246,7 +246,9 @@ def run_transform(
         webcomponents: Enable TEI Publisher web-component mode.
         apply_template: Wrap full-document HTML output in the Jinja2 template.
         template_path: Override Jinja2 template (default: packaged template).
-        user_css: CSS string injected into ``<head>`` of full-document output.
+        user_css: Extra CSS inlined into ``<head>`` of full-document output.
+            A library hook: the CLI leaves this unset, since ``--css`` /
+            ``[document] css`` is compiled into the ODD stylesheet instead.
         webcomponents_url: CDN URL for ``pb-components`` script tag.
         docx_template: Path to a ``.docx`` file used as the Word style template.
         typst_template_path: Jinja2 template for Typst document shell.
@@ -352,7 +354,9 @@ def transform_node(
         webcomponents: Enable TEI Publisher web-component mode.
         apply_template: Wrap full-document HTML output in the Jinja2 template.
         template_path: Override Jinja2 template (default: packaged template).
-        user_css: CSS string injected into ``<head>`` of full-document output.
+        user_css: Extra CSS inlined into ``<head>`` of full-document output.
+            A library hook: the CLI leaves this unset, since ``--css`` /
+            ``[document] css`` is compiled into the ODD stylesheet instead.
         webcomponents_url: CDN URL for the ``pb-components`` script tag.
     """
     mod = load_transform_module(script_path)

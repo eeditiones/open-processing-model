@@ -35,6 +35,31 @@ def _section_table(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def resolve_base_css(css_path: Path | None, project_root: Path) -> str:
+    """Return the base stylesheet compiled into the ODD's generated CSS.
+
+    ``[document] css`` / ``--css`` replaces the packaged default wholesale — it
+    is an override for the rules the runtime's markup needs, not an extra layer.
+    Project design CSS belongs in ``[chunking] assets`` instead, where it can
+    sit beside the images and fonts it references.
+    """
+    from opm.odd_compiler.css_generator import default_base_css
+
+    if css_path is not None:
+        path = css_path if css_path.is_absolute() else project_root / css_path
+        if not path.is_file():
+            # Silently returning '' here would drop every base rule — the
+            # popover and column-break styles included — for a typo.
+            raise FileNotFoundError(f'Stylesheet not found: {path}')
+        return path.read_text(encoding='utf-8')
+
+    local = project_root / 'styles' / 'default-styles.css'
+    if local.is_file():
+        return local.read_text(encoding='utf-8')
+
+    return default_base_css()
+
+
 @dataclass
 class FragmentConfig:
     name: str
@@ -84,6 +109,16 @@ class ChunkingConfig:
     """
     index_title: str | None = None
     """Heading for the generated collection index (default: the output directory name)."""
+    assets: tuple[Path, ...] = ()
+    """Files or directories copied into ``<output-root>/assets/``.
+
+    Chunk output directories are wiped on every rebuild, so anything a template
+    references — a stylesheet, an image, a font — has to be placed there by the
+    build. Templates receive ``assets`` as a relative URL prefix
+    (``assets`` from the index, ``../assets`` from a chunk page), and a
+    stylesheet copied here can reference a sibling asset by plain filename,
+    since its URLs resolve against its own location rather than the page's.
+    """
     fragments: list[FragmentConfig] | None = None
     link_pattern: str | None = None
     """Optional URL template for cross-chunk links.
@@ -396,6 +431,10 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
                 else None
             ),
             index_title=chunking_data.get('index_title'),
+            assets=tuple(
+                config_path.parent / str(asset)
+                for asset in (chunking_data.get('assets') or ())
+            ),
             fragments=fragments if fragments else None,
             link_pattern=chunking_data.get('link_pattern'),
             odd=config_path.parent / str(raw_chunking_odd) if raw_chunking_odd else None,

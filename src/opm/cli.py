@@ -31,6 +31,7 @@ from opm.config import (
     FragmentConfig,
     ProjectConfig,
     load_project_config,
+    resolve_base_css,
 )
 from opm.odd_cache import ResolvedTransform, resolve_transform_module
 from opm.resources import packaged_default_css, packaged_default_docx
@@ -205,19 +206,6 @@ def _parameters_from_cli(param_list: list[str] | None) -> dict[str, str]:
     return out
 
 
-def _resolve_user_css(css_path: Path | None) -> str | None:
-    """Return CSS text from ``--css``, CWD ``styles/default-styles.css``, or the package."""
-    if css_path is not None:
-        return css_path.read_text(encoding='utf-8')
-    path = Path('styles/default-styles.css')
-    if path.is_file():
-        return path.read_text(encoding='utf-8')
-    packaged = packaged_default_css()
-    if packaged is not None and packaged.is_file():
-        return packaged.read_text(encoding='utf-8')
-    return None
-
-
 def _report_resolved_module(resolved: ResolvedTransform) -> None:
     """Print the cache path when the module was produced from an ODD."""
     if resolved.source_odd is None:
@@ -234,21 +222,25 @@ def _resolve_cli_transform(
     cfg: ProjectConfig,
     odd: Path | None,
     transform_type: str | None,
+    base_css: str | None = None,
 ) -> ResolvedTransform:
     """Resolve ``--odd`` / config odd / packaged default for transform."""
     mode = (transform_type or 'web').strip().lower() or 'web'
 
     if odd is not None:
-        return resolve_transform_module(odd=odd, output_mode=mode)
+        return resolve_transform_module(odd=odd, output_mode=mode, base_css=base_css)
 
     cfg_odd = cfg.odd_for_type(mode)
     if cfg_odd is not None:
-        return resolve_transform_module(odd=cfg_odd, output_mode=mode)
+        return resolve_transform_module(odd=cfg_odd, output_mode=mode, base_css=base_css)
 
-    return resolve_transform_module(output_mode=mode)
+    return resolve_transform_module(output_mode=mode, base_css=base_css)
 
 
-def _materialize_chunking_modules(config: ChunkingConfig) -> tuple[ChunkingConfig, list[ResolvedTransform]]:
+def _materialize_chunking_modules(
+    config: ChunkingConfig,
+    base_css: str | None = None,
+) -> tuple[ChunkingConfig, list[ResolvedTransform]]:
     """Compile ``odd`` entries on *config* into runtime ``module`` paths."""
     reported: list[ResolvedTransform] = []
 
@@ -256,6 +248,7 @@ def _materialize_chunking_modules(config: ChunkingConfig) -> tuple[ChunkingConfi
         odd=config.odd,
         output_mode='web',
         use_packaged_default=config.odd is None,
+        base_css=base_css,
     )
     reported.append(main)
 
@@ -270,6 +263,7 @@ def _materialize_chunking_modules(config: ChunkingConfig) -> tuple[ChunkingConfi
                 odd=frag.odd,
                 output_mode=frag.mode,
                 use_packaged_default=False,
+                base_css=base_css,
             )
             reported.append(resolved)
             new_fragments.append(replace(frag, module=resolved.module_path))
@@ -472,10 +466,17 @@ def transform_cmd(
             typer.echo('opm: error: input XML file is required.', err=True)
             raise SystemExit(1)
 
+        # --css / [document] css replaces the packaged base rules, which are
+        # compiled into the ODD stylesheet — so it has to be known before the
+        # ODD is compiled, and it is part of the cache key.
+        # NB: cwd is the root only for the bare styles/default-styles.css
+        # fallback; a configured path is already absolute by this point.
+        effective_css = css if css is not None else cfg.document_css
         resolved = _resolve_cli_transform(
             cfg=cfg,
             odd=odd,
             transform_type=transform_type,
+            base_css=resolve_base_css(effective_css, Path.cwd()),
         )
         _report_resolved_module(resolved)
         effective_script = resolved.module_path
@@ -500,7 +501,6 @@ def transform_cmd(
         else:
             effective_template = template if template is not None else cfg.document_template
             effective_docx_template = None
-        effective_css = css if css is not None else cfg.document_css
         effective_extensions: tuple[str, ...] = (
             tuple(xpath_extensions) if xpath_extensions else cfg.xpath_extensions
         )
@@ -524,7 +524,6 @@ def transform_cmd(
                 namespaces=dict(cfg.xpath_namespaces),
             ),
         )
-        user_css = _resolve_user_css(effective_css)
 
         tree = etree.parse(str(input_xml))
         doc_root = tree.getroot()
@@ -550,7 +549,6 @@ def transform_cmd(
             xpath_extensions=effective_extensions,
             webcomponents=effective_webcomponents,
             template_path=effective_template,
-            user_css=user_css,
             webcomponents_url=webcomponents_url,
             docx_template=effective_docx_template,
             typst_template_path=effective_template if primary == 'typst' else None,
@@ -734,7 +732,9 @@ def chunk(
         if odd is not None:
             chunking_config = replace(chunking_config, module=None, odd=odd)
 
-        chunking_config, resolved_list = _materialize_chunking_modules(chunking_config)
+        chunking_config, resolved_list = _materialize_chunking_modules(
+            chunking_config, base_css=resolve_base_css(cfg.document_css, Path.cwd())
+        )
         for resolved in resolved_list:
             _report_resolved_module(resolved)
 
@@ -857,6 +857,7 @@ def chunk(
                 module_path=chunking_config.module,
                 project_config=cfg,
                 project_root=Path.cwd(),
+                chunking_config=chunking_config,
             )
 
         typer.echo(f'Chunks written to {out_dir}/')

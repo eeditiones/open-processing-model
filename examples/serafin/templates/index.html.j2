@@ -11,48 +11,20 @@
     href="https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@0,300..700;1,300..700&family=Belleza&display=swap"
     rel="stylesheet"
   >
-  <style type="text/css">
-    {% include "chapbook.css" %}
-  </style>
-  <style type="text/css">
-    {% include "parchment.css" %}
-  </style>
-  <style type="text/css">
-    {% include "letter.css" %}
-  </style>
-  {% if odd_css %}
+  {# Stylesheets copied in via chunking.assets, in declared order; letter.css
+     finds parchment.jpg beside it because both land in assets/. #}
+  {% for href in asset_styles %}
+  <link rel="stylesheet" href="{{ href }}">
+  {% endfor %}
+  {% if odd_css_url %}
+  <link rel="stylesheet" href="{{ odd_css_url }}">
+  {% elif odd_css %}
   <style type="text/css">
 {{ odd_css }}
   </style>
   {% endif %}
-  {% if user_css %}
-  <style type="text/css">
-{{ user_css }}
-  </style>
-  {% endif %}
-  <style type="text/css">
-    /* Index-only: the letter list. Everything else is inherited from the
-       edition's own stylesheets so this page cannot drift from the letters. */
-    .letter-list { list-style: none; margin: 0; padding: 0; }
-    .letter-list__item {
-      padding: 1.1rem 0;
-      border-bottom: 1px solid var(--chap-rule, rgba(90, 74, 58, .22));
-    }
-    .letter-list__item:last-child { border-bottom: 0; }
-    /* The ODD's browse models emit the heading and its link; style them in
-       place rather than wrapping them in anything of our own. */
-    .letter-list__entry .tei-title { font-family: var(--chap-display, "Belleza", serif); }
-    .letter-list__entry h5 { margin: 0; font-size: 1.05rem; font-weight: 500; }
-    .letter-list__entry a { color: inherit; text-decoration: none; }
-    .letter-list__entry a:hover .tei-title { text-decoration: underline; }
-    .letter-list__entry .tei-placeName,
-    .letter-list__entry .tei-date { opacity: .75; }
-    /* Empty wrappers appear where a letter has no author or description. */
-    .letter-list__entry div:empty { display: none; }
-    .letter-list__meta { font-size: .8rem; opacity: .5; margin-top: .2rem; }
-  </style>
 </head>
-<body class="chapbook letter">
+<body class="letter">
   <nav class="app-menubar" aria-label="Edition">
     <a class="app-logo" href="index.html">{% include "logo-textmark.svg" %}</a>
     <span class="app-menubar__folio">{{ documents | length }} letters</span>
@@ -62,8 +34,8 @@
     <nav class="app-breadcrumb" aria-label="breadcrumb">{{ title }}</nav>
   </div>
 
-  <main class="chap-page">
-    <div class="chap-body">
+  <main class="letter-page">
+    <div class="letter-body">
       <article class="content">
         <ul class="letter-list">
           {% for doc in documents %}

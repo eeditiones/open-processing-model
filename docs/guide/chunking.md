@@ -165,6 +165,75 @@ subdirectory when chunking a directory of XML files (empty otherwise):
 link_pattern = "/{doc}/{file}"
 ```
 
+## Stylesheets and static assets
+
+Chunking always writes the stylesheets as files under `<output-root>/css/` and
+hands templates `odd_css_url`. Chunk output is several pages
+sharing one stylesheet, so embedding the same bytes in each page only makes the
+output bigger and uncacheable. (`--format pb-view` has always written
+`css/<odd>.css`; HTML output now matches it.)
+
+`css/<odd>.css` holds the ODD's own `<rendition>` rules, preceded by the base
+rules every ODD-rendered document needs — the `.alternate` / `.altcontent`
+popover behind `choice`, `.tei-cb` column breaks, margin notes. Those describe
+markup the runtime emits rather than anything a project chose, so they travel
+with the ODD stylesheet wherever it goes, `--format pb-view` included, and an
+ODD's `outputRendition` can still override them.
+
+`[document] css` does not add a second stylesheet — it *replaces* those base
+rules, so a project can restyle what the runtime emits without losing the ODD's
+own renditions. Because it changes the compiled stylesheet it is part of the ODD
+cache key, so a project overriding it gets its own compiled module.
+
+```jinja
+<link rel="stylesheet" href="{{ odd_css_url }}">
+```
+
+The `odd_css` string is still passed, so a template that inlines it keeps
+working, and the URL is empty when the stylesheet turns out to be empty — hence
+the defensive form used by the packaged template:
+
+```jinja
+{% if odd_css_url %}<link rel="stylesheet" href="{{ odd_css_url }}">
+{% elif odd_css %}<style>{{ odd_css }}</style>{% endif %}
+```
+
+Anything else a page needs — the template's own stylesheet, an image, a font —
+is listed under `assets`, because the output directory is wiped on every
+rebuild and nothing else puts files there:
+
+```toml
+[chunking]
+assets = ["templates/letter.css", "templates/parchment.jpg", "templates/fonts"]
+```
+
+Each entry is copied into `<output-root>/assets/`. Templates receive an
+`assets` URL prefix for referencing them by hand, and `asset_styles` — the
+stylesheets among them, as URLs, in the order declared — so a template links
+them without naming any file:
+
+```jinja
+{% for href in asset_styles %}<link rel="stylesheet" href="{{ href }}">{% endfor %}
+```
+
+Declaration order is cascade order. Only entries you list explicitly with a
+`.css` suffix are linked; a directory copied as an asset is not scanned, so
+adding `fonts/` does not start injecting stylesheets from inside it.
+
+A stylesheet in `assets/` references a sibling by plain filename
+(`url("parchment.jpg")`), since CSS URLs resolve against the stylesheet's own
+location rather than the page's — so one texture file serves the whole edition
+instead of a base64 copy per page. That is why project design CSS belongs here
+rather than in `[document] css`: only assets can carry the files it depends on.
+
+All these URLs are relative to the page that uses them: bare from the index at
+the output root, `../`-prefixed from a chunk page in a per-document
+subdirectory.
+
+`examples/serafin` does exactly this. Its pages dropped from 168 KB to 96 KB
+and its index from 91 KB to 19 KB, with 42 KB of shared CSS and imagery fetched
+once and cached.
+
 ## Collection index
 
 Chunking a *directory* writes one subdirectory per document, plus an
@@ -215,23 +284,24 @@ Override the page itself with `chunking.index_template`. The template receives
 Because `fragments` is passed whole, adding an author or date column needs no
 code — just another global fragment in `opm.toml` and a reference to it here.
 
-The template also receives `odd_css` and `user_css`, resolved exactly as for
-chunk pages, so a browse record's `tei-*` classes are styled the same way on the
+The template also receives `odd_css`, resolved exactly as for chunk pages, so a browse record's `tei-*` classes are styled the same way on the
 index as inside the edition. Since Jinja loads includes from the template's own
 directory, an index template sitting beside the chunk template can pull in the
 same stylesheets and share its page shell:
 
 ```jinja
-<style>{% include "chapbook.css" %}</style>
+<style>{% include "letter.css" %}</style>
 {% if odd_css %}<style>{{ odd_css }}</style>{% endif %}
 ...
-<body class="chapbook letter">
+<body class="letter">
   <nav class="app-menubar">…</nav>
 ```
 
-`examples/serafin/templates/index.html.j2` does this: it reuses the letter
-template's menubar, toolbar and three stylesheets, and adds only the rules for
-the list itself, so the landing page cannot drift from the letters it links to.
+`examples/serafin/templates/index.html.j2` does this: it includes the same
+`letter.css` as the chunk template and reuses its menubar, toolbar and page
+shell, so the landing page cannot drift from the letters it links to. The
+list's own rules live in that stylesheet too, under `.letter-list`, rather than
+in a `<style>` block on the index — one place to change the design.
 
 ## Previewing
 

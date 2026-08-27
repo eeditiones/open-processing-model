@@ -10,7 +10,7 @@ import pytest
 
 from opm.cli import _preview_kind_from_module
 from opm.cli import _prepare_chunk_output_dir
-from opm.cli import _resolve_user_css
+from opm.config import resolve_base_css
 from opm.cli import main
 from tests.test_chunking import _write_chunking_fixture_xml
 
@@ -54,32 +54,25 @@ def test_preview_kind_from_transform_output_channels() -> None:
     assert _preview_kind_from_module(EmptyChannels) == 'text'
 
 
-def test_resolve_user_css_uses_default_if_present(tmp_path: Path, monkeypatch) -> None:
+def test_resolve_base_css_uses_local_styles_if_present(tmp_path: Path, monkeypatch) -> None:
+    """A project's own styles/default-styles.css replaces the packaged base."""
     styles = tmp_path / 'styles'
     styles.mkdir()
-    css_file = styles / 'default-styles.css'
-    css_file.write_text('.alternate { color: red; }', encoding='utf-8')
+    (styles / 'default-styles.css').write_text('.alternate { color: red; }', encoding='utf-8')
     monkeypatch.chdir(tmp_path)
 
-    css = _resolve_user_css(None)
-    assert css == '.alternate { color: red; }'
+    assert resolve_base_css(None, Path.cwd()) == '.alternate { color: red; }'
 
 
-def test_resolve_user_css_none_if_default_missing(tmp_path: Path, monkeypatch) -> None:
+def test_resolve_base_css_falls_back_to_packaged(tmp_path: Path, monkeypatch) -> None:
+    """With nothing configured, the packaged rules are the base."""
+    from opm.odd_compiler.css_generator import default_base_css
+
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr('opm.cli.packaged_default_css', lambda: None)
-    assert _resolve_user_css(None) is None
+    assert resolve_base_css(None, Path.cwd()) == default_base_css()
 
 
-def test_resolve_user_css_falls_back_to_packaged(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.chdir(tmp_path)
-    packaged = tmp_path / 'packaged.css'
-    packaged.write_text('.packaged { color: blue; }', encoding='utf-8')
-    monkeypatch.setattr('opm.cli.packaged_default_css', lambda: packaged)
-    assert _resolve_user_css(None) == '.packaged { color: blue; }'
-
-
-def test_resolve_user_css_explicit_path_overrides_default(tmp_path: Path, monkeypatch) -> None:
+def test_resolve_base_css_explicit_path_overrides_default(tmp_path: Path, monkeypatch) -> None:
     styles = tmp_path / 'styles'
     styles.mkdir()
     (styles / 'default-styles.css').write_text('default', encoding='utf-8')
@@ -87,7 +80,7 @@ def test_resolve_user_css_explicit_path_overrides_default(tmp_path: Path, monkey
     custom.write_text('custom', encoding='utf-8')
     monkeypatch.chdir(tmp_path)
 
-    assert _resolve_user_css(custom) == 'custom'
+    assert resolve_base_css(custom, Path.cwd()) == 'custom'
 
 
 def _write_tiny_odd(path: Path, *, ident: str = 'teipublisher') -> Path:
@@ -262,8 +255,10 @@ def test_transform_config_paths_resolve_relative_to_config_file(tmp_path: Path, 
     project = tmp_path / 'project'
     (project / 'templates').mkdir(parents=True)
     _write_tiny_odd(project / 'tiny.odd')
+    # [document] css is the base override, so it arrives compiled into odd_css.
     (project / 'templates' / 'custom.j2').write_text(
-        '<html><head><!-- config-relative-template --><style>{{ user_css }}</style></head>'
+        '<html><head><!-- config-relative-template -->{{ head_html|safe }}'
+        '<style>{{ odd_css }}</style></head>'
         '<body>{{ content_html|safe }}</body></html>',
         encoding='utf-8',
     )
@@ -769,7 +764,8 @@ def test_init_tei_creates_project(tmp_path: Path) -> None:
     assert (dest / 'templates' / 'chapbook.css').is_file()
     assert (dest / 'templates' / 'book.typ.j2').is_file()
     assert (dest / 'templates' / 'default.docx').is_file()
-    assert (dest / 'styles' / 'default-styles.css').is_file()
+    # The base rules ship inside the ODD stylesheet, so no copy is scaffolded.
+    assert not (dest / 'styles' / 'default-styles.css').exists()
     assert (dest / 'data' / 'sample.xml').is_file()
     assert (dest / 'extensions' / '__init__.py').is_file()
     assert (dest / 'AGENTS.md').is_file()

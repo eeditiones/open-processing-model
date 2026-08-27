@@ -26,6 +26,7 @@ def compile_odd(
     target: str = 'python',
     module_name: str = 'generated_odd',
     output_mode: str = 'web',
+    base_css: str | None = None,
 ) -> str:
     """Compile an ODD file to target language source code.
 
@@ -34,6 +35,8 @@ def compile_odd(
         target: Target language ('python', or future 'rust')
         module_name: Logical name for the generated module
         output_mode: Output channel (web, markdown, print, etc.)
+        base_css: Rules prepended to the generated stylesheet, replacing the
+            packaged default. ``None`` keeps the packaged default.
 
     Returns:
         Generated source code as a string
@@ -47,4 +50,6 @@ def compile_odd(
 
     parsed = load_odd(odd_path)
     generator = _GENERATORS[target]()
-    return generator.generate_module(parsed, module_name, output_mode=output_mode)
+    return generator.generate_module(
+        parsed, module_name, output_mode=output_mode, base_css=base_css
+    )

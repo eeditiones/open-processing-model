@@ -58,14 +58,16 @@ class PythonGenerator(CodeGenerator):
         module_name: str = 'generated_odd',
         *,
         output_mode: str = 'web',
+        base_css: str | None = None,
     ) -> str:
-        return self._generate_python_module(parsed, module_name, output_mode)
+        return self._generate_python_module(parsed, module_name, output_mode, base_css)
 
     def _generate_python_module(
         self,
         parsed: ParsedOdd,
         module_name: str,
         output_mode: str,
+        base_css: str | None = None,
     ) -> str:
         schema_ns = parsed.schema_ns
         odd_path = parsed.odd_path
@@ -86,7 +88,9 @@ class PythonGenerator(CodeGenerator):
                 "\n        'typst_functions': TYPST_RENDITION_FUNCTIONS,"
             )
         else:
-            odd_css = collect_odd_generated_css(parsed, output_mode=output_mode)
+            odd_css = collect_odd_generated_css(
+                parsed, output_mode=output_mode, base_css=base_css
+            )
             odd_generated_constants = (
                 f'\n\nODD_GENERATED_CSS = {self._python_triple_quoted(odd_css)}'
                 f'{odd_typst_literal}'

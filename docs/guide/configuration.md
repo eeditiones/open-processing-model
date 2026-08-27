@@ -42,8 +42,8 @@ enabled = false
 [document]
 # Default Jinja2 template for full-document HTML output
 template = "templates/default.html.j2"
-# Default CSS file injected into HTML output
-css = "styles/main.css"
+# Base rules compiled into the ODD stylesheet, replacing the packaged defaults
+css = "styles/default-styles.css"
 
 [chunking]
 # ODD used for chunking (falls back to [transform].odd / packaged default)
@@ -64,6 +64,9 @@ link_pattern = "/{doc}/{file}"
 index_template = "templates/index.html.j2"
 # Heading for that index (default: the input directory name)
 index_title = "Correspondence"
+# Files or directories copied into <output-root>/assets/ (stylesheets are
+# always written to <output-root>/css/ automatically)
+assets = ["templates/edition.css", "templates/parchment.jpg"]
 ```
 
 ## Sections

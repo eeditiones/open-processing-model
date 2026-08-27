@@ -42,6 +42,12 @@ index_template = "templates/index.html.j2"
 index_title = "Listy"
 doc_path = "letters"
 
+# The edition's own stylesheet and its texture are copied to chunks/assets/;
+# the ODD stylesheet is written to chunks/css/ automatically. letter.css
+# references parchment.jpg as a sibling, so its URL resolves inside assets/
+# regardless of how deep the page linking it sits.
+assets = ["templates/letter.css", "templates/parchment.jpg"]
+
 # Collection index entry for `opm chunk data/letters` (a directory run).
 # The ODD's display='browse' models render title, place and date, and build
 # their own link from $parameters?doc, which opm supplies per document.

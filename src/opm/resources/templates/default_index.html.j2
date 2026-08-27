@@ -5,16 +5,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title }}</title>
-  {% if odd_css %}
+  {# Chunking writes the stylesheets as files the browser caches once; the
+     inline fallback covers a stylesheet that turned out to be empty. #}
+  {% if odd_css_url %}
+  <link rel="stylesheet" href="{{ odd_css_url }}">
+  {% elif odd_css %}
   <style type="text/css">
 {{ odd_css }}
   </style>
   {% endif %}
-  {% if user_css %}
-  <style type="text/css">
-{{ user_css }}
-  </style>
-  {% endif %}
+  {% for href in asset_styles %}
+  <link rel="stylesheet" href="{{ href }}">
+  {% endfor %}
   <style type="text/css">
     :root { color-scheme: light dark; }
     body {

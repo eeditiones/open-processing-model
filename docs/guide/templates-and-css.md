@@ -69,9 +69,6 @@ A template that works in both cases therefore always renders `head_html` **and**
   {% if odd_css %}
   <style type="text/css">{{ odd_css }}</style>
   {% endif %}
-  {% if user_css %}
-  <style type="text/css">{{ user_css }}</style>
-  {% endif %}
 </head>
 ```
 
@@ -91,7 +88,6 @@ A document or chunk template receives:
 | `content_html` | The transformed document body, or the chunk/fragment markup |
 | `head_html` | Inner HTML of the transform `<head>`, or empty for fragments (see above) |
 | `odd_css` | ODD-generated stylesheet text when it is **not** already in `head_html` |
-| `user_css` | The stylesheet passed via `--css` / `[document] css` |
 | `webcomponents_url` | Script URL when web components mode is enabled |
 | `lang` | Document language (defaults to `en`) |
 | `chunk` | Chunk metadata (`id`, `file`, `prev`, `next`, …) when rendering via `opm chunk` |
@@ -106,7 +102,6 @@ A minimal template:
     <meta charset="utf-8">
     {{ head_html | safe }}
     {% if odd_css %}<style type="text/css">{{ odd_css }}</style>{% endif %}
-    {% if user_css %}<style type="text/css">{{ user_css }}</style>{% endif %}
     {% if webcomponents_url %}<script type="module" src="{{ webcomponents_url }}"></script>{% endif %}
   </head>
   <body>
@@ -124,9 +119,18 @@ A minimal template:
   rules and linked stylesheets in the ODD (see [ODD files](odd-files.md)). It
   styles the classes the transform emits. How it reaches the page is described
   above: inside `head_html` for `document` output, via `odd_css` for fragments.
-- **User CSS** (`user_css`) — your own stylesheet, supplied with `--css` or
-  `[document] css`, layered on top. Always passed as a separate variable; it is
-  never folded into `head_html`.
+
+    It opens with a packaged set of base rules for markup the runtime emits
+    regardless of ODD — the `.alternate` / `.altcontent` popover behind
+    `choice`, `.tei-cb` column breaks, margin notes. They come first, so an
+    ODD's own `outputRendition` overrides them, and they travel with the ODD
+    stylesheet everywhere it is used.
+
+- **Base override** (`--css` / `[document] css`) — replaces those packaged base
+  rules. It is compiled into the ODD stylesheet rather than layered after it,
+  and forms part of the ODD cache key. Use it to restyle what the runtime
+  emits; for a project's own design CSS use `[chunking] assets`, which can also
+  carry the images and fonts that stylesheet references.
 
 ## Web components
 

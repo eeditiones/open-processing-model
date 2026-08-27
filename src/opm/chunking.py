@@ -7,6 +7,7 @@ for static site generation.
 from __future__ import annotations
 
 import json
+import shutil
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any, Callable
@@ -30,30 +31,6 @@ from opm.template_rendering import (
 )
 from opm.runtime.pm_runtime import serialize as _default_serialize, inject_cached_footnotes
 from opm.runtime.output_functions import XML_ID, reset_counters
-
-
-def _load_user_css(css_path: Path | None, project_root: Path) -> str:
-    """Return stylesheet text from *css_path*, CWD default, or the packaged default.
-
-    Mirrors ``opm.cli._resolve_user_css`` so chunk pages get the same defaults
-    (alternate popovers, ``.tei-cb`` column breaks, …) as ``opm transform``.
-    """
-    from opm.resources import packaged_default_css
-
-    if css_path is not None:
-        path = css_path if css_path.is_absolute() else project_root / css_path
-        if path.is_file():
-            return path.read_text(encoding='utf-8')
-        return ''
-
-    local = project_root / 'styles' / 'default-styles.css'
-    if local.is_file():
-        return local.read_text(encoding='utf-8')
-
-    packaged = packaged_default_css()
-    if packaged is not None and packaged.is_file():
-        return packaged.read_text(encoding='utf-8')
-    return ''
 
 
 @dataclass
@@ -130,8 +107,9 @@ class ChunkProcessor:
         self.xpath_namespaces = dict(
             xpath_namespaces if xpath_namespaces is not None else cfg.xpath_namespaces,
         )
+        # Includes the project's base override ([document] css), compiled in.
+        # Design CSS is not part of this — it travels through chunking.assets.
         self.odd_css: str = getattr(self.module, 'ODD_GENERATED_CSS', '') or ''
-        self.user_css: str = _load_user_css(cfg.document_css, project_root)
         self.chunks: list[etree._Element] = []
         self.results: list[ChunkResult] = []
         self._jinja_env: Any | None = None
@@ -139,6 +117,11 @@ class ChunkProcessor:
         # Built once; only config['footnotes'] is reset between chunks.
         self._transform_config: dict[str, Any] | None = None
         self._chunk_anchor_map: dict[str, str] = {}
+        self._shared_urls: dict[str, Any] = {
+            'odd_css_url': '',
+            'assets': '',
+            'asset_styles': [],
+        }
 
     @property
     def odd_name(self) -> str:
@@ -203,6 +186,67 @@ class ChunkProcessor:
             if isinstance(chunk, etree._Element)
         ]
         return self.chunks
+
+    def shared_root(self) -> Path:
+        """Return the directory holding output shared across documents.
+
+        Chunking a directory gives each document its own subdirectory, so
+        stylesheets and assets belong one level up, beside the collection
+        index — one copy for the whole edition. For a single document the
+        output directory is itself the root.
+        """
+        return self.output_dir.parent if self.config.link_doc else self.output_dir
+
+    def url_prefix(self) -> str:
+        """Return the relative path from a chunk page back to :meth:`shared_root`."""
+        return '../' if self.config.link_doc else ''
+
+    def write_shared_files(self) -> dict[str, str]:
+        """Write stylesheets and copy assets into :meth:`shared_root`.
+
+        Chunking always produces several pages sharing one stylesheet, so the
+        stylesheets are always written as files — the same thing
+        ``--format pb-view`` has always done. Templates receive
+        ``odd_css_url`` pointing at it, alongside the ``odd_css`` string, which
+        stays available so a template that inlines it keeps working. Stylesheets
+        among ``config.assets`` are listed in ``asset_styles``, in declared
+        order.
+
+        Safe to call once per document in a directory run — the writes are
+        idempotent.
+        """
+        root = self.shared_root()
+        prefix = self.url_prefix()
+        urls: dict[str, Any] = {'odd_css_url': '', 'assets': '', 'asset_styles': []}
+
+        if self.odd_css:
+            css_dir = root / 'css'
+            css_dir.mkdir(parents=True, exist_ok=True)
+            (css_dir / f'{self.odd_name}.css').write_text(self.odd_css, encoding='utf-8')
+            urls['odd_css_url'] = f'{prefix}css/{self.odd_name}.css'
+
+        if self.config.assets:
+            assets_dir = root / 'assets'
+            assets_dir.mkdir(parents=True, exist_ok=True)
+            for asset in self.config.assets:
+                source = asset if asset.is_absolute() else self.project_root / asset
+                if not source.exists():
+                    raise FileNotFoundError(f'Asset not found: {source}')
+                target = assets_dir / source.name
+                if source.is_dir():
+                    shutil.copytree(source, target, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(source, target)
+            urls['assets'] = f'{prefix}assets'
+            # Stylesheets among the assets, in the order they were declared —
+            # that is the cascade order, so a template can link them blind.
+            urls['asset_styles'] = [
+                f'{prefix}assets/{asset.name}'
+                for asset in self.config.assets
+                if asset.suffix.lower() == '.css'
+            ]
+
+        return urls
 
     def entry_file(self) -> str:
         """Return the filename of this document's first chunk (its entry point)."""
@@ -662,13 +706,15 @@ class ChunkProcessor:
                 head_html=head_html,
                 content_html=content_html,
                 odd_css=self.odd_css,
-                user_css=self.user_css,
                 parameters=self.parameters,
                 lang="",
                 webcomponents_url=self.webcomponents_url,
                 # Add chunk-specific context
                 fragments=all_fragments,
                 chunk=chunk_result.metadata,
+                # Stylesheet URLs, plus an assets prefix when configured.
+                # The inline strings above stay available either way.
+                **self._shared_urls,
             )
             
             return rendered
@@ -708,7 +754,11 @@ class ChunkProcessor:
 
         # Ensure output directory exists
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        
+
+        # Stylesheets and assets live in the shared root, written once for the
+        # whole edition; the returned URLs go into every template context.
+        self._shared_urls = self.write_shared_files()
+
         # Select chunks
         self.select_chunks()
         self.build_anchor_index()
@@ -741,6 +791,7 @@ class ChunkProcessor:
                     'head': chunk_result.head_html,
                     'odd_css': self.odd_css,
                     'fragments': {**embedded_global_fragments, **chunk_result.fragments},
+                    **self._shared_urls,
                 }
                 chunk_file = self.output_dir / f"{stem}.json"
                 chunk_file.write_text(
@@ -1080,9 +1131,18 @@ def chunk_document(
     """Chunk a document using the specified configuration."""
     resolved_module = module_path or config.module
     if resolved_module is None and config.odd is not None:
+        from opm.config import resolve_base_css
         from opm.odd_cache import ensure_compiled_module
 
-        resolved_module, _ = ensure_compiled_module(config.odd, output_mode='web')
+        # Same base override the CLI applies, so calling this directly as a
+        # library gives the same stylesheet as `opm chunk`.
+        resolved_module, _ = ensure_compiled_module(
+            config.odd,
+            output_mode='web',
+            base_css=resolve_base_css(
+                (project_config or ProjectConfig()).document_css, project_root
+            ),
+        )
     if resolved_module is None:
         raise ValueError(
             'No transform module specified. Pass a module path, set chunking.odd '
@@ -1175,10 +1235,10 @@ def build_index(
     template_path: Path | None = None,
     title: str | None = None,
     odd_css: str | None = None,
-    user_css: str | None = None,
     module_path: Path | None = None,
     project_config: ProjectConfig | None = None,
     project_root: Path | None = None,
+    chunking_config: ChunkingConfig | None = None,
 ) -> Path | None:
     """Render ``<output_dir>/index.html`` listing every chunked document.
 
@@ -1189,8 +1249,7 @@ def build_index(
     Pass *module_path* (and optionally *project_config*) to have the ODD's
     generated CSS and the project stylesheet resolved the same way chunk pages
     resolve them, so an index template can style a browse record's ``tei-*``
-    classes exactly as the document pages do. Explicit *odd_css* / *user_css*
-    win over both.
+    classes exactly as the document pages do. An explicit *odd_css* wins.
 
     Returns the path written, or *None* when *output_dir* holds no chunked
     documents.
@@ -1201,9 +1260,17 @@ def build_index(
 
     if odd_css is None and module_path is not None:
         odd_css = getattr(load_transform_module(module_path), 'ODD_GENERATED_CSS', '')
-    if user_css is None:
-        cfg = project_config or ProjectConfig()
-        user_css = _load_user_css(cfg.document_css, project_root or output_dir.parent)
+
+    # The index sits at the output root that chunking wrote css/ and assets/
+    # into, so its URLs need no prefix.
+    chunk_cfg = chunking_config or ChunkingConfig()
+    odd_name = getattr(load_transform_module(module_path), 'ODD_NAME', '') if module_path else ''
+    odd_css_url = f'css/{odd_name}.css' if odd_css and odd_name else ''
+    asset_styles = [
+        f'assets/{asset.name}'
+        for asset in chunk_cfg.assets
+        if asset.suffix.lower() == '.css'
+    ]
 
     rendered = render_index_template(
         entries=entries,
@@ -1212,7 +1279,9 @@ def build_index(
         ),
         title=title or output_dir.name,
         odd_css=odd_css,
-        user_css=user_css,
+        odd_css_url=odd_css_url,
+        assets='assets' if chunk_cfg.assets else '',
+        asset_styles=asset_styles,
     )
     index_file = output_dir / 'index.html'
     index_file.write_text(rendered, encoding='utf-8')

@@ -47,7 +47,10 @@ template = "{{ typst_template }}"
 {% endif %}
 [document]
 template = "templates/chapbook.html.j2"
-css = "styles/default-styles.css"
+# Your own stylesheet, layered over the ODD's. The rules every ODD-rendered
+# document needs are already part of the ODD stylesheet, so this is for
+# project-specific overrides only.
+# css = "styles/custom.css"
 
 {% if chunk_selector -%}
 [chunking]

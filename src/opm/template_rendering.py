@@ -107,12 +107,19 @@ def render_index_template(
     template_path: Path,
     title: str,
     odd_css: str | None = None,
-    user_css: str | None = None,
+    odd_css_url: str = '',
+    assets: str = '',
+    asset_styles: list[str] | None = None,
 ) -> str:
     """Render a collection index listing chunked documents.
 
     The template receives ``documents`` (a list of
-    :class:`~opm.chunking.IndexEntry`), ``title``, ``odd_css`` and ``user_css``.
+    :class:`~opm.chunking.IndexEntry`), ``title``, the ``odd_css`` string, the
+    ``odd_css_url`` file chunking writes, and — when
+    ``chunking.assets`` is configured — an ``assets`` URL prefix plus
+    ``asset_styles``, the stylesheets among those assets in declared order. The
+    index sits at the output root, so those URLs carry no ``../`` prefix.
+
     Each entry exposes ``fragments``, so a project controls what the index shows
     by declaring global fragments in ``opm.toml`` — no code change needed to add
     an author or date column.
@@ -129,7 +136,9 @@ def render_index_template(
         documents=entries,
         title=title,
         odd_css=odd_css or '',
-        user_css=user_css or '',
+        odd_css_url=odd_css_url,
+        assets=assets,
+        asset_styles=asset_styles or [],
     )
 
 

@@ -11,7 +11,7 @@ from pathlib import Path
 from lxml import etree
 
 from opm.chunking import ChunkProcessor, build_index, chunk_document, collect_index_entries
-from opm.config import ChunkingConfig, FragmentConfig
+from opm.config import ChunkingConfig, FragmentConfig, ProjectConfig
 from opm.resources import packaged_odd
 
 
@@ -992,8 +992,8 @@ def test_global_fragments_receive_a_per_document_doc_parameter(tmp_path: Path) -
     assert proc._expand_document_params({'q': '{not-a-placeholder}'})['q'] == '{not-a-placeholder}'
 
 
-def test_build_index_passes_stylesheets_to_the_template(tmp_path: Path) -> None:
-    """An index template receives the same ODD/user CSS the chunk pages get.
+def test_build_index_passes_the_stylesheet_to_the_template(tmp_path: Path) -> None:
+    """An index template receives the same ODD stylesheet the chunk pages get.
 
     A browse record is ODD output, so the index needs the ODD's generated CSS
     to style its ``tei-*`` classes the way the document pages do.
@@ -1003,7 +1003,7 @@ def test_build_index_passes_stylesheets_to_the_template(tmp_path: Path) -> None:
 
     template = tmp_path / 'index.html.j2'
     template.write_text(
-        '<style>{{ odd_css }}</style><style>{{ user_css }}</style>'
+        '<style>{{ odd_css }}</style>'
         '{% for doc in documents %}{{ doc.fragments.browse | safe }}{% endfor %}',
         encoding='utf-8',
     )
@@ -1012,11 +1012,9 @@ def test_build_index_passes_stylesheets_to_the_template(tmp_path: Path) -> None:
         out,
         template_path=template,
         odd_css='.tei-title { font-variant: small-caps; }',
-        user_css='body { margin: 0; }',
     ).read_text(encoding='utf-8')
 
     assert '.tei-title { font-variant: small-caps; }' in html
-    assert 'body { margin: 0; }' in html
     assert '<span class="tei-title">T</span>' in html
 
 
@@ -1038,7 +1036,275 @@ def test_build_index_reads_odd_css_from_the_transform_module(tmp_path: Path) -> 
     template.write_text('<style>{{ odd_css }}</style>', encoding='utf-8')
 
     html = build_index(
-        out, template_path=template, module_path=module_path, user_css=''
+        out, template_path=template, module_path=module_path
     ).read_text(encoding='utf-8')
 
     assert '.tei-title { color: rebeccapurple; }' in html
+
+
+def _template_echoing_urls(path: Path) -> None:
+    path.write_text(
+        'ODD=[{{ odd_css_url }}] ASSETS=[{{ assets }}] STYLES=[{{ asset_styles|join(",") }}]\n'
+        '{% if odd_css_url %}<link href="{{ odd_css_url }}">{% else %}<style>{{ odd_css }}</style>{% endif %}\n'
+        '{{ content_html }}',
+        encoding='utf-8',
+    )
+
+
+def test_no_stylesheets_written_when_there_are_none(tmp_path: Path) -> None:
+    """No ODD CSS and no project CSS means no css/ directory and empty URLs.
+
+    A project that sets no ``[document] css`` has no second stylesheet at all —
+    the rules every document needs live in the ODD stylesheet instead.
+    """
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    template = tmp_path / 'page.html.j2'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+    _template_echoing_urls(template)
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=ChunkingConfig(xpath="//body/div[@type='chunk']", output_dir='inline'),
+        project_root=tmp_path,
+        template_path=template,
+    )
+
+    page = (tmp_path / 'inline' / '001.html').read_text(encoding='utf-8')
+    assert 'ODD=[] ASSETS=[] STYLES=[]' in page
+    # No ODD stylesheet: the template's inline fallback is used instead.
+    assert '<style></style>' in page
+    assert not (tmp_path / 'inline' / 'css').exists()
+
+
+def test_chunking_always_writes_stylesheets_as_files(tmp_path: Path) -> None:
+    """Chunk output is multi-page, so the stylesheet is a cacheable file, never inlined."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    template = tmp_path / 'page.html.j2'
+    _write_chunking_fixture_module(module_path)
+    module_path.write_text(
+        module_path.read_text(encoding='utf-8').replace(
+            "ODD_GENERATED_CSS = ''", "ODD_GENERATED_CSS = '.tei-p { margin: 0 }'"
+        ),
+        encoding='utf-8',
+    )
+    _write_chunking_fixture_xml(xml_path)
+    _template_echoing_urls(template)
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=ChunkingConfig(
+            xpath="//body/div[@type='chunk']", output_dir='ext'
+        ),
+        project_root=tmp_path,
+        template_path=template,
+    )
+
+    out = tmp_path / 'ext'
+    assert (out / 'css' / 'teipublisher.css').read_text(encoding='utf-8') == '.tei-p { margin: 0 }'
+    page = (out / '001.html').read_text(encoding='utf-8')
+    # Single document: the output dir is the root, so no ../ prefix.
+    assert 'ODD=[css/teipublisher.css]' in page
+    assert '<link href="css/teipublisher.css">' in page
+    assert '<style>' not in page
+
+
+def test_stylesheet_url_is_relative_to_the_shared_root(tmp_path: Path) -> None:
+    """In a directory run the pages sit one level down, so URLs need ``../``."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    template = tmp_path / 'page.html.j2'
+    _write_chunking_fixture_module(module_path)
+    module_path.write_text(
+        module_path.read_text(encoding='utf-8').replace(
+            "ODD_GENERATED_CSS = ''", "ODD_GENERATED_CSS = '.tei-p { margin: 0 }'"
+        ),
+        encoding='utf-8',
+    )
+    _write_chunking_fixture_xml(xml_path)
+    _template_echoing_urls(template)
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=ChunkingConfig(
+            xpath="//body/div[@type='chunk']",
+            output_dir='dir/fixture.xml',
+            link_doc='fixture.xml',
+        ),
+        project_root=tmp_path,
+        template_path=template,
+    )
+
+    # Written to the shared root, beside where the index would go — not into
+    # the per-document subdirectory.
+    assert (tmp_path / 'dir' / 'css' / 'teipublisher.css').is_file()
+    assert not (tmp_path / 'dir' / 'fixture.xml' / 'css').exists()
+    page = (tmp_path / 'dir' / 'fixture.xml' / '001.html').read_text(encoding='utf-8')
+    assert 'ODD=[../css/teipublisher.css]' in page
+
+
+def test_assets_are_copied_to_the_shared_root(tmp_path: Path) -> None:
+    """Files and directories listed in chunking.assets land in assets/."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    template = tmp_path / 'page.html.j2'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+    _template_echoing_urls(template)
+
+    (tmp_path / 'style.css').write_text('body { margin: 0 }', encoding='utf-8')
+    fonts = tmp_path / 'fonts'
+    fonts.mkdir()
+    (fonts / 'x.woff2').write_bytes(b'\x00\x01')
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=ChunkingConfig(
+            xpath="//body/div[@type='chunk']",
+            output_dir='withassets',
+            assets=(tmp_path / 'style.css', fonts),
+        ),
+        project_root=tmp_path,
+        template_path=template,
+    )
+
+    out = tmp_path / 'withassets'
+    assert (out / 'assets' / 'style.css').read_text(encoding='utf-8') == 'body { margin: 0 }'
+    assert (out / 'assets' / 'fonts' / 'x.woff2').is_file()
+    page = (out / '001.html').read_text(encoding='utf-8')
+    assert 'ASSETS=[assets]' in page
+    # Only entries explicitly listed as .css are linkable; the copied
+    # fonts/ directory is not scanned.
+    assert 'STYLES=[assets/style.css]' in page
+
+
+def test_missing_asset_is_reported(tmp_path: Path) -> None:
+    """A typo in chunking.assets fails loudly rather than producing a broken page."""
+    import pytest
+
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    with pytest.raises(FileNotFoundError, match='Asset not found'):
+        chunk_document(
+            module_path=module_path,
+            xml_path=xml_path,
+            config=ChunkingConfig(
+                xpath="//body/div[@type='chunk']",
+                output_dir='broken',
+                assets=(tmp_path / 'nope.css',),
+            ),
+            project_root=tmp_path,
+        )
+
+
+def test_odd_stylesheet_carries_the_base_rules(tmp_path: Path) -> None:
+    """The rules the runtime's markup needs ship inside css/<odd>.css.
+
+    They describe what the output functions emit (``.alternate`` popovers,
+    ``.tei-cb`` column breaks), not anything a project chose, so they have to
+    reach every consumer of the ODD stylesheet — including ``--format pb-view``
+    output loaded by a TEI Publisher app.
+    """
+    from opm.odd_cache import ensure_compiled_module
+    from opm.resources import packaged_odd
+    from opm.transform import load_transform_module as _load_module
+
+    module_path, _ = ensure_compiled_module(packaged_odd('teipublisher'), output_mode='web')
+    odd_css = getattr(_load_module(module_path), 'ODD_GENERATED_CSS', '')
+
+    assert '.alternate .altcontent' in odd_css
+    assert '.tei-cb:not([data-n="1"])' in odd_css
+    # Base first, so an ODD's own outputRendition can override it.
+    assert odd_css.index('.alternate') < odd_css.index('.tei-')
+
+
+def test_document_css_overrides_the_base_rules(tmp_path: Path) -> None:
+    """``[document] css`` replaces the packaged base inside the ODD stylesheet.
+
+    It is an override for the runtime's own rules, not an extra layer, so it
+    lands ahead of the ODD's renditions and no second stylesheet is written.
+    """
+    from opm.odd_cache import ensure_compiled_module
+    from opm.resources import packaged_odd
+    from opm.transform import load_transform_module as _load_module
+
+    custom = tmp_path / 'base.css'
+    custom.write_text('.mine { color: rebeccapurple; }', encoding='utf-8')
+
+    module_path, _ = ensure_compiled_module(
+        packaged_odd('teipublisher'),
+        output_mode='web',
+        base_css=custom.read_text(encoding='utf-8'),
+    )
+    odd_css = getattr(_load_module(module_path), 'ODD_GENERATED_CSS', '')
+
+    assert '.mine { color: rebeccapurple; }' in odd_css
+    # The packaged rules it replaced are gone.
+    assert '.alternate .altcontent' not in odd_css
+    # Still ahead of the ODD's own renditions.
+    assert odd_css.index('.mine') < odd_css.index('.tei-')
+
+
+def test_base_css_override_gets_its_own_cached_module(tmp_path: Path) -> None:
+    """Two projects with different base CSS must not share a compiled module."""
+    from opm.odd_cache import cache_key
+    from opm.resources import packaged_odd
+
+    odd = packaged_odd('teipublisher')
+    default = cache_key(odd, 'web')
+    overridden = cache_key(odd, 'web', '.mine { color: red; }')
+
+    assert default != overridden
+    # Same input, same key — the cache still hits.
+    assert overridden == cache_key(odd, 'web', '.mine { color: red; }')
+
+
+def test_missing_document_css_is_reported(tmp_path: Path) -> None:
+    """A typo in [document] css fails loudly rather than dropping every base rule."""
+    import pytest
+
+    from opm.config import resolve_base_css
+
+    with pytest.raises(FileNotFoundError, match='Stylesheet not found'):
+        resolve_base_css(tmp_path / 'nope.css', tmp_path)
+
+
+def test_chunk_document_applies_the_configured_base_override(tmp_path: Path) -> None:
+    """Calling chunk_document as a library honours [document] css, like the CLI does.
+
+    The CLI pre-compiles via _materialize_chunking_modules; this covers the
+    fallback path where chunk_document compiles config.odd itself.
+    """
+    from opm.resources import packaged_odd
+
+    custom = tmp_path / 'base.css'
+    custom.write_text('.libbase { color: teal; }', encoding='utf-8')
+    xml_path = tmp_path / 'fixture.xml'
+    xml_path.write_text(
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body>'
+        '<div><p>X</p></div></body></text></TEI>',
+        encoding='utf-8',
+    )
+
+    chunk_document(
+        module_path=None,
+        xml_path=xml_path,
+        config=ChunkingConfig(
+            xpath='//text/body/div', output_dir='libbase', odd=packaged_odd('teipublisher')
+        ),
+        project_root=tmp_path,
+        project_config=ProjectConfig(document_css=custom),
+    )
+
+    odd_css = (tmp_path / 'libbase' / 'css' / 'teipublisher.css').read_text(encoding='utf-8')
+    assert '.libbase { color: teal; }' in odd_css
+    assert '.alternate .altcontent' not in odd_css

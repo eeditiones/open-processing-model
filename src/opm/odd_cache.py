@@ -62,13 +62,22 @@ def _iter_input_files(odd_path: Path, *, leaf_dir: Path, seen: set[Path]) -> lis
     return files
 
 
-def cache_key(odd_path: Path, output_mode: str) -> str:
+def cache_key(odd_path: Path, output_mode: str, base_css: str | None = None) -> str:
     """Return a content hash covering the ODD chain, CSS inputs, mode, and opm version."""
     odd_path = odd_path.resolve()
     h = hashlib.sha256()
     h.update(opm_version().encode())
     h.update(b'\0')
     h.update(output_mode.encode())
+    h.update(b'\0')
+
+    # The base rules are compiled into ODD_GENERATED_CSS, so a project that
+    # overrides them via [document] css needs its own cached module — and
+    # editing the packaged default in a checkout has to invalidate too.
+    from opm.odd_compiler.css_generator import default_base_css
+
+    effective_base = default_base_css() if base_css is None else base_css
+    h.update(effective_base.encode())
     h.update(b'\0')
 
     for path in _iter_input_files(odd_path, leaf_dir=odd_path.parent, seen=set()):
@@ -80,10 +89,15 @@ def cache_key(odd_path: Path, output_mode: str) -> str:
     return h.hexdigest()
 
 
-def cached_module_path(odd_path: Path, output_mode: str, digest: str | None = None) -> Path:
+def cached_module_path(
+    odd_path: Path,
+    output_mode: str,
+    digest: str | None = None,
+    base_css: str | None = None,
+) -> Path:
     """Return the cache path for *odd_path* in *output_mode* (does not compile)."""
     odd_path = Path(odd_path)
-    digest = digest or cache_key(odd_path, output_mode)
+    digest = digest or cache_key(odd_path, output_mode, base_css)
     return modules_cache_dir() / f'{odd_path.stem}-{output_mode}-{digest[:12]}.py'
 
 
@@ -92,6 +106,7 @@ def ensure_compiled_module(
     *,
     output_mode: str = 'web',
     module_name: str | None = None,
+    base_css: str | None = None,
 ) -> tuple[Path, bool]:
     """Return ``(module_path, freshly_compiled)`` for *odd_path*.
 
@@ -103,14 +118,16 @@ def ensure_compiled_module(
         raise FileNotFoundError(f'ODD not found: {odd_path}')
 
     mode = (output_mode or 'web').strip().lower() or 'web'
-    digest = cache_key(odd_path, mode)
-    dest = cached_module_path(odd_path, mode, digest)
+    digest = cache_key(odd_path, mode, base_css)
+    dest = cached_module_path(odd_path, mode, digest, base_css)
     if dest.is_file():
         return dest, False
 
     dest.parent.mkdir(parents=True, exist_ok=True)
     name = module_name or odd_path.stem
-    src = compile_odd(str(odd_path), module_name=name, output_mode=mode)
+    src = compile_odd(
+        str(odd_path), module_name=name, output_mode=mode, base_css=base_css
+    )
     dest.write_text(src, encoding='utf-8')
     return dest, True
 
@@ -121,11 +138,16 @@ def resolve_transform_module(
     odd: Path | None = None,
     output_mode: str = 'web',
     use_packaged_default: bool = True,
+    base_css: str | None = None,
 ) -> ResolvedTransform:
     """Resolve a loadable ``.py`` module from an explicit path, ODD, or packaged default.
 
     Precedence: *module* → *odd* → packaged ``teipublisher.odd`` (when
     *use_packaged_default* is true).
+
+    *base_css* replaces the packaged rules prepended to the generated
+    stylesheet, and is part of the cache key, so a project overriding them gets
+    its own compiled module.
     """
     if module is not None:
         return ResolvedTransform(module_path=Path(module), source_odd=None, freshly_compiled=False)
@@ -143,5 +165,7 @@ def resolve_transform_module(
             'or install the package with stock ODDs.',
         )
 
-    path, fresh = ensure_compiled_module(odd_path, output_mode=output_mode)
+    path, fresh = ensure_compiled_module(
+        odd_path, output_mode=output_mode, base_css=base_css
+    )
     return ResolvedTransform(module_path=path, source_odd=odd_path, freshly_compiled=fresh)

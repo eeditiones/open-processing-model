@@ -13,23 +13,16 @@
     rel="stylesheet"
   >
   {{ head_html | safe }}
-  <style type="text/css">
-    {% include "chapbook.css" %}
-  </style>
-  <style type="text/css">
-    {% include "parchment.css" %}
-  </style>
-  <style type="text/css">
-    {% include "letter.css" %}
-  </style>
-  {% if odd_css %}
+  {# Stylesheets copied in via chunking.assets, in declared order; letter.css
+     finds parchment.jpg beside it because both land in assets/. #}
+  {% for href in asset_styles %}
+  <link rel="stylesheet" href="{{ href }}">
+  {% endfor %}
+  {% if odd_css_url %}
+  <link rel="stylesheet" href="{{ odd_css_url }}">
+  {% elif odd_css %}
   <style type="text/css">
 {{ odd_css }}
-  </style>
-  {% endif %}
-  {% if user_css %}
-  <style type="text/css">
-{{ user_css }}
   </style>
   {% endif %}
   {% if webcomponents_url %}
@@ -45,7 +38,7 @@
 {% set has_people = fragments is defined and fragments.register_people %}
 {% set has_places = fragments is defined and fragments.register_places %}
 {% set has_register = has_people or has_places %}
-<body class="chapbook letter">
+<body class="letter">
   <nav class="app-menubar" aria-label="Edition">
     <a class="app-logo" href="../index.html">{% include "logo-textmark.svg" %}</a>
   </nav>
@@ -60,8 +53,8 @@
     </nav>
   </div>
 
-  <main class="chap-page{% if is_chunk %} chap-page--chunk{% endif %}{% if has_translation %} chap-page--parallel{% endif %}{% if has_register %} chap-page--with-register{% endif %}">
-    <div class="chap-body">
+  <main class="letter-page{% if is_chunk %} letter-page--chunk{% endif %}{% if has_translation %} letter-page--parallel{% endif %}{% if has_register %} letter-page--with-register{% endif %}">
+    <div class="letter-body">
       {% if fragments is defined and fragments.letter_head %}
       <header class="letter-head">
         {{ fragments.letter_head | safe }}
@@ -122,23 +115,23 @@
   </main>
 
   {% if is_chunk and (chunk.prev or chunk.next) %}
-  <nav class="chap-folio-nav" aria-label="Letter navigation">
-    <div class="chap-folio-nav__prev">
+  <nav class="letter-folio" aria-label="Letter navigation">
+    <div class="letter-folio__prev">
       {% if chunk.prev %}
       <a href="{{ chunk.prev }}.html">
-        <span class="chap-folio-nav__label">Verso</span>
-        <span class="chap-folio-nav__chevron" aria-hidden="true">&lsaquo;</span>
-        <span class="chap-folio-nav__dir">Previous</span>
+        <span class="letter-folio__label">Verso</span>
+        <span class="letter-folio__chevron" aria-hidden="true">&lsaquo;</span>
+        <span class="letter-folio__dir">Previous</span>
       </a>
       {% endif %}
     </div>
-    <div class="chap-folio-nav__mark" aria-hidden="true">— {{ folio }} —</div>
-    <div class="chap-folio-nav__next">
+    <div class="letter-folio__mark" aria-hidden="true">— {{ folio }} —</div>
+    <div class="letter-folio__next">
       {% if chunk.next %}
       <a href="{{ chunk.next }}.html">
-        <span class="chap-folio-nav__label">Recto</span>
-        <span class="chap-folio-nav__dir">Next</span>
-        <span class="chap-folio-nav__chevron" aria-hidden="true">&rsaquo;</span>
+        <span class="letter-folio__label">Recto</span>
+        <span class="letter-folio__dir">Next</span>
+        <span class="letter-folio__chevron" aria-hidden="true">&rsaquo;</span>
       </a>
       {% endif %}
     </div>
