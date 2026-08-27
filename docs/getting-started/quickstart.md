@@ -95,3 +95,14 @@ uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd \
 uv run opm transform demo/tei-test.xml -c teipublisher.toml -t web --preview
 uv run opm chunk demo/tei-test.xml -c teipublisher.toml -o chunks/ --force --preview
 ```
+
+Worked projects live under `examples/`. `uv run` still finds the repo package
+from those directories, and `opm` loads the local `opm.toml`:
+
+```bash
+cd examples/serafin
+uv run opm chunk data/letters/serafin01.xml --force --preview
+
+cd ../docbook
+uv run opm chunk data/doc/quickstart.xml --force --preview
+```

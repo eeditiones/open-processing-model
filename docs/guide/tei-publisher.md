@@ -83,8 +83,10 @@ Publisher falls back to transforming on the fly.
 ## Matching the split to TEI Publisher
 
 The example command reads its settings from `teipublisher.toml` in this
-repository. Two settings must line up with how TEI Publisher already displays
-the documents.
+repository. A smaller, self-contained copy of the same setup lives in
+[`examples/docbook`](../../examples/docbook) (one article, handbook template,
+local `opm.toml`). Two settings must line up with how TEI Publisher already
+displays the documents.
 
 ### `depth`
 

@@ -1,0 +1,45 @@
+[project]
+pythonpath = ["extensions"]
+
+[transform]
+odd = "odd/docbook.odd"
+xpath_extensions = [
+    "opm.runtime.common_xpath_functions"
+]
+
+[transform.web.webcomponents]
+enabled = true
+
+[transform.typst]
+template = "templates/docbook.typ.j2"
+
+[document]
+template = "templates/handbook.html.j2"
+
+[chunking]
+selector = "opm.navigation.dbk_section_chunks"
+depth = 2
+output_dir = "chunks"
+template = "templates/handbook.html.j2"
+# For --format pb-view / TEI Publisher URL scheme (absolute paths).
+# Omit for local `opm serve` so prev/next stay relative.
+# link_pattern = "/{doc}/{file}"
+doc_path = "doc"
+
+[[chunking.fragments]]
+name = "title"
+scope = "global"
+xpath = "(/article/info/title, /book/info/title)[1]"
+parameters = { mode = "title" }
+
+[[chunking.fragments]]
+name = "toc"
+scope = "global"
+xpath = "(/article, /book)[1]"
+parameters = { mode = "toc" }
+
+[[chunking.fragments]]
+name = "breadcrumbs"
+scope = "per-chunk"
+xpath = "."
+parameters = { mode = "breadcrumb" }
