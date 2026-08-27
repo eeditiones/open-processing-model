@@ -13,15 +13,15 @@ from opm.resources import packaged_odd
 
 ROOT = Path(__file__).resolve().parents[1]
 ODD = packaged_odd('teipublisher')
-DEMO_TEI_TEST_XML = ROOT / 'demo' / 'tei-test.xml'
+DEMO_TEI_TEST_XML = ROOT / 'examples' / 'tei-test.xml'
 
 
 @pytest.mark.skipif(
     not DEMO_TEI_TEST_XML.is_file(),
-    reason='Fixture demo/tei-test.xml not found',
+    reason='Fixture examples/tei-test.xml not found',
 )
 def test_teipublisher_odd_teitest_xml_choice_abbr_expan_alternate_html(tmp_path: Path) -> None:
-    """Compile packaged ``teipublisher.odd``, transform ``demo/tei-test.xml``, check ``choice``/``alternate`` HTML.
+    """Compile packaged ``teipublisher.odd``, transform ``examples/tei-test.xml``, check ``choice``/``alternate`` HTML.
 
     Catches regressions where XPath results stayed as elementpath wrappers so ``apply_children``
     skipped content (empty ``alternate`` containers).
@@ -52,7 +52,7 @@ def test_teipublisher_odd_teitest_xml_choice_abbr_expan_alternate_html(tmp_path:
 
 @pytest.mark.skipif(
     not DEMO_TEI_TEST_XML.is_file(),
-    reason='Fixture demo/tei-test.xml not found',
+    reason='Fixture examples/tei-test.xml not found',
 )
 def test_teipublisher_odd_teitest_xml_register_mode_people_list_names(tmp_path: Path) -> None:
     """``mode=register`` list items must show a name when ``persName`` has no @type (see teiHeader listPerson)."""
@@ -75,7 +75,7 @@ def test_teipublisher_odd_teitest_xml_register_mode_people_list_names(tmp_path: 
 
 @pytest.mark.skipif(
     not DEMO_TEI_TEST_XML.is_file(),
-    reason='Fixture demo/tei-test.xml not found',
+    reason='Fixture examples/tei-test.xml not found',
 )
 def test_teipublisher_odd_teitest_xml_glossary_list_renders_as_definition_list(tmp_path: Path) -> None:
     """Glossary ``list`` with ``label`` children must render as ``<dl>`` with ``<dt>/<dd>`` pairs."""

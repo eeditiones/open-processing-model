@@ -8,10 +8,11 @@ Three entry points at increasing levels of abstraction:
     Jinja2 document template::
 
         from opm.odd_cache import ensure_compiled_module
+        from opm.resources import packaged_odd
         from opm.transform import load_transform_module, run_transform
         from lxml import etree
 
-        path, _ = ensure_compiled_module(Path('odd/teipublisher.odd'))
+        path, _ = ensure_compiled_module(packaged_odd('teipublisher'))
         mod = load_transform_module(path)
         root = etree.parse('document.xml').getroot()
 
@@ -23,10 +24,11 @@ Three entry points at increasing levels of abstraction:
     selects the target element before transforming::
 
         from opm.odd_cache import ensure_compiled_module
+        from opm.resources import packaged_odd
         from opm.transform import transform_node
         from lxml import etree
 
-        path, _ = ensure_compiled_module(Path('odd/teipublisher.odd'))
+        path, _ = ensure_compiled_module(packaged_odd('teipublisher'))
         root = etree.parse('document.xml').getroot()
         html = transform_node(path, root, xpath='//body/div[1]')
 
@@ -35,9 +37,10 @@ Three entry points at increasing levels of abstraction:
     for defaults (extensions, webcomponents, template)::
 
         from opm.odd_cache import ensure_compiled_module
+        from opm.resources import packaged_odd
         from opm.transform import transform_file
 
-        path, _ = ensure_compiled_module(Path('odd/teipublisher.odd'))
+        path, _ = ensure_compiled_module(packaged_odd('teipublisher'))
         html = transform_file(path, Path('document.xml'), xpath='//body/div[1]')
 
 ``xpath_select(root, expr, ...)``

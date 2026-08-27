@@ -75,6 +75,15 @@ class ChunkingConfig:
     depth: int = 1
     output_dir: str = "chunks"
     template: Path | None = None
+    index_template: Path | None = None
+    """Optional Jinja2 template for the collection index written when chunking a directory.
+
+    Rendered to ``<output_dir>/index.html`` so ``opm serve`` shows a real
+    landing page instead of the bare directory listing. When *None* the
+    packaged ``default_index.html.j2`` is used.
+    """
+    index_title: str | None = None
+    """Heading for the generated collection index (default: the output directory name)."""
     fragments: list[FragmentConfig] | None = None
     link_pattern: str | None = None
     """Optional URL template for cross-chunk links.
@@ -372,6 +381,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
                 fragments.append(fragment)
 
         chunking_template = chunking_data.get('template')
+        chunking_index_template = chunking_data.get('index_template')
         raw_chunking_odd = chunking_data.get('odd')
         chunking = ChunkingConfig(
             xpath=chunking_data.get('xpath'),
@@ -380,6 +390,12 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
             depth=chunking_data.get('depth', 1),
             output_dir=chunking_data.get('output_dir', 'chunks'),
             template=config_path.parent / str(chunking_template) if chunking_template else None,
+            index_template=(
+                config_path.parent / str(chunking_index_template)
+                if chunking_index_template
+                else None
+            ),
+            index_title=chunking_data.get('index_title'),
             fragments=fragments if fragments else None,
             link_pattern=chunking_data.get('link_pattern'),
             odd=config_path.parent / str(raw_chunking_odd) if raw_chunking_odd else None,

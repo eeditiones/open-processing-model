@@ -10,7 +10,7 @@ from pathlib import Path
 
 from lxml import etree
 
-from opm.chunking import chunk_document
+from opm.chunking import ChunkProcessor, build_index, chunk_document, collect_index_entries
 from opm.config import ChunkingConfig, FragmentConfig
 from opm.resources import packaged_odd
 
@@ -870,3 +870,175 @@ def test_chapbook_running_head_uses_title_fragment(tmp_path: Path) -> None:
     assert 'class="chap-running__work">The Book of Tests</span>' in html
     assert '<title>The Book of Tests</title>' in html
     assert 'class="chap-running__work">Chapbook</span>' not in html
+
+
+def _write_manifest(out_dir: Path, name: str, *, chunks: int = 2, fragments: dict | None = None) -> None:
+    """Write a minimal per-document manifest of the kind ``chunk`` produces."""
+    doc_dir = out_dir / name
+    doc_dir.mkdir(parents=True, exist_ok=True)
+    (doc_dir / 'manifest.json').write_text(
+        json.dumps(
+            {
+                'chunks': [
+                    {'id': f'chunk-{i + 1:03d}', 'file': f'{i + 1:03d}.html', 'xpath': ''}
+                    for i in range(chunks)
+                ],
+                'fragments': fragments or {},
+                'anchors': {},
+            }
+        ),
+        encoding='utf-8',
+    )
+
+
+def test_build_index_prefers_the_browse_fragment(tmp_path: Path) -> None:
+    """A ``display='browse'`` record is emitted verbatim, links and all."""
+    out = tmp_path / 'chunks'
+    browse = '<h5><a class="tei-title" href="a.xml/001.html">Letter One</a></h5>'
+    _write_manifest(out, 'a.xml', fragments={'browse': browse, 'title': '<span>ignored</span>'})
+
+    index_file = build_index(out, title='Letters')
+    assert index_file == out / 'index.html'
+    html = index_file.read_text(encoding='utf-8')
+
+    assert browse in html
+    # The browse record already carries its own link, so the title fragment is
+    # not used as well.
+    assert 'ignored' not in html
+    # A second link outside the record keeps the entry reachable regardless.
+    assert '<a href="a.xml/001.html">a.xml</a>' in html
+    assert '2 sections' in html
+
+
+def test_build_index_falls_back_to_title_then_filename(tmp_path: Path) -> None:
+    """Without a browse fragment the index degrades to the title, then the filename."""
+    out = tmp_path / 'chunks'
+    _write_manifest(out, 'has-title.xml', fragments={'title': '<span>A Gentle Guide</span>'})
+    _write_manifest(out, 'no_fragments.xml', chunks=1, fragments={})
+
+    html = build_index(out).read_text(encoding='utf-8')
+
+    # Title fragment: wrapped in a link the ODD did not supply.
+    assert '<h2><a href="has-title.xml/001.html"><span>A Gentle Guide</span></a></h2>' in html
+    # Nothing at all: a readable label derived from the filename stem.
+    assert '<h2><a href="no_fragments.xml/001.html">No fragments</a></h2>' in html
+    assert '1 section' in html
+
+
+def test_build_index_skips_directories_without_a_manifest(tmp_path: Path) -> None:
+    """Stray directories (css/, images/) are not listed, and an empty run writes nothing."""
+    out = tmp_path / 'chunks'
+    out.mkdir()
+    (out / 'css').mkdir()
+    (out / 'css' / 'odd.css').write_text('body {}', encoding='utf-8')
+
+    assert build_index(out) is None
+    assert not (out / 'index.html').exists()
+
+    _write_manifest(out, 'real.xml')
+    html = build_index(out).read_text(encoding='utf-8')
+    assert 'real.xml' in html
+    assert 'odd.css' not in html
+
+
+def test_collect_index_entries_reports_chunk_counts_and_hrefs(tmp_path: Path) -> None:
+    out = tmp_path / 'chunks'
+    _write_manifest(out, 'b.xml', chunks=3)
+    _write_manifest(out, 'a.xml', chunks=1)
+
+    entries = collect_index_entries(out)
+
+    # Sorted by directory name, not manifest discovery order.
+    assert [e.name for e in entries] == ['a.xml', 'b.xml']
+    assert [e.href for e in entries] == ['a.xml/001.html', 'b.xml/001.html']
+    assert [e.chunks for e in entries] == [1, 3]
+    assert [e.label for e in entries] == ['A', 'B']
+
+
+def test_global_fragments_receive_a_per_document_doc_parameter(tmp_path: Path) -> None:
+    """``$parameters?doc`` defaults to the document entry point, and expands placeholders.
+
+    The stock ODDs build browse links as ``<param name="uri" value="$parameters?doc"/>``,
+    so each document in a directory run needs its own value.
+    """
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    def _processor(config: ChunkingConfig) -> ChunkProcessor:
+        return ChunkProcessor(
+            module_path=module_path,
+            xml_root=etree.parse(str(xml_path)).getroot(),
+            config=config,
+            project_root=tmp_path,
+        )
+
+    # Directory run: link_doc names the per-document subdirectory.
+    proc = _processor(ChunkingConfig(xpath="//body/div[@type='chunk']", link_doc='fixture.xml'))
+    assert proc.entry_href() == 'fixture.xml/001.html'
+    assert proc._expand_document_params({})['doc'] == 'fixture.xml/001.html'
+
+    # Single document: no prefix.
+    single = _processor(ChunkingConfig(xpath="//body/div[@type='chunk']"))
+    assert single.entry_href() == '001.html'
+    assert single._expand_document_params({})['doc'] == '001.html'
+
+    # An explicit value wins and gets {doc}/{stem}/{file} expanded.
+    expanded = proc._expand_document_params({'doc': '/exist/apps/x/{doc}/{stem}'})
+    assert expanded['doc'] == '/exist/apps/x/fixture.xml/001'
+
+    # Values with unknown placeholders are left untouched rather than raising.
+    assert proc._expand_document_params({'q': '{not-a-placeholder}'})['q'] == '{not-a-placeholder}'
+
+
+def test_build_index_passes_stylesheets_to_the_template(tmp_path: Path) -> None:
+    """An index template receives the same ODD/user CSS the chunk pages get.
+
+    A browse record is ODD output, so the index needs the ODD's generated CSS
+    to style its ``tei-*`` classes the way the document pages do.
+    """
+    out = tmp_path / 'chunks'
+    _write_manifest(out, 'a.xml', fragments={'browse': '<span class="tei-title">T</span>'})
+
+    template = tmp_path / 'index.html.j2'
+    template.write_text(
+        '<style>{{ odd_css }}</style><style>{{ user_css }}</style>'
+        '{% for doc in documents %}{{ doc.fragments.browse | safe }}{% endfor %}',
+        encoding='utf-8',
+    )
+
+    html = build_index(
+        out,
+        template_path=template,
+        odd_css='.tei-title { font-variant: small-caps; }',
+        user_css='body { margin: 0; }',
+    ).read_text(encoding='utf-8')
+
+    assert '.tei-title { font-variant: small-caps; }' in html
+    assert 'body { margin: 0; }' in html
+    assert '<span class="tei-title">T</span>' in html
+
+
+def test_build_index_reads_odd_css_from_the_transform_module(tmp_path: Path) -> None:
+    """Without an explicit odd_css, the compiled module's stylesheet is used."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    _write_chunking_fixture_module(module_path)
+    module_path.write_text(
+        module_path.read_text(encoding='utf-8').replace(
+            "ODD_GENERATED_CSS = ''",
+            "ODD_GENERATED_CSS = '.tei-title { color: rebeccapurple; }'",
+        ),
+        encoding='utf-8',
+    )
+
+    out = tmp_path / 'chunks'
+    _write_manifest(out, 'a.xml')
+    template = tmp_path / 'index.html.j2'
+    template.write_text('<style>{{ odd_css }}</style>', encoding='utf-8')
+
+    html = build_index(
+        out, template_path=template, module_path=module_path, user_css=''
+    ).read_text(encoding='utf-8')
+
+    assert '.tei-title { color: rebeccapurple; }' in html

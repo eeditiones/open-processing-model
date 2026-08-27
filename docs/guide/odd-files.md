@@ -31,8 +31,8 @@ later runs reuse the cache until the ODD (or its inherited sources / CSS)
 changes.
 
 ```bash
-uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd --preview
-uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t docx -o out.docx
+uv run opm transform examples/tei-test.xml --preview
+uv run opm transform examples/tei-test.xml -t docx -o out.docx
 ```
 
 From Python, use [`opm.odd_cache.ensure_compiled_module`](../api/odd-compiler.md)

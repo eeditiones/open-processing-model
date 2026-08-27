@@ -38,6 +38,15 @@ scope = "global"
 xpath = "(/article, /book)[1]"
 parameters = { mode = "toc" }
 
+# Collection index entry for `opm chunk data/doc` (a directory run).
+# The ODD's display='browse' models render title, author and abstract, and
+# build their own link from $parameters?doc, which opm supplies per document.
+[[chunking.fragments]]
+name = "browse"
+scope = "global"
+xpath = "(/article/info, /book/info)[1]"
+parameters = { display = "browse" }
+
 [[chunking.fragments]]
 name = "breadcrumbs"
 scope = "per-chunk"

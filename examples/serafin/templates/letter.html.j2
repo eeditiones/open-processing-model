@@ -47,10 +47,7 @@
 {% set has_register = has_people or has_places %}
 <body class="chapbook letter">
   <nav class="app-menubar" aria-label="Edition">
-    <span class="app-logo">{% include "logo-textmark.svg" %}</span>
-    {% if is_chunk %}
-    <span class="app-menubar__folio">Ep. {{ letter_num }}</span>
-    {% endif %}
+    <a class="app-logo" href="../index.html">{% include "logo-textmark.svg" %}</a>
   </nav>
 
   <div class="app-toolbar">

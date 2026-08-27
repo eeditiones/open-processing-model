@@ -6,7 +6,7 @@
 [transform]
 # Default ODD for every output mode (compiled on demand into the user cache).
 # Per-type tables may override with their own odd = "...".
-# odd = "odd/teipublisher.odd"
+# odd = "odd/my-customisation.odd"
 
 # XPath extension modules loaded into the tp: namespace.
 xpath_extensions = [
@@ -92,7 +92,7 @@ enabled = false
 
 [chunking]
 # ODD compiled on demand. Falls back to [transform].odd / packaged default when omitted.
-# odd = "odd/teipublisher.odd"
+# odd = "odd/my-customisation.odd"
 
 # XPath expression selecting chunk root elements.
 # xpath = "//text/body/div"
@@ -101,15 +101,16 @@ enabled = false
 # xpath_dynamic = "//text/body/div"
 
 # Python callable for custom chunk selection logic.
-# selector = "opm.navigation.tei_div_chunks"
+# Enabled so `opm chunk examples/tei-test.xml` works from a clone.
+selector = "opm.navigation.tei_div_chunks"
 # selector = "opm.navigation.tei_pb_chunks"  # view=page: one chunk per tei:pb
 # selector = "opm.navigation.dbk_section_chunks"
 
 # Maximum depth used by built-in navigation selectors.
-# depth = 2
+depth = 2
 
 # Output directory for chunk files.
-# output_dir = "chunks"
+output_dir = "chunks"
 
 # Jinja2 template for chunk pages.
 # template = "templates/chunk.html.j2"
@@ -136,12 +137,12 @@ enabled = false
 # name = "toc"
 # scope = "global"
 # xpath = "//text/body"
-# odd = "odd/teipublisher.odd"
+# odd = "odd/my-customisation.odd"
 # parameters = { mode = "toc" }
 #
 # [[chunking.fragments]]
 # name = "notes"
 # scope = "per-chunk"
 # xpath = ".//note"
-# odd = "odd/teipublisher.odd"
+# odd = "odd/my-customisation.odd"
 # mode = "markdown"

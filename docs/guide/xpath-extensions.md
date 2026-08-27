@@ -51,7 +51,7 @@ ships reusable functions you can register directly or copy:
 Per transform on the command line (repeatable):
 
 ```bash
-uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd \
+uv run opm transform examples/tei-test.xml \
   --xpath-extensions extensions.my_functions
 ```
 

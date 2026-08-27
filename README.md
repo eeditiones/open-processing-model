@@ -36,10 +36,14 @@ This repository uses [`uv`](https://docs.astral.sh/uv/). From a clone:
 ```bash
 uv sync
 
-uv run opm transform demo/tei-test.xml --preview
-uv run opm transform demo/tei-test.xml -c teipublisher.toml -t web --preview
-uv run opm chunk demo/tei-test.xml -c teipublisher.toml -o chunks/ --force
+uv run opm transform examples/tei-test.xml --preview
+uv run opm transform examples/tei-test.xml -t web --preview
+uv run opm chunk examples/tei-test.xml -o chunks/ --force
 uv run opm serve -d chunks/
+
+# Worked projects (run from the example directory):
+cd examples/serafin && uv run opm chunk data/letters/serafin01.xml --force --preview
+cd examples/docbook && uv run opm chunk data/doc/quickstart.xml --force --preview
 ```
 
 ## Tests

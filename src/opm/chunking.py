@@ -22,7 +22,12 @@ from opm.transform import (
     xpath_select,
 )
 from opm.runtime.pm_runtime import xpath_runtime_context
-from opm.template_rendering import resolve_template_path, _inner_html
+from opm.template_rendering import (
+    DEFAULT_INDEX_TEMPLATE_NAME,
+    render_index_template,
+    resolve_template_path,
+    _inner_html,
+)
 from opm.runtime.pm_runtime import serialize as _default_serialize, inject_cached_footnotes
 from opm.runtime.output_functions import XML_ID, reset_counters
 
@@ -199,6 +204,54 @@ class ChunkProcessor:
         ]
         return self.chunks
 
+    def entry_file(self) -> str:
+        """Return the filename of this document's first chunk (its entry point)."""
+        return f'{1:03d}.html'
+
+    def entry_href(self) -> str:
+        """Return the link to this document's entry point, relative to the output root.
+
+        In directory mode ``config.link_doc`` names the per-document
+        subdirectory, giving ``quickstart.xml/001.html``; for a single document
+        there is no prefix.
+        """
+        doc = (self.config.link_doc or '').strip('/')
+        entry = self.entry_file()
+        return f'{doc}/{entry}' if doc else entry
+
+    def _expand_document_params(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Fill in per-document parameter values for fragment processing.
+
+        Global fragments otherwise receive the same static parameters for every
+        document in a directory run, but browse/index models need to know which
+        document they are describing. Two things happen here:
+
+        * ``doc`` defaults to :meth:`entry_href` when not set explicitly. The
+          ``display='browse'`` models in the stock ODDs build their link as
+          ``<param name="uri" value="$parameters?doc"/>``, so declaring the
+          fragment is enough to get a working href.
+        * ``{doc}``, ``{file}`` and ``{stem}`` placeholders are expanded in
+          string values, using the same vocabulary as
+          :attr:`ChunkingConfig.link_pattern`. This is how an absolute or
+          TEI-Publisher-style scheme is configured, e.g.
+          ``parameters = { display = "browse", doc = "/exist/apps/x/{doc}/{stem}" }``.
+
+        Values with unknown placeholders are passed through untouched, so
+        parameters that legitimately contain braces are unaffected.
+        """
+        doc = (self.config.link_doc or '').strip('/')
+        entry = self.entry_file()
+        expanded: dict[str, Any] = {}
+        for key, value in params.items():
+            if isinstance(value, str) and '{' in value:
+                try:
+                    value = value.format(doc=doc, file=entry, stem=Path(entry).stem)
+                except (KeyError, IndexError, ValueError):
+                    pass
+            expanded[key] = value
+        expanded.setdefault('doc', self.entry_href())
+        return expanded
+
     def generate_chunk_metadata(self, chunk: etree._Element, index: int) -> ChunkMetadata:
         """Generate metadata for a chunk."""
         chunk_id = f"chunk-{index + 1:03d}"
@@ -339,6 +392,7 @@ class ChunkProcessor:
 
         # Project-wide parameters provide defaults; fragment params override them.
         params = {**self.parameters, **(fragment.parameters or {})}
+        params = self._expand_document_params(params)
         view_root = (
             self.xml_root if fragment.scope == 'global' else self._source_node(context)
         )
@@ -1058,3 +1112,108 @@ def chunk_document(
         processor.export_pb_view(doc_path=doc_path, on_progress=on_progress)
     else:
         processor.process_all(template_path, on_progress=on_progress, output_format=output_format)
+
+
+@dataclass
+class IndexEntry:
+    """One document in a generated collection index."""
+
+    name: str
+    """Output subdirectory, e.g. ``quickstart.xml``."""
+    stem: str
+    """Source filename without its suffix, e.g. ``quickstart``."""
+    label: str
+    """Readable fallback heading derived from *stem* — used when no ODD title exists."""
+    href: str
+    """Link to the document's first chunk, relative to the index."""
+    chunks: int
+    """Number of chunks the document was split into."""
+    fragments: dict[str, str]
+    """Global fragments from the document's manifest (``browse``, ``title``, …)."""
+
+
+def _humanise(stem: str) -> str:
+    """Turn a filename stem into a readable fallback label."""
+    text = stem.replace('_', ' ').replace('-', ' ').strip()
+    return text[:1].upper() + text[1:] if text else stem
+
+
+def collect_index_entries(output_dir: Path) -> list[IndexEntry]:
+    """Collect one :class:`IndexEntry` per chunked document under *output_dir*.
+
+    Reads the ``manifest.json`` each document run writes, so this works on any
+    existing output directory without re-chunking. Directories without a
+    readable manifest are skipped.
+    """
+    entries: list[IndexEntry] = []
+    for manifest_file in sorted(output_dir.glob('*/manifest.json')):
+        try:
+            data = json.loads(manifest_file.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError):
+            continue
+
+        doc_dir = manifest_file.parent
+        chunks = data.get('chunks') or []
+        first = chunks[0].get('file') if chunks else None
+        stem = Path(doc_dir.name).stem
+        entries.append(
+            IndexEntry(
+                name=doc_dir.name,
+                stem=stem,
+                label=_humanise(stem),
+                href=f'{doc_dir.name}/{first}' if first else doc_dir.name,
+                chunks=len(chunks),
+                fragments=data.get('fragments') or {},
+            )
+        )
+    return entries
+
+
+def build_index(
+    output_dir: Path,
+    *,
+    template_path: Path | None = None,
+    title: str | None = None,
+    odd_css: str | None = None,
+    user_css: str | None = None,
+    module_path: Path | None = None,
+    project_config: ProjectConfig | None = None,
+    project_root: Path | None = None,
+) -> Path | None:
+    """Render ``<output_dir>/index.html`` listing every chunked document.
+
+    ``http.server`` serves ``index.html`` in preference to a directory listing,
+    so writing this file is all that is needed for ``opm serve`` to show a real
+    landing page.
+
+    Pass *module_path* (and optionally *project_config*) to have the ODD's
+    generated CSS and the project stylesheet resolved the same way chunk pages
+    resolve them, so an index template can style a browse record's ``tei-*``
+    classes exactly as the document pages do. Explicit *odd_css* / *user_css*
+    win over both.
+
+    Returns the path written, or *None* when *output_dir* holds no chunked
+    documents.
+    """
+    entries = collect_index_entries(output_dir)
+    if not entries:
+        return None
+
+    if odd_css is None and module_path is not None:
+        odd_css = getattr(load_transform_module(module_path), 'ODD_GENERATED_CSS', '')
+    if user_css is None:
+        cfg = project_config or ProjectConfig()
+        user_css = _load_user_css(cfg.document_css, project_root or output_dir.parent)
+
+    rendered = render_index_template(
+        entries=entries,
+        template_path=resolve_template_path(
+            template_path, default_name=DEFAULT_INDEX_TEMPLATE_NAME
+        ),
+        title=title or output_dir.name,
+        odd_css=odd_css,
+        user_css=user_css,
+    )
+    index_file = output_dir / 'index.html'
+    index_file.write_text(rendered, encoding='utf-8')
+    return index_file

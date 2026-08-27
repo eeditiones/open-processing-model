@@ -89,11 +89,11 @@ For driving these steps from Python instead of the CLI, see the
 Developers working in the git clone can still use the demo tree without `opm init`:
 
 ```bash
-uv run opm transform demo/tei-test.xml --preview
-uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd \
+uv run opm transform examples/tei-test.xml --preview
+uv run opm transform examples/tei-test.xml \
   --preview --template templates/tufte.html.j2
-uv run opm transform demo/tei-test.xml -c teipublisher.toml -t web --preview
-uv run opm chunk demo/tei-test.xml -c teipublisher.toml -o chunks/ --force --preview
+uv run opm transform examples/tei-test.xml -t web --preview
+uv run opm chunk examples/tei-test.xml -o chunks/ --force --preview
 ```
 
 Worked projects live under `examples/`. `uv run` still finds the repo package

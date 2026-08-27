@@ -20,10 +20,10 @@ ignores those models. Among models that match the compile mode, the usual ODD
 rule applies: the first whose conditions apply wins.
 
 ```bash
-uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t web --preview
-uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t markdown --preview
-uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t docx -o out.docx
-uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t typst -o out.typ
+uv run opm transform examples/tei-test.xml -t web --preview
+uv run opm transform examples/tei-test.xml -t markdown --preview
+uv run opm transform examples/tei-test.xml -t docx -o out.docx
+uv run opm transform examples/tei-test.xml -t typst -o out.typ
 ```
 
 Each compile writes (or reuses) a cached module under the user cache directory;
@@ -43,12 +43,12 @@ Pass an ODD with `--odd`/`-d`, or select from your TOML config with `--type`/`-t
 
 ```bash
 # Explicit ODD (compiled on demand)
-uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd --preview
+uv run opm transform examples/tei-test.xml --preview
 
 # Looked up from config (see Configuration)
-uv run opm transform demo/tei-test.xml -c teipublisher.toml -t web --preview
-uv run opm transform demo/tei-test.xml -c teipublisher.toml -t typst -o out.typ
-uv run opm transform demo/tei-test.xml -c teipublisher.toml -t docx -o out.docx
+uv run opm transform examples/tei-test.xml -t web --preview
+uv run opm transform examples/tei-test.xml -t typst -o out.typ
+uv run opm transform examples/tei-test.xml -t docx -o out.docx
 ```
 
 `--odd`/`-d` overrides config lookup. Omitting both falls back to
@@ -63,14 +63,14 @@ ODD-generated CSS, a user stylesheet, and optional tei-publisher web components.
 See [Templates & CSS](templates-and-css.md).
 
 ```bash
-uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd \
+uv run opm transform examples/tei-test.xml \
   --preview --template templates/tufte.html.j2
 ```
 
 ## Markdown
 
 ```bash
-uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t markdown --preview
+uv run opm transform examples/tei-test.xml -t markdown --preview
 ```
 
 `--preview` renders the Markdown in the terminal with
@@ -86,9 +86,9 @@ the output. If none is given, the packaged `default.docx` is used (the same file
 `footnote text`, `footnote reference`) are injected automatically.
 
 ```bash
-uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd -t docx -o report.docx \
+uv run opm transform examples/tei-test.xml -t docx -o report.docx \
   --template templates/corporate.docx
-# Or: -c teipublisher.toml -t docx -o report.docx
+# Or: -t docx -o report.docx
 ```
 
 ## Typst
@@ -99,7 +99,7 @@ Project templates include `templates/book.typ.j2` (TEI) and
 fallback is `default_document.typ.j2`.
 
 ```bash
-uv run opm transform demo/tei-test.xml -c teipublisher.toml -t typst -o out.typ
+uv run opm transform examples/tei-test.xml -t typst -o out.typ
 ```
 
 ## Adding a new format

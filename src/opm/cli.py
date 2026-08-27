@@ -43,7 +43,7 @@ from opm.transform import (
     run_transform,
 )
 from opm.runtime.pm_runtime import xpath_runtime_context
-from opm.chunking import chunk_document
+from opm.chunking import build_index, chunk_document
 
 app = typer.Typer(
     name='opm',
@@ -845,6 +845,20 @@ def chunk(
                 if per_file:
                     progress.update(1)
 
+        # A directory run leaves one subdirectory per document, which the dev
+        # server would otherwise show as a bare listing. Writing index.html is
+        # enough: http.server prefers it over list_directory().
+        index_file: Path | None = None
+        if input_xml.is_dir() and output_format == 'html':
+            index_file = build_index(
+                out_dir,
+                template_path=chunking_config.index_template,
+                title=chunking_config.index_title or input_xml.name,
+                module_path=chunking_config.module,
+                project_config=cfg,
+                project_root=Path.cwd(),
+            )
+
         typer.echo(f'Chunks written to {out_dir}/')
         if output_format == 'pb-view':
             if input_xml.is_dir():
@@ -864,6 +878,8 @@ def chunk(
             if input_xml.is_dir():
                 typer.echo('  - <document>.xml/manifest.json: metadata for page navigation and linking')
                 typer.echo(f'  - <document>.xml/*.{ext}: chunk files')
+                if index_file is not None:
+                    typer.echo('  - index.html: collection index served at the site root')
             else:
                 typer.echo('  - manifest.json: metadata for page navigation and linking')
                 typer.echo(f'  - *.{ext}: chunk files')

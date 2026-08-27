@@ -64,6 +64,13 @@ body.letter {
   display: flex;
   align-items: center;
   min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-logo:focus-visible {
+  outline: 2px solid var(--letter-menubar-ink);
+  outline-offset: 3px;
 }
 
 /* The wordmark's dark half is set to currentColor so it reads on the bar;

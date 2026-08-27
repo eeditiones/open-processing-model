@@ -5,8 +5,8 @@ document into smaller pieces, transforms each one, and writes the results plus a
 manifest — ideal for static site generators and web components.
 
 ```bash
-uv run opm chunk demo/tei-test.xml -o chunks/ --force
-uv run opm chunk demo/tei-test.xml --depth 1 --force   # override chunking.depth
+uv run opm chunk examples/tei-test.xml -o chunks/ --force
+uv run opm chunk examples/tei-test.xml --depth 1 --force   # override chunking.depth
 ```
 
 Most settings come from the `[chunking]` section of `opm.toml`; CLI options
@@ -59,8 +59,8 @@ page), not the document element. The transform therefore emits an HTML
 write a `<head>` that works for both `opm chunk` and `opm transform`.
 
 ```bash
-uv run opm chunk demo/tei-test.xml --format json -o _data/chunks
-uv run opm chunk demo/tei-test.xml --format pb-view --doc-path my-doc -o public
+uv run opm chunk examples/tei-test.xml --format json -o _data/chunks
+uv run opm chunk examples/tei-test.xml --format pb-view --doc-path my-doc -o public
 ```
 
 Pass a directory of XML files to chunk every document. HTML and JSON write each
@@ -68,9 +68,12 @@ document into its own subdirectory (`<output-dir>/<file>.xml/`); `pb-view`
 appends the filename to `--doc-path`.
 
 ```bash
-uv run opm chunk docs/ -o chunks/ --force
-uv run opm chunk docs/ --format json -o _data/chunks
-uv run opm chunk docs/ --format pb-view --doc-path letters -o public
+uv run opm chunk examples/serafin/data/letters -c examples/serafin/opm.toml \
+  -o chunks/ --force
+uv run opm chunk examples/serafin/data/letters -c examples/serafin/opm.toml \
+  --format json -o _data/chunks
+uv run opm chunk examples/serafin/data/letters -c examples/serafin/opm.toml \
+  --format pb-view --doc-path letters -o public
 ```
 
 ## Fragments
@@ -162,12 +165,80 @@ subdirectory when chunking a directory of XML files (empty otherwise):
 link_pattern = "/{doc}/{file}"
 ```
 
+## Collection index
+
+Chunking a *directory* writes one subdirectory per document, plus an
+`index.html` at the output root listing them all. `http.server` serves
+`index.html` in preference to a directory listing, so `opm serve` shows a real
+landing page with no further configuration.
+
+Each entry links to its document's first chunk. What the entry *shows* comes
+from the document's global fragments, so the index is built the same way TEI
+Publisher builds `browse.html` — through the ODD. Declare a fragment using the
+`display='browse'` models the stock ODDs already provide:
+
+```toml
+[[chunking.fragments]]
+name = "browse"
+scope = "global"
+xpath = "(/article/info, /book/info)[1]"   # TEI: "//teiHeader"
+parameters = { display = "browse" }
+```
+
+Those models emit the whole browse record — heading, author, description — and
+build their own link from `$parameters?doc`. That parameter is supplied
+automatically, per document, so no further wiring is needed. To use a different
+URL scheme, set it explicitly; `{doc}`, `{file}` and `{stem}` expand exactly as
+in `link_pattern`:
+
+```toml
+parameters = { display = "browse", doc = "/exist/apps/edition/{doc}/{stem}" }
+```
+
+The index degrades gracefully when a project has no such models: it falls back
+to a `title` fragment if one is declared, and to a readable form of the filename
+otherwise. Every entry stays clickable in all three cases.
+
+Override the page itself with `chunking.index_template`. The template receives
+`documents` — each with `name`, `stem`, `label`, `href`, `chunks` and
+`fragments` — plus `title`:
+
+```jinja
+{% for doc in documents %}
+  <article>
+    {{ doc.fragments.browse or doc.fragments.title or doc.label }}
+    <a href="{{ doc.href }}">{{ doc.chunks }} sections</a>
+  </article>
+{% endfor %}
+```
+
+Because `fragments` is passed whole, adding an author or date column needs no
+code — just another global fragment in `opm.toml` and a reference to it here.
+
+The template also receives `odd_css` and `user_css`, resolved exactly as for
+chunk pages, so a browse record's `tei-*` classes are styled the same way on the
+index as inside the edition. Since Jinja loads includes from the template's own
+directory, an index template sitting beside the chunk template can pull in the
+same stylesheets and share its page shell:
+
+```jinja
+<style>{% include "chapbook.css" %}</style>
+{% if odd_css %}<style>{{ odd_css }}</style>{% endif %}
+...
+<body class="chapbook letter">
+  <nav class="app-menubar">…</nav>
+```
+
+`examples/serafin/templates/index.html.j2` does this: it reuses the letter
+template's menubar, toolbar and three stylesheets, and adds only the rules for
+the list itself, so the landing page cannot drift from the letters it links to.
+
 ## Previewing
 
 Chunk and preview in one step:
 
 ```bash
-uv run opm chunk demo/tei-test.xml -o chunks/ --force --preview
+uv run opm chunk examples/tei-test.xml -o chunks/ --force --preview
 ```
 
 Or serve an existing chunk directory:

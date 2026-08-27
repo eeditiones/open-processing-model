@@ -38,7 +38,8 @@ From this repository, with the jinks sources checked out next to it, chunk every
 documentation file in one go:
 
 ```bash
-uv run opm chunk ../jinks/profiles/docs/data/doc -c teipublisher.toml --format pb-view
+uv run opm chunk ../jinks/profiles/docs/data/doc \
+  -c examples/docbook/opm.toml --format pb-view
 ```
 
 `--format pb-view` writes files in the layout `pb-view` expects when it loads
@@ -82,11 +83,10 @@ Publisher falls back to transforming on the fly.
 
 ## Matching the split to TEI Publisher
 
-The example command reads its settings from `teipublisher.toml` in this
-repository. A smaller, self-contained copy of the same setup lives in
-[`examples/docbook`](../../examples/docbook) (one article, handbook template,
-local `opm.toml`). Two settings must line up with how TEI Publisher already
-displays the documents.
+The example command reads its settings from
+[`examples/docbook/opm.toml`](../../examples/docbook), a self-contained DocBook
+setup — one article, handbook template, section chunking. Two settings must line
+up with how TEI Publisher already displays the documents.
 
 ### `depth`
 
@@ -130,11 +130,11 @@ that subcollection name.
 
 ### Other settings in the example
 
-A few more keys in `teipublisher.toml` matter for this workflow:
+A few more keys in `examples/docbook/opm.toml` matter for this workflow:
 
 | Setting | Role in this example |
 | --- | --- |
-| `[transform] odd` | `odd/docbook.odd` — the documentation is written in DocBook, not TEI |
+| `[transform] odd` | `odd/docbook.odd` — the documentation is written in DocBook, not TEI (the example ships its own copy) |
 | `selector` | `opm.navigation.dbk_section_chunks` — split on DocBook `section` (use `tei_div_chunks` for TEI `div`) |
 | `[transform.web.webcomponents] enabled` | `true` — emit TEI Publisher web components so the cached HTML works inside `pb-view` |
 | `[[chunking.fragments]]` | Extra pieces the documentation page also needs: title, table of contents, breadcrumbs |

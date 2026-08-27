@@ -14,7 +14,7 @@ packaged default template is used. `opm init` copies editable shells into
 in this repo (`tufte.html.j2`, `bootstrap.html.j2`, …) are demos, not packaged.
 
 ```bash
-uv run opm transform demo/tei-test.xml -d odd/teipublisher.odd \
+uv run opm transform examples/tei-test.xml \
   --template templates/tufte.html.j2 --css styles/main.css -o out.html
 ```
 

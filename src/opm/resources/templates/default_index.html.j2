@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!-- opm-default-index-template -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  {% if odd_css %}
+  <style type="text/css">
+{{ odd_css }}
+  </style>
+  {% endif %}
+  {% if user_css %}
+  <style type="text/css">
+{{ user_css }}
+  </style>
+  {% endif %}
+  <style type="text/css">
+    :root { color-scheme: light dark; }
+    body {
+      margin: 0 auto;
+      padding: 2rem 1.25rem 4rem;
+      max-width: 46rem;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+    .index-title { font-size: 1.5rem; font-weight: 600; margin: 0 0 1.5rem; }
+    .index-list { list-style: none; margin: 0; padding: 0; }
+    .index-item { padding: 1rem 0; border-top: 1px solid rgba(128, 128, 128, .3); }
+    .index-item :is(h1, h2, h3, h4, h5, h6) { margin: 0 0 .25rem; font-size: 1.05rem; }
+    .index-item a { text-decoration: none; }
+    .index-item a:hover { text-decoration: underline; }
+    .index-meta { font-size: .85rem; opacity: .7; }
+    .sample-description { font-size: .9rem; opacity: .85; }
+  </style>
+</head>
+<body class="content">
+  <h1 class="index-title">{{ title }}</h1>
+  <ul class="index-list">
+    {% for doc in documents %}
+    <li class="index-item">
+      {#
+        Prefer the ODD's own browse record: models with
+        $parameters?display='browse' emit heading, author and description, and
+        build their own link from $parameters?doc. Fall back progressively when
+        a project has not defined those models.
+      #}
+      {% if doc.fragments.browse %}
+      {{ doc.fragments.browse | safe }}
+      {% elif doc.fragments.title %}
+      <h2><a href="{{ doc.href }}">{{ doc.fragments.title | safe }}</a></h2>
+      {% else %}
+      <h2><a href="{{ doc.href }}">{{ doc.label }}</a></h2>
+      {% endif %}
+      {#
+        Always repeat the link here, outside the browse record. It keeps the
+        entry reachable when an ODD's browse models emit no link of their own,
+        and never nests inside the anchor they may have produced.
+      #}
+      <div class="index-meta">
+        <a href="{{ doc.href }}">{{ doc.name }}</a> ·
+        {{ doc.chunks }} {{ 'section' if doc.chunks == 1 else 'sections' }}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</body>
+</html>

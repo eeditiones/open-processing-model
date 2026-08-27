@@ -10,6 +10,7 @@ from lxml import etree
 
 DEFAULT_TEMPLATE_NAME = 'default_document.html.j2'
 DEFAULT_TYPST_TEMPLATE_NAME = 'default_document.typ.j2'
+DEFAULT_INDEX_TEMPLATE_NAME = 'default_index.html.j2'
 
 
 def default_template_path(template_name: str = DEFAULT_TEMPLATE_NAME) -> Path:
@@ -97,6 +98,38 @@ def render_document_template(
         parameters=parameters or {},
         lang=html_root.get('lang', ''),
         webcomponents_url=webcomponents_url,
+    )
+
+
+def render_index_template(
+    *,
+    entries: list,
+    template_path: Path,
+    title: str,
+    odd_css: str | None = None,
+    user_css: str | None = None,
+) -> str:
+    """Render a collection index listing chunked documents.
+
+    The template receives ``documents`` (a list of
+    :class:`~opm.chunking.IndexEntry`), ``title``, ``odd_css`` and ``user_css``.
+    Each entry exposes ``fragments``, so a project controls what the index shows
+    by declaring global fragments in ``opm.toml`` — no code change needed to add
+    an author or date column.
+    """
+    env = Environment(
+        loader=FileSystemLoader(str(template_path.parent)),
+        autoescape=False,
+    )
+    try:
+        tpl = env.get_template(template_path.name)
+    except TemplateNotFound as e:
+        raise FileNotFoundError(f'Template not found: {template_path}') from e
+    return tpl.render(
+        documents=entries,
+        title=title,
+        odd_css=odd_css or '',
+        user_css=user_css or '',
     )
 
 

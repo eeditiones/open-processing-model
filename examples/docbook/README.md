@@ -1,8 +1,9 @@
 # DocBook documentation
 
 A worked `opm` project for handbook-style DocBook, matching the TEI Publisher
-documentation setup in `teipublisher.toml`: section chunking, global TOC and
-title fragments, and per-chunk breadcrumbs.
+documentation setup: section chunking, global TOC, title and browse fragments,
+and per-chunk breadcrumbs. This is the config
+[Integration with TEI Publisher](../../docs/guide/tei-publisher.md) refers to.
 
 Two articles ship here (Gentle Introduction and Installing). The rest of the
 corpus lives in the Jinks docs profile (`../jinks/profiles/docs/data/doc`).

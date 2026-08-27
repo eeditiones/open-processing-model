@@ -37,7 +37,19 @@ xpath = ".//text[@type='source']/div"
 xpath_dynamic = "//text[@type = 'source']"
 output_dir = "chunks"
 template = "templates/letter.html.j2"
+# Landing page for a directory run, sharing the letter template's shell and CSS.
+index_template = "templates/index.html.j2"
+index_title = "Listy"
 doc_path = "letters"
+
+# Collection index entry for `opm chunk data/letters` (a directory run).
+# The ODD's display='browse' models render title, place and date, and build
+# their own link from $parameters?doc, which opm supplies per document.
+[[chunking.fragments]]
+name = "browse"
+scope = "global"
+xpath = "//teiHeader"
+parameters = { display = "browse" }
 
 [[chunking.fragments]]
 name = "translation"

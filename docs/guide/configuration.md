@@ -3,7 +3,7 @@
 Place an `opm.toml` file in the project root to set defaults for all CLI
 commands. `opm init` writes a working file; every section is optional, and CLI
 options always override config values. Pass a different file with `-c` (for
-example `teipublisher.toml` for a project-specific setup — see
+example `examples/docbook/opm.toml` for a project-specific setup — see
 [Integration with TEI Publisher](tei-publisher.md)).
 
 The schema below is loaded into
@@ -17,7 +17,7 @@ pythonpath = ["extensions"]
 
 [transform]
 # Default ODD for every output mode (compiled on demand)
-odd = "odd/teipublisher.odd"
+odd = "odd/my-customisation.odd"
 # XPath extension modules loaded for every transform (see XPath extensions guide)
 xpath_extensions = ["extensions.my_functions"]
 # XML documents available to XPath doc(); paths are relative to this config file
@@ -47,7 +47,7 @@ css = "styles/main.css"
 
 [chunking]
 # ODD used for chunking (falls back to [transform].odd / packaged default)
-# odd = "odd/teipublisher.odd"
+# odd = "odd/my-customisation.odd"
 # XPath expression selecting chunk root elements
 xpath = "//text/body/div"
 # Python callable for custom chunk selection logic
@@ -60,6 +60,10 @@ output_dir = "chunks"
 template = "templates/chunk.html.j2"
 # URL pattern for cross-chunk links ({file}, {stem}, {anchor}, {doc} placeholders)
 link_pattern = "/{doc}/{file}"
+# Jinja2 template for the collection index written when chunking a directory
+index_template = "templates/index.html.j2"
+# Heading for that index (default: the input directory name)
+index_title = "Correspondence"
 ```
 
 ## Sections
@@ -111,7 +115,7 @@ treated as the shared default when `[transform].odd` is omitted. Legacy
 top-level `[docx]` / `[typst]` sections are still accepted as a fallback.
 
 ```bash
-uv run opm transform demo/tei-test.xml -c teipublisher.toml -t web --preview
-uv run opm transform demo/tei-test.xml -c teipublisher.toml -t typst -o out.typ
-uv run opm transform demo/tei-test.xml -c teipublisher.toml -t docx -o out.docx
+uv run opm transform examples/tei-test.xml -t web --preview
+uv run opm transform examples/tei-test.xml -t typst -o out.typ
+uv run opm transform examples/tei-test.xml -t docx -o out.docx
 ```
