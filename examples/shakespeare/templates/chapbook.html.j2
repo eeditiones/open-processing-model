@@ -1,4 +1,6 @@
 <!doctype html>
+{% set is_chunk = chunk is defined and chunk %}
+{% set show_facsimile = is_chunk and context.webcomponents_url and context.facsimile_viewer %}
 <html lang="{{ lang|default('en') }}">
 <head>
   <meta charset="utf-8">
@@ -24,14 +26,24 @@
   {% if context.webcomponents_url %}
   <script type="module" src="{{ context.webcomponents_url }}"></script>
   {% endif %}
+  {% if show_facsimile %}
+  <!-- pb-tify ships as its own entry point; the bundle above does not carry it -->
+  <script type="module" src="{{ context.facsimile_viewer }}"></script>
+  {% endif %}
 </head>
-{% set is_chunk = chunk is defined and chunk %}
 <body class="chapbook">
+  {% if show_facsimile %}
+  <!-- pb-components resolve relative URLs against the endpoint of an ancestor
+       <pb-page>; without one getEndpoint() is undefined and pb-tify asks for
+       /undefined/assets/…. "." makes the manifest resolve beside the page.
+       api-version is pinned so pb-page does not probe ./api/version. -->
+  <pb-page endpoint="." api-version="1.0.0" theme="{{ context.webcomponents_theme }}">
+  {% endif %}
   <header class="chap-running">
     <span class="chap-running__work">{{ work_title or 'Chapbook' }}</span>
   </header>
 
-  <main class="chap-page{% if is_chunk %} chap-page--chunk{% endif %}{% if fragments is defined and fragments.toc %} chap-page--with-toc{% endif %}">
+  <main class="chap-page{% if is_chunk %} chap-page--chunk{% endif %}{% if fragments is defined and fragments.toc %} chap-page--with-toc{% endif %}{% if show_facsimile %} chap-page--with-facs{% endif %}">
     <div class="chap-body">
       {% if fragments is defined and fragments.toc %}
       <aside class="chap-toc">
@@ -56,6 +68,13 @@
       <article class="content">
         {{ content_html | safe }}
       </article>
+      {% if show_facsimile %}
+      <!-- pb-facs-link emits the manifest URL and page index on the
+           "transcription" channel; pb-tify subscribes and turns to that page. -->
+      <aside class="chap-facs" aria-label="Facsimile">
+        <pb-tify subscribe="transcription" emit="transcription"></pb-tify>
+      </aside>
+      {% endif %}
     </div>
   </main>
 

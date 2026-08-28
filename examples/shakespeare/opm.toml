@@ -1,0 +1,84 @@
+[project]
+pythonpath = ["extensions"]
+
+[transform]
+odd = "odd/shakespeare.odd"
+xpath_extensions = [
+    "opm.runtime.common_xpath_functions"
+]
+
+# Values the chapbook template reads. Nothing here reaches XPath — that is what
+# [transform.parameters] is for — so TOML types survive untouched.
+[context]
+# The unit this edition is chunked into. Page chunking makes a folio page the
+# chunk, so the running header says "Folio 12", not "Cap. 12".
+page_label = "Folio"
+
+# pb-tify (a IIIF viewer wrapping Tify) is published as its own entry point
+# rather than inside pb-components-bundle.js, so the template loads it from a
+# second <script>. Declaring the URL here rather than hard-coding it in the
+# template keeps the version pinned next to webcomponents.version below, and
+# unsetting it drops both the script and the facsimile column.
+facsimile_viewer = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.7/dist/pb-tify.js"
+
+# <pb-page> loads a component theme stylesheet; left unset it looks for
+# components.css beside the page and 404s. Point it at the packaged one.
+webcomponents_theme = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.7/css/components.css"
+
+# The <pb> models build the facsimile link from the document's own path:
+# substring-after(document-uri(root($parameters?root)), $global:data-root || '/').
+# data-root names the directory that path is taken relative to, which is what
+# reduces .../data/F-ado.xml to F-ado.xml. address-by-id would key on
+# TEI/@xml:id instead, which this document does not carry.
+[transform.namespaces]
+global = "http://teipublisher.com/global"
+
+[transform.variables.global]
+data-root = "data"
+address-by-id = false
+
+# teipublisher.odd carries a <pb> model for exactly this case: a static export
+# with no api/iiif endpoint behind it. `static` selects it, and `context-path`
+# is the prefix it builds the manifest URL from — together they yield
+# facs="assets/F-ado.xml/manifest.json", which is where [chunking] assets puts
+# the manifest below. No ODD override involved.
+[transform.parameters]
+static = "1"
+context-path = "assets"
+
+[transform.typst]
+template = "templates/book.typ.j2"
+
+[transform.web.webcomponents]
+# The <pb> model emits <pb-facs-link>, which stays inert markup showing the
+# folio number until the pb-components bundle is loaded. With it on, each folio
+# announces its manifest and page index on the "transcription" channel and the
+# <pb-tify> viewer in the template turns to that page.
+enabled = true
+
+[document]
+template = "templates/chapbook.html.j2"
+
+# One chunk per <pb/> milestone rather than per division: `tei_pb_chunks`
+# reconstructs the page as a synthetic tree, carrying the intervening <div>,
+# <sp> and <lg> structure across the page boundary. `view = "page"` matches the
+# key a pb-view sends for that mode.
+[chunking]
+view = "page"
+selector = "opm.navigation.tei_pb_chunks"
+output_dir = "chunks"
+template = "templates/chapbook.html.j2"
+# Copied verbatim into <output-root>/assets/, keeping the directory name — so
+# iiif/F-ado.xml/manifest.json lands at assets/F-ado.xml/manifest.json, the URL
+# the <pb> model above emits.
+assets = ["iiif/F-ado.xml"]
+
+[[chunking.fragments]]
+name = "title"
+scope = "global"
+xpath = "(//teiHeader/fileDesc/titleStmt/title)[1]"
+parameters = { mode = "title" }
+
+# No breadcrumb fragment: a folio page is not a division, so there is no
+# heading trail to show. The template falls back to a drop-cap folio opening,
+# labelled from [context] above.

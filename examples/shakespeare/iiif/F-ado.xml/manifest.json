@@ -1,0 +1,565 @@
+{
+ "@context": "http://iiif.io/api/presentation/2/context.json",
+ "@id": "https://e-editiones.org/manifest/F-ado.xml",
+ "@type": "sc:Manifest",
+ "label": "Much Adoe about Nothing from Mr. William Shakespeares comedies, histories, & tragedies. Published according to the true originall copies.",
+ "metadata": [
+  {
+   "label": "Source",
+   "value": "Bodleian First Folio, Arch. G c.7"
+  }
+ ],
+ "sequences": [
+  {
+   "@type": "sc:Sequence",
+   "canvases": [
+    {
+     "@id": "https://e-editiones.org/canvas/axc0121-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 101",
+     "width": 800,
+     "height": 1380,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0121-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0121-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1380,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0121-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0122-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 102",
+     "width": 800,
+     "height": 1320,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0122-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0122-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1320,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0122-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0123-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 103",
+     "width": 800,
+     "height": 1384,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0123-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0123-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1384,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0123-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0124-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 104",
+     "width": 800,
+     "height": 1320,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0124-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0124-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1320,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0124-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0125-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 105",
+     "width": 800,
+     "height": 1398,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0125-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0125-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1398,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0125-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0126-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 106",
+     "width": 800,
+     "height": 1320,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0126-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0126-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1320,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0126-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0127-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 107",
+     "width": 800,
+     "height": 1387,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0127-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0127-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1387,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0127-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0128-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 108",
+     "width": 800,
+     "height": 1320,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0128-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0128-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1320,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0128-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0129-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 109",
+     "width": 800,
+     "height": 1372,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0129-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0129-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1372,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0129-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0130-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 110",
+     "width": 800,
+     "height": 1320,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0130-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0130-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1320,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0130-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0131-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 111",
+     "width": 800,
+     "height": 1384,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0131-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0131-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1384,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0131-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0132-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 112",
+     "width": 800,
+     "height": 1320,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0132-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0132-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1320,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0132-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0133-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 113",
+     "width": 800,
+     "height": 1388,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0133-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0133-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1388,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0133-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0134-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 114",
+     "width": 800,
+     "height": 1320,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0134-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0134-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1320,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0134-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0135-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 115",
+     "width": 800,
+     "height": 1384,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0135-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0135-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1384,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0135-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0136-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 116",
+     "width": 800,
+     "height": 1320,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0136-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0136-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1320,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0136-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0137-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 117",
+     "width": 800,
+     "height": 1380,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0137-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0137-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1380,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0137-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0138-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 118",
+     "width": 800,
+     "height": 1320,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0138-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0138-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1320,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0138-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0139-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 119",
+     "width": 800,
+     "height": 1380,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0139-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0139-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1380,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0139-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0140-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 120",
+     "width": 800,
+     "height": 1320,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0140-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0140-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1320,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0140-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "@id": "https://e-editiones.org/canvas/axc0141-0.jpg",
+     "@type": "sc:Canvas",
+     "label": "Folio 121",
+     "width": 800,
+     "height": 1388,
+     "images": [
+      {
+       "@type": "oa:Annotation",
+       "motivation": "sc:painting",
+       "on": "https://e-editiones.org/canvas/axc0141-0.jpg",
+       "resource": {
+        "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0141-0.jpg/full/full/0/default.jpg",
+        "@type": "dctypes:Image",
+        "format": "image/jpeg",
+        "width": 800,
+        "height": 1388,
+        "service": {
+         "@context": "http://iiif.io/api/image/2/context.json",
+         "@id": "https://apps.existsolutions.com/cantaloupe/iiif/2/axc0141-0.jpg",
+         "profile": "http://iiif.io/api/image/2/level2.json"
+        }
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

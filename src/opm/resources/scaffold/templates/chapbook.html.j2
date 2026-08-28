@@ -26,29 +26,12 @@
   {% endif %}
 </head>
 {% set is_chunk = chunk is defined and chunk %}
-{% if is_chunk %}
-  {% set folio = chunk.file.replace('.html', '') %}
-  {% set chapter_num = folio.lstrip('0') or '0' %}
-{% endif %}
 <body class="chapbook">
   <header class="chap-running">
     <span class="chap-running__work">{{ work_title or 'Chapbook' }}</span>
-    {% if is_chunk %}
-    <span class="chap-running__folio">Cap. {{ chapter_num }}</span>
-    {% endif %}
   </header>
 
   <main class="chap-page{% if is_chunk %} chap-page--chunk{% endif %}{% if fragments is defined and fragments.toc %} chap-page--with-toc{% endif %}">
-    {% if is_chunk %}
-    <header class="chap-opening">
-      {% if fragments is defined and fragments.breadcrumbs %}
-      {{ fragments.breadcrumbs | safe }}
-      {% else %}
-      <span class="chap-opening__numeral" aria-hidden="true">{{ chapter_num }}</span>
-      <p class="chap-opening__label">Chapter {{ chapter_num }}</p>
-      {% endif %}
-    </header>
-    {% endif %}
     <div class="chap-body">
       {% if fragments is defined and fragments.toc %}
       <aside class="chap-toc">
@@ -87,7 +70,6 @@
       </a>
       {% endif %}
     </div>
-    <div class="chap-folio-nav__mark" aria-hidden="true">— {{ folio }} —</div>
     <div class="chap-folio-nav__next">
       {% if chunk.next %}
       <a href="{{ chunk.next }}.html">
