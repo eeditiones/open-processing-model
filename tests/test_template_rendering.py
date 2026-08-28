@@ -120,7 +120,6 @@ def test_render_document_template_exposes_context(tmp_path: Path) -> None:
         serialized_html='<html><head></head><body><p>Body</p></body></html>',
         template_path=_write_context_template(tmp_path),
         odd_css=None,
-        user_css=None,
         parameters={},
         context={
             'site_name': 'My Edition',
@@ -142,7 +141,6 @@ def test_missing_context_keys_render_as_falsy(tmp_path: Path) -> None:
         serialized_html='<html><head></head><body><p>Body</p></body></html>',
         template_path=_write_context_template(tmp_path),
         odd_css=None,
-        user_css=None,
         parameters={},
         context=None,
     )

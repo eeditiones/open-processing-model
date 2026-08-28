@@ -63,7 +63,6 @@ def render_document_template(
     serialized_html: str,
     template_path: Path,
     odd_css: str | None,
-    user_css: str | None,
     parameters: dict[str, str],
     context: dict | None = None,
 ) -> str:
@@ -100,7 +99,6 @@ def render_document_template(
         head_html=head_content,
         content_html=_inner_html(body),
         odd_css=effective_odd_css,
-        user_css=user_css or '',
         parameters=parameters or {},
         lang=html_root.get('lang', ''),
         context=context or {},

@@ -218,7 +218,6 @@ def run_transform(
     webcomponents: bool = False,
     apply_template: bool = True,
     template_path: Path | None = None,
-    user_css: str | None = None,
     template_context: dict[str, Any] | None = None,
     docx_template: Path | None = None,
     typst_template_path: Path | None = None,
@@ -244,9 +243,6 @@ def run_transform(
         webcomponents: Enable TEI Publisher web-component mode.
         apply_template: Wrap full-document HTML output in the Jinja2 template.
         template_path: Override Jinja2 template (default: packaged template).
-        user_css: Extra CSS inlined into ``<head>`` of full-document output.
-            A library hook: the CLI leaves this unset, since ``--css`` /
-            ``[document] css`` is compiled into the ODD stylesheet instead.
         template_context: Project ``[context]`` values exposed to the Jinja2
             template as ``context`` (see
             :meth:`~opm.config.ProjectConfig.context_for`).
@@ -309,7 +305,6 @@ def run_transform(
             serialized_html=out,
             template_path=tpl,
             odd_css=getattr(mod, 'ODD_GENERATED_CSS', ''),
-            user_css=user_css or '',
             parameters=parameters or {},
             context=template_context,
         )
@@ -327,7 +322,6 @@ def transform_node(
     webcomponents: bool = False,
     apply_template: bool = True,
     template_path: Path | None = None,
-    user_css: str | None = None,
     template_context: dict[str, Any] | None = None,
     docx_template: Path | None = None,
     typst_template_path: Path | None = None,
@@ -358,9 +352,6 @@ def transform_node(
         webcomponents: Enable TEI Publisher web-component mode.
         apply_template: Wrap full-document HTML output in the Jinja2 template.
         template_path: Override Jinja2 template (default: packaged template).
-        user_css: Extra CSS inlined into ``<head>`` of full-document output.
-            A library hook: the CLI leaves this unset, since ``--css`` /
-            ``[document] css`` is compiled into the ODD stylesheet instead.
         template_context: Project ``[context]`` values exposed to the Jinja2
             template as ``context``.
     """
@@ -398,7 +389,6 @@ def transform_node(
         webcomponents=webcomponents,
         apply_template=apply_template,
         template_path=template_path,
-        user_css=user_css,
         template_context=template_context,
         docx_template=docx_template,
         typst_template_path=typst_template_path,
@@ -419,7 +409,6 @@ def transform_file(
     xpath_extensions: Sequence[str] | None = None,
     webcomponents: bool | None = None,
     template: Path | None = None,
-    user_css: str | None = None,
     config: ProjectConfig | None = None,
 ) -> str | bytes:
     """Transform *xml_path* (or an XPath-selected element within it) and return the result.
@@ -438,7 +427,6 @@ def transform_file(
         webcomponents: Enable web-component mode.
             ``None`` uses ``[transform.web.webcomponents] enabled`` from config.
         template: Jinja2 template override for full-document HTML output.
-        user_css: CSS string for full-document HTML output.
         config: Pre-loaded :class:`~opm.config.ProjectConfig`.
             When ``None``, ``opm.toml`` is loaded from the CWD.
 
@@ -482,7 +470,6 @@ def transform_file(
         xpath_extensions=effective_extensions or None,
         webcomponents=effective_webcomponents,
         template_path=template if template is not None else cfg.document_template,
-        user_css=user_css,
         template_context=template_context,
         docx_template=cfg.document_docx_template,
         typst_template_path=template if template is not None else cfg.typst_template,

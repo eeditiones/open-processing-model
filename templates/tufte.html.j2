@@ -18,11 +18,6 @@
 {{ odd_css }}
   </style>
   {% endif %}
-  {% if user_css %}
-  <style type="text/css">
-{{ user_css }}
-  </style>
-  {% endif %}
   {% if context.webcomponents_url %}
   <script type="module" src="{{ context.webcomponents_url }}"></script>
   {% endif %}
