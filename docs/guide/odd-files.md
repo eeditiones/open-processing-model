@@ -7,16 +7,16 @@ transform module. The compiled module will automatically be cached for further u
 To learn more about ODD, it is best to read the [TEI Publisher documentation](https://teipublisher.org/doc/documentation.xml?id=odd#odd).
 It also includes a small tutorial in the [Gentle Introduction](https://teipublisher.org/doc/quickstart.xml?id=pm-tutorial#pm-tutorial) document.
 
-Example ODD files ship in the repo under `odd/` for demos and tests. The library
-packages two stock models:
+The library packages two stock models:
 
 - `teipublisher.odd` (+ `tp.css`) — main TEI Publisher model, and the fallback
   when `--odd` is omitted
 - `docbook.odd` (+ `docbook.css`) — DocBook v5 model (`opm init --vocabulary docbook`)
 
 `opm init` writes a short `odd/custom.odd` that inherits packaged `teipublisher`,
-or copies `docbook.odd` into the project. Other files under repo `odd/`
-(`shakespeare.odd`, …) are examples, not packaged.
+or copies `docbook.odd` into the project. For worked customisations, see the
+projects under `examples/`, each of which ships its own ODD (for instance
+`examples/shakespeare/odd/shakespeare.odd`).
 
 `schemaSpec/@source` is resolved next to the child ODD first, then as a packaged
 stock ODD — so `source="teipublisher.odd"` works after a pip install without
