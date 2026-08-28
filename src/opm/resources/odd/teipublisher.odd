@@ -531,16 +531,15 @@
                 </elementSpec>
                 <elementSpec ident="pb" mode="change">
                     <model output="print" behaviour="omit"/>
-                    <modelSequence output="typst">
-                        <desc>Inline page-break marker; @n as margin note</desc>
-                        <model behaviour="inline">
-                            <param name="content" value="'|'"/>
-                        </model>
-                        <model predicate="@n" behaviour="note">
-                            <param name="place" value="'margin'"/>
-                            <param name="content" value="@n"/>
-                        </model>
-                    </modelSequence>
+                    <model output="typst" behaviour="inline">
+                        <desc>Inline page-break marker: |&lt;n&gt; in a small font. A
+                            margin note per page break is too loud in a running text —
+                            the number belongs next to the break it marks.</desc>
+                        <param name="content" value="'|' || @n"/>
+                        <outputRendition xml:space="preserve">
+                        font-size: 0.75em; color: grey;
+                        </outputRendition>
+                    </model>
                     <model predicate="$parameters?mode='title'" behaviour="inline">
                         <param name="content" value="root($parameters?root)//teiHeader/fileDesc/titleStmt"/>
                         <param name="page" value="head((@n, @facs))"/>
