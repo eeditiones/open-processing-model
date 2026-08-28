@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import shutil
 from dataclasses import dataclass, field
 from importlib import resources
@@ -15,12 +14,6 @@ DEFAULT_OUTPUTS = frozenset({'web', 'typst', 'docx', 'markdown'})
 
 _TEI_TITLE_XPATH = "(//teiHeader/fileDesc/titleStmt/title)[1]"
 _DBK_TITLE_XPATH = "(/article/info/title, /book/info/title)[1]"
-
-
-def _collection_path_segment(name: str) -> str:
-    """Slugify *name* for use in the generated collection URIs."""
-    slug = re.sub(r'[^0-9A-Za-z._-]+', '-', name).strip('-')
-    return slug or 'app'
 
 
 @dataclass
@@ -137,7 +130,6 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         chunk_selector=chunk_selector if options.chunking else '',
         chunk_depth=options.chunk_depth,
         title_xpath=title_xpath,
-        project_name=_collection_path_segment(dest_dir.name),
     )
     _record(config_path, written, skipped, _write_text(config_path, toml_text, force=force))
 

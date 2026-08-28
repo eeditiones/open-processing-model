@@ -19,12 +19,16 @@ global = "http://teipublisher.com/global"
 # element itself — which is what standalone opm projects have always done.
 [transform.variables.global]
 # Register of persons/places/organisations, resolved as collection($global:register-root).
-register-root = "/db/apps/{{ project_name }}/data/registers"
+# Any absolute URI works; this is just an opaque key that has to match the
+# [[transform.collections]] uri below. Porting from eXist? Paste that app's
+# $config:register-root here verbatim and the ODD needs no changes.
+register-root = "urn:registers"
 
 # Point a collection URI at the files it contains. Uncomment and list your
-# register files to make collection($global:register-root) resolve.
+# register files to make collection($global:register-root) resolve. `uri` must
+# match register-root above; the files themselves come from `documents`.
 # [[transform.collections]]
-# uri = "/db/apps/{{ project_name }}/data/registers"
+# uri = "urn:registers"
 # documents = [
 #     "data/registers/persons.xml",
 #     "data/registers/places.xml",
