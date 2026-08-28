@@ -36,7 +36,7 @@ from .xpath_extensions import (
 
 # One elementpath tree wrapper per document (key: id(document root element)).
 # Reusing it avoids build_lxml_node_tree() on every xpath_test / xpath_select_nodes.
-_document_xpath_roots: dict[int, object] = {}
+_document_xpath_roots: dict[tuple[int, str | None], object] = {}
 _XPATH_DOCUMENTS_PARAM = '__opm_xpath_documents'
 _XPATH_COLLECTIONS_PARAM = '__opm_xpath_collections'
 _XPATH_VARIABLES_PARAM = '__opm_xpath_variables'
@@ -102,16 +102,21 @@ def _cached_parameters_map(key: tuple[tuple[str, str], ...]):
 _params_map_with_root_cache: dict[tuple, Any] = {}
 
 
-def _parameters_map_with_root(params_key: tuple[tuple[str, str], ...], root: 'etree._Element') -> Any:
+def _parameters_map_with_root(
+    params_key: tuple[tuple[str, str], ...],
+    root: 'etree._Element',
+    base_uri: str | None = None,
+) -> Any:
     """Build a ``$parameters`` XPathMap that includes *root* as the ``root`` entry.
 
     Uses ``"root": .`` in the map literal with *root* as the XPath context item
     so the result is a proper XPathMap node value, not a plain Python dict.
     The wrapper is the document that contains *root*, so *root* may be the
     viewed chunk (tei-publisher-lib) rather than the document element.
-    Cached by (params_key, id(root)) — one map per distinct (params, view node).
+    Cached by (params_key, id(root), base_uri) — one map per distinct
+    (params, view node, document URI).
     """
-    cache_key = (params_key, id(root))
+    cache_key = (params_key, id(root), base_uri)
     hit = _params_map_with_root_cache.get(cache_key)
     if hit is not None:
         return hit
@@ -124,7 +129,7 @@ def _parameters_map_with_root(params_key: tuple[tuple[str, str], ...], root: 'et
     lit = 'map{' + ', '.join(parts) + '}'
     token = XPath31Parser().parse(lit)
     doc_root = root.getroottree().getroot()
-    wrapped = _xpath_root_wrapped(doc_root)
+    wrapped = _xpath_root_wrapped(doc_root, base_uri)
     ctx = XPathContext(root=wrapped, item=wrapped.elements[root])  # type: ignore[arg-type,index]
     result = list(token.select(ctx))[0]
     _params_map_with_root_cache[cache_key] = result
@@ -196,18 +201,26 @@ def _compiled_xpath(
     return _parse_xpath(expr, default_element_ns, ext_fp, ns_dict, base_uri)
 
 
-def _xpath_root_wrapped(root: etree._Element):
+def _xpath_root_wrapped(root: etree._Element, base_uri: str | None = None):
     """Return cached elementpath ``EtreeDocumentNode`` for *root*.
 
     Wraps the ``_ElementTree`` so that ``root()`` returns the document node per
     the XPath spec, making ``root(.)/TEI/text/back`` style paths work correctly.
     Context items are resolved via ``wrapped.elements[lxml_element]``.
+
+    *base_uri* is attached to the document node, which is what makes
+    ``document-uri()`` and ``base-uri()`` return the source file rather than the
+    empty sequence. The parser's static base URI is a separate thing — it
+    resolves relative arguments to ``doc()`` and ``collection()`` but never
+    reaches the tree — so both have to be supplied. teipublisher.odd derives
+    facsimile and static-page links from ``document-uri(root($parameters?root))``,
+    and gets nothing without this.
     """
-    key = id(root)
+    key = (id(root), base_uri)
     hit = _document_xpath_roots.get(key)
     if hit is not None:
         return hit
-    wrapped = get_node_tree(root.getroottree())  # type: ignore[arg-type]
+    wrapped = get_node_tree(root.getroottree(), uri=base_uri)  # type: ignore[arg-type]
     _document_xpath_roots[key] = wrapped
     return wrapped
 
@@ -336,13 +349,14 @@ def make_context(node: etree._Element, params: dict | None = None) -> XPathConte
     constructed fresh each call (it is lightweight — the expensive parts are cached).
     """
     tree_root = node.getroottree().getroot()
-    wrapped = _xpath_root_wrapped(tree_root)
+    base_uri = _xpath_base_uri(params)
+    wrapped = _xpath_root_wrapped(tree_root, base_uri)
     params_key = _params_cache_key(params)
     view_root = _xpath_view_root(params, node)
     if view_root is None:
         pmap = _cached_parameters_map(params_key)
     else:
-        pmap = _parameters_map_with_root(params_key, view_root)
+        pmap = _parameters_map_with_root(params_key, view_root, base_uri)
     # ODD-declared variables (e.g. $global:register-root) sit alongside
     # $parameters; a config key never shadows the parameters map.
     variables: dict[str, Any] = {'parameters': pmap}
@@ -352,11 +366,31 @@ def make_context(node: etree._Element, params: dict | None = None) -> XPathConte
             if name != 'parameters':
                 variables[name] = value
 
+    documents = _xpath_documents(params)
+    if view_root is not None:
+        view_tree_root = view_root.getroottree().getroot()
+        if view_tree_root is not tree_root:
+            # Chunking transforms a synthetic copy of the page, while
+            # $parameters?root still points into the original document. The two
+            # are separate lxml trees, and XPathContext.get_root() searches only
+            # the context root's tree and `documents` — so without registering
+            # the source document here, root($parameters?root) is the empty
+            # sequence. teipublisher.odd reaches the teiHeader through exactly
+            # that expression (page titles, facsimile links, static page links),
+            # so every one of those models silently degrades on chunk output.
+            # _xpath_root_wrapped is cached, so this is the same wrapped tree the
+            # $parameters map took its root node from — get_root() compares by
+            # identity and would not match a second, equal-but-distinct wrapper.
+            documents = dict(documents) if documents else {}
+            documents.setdefault(
+                base_uri or '', _xpath_root_wrapped(view_tree_root, base_uri),
+            )
+
     return XPathContext(
         root=wrapped,  # type: ignore[arg-type]
         item=wrapped.elements[node],  # type: ignore[union-attr,index]
         variables=variables,
-        documents=_xpath_documents(params),
+        documents=documents,
         collections=_xpath_collections(params),
     )
 

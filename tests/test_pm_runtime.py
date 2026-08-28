@@ -269,3 +269,67 @@ def test_serialize_after_inject() -> None:
     s = serialize([html])
     assert 'footnote' in s
     assert s.index('<p') < s.index('dl')
+
+
+def test_document_uri_reports_the_source_file(tmp_path) -> None:
+    """``document-uri()``/``base-uri()`` resolve to the input document.
+
+    The parser's static base URI only resolves relative doc()/collection()
+    arguments; the URI has to be attached to the node tree as well, or
+    teipublisher.odd's facsimile and static-link models get an empty sequence.
+    """
+    from opm.runtime.pm_runtime import xpath_runtime_context
+
+    xml = tmp_path / 'play.xml'
+    xml.write_text(
+        f'<TEI xmlns="{TEI_NS}"><text><body><p>x</p></body></text></TEI>',
+        encoding='utf-8',
+    )
+    root = etree.parse(str(xml)).getroot()
+    uri = xml.resolve().as_uri()
+    params = xpath_runtime_context(base_uri=uri, root=root)
+
+    assert xpath_select_nodes(root, 'string(document-uri(root(.)))', params) == uri
+    assert xpath_select_nodes(root, 'string(base-uri(root(.)))', params) == uri
+    assert xpath_select_nodes(
+        root, 'string(document-uri(root($parameters?root)))', params,
+    ) == uri
+
+
+def test_root_of_parameters_root_reaches_the_source_document(tmp_path) -> None:
+    """From a synthetic chunk copy, ``root($parameters?root)`` is the whole document.
+
+    Chunking transforms a rebuilt copy of the page, so the context node and
+    ``$parameters?root`` live in different lxml trees. ``XPathContext.get_root()``
+    searches only the context tree and its registered documents, so unless the
+    source document is registered this yields the empty sequence — and every ODD
+    model that walks up to the teiHeader degrades silently on chunk output.
+    """
+    from opm.runtime.pm_runtime import xpath_runtime_context
+
+    xml = tmp_path / 'play.xml'
+    header = '<teiHeader><fileDesc><titleStmt><title>Much Adoe</title></titleStmt></fileDesc></teiHeader>'
+    body = '<text><body><div><pb n="101"/><p>one</p><pb n="102"/><p>two</p></div></body></text>'
+    xml.write_text(
+        f'<TEI xmlns="{TEI_NS}">{header}{body}</TEI>', encoding='utf-8',
+    )
+    doc_root = etree.parse(str(xml)).getroot()
+    uri = xml.resolve().as_uri()
+    source_div = doc_root.find(f'.//{{{TEI_NS}}}div')
+
+    # Stand in for a chunk: a separate tree holding a copy of the page.
+    chunk = etree.fromstring(etree.tostring(source_div))
+    assert chunk.getroottree().getroot() is not doc_root
+
+    params = xpath_runtime_context(base_uri=uri, root=source_div)
+    pb = chunk.find(f'{{{TEI_NS}}}pb')
+
+    assert xpath_select_nodes(
+        pb, 'string(root($parameters?root)//teiHeader//title)', params,
+    ) == 'Much Adoe'
+    assert xpath_select_nodes(
+        pb, 'count(root($parameters?root)//pb)', params,
+    ) == 2
+    assert xpath_select_nodes(
+        pb, 'string(document-uri(root($parameters?root)))', params,
+    ) == uri

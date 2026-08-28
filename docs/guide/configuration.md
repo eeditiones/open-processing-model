@@ -103,6 +103,12 @@ chunking pipeline.
 the main XML document being processed, so `doc("lookup.xml")` resolves relative
 to that input document's URI and must match one of the configured document URIs.
 
+The same URI is attached to the document node, so `document-uri()` and
+`base-uri()` report the input file. Under `opm chunk` this holds inside a chunk
+too: the chunk is a rebuilt copy of the page, but `$parameters?root` still
+points into the source document, and `root($parameters?root)` reaches the whole
+of it — which is how ODD models climb back to the `teiHeader` from a page.
+
 ### Selecting an ODD by type
 
 `opm transform --type|-t` picks the ODD from config without passing `--odd`.
