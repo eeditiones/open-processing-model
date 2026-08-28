@@ -63,7 +63,7 @@ ODD-generated CSS, a user stylesheet, and optional tei-publisher web components.
 See [Templates & CSS](templates-and-css.md).
 
 ```bash
-uv run opm transform examples/tei-test.xml \
+uv run opm transform data/sample.xml \
   --preview --template templates/tufte.html.j2
 ```
 

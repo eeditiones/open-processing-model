@@ -90,8 +90,6 @@ Developers working in the git clone can still use the demo tree without `opm ini
 
 ```bash
 uv run opm transform examples/tei-test.xml --preview
-uv run opm transform examples/tei-test.xml \
-  --preview --template templates/tufte.html.j2
 uv run opm transform examples/tei-test.xml -t web --preview
 uv run opm chunk examples/tei-test.xml -o chunks/ --force --preview
 ```

@@ -10,11 +10,12 @@ section — is **not** a complete HTML document; the template supplies the shell
 Pass a template with `--template`, or set a default under `[document]` in
 `opm.toml`. Chunk pages use `chunking.template` instead. If none is given, a
 packaged default template is used. `opm init` copies editable shells into
-`templates/` (chapbook HTML plus Typst and Word templates). Example templates
-in this repo (`tufte.html.j2`, `bootstrap.html.j2`, …) are demos, not packaged.
+`templates/`: the `chapbook` and `handbook` HTML shells, the `tufte` and
+`bootstrap` demo shells, plus the Typst and Word templates. Edit them in place —
+they are yours once copied.
 
 ```bash
-uv run opm transform examples/tei-test.xml \
+uv run opm transform data/sample.xml \
   --template templates/tufte.html.j2 --css styles/main.css -o out.html
 ```
 

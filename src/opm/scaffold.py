@@ -196,6 +196,8 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         ('scaffold/templates/chapbook.css', dest_dir / 'templates' / 'chapbook.css'),
         ('scaffold/templates/handbook.html.j2', dest_dir / 'templates' / 'handbook.html.j2'),
         ('scaffold/templates/handbook.css', dest_dir / 'templates' / 'handbook.css'),
+        ('scaffold/templates/tufte.html.j2', dest_dir / 'templates' / 'tufte.html.j2'),
+        ('scaffold/templates/bootstrap.html.j2', dest_dir / 'templates' / 'bootstrap.html.j2'),
     ]
     if 'typst' in options.outputs:
         copies.append(
