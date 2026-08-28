@@ -13,7 +13,7 @@ the config file.
 ```toml
 [project]
 # Additional Python paths (relative to the config file) for custom extensions
-pythonpath = ["extensions"]
+pythonpath = ["."]
 
 [transform]
 # Default ODD for every output mode (compiled on demand)

@@ -1,10 +1,12 @@
 [project]
-pythonpath = ["extensions"]
+pythonpath = ["."]
 
 [transform]
 odd = "odd/serafin.odd"
 xpath_extensions = [
-    "opm.runtime.common_xpath_functions"
+    "opm.runtime.common_xpath_functions",
+    # Project-local module, importable because of [project] pythonpath above.
+    "extensions.serafin_functions"
 ]
 
 # Registers, reachable from XPath as collection($global:register-root).

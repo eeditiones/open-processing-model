@@ -1,7 +1,7 @@
 [project]
 # Additional Python import paths for local extension modules.
 # Paths are resolved relative to this config file.
-# pythonpath = ["extensions"]
+# pythonpath = ["."]
 
 [transform]
 # Default ODD for every output mode (compiled on demand into the user cache).

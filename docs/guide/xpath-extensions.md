@@ -8,17 +8,19 @@ lookups, and so on.
 ## Writing an extension module
 
 An extension module is an ordinary Python module. Every **public** callable (a
-name that does not start with `_`) is registered as `tp:<name>`. Underscores in
-the Python name become hyphens in XPath, matching XPath naming conventions.
+name that does not start with `_`) is registered as `tp:<name>`, spelled exactly
+as in Python — `gap_dots` is called as `tp:gap_dots(…)`. Names imported into the
+module are registered too, so alias helpers you only use internally with a
+leading underscore to keep them out of the `tp:` namespace.
 
 ```python
 # extensions/my_functions.py
-from opm.runtime.xpath_extensions import expect_string
+from opm.runtime.xpath_extensions import expect_string as _expect_string
 
 
 def shout(value):
     """Available in ODD XPath as tp:shout(...)."""
-    return expect_string(value, arg_name='shout(value)').upper()
+    return _expect_string(value, arg_name='shout(value)').upper()
 ```
 
 In an ODD model predicate or parameter:
@@ -26,6 +28,11 @@ In an ODD model predicate or parameter:
 ```xml
 <param name="label" value="tp:shout(@type)"/>
 ```
+
+A worked example ships with the Serafin project:
+`examples/serafin/extensions/serafin_functions.py` defines `gap_dots`, and
+`examples/serafin/odd/serafin.odd` calls it as `tp:gap_dots(@quantity)` to spell
+a lacuna of known extent in Leiden dots — `[....]` for four lost characters.
 
 ## Argument coercion helpers
 
@@ -80,11 +87,15 @@ Or for every command, in `opm.toml`:
 
 ```toml
 [project]
-pythonpath = ["extensions"]   # make local modules importable
+pythonpath = ["."]            # project root on sys.path
 
 [transform]
 xpath_extensions = ["extensions.my_functions"]
 ```
+
+`pythonpath` entries are added to `sys.path` as given (resolved relative to the
+config file), so `["."]` plus the `extensions/__init__.py` that `opm init`
+writes is what makes the dotted `extensions.my_functions` importable.
 
 See [Configuration](configuration.md) for the full schema.
 

@@ -62,7 +62,7 @@
                     <!-- Leiden: a lost passage of known extent is one dot per lost
                          character, inside square brackets — [....] for four. -->
                     <model output="typst" predicate="@unit = 'chars' and @quantity and xs:integer(@quantity) le 10" behaviour="inline">
-                        <param name="content" value="'[' || string-join((1 to xs:integer(@quantity)) ! '.', '') || ']'"/>
+                        <param name="content" value="tp:gap_dots(@quantity)"/>
                     </model>
                     <!-- Beyond a handful of characters Leiden allows the count in place
                          of the dots, so a long lacuna does not become a rule of dots. -->

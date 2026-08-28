@@ -1,5 +1,5 @@
 [project]
-pythonpath = ["extensions"]
+pythonpath = ["."]
 
 [transform]
 odd = "odd/docbook.odd"
