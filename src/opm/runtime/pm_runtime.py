@@ -27,6 +27,7 @@ from elementpath.xpath_nodes import XPathNode
 from elementpath.xpath31.xpath31_parser import XPath31Parser
 from lxml import etree
 
+from . import source_map
 from .output_functions import TemplateOutput, child_nodes, maybe_normalize_text, normalize
 from .xpath_extensions import (
     build_extension_parser,
@@ -149,6 +150,40 @@ def _default_element_namespace_uri(node: etree._Element) -> str:
     return uri or ''
 
 
+def _xpath_source_node(node):
+    """``tp:source-node(x)`` — the stored-document node *x* was copied from.
+
+    What ``$get(x)`` in a tei-publisher ODD compiles to. Inside a chunk the
+    context node belongs to a rebuilt, detached tree, so document-order axes
+    would see only that page; resolving to the source node first is what makes
+    ``count($get(.)/preceding::pb) + 1`` count pages across the whole document.
+
+    Returns a node from the wrapped source tree (not a bare lxml element):
+    elementpath rejects an atomic value as an intermediate path step, so
+    ``$get(.)/preceding::pb`` would raise XPTY0019. Outside chunking nothing is
+    recorded and the argument comes back untouched, which is the identity
+    behaviour ``$get`` has on a whole document.
+    """
+    el = node.value if isinstance(node, XPathNode) else node
+    if not isinstance(el, etree._Element):
+        return node
+    source = source_map.source_of(el)
+    if source is None or source is el:
+        return node
+    wrapped = _xpath_root_wrapped(
+        source.getroottree().getroot(), source_map.base_uri(),
+    )
+    try:
+        return wrapped.elements[source]  # type: ignore[union-attr,index]
+    except (KeyError, TypeError):
+        return node
+
+
+# Registered on every parser, so an ODD may use $get() without the project
+# having to configure any XPath extension module.
+_BUILTIN_XPATH_CALLABLES = {'source-node': _xpath_source_node}
+
+
 def _parse_xpath(
     expr: str,
     default_element_ns: str,
@@ -158,22 +193,16 @@ def _parse_xpath(
 ):
     """Parse *expr*; *ext_fp* is ``fingerprint_for_module(...)`` or ``''``."""
     ns = namespaces or {}
+    callables = dict(_BUILTIN_XPATH_CALLABLES)
     if ext_fp:
-        callables = _loaded_extension_callables(ext_fp)
-        parser = build_extension_parser(
-            default_element_ns,
-            callables,
-            namespaces=ns,
-            base_uri=base_uri,
-        )
-    elif default_element_ns or ns:
-        parser = XPath31Parser(
-            default_namespace=default_element_ns or None,
-            namespaces=ns,
-            base_uri=base_uri,
-        )
-    else:
-        parser = XPath31Parser(base_uri=base_uri)
+        # A project extension of the same name wins over the built-in.
+        callables.update(_loaded_extension_callables(ext_fp))
+    parser = build_extension_parser(
+        default_element_ns,
+        callables,
+        namespaces=ns,
+        base_uri=base_uri,
+    )
     return parser.parse(expr)
 
 

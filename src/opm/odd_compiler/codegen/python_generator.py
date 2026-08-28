@@ -384,8 +384,12 @@ def transform(root, options=None):
 
     def _param_to_expr(self, value: str) -> str:
         v = (value or '').strip()
-        # $get(x) is an XQuery indirection that is always identity in Python
-        v = re.sub(r'\$get\(([^()]+)\)', r'\1', v)
+        # $get(x) is tei-publisher-lib's "same node in the stored document". On a whole
+        # document that is identity, but a chunk is a detached rebuild of one
+        # region, so dropping it would confine preceding::/following:: to the
+        # chunk — every page reporting itself as page 1. tp:source-node() is
+        # registered on every parser and is identity when nothing was copied.
+        v = re.sub(r'\$get\(([^()]+)\)', r'tp:source-node(\1)', v)
         if not v or v == '.':
             return 'node'
         if not self._param_tier_ok(v):

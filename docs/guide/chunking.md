@@ -37,6 +37,10 @@ selector = "opm.navigation.tei_pb_chunks"
 view = "page"
 ```
 
+`examples/shakespeare` is a worked page-chunked project: a First Folio play
+split at every `<pb/>`, where speeches spanning a page break stay intact on
+both pages.
+
 ## Output formats
 
 `--format` chooses what is written per chunk:

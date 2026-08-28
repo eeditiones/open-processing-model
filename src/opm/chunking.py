@@ -15,6 +15,7 @@ from typing import Any, Callable
 from lxml import etree
 
 from opm.config import ChunkingConfig, FragmentConfig, ProjectConfig
+from opm.runtime import source_map
 from opm.transform import (
     load_transform_module,
     load_xpath_collections,
@@ -153,7 +154,15 @@ class ChunkProcessor:
         If ``config.selector`` is set to a dotted Python path it is imported
         and called as ``selector(root, config)``.  Otherwise the ``xpath``
         expression from the chunking config is evaluated.
+
+        Selectors that rebuild a region as a detached tree record copy → source
+        in :mod:`opm.runtime.source_map` while they build, which is what lets
+        ``$get()`` in an ODD step back to the stored document. The map holds
+        both trees alive, so it is reset here — once per document, before the
+        selector runs.
         """
+        source_map.clear()
+        source_map.set_base_uri(self.xpath_base_uri)
         if self.config.selector:
             import importlib
             module_name, _, func_name = self.config.selector.rpartition('.')

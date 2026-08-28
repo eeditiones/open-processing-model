@@ -333,3 +333,68 @@ def test_root_of_parameters_root_reaches_the_source_document(tmp_path) -> None:
     assert xpath_select_nodes(
         pb, 'string(document-uri(root($parameters?root)))', params,
     ) == uri
+
+
+def test_source_node_resolves_a_chunk_copy_to_the_stored_document() -> None:
+    """``tp:source-node()`` steps out of a detached chunk into the document.
+
+    ``$get()`` compiles to this. Without it ``preceding::pb`` is confined to the
+    rebuilt page, so teipublisher.odd's ``count($get(.)/preceding::pb) + 1``
+    reports page 1 for every folio.
+    """
+    from opm.config import ChunkingConfig
+    from opm.navigation import tei_pb_chunks
+    from opm.runtime import source_map
+    from opm.runtime.pm_runtime import xpath_runtime_context
+
+    pages = ''.join(f'<pb n="{n}"/><p>page {n}</p>' for n in (101, 102, 103))
+    doc = etree.fromstring(
+        f'<TEI xmlns="{TEI_NS}"><text><body><div>{pages}</div></body></text></TEI>'.encode(),
+    )
+    source_map.clear()
+    try:
+        chunks = tei_pb_chunks(doc, ChunkingConfig())
+        assert len(chunks) == 3
+
+        third = chunks[2]
+        # The chunk really is a separate tree, not a live view of the document.
+        assert third.getroottree().getroot() is not doc
+
+        pb = third.iter(f'{{{TEI_NS}}}pb').__next__()
+        params = xpath_runtime_context(root=doc)
+
+        assert xpath_select_nodes(
+            pb, 'count(tp:source-node(.)/preceding::pb) + 1', params,
+        ) == 3
+        assert xpath_select_nodes(
+            pb, 'string(tp:source-node(.)/@n)', params,
+        ) == '103'
+        # Unmapped nodes pass through unchanged, so the identity case still works.
+        assert xpath_select_nodes(
+            doc, 'count(tp:source-node(.)//pb)', params,
+        ) == 3
+    finally:
+        source_map.clear()
+
+
+def test_source_node_is_identity_without_a_recorded_copy() -> None:
+    """Outside chunking nothing is recorded, so ``$get(x)`` is just ``x``."""
+    from opm.runtime import source_map
+
+    source_map.clear()
+    doc = etree.fromstring(
+        f'<TEI xmlns="{TEI_NS}"><text><body><div><pb n="1"/><pb n="2"/></div></body></text></TEI>'.encode(),
+    )
+    second = list(doc.iter(f'{{{TEI_NS}}}pb'))[1]
+    assert xpath_select_nodes(second, 'count(tp:source-node(.)/preceding::pb)') == 1
+
+
+def test_get_compiles_to_source_node() -> None:
+    """The ODD's ``$get(x)`` reaches the runtime as ``tp:source-node(x)``."""
+    from opm.odd_compiler.codegen.python_generator import PythonGenerator
+
+    expr = PythonGenerator._param_to_expr(
+        PythonGenerator.__new__(PythonGenerator), 'count($get(.)/preceding::pb) + 1',
+    )
+    assert 'tp:source-node(.)' in expr
+    assert '$get' not in expr

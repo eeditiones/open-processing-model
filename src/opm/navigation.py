@@ -24,6 +24,7 @@ from typing import Callable
 from lxml import etree
 
 from opm.config import ChunkingConfig
+from opm.runtime import source_map
 from opm.runtime.output_functions import XML_ID
 
 
@@ -266,10 +267,14 @@ def _milestone_chunk(
         if ms2 is not None and el is ms2:
             return None
         if el is ms1:
-            return copy.deepcopy(el)
+            copied = copy.deepcopy(el)
+            source_map.record_subtree(copied, el)
+            return copied
 
         if descendant_check(el, ms1, ms2):
             out = etree.Element(el.tag, attrib=dict(el.attrib), nsmap=el.nsmap)
+            # A rebuilt ancestor: same element, minus the content outside the page.
+            source_map.record(out, el)
             # Leading text of an ancestor of ms1 sits before ms1 → omit unless
             # the slot itself falls after ms1 (e.g. while carving toward ms2).
             if el.text and between(text_pos[el]):
@@ -289,7 +294,9 @@ def _milestone_chunk(
             return out
 
         if between(el_pos[el]):
-            return copy.deepcopy(el)
+            copied = copy.deepcopy(el)
+            source_map.record_subtree(copied, el)
+            return copied
 
         return None
 
@@ -348,9 +355,12 @@ def dbk_section_chunks(root: etree._Element, config: ChunkingConfig) -> list[etr
                 # mirroring the element construction in nav:fill.
                 # copy.copy() in lxml includes children, so construct explicitly.
                 intro = etree.Element(section.tag, attrib=dict(section.attrib), nsmap=section.nsmap)
+                source_map.record(intro, section)
                 intro.text = section.text
                 for el in intro_elements:
-                    intro.append(copy.deepcopy(el))
+                    copied = copy.deepcopy(el)
+                    source_map.record_subtree(copied, el)
+                    intro.append(copied)
                 chunks.append(intro)
 
     return chunks

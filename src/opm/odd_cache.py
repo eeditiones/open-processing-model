@@ -71,6 +71,15 @@ def cache_key(odd_path: Path, output_mode: str, base_css: str | None = None) -> 
     h.update(output_mode.encode())
     h.update(b'\0')
 
+    # The generator decides what the cached module contains, so editing it has
+    # to invalidate the cache. The version alone does not cover that: it stays
+    # put across a working checkout, and a stale module would keep being loaded
+    # after a codegen change.
+    from opm.odd_compiler.codegen import python_generator
+
+    h.update(Path(python_generator.__file__).read_bytes())
+    h.update(b'\0')
+
     # The base rules are compiled into ODD_GENERATED_CSS, so a project that
     # overrides them via [document] css needs its own cached module — and
     # editing the packaged default in a checkout has to invalidate too.
