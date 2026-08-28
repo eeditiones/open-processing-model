@@ -5,9 +5,17 @@
 // ``#show: marginalia.setup.with(...)`` (see default_document.typ.j2).
 #import "@preview/marginalia:0.3.1" as marginalia: note
 
-#let opm-margin-note-width = 2.8cm
-#let opm-margin-note-sep = 0.75em
-#let opm-margin-note-far = 2cm
+// Outer margin reserved for margin notes by the ``marginalia.setup`` call each
+// template makes. That call overrides any ``#set page(margin: …)`` above it, so
+// these three numbers, not the page rule, decide the measure.
+//
+// They used to reserve ~5cm, which is right for a Tufte-style edition but is
+// dead space otherwise — and no ODD shipped with opm emits a margin note, since
+// ``note`` places a footnote unless a model passes place="margin". Widen these
+// if yours does; a note is set into ``width``.
+#let opm-margin-note-width = 2cm
+#let opm-margin-note-sep = 0.5em
+#let opm-margin-note-far = 1cm
 
 #let opm-marginnote = note.with(
   counter: none,

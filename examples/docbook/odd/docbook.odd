@@ -460,11 +460,17 @@ font-style: italic;
                 <elementSpec ident="variablelist">
                     <model behaviour="list" output="docx"/>
                     <model output="typst" behaviour="list">
+                        <desc>A variablelist is a description list, which Typst has as
+                            `terms`. The two-column grid this replaces gave the term a
+                            fixed 4cm whatever its length, and nested lists took another
+                            4cm out of an already narrow cell, so the definitions were
+                            squeezed into a third of the measure. A run-in term costs
+                            only its own width and one indent per level.</desc>
                         <pb:template>
-                            #grid(
-                                columns: (4cm, 1fr),
-                                column-gutter: 1em,
-                                row-gutter: 0.6em,
+                            #terms(
+                                tight: false,
+                                hanging-indent: 1.2em,
+                                separator: [#h(0.55em)],
                                 [[content]]
                             )
                         </pb:template>
@@ -496,7 +502,7 @@ font-style: italic;
                         <param name="term" value="term"/>
                         <param name="definition" value="listitem"/>
                         <pb:template>
-                            [*[[term]]*], [[[definition]]],
+                            terms.item([*[[term]]*], [[[definition]]]),
                         </pb:template>
                     </model>
                     <model output="latex" behaviour="block">

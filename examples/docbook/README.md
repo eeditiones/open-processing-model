@@ -38,9 +38,6 @@ Or chunk both sample articles (writes `chunks/<file>/`):
 uv run opm chunk data/doc --force --preview
 ```
 
-For TEI Publisher's `pb-view` cache layout, add `--format pb-view` and see
-[Integration with TEI Publisher](../../docs/guide/tei-publisher.md).
-
 ## Layout
 
 - `odd/docbook.odd` — DocBook processing model (plus `docbook.css`)

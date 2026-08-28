@@ -65,7 +65,10 @@ def test_render_typst_docbook_template_includes_packaged_opm_css() -> None:
     assert 'note:' in out
     assert '= Hello' in out
     assert 'title: [Doc Title]' in out
-    assert 'inner: (far: 2.5cm)' in out
+    # The setup call must be applied — it is what gives margin notes a column —
+    # but the measurement is a design choice, not a contract to freeze here.
+    assert 'marginalia.setup' in out
+    assert 'inner: (far:' in out
 
 
 def test_render_typst_book_template_fills_metadata() -> None:

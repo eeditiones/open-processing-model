@@ -53,11 +53,15 @@
   ),
 )
 
+// marginalia sets the page margins, overriding the `#set page(margin: …)` above,
+// so these numbers decide the measure. The packaged defaults reserve ~5cm on the
+// outer edge for margin notes; this document uses none. The column is kept, only
+// narrowed, so a `note` with place="margin" still has somewhere to go.
 #show: marginalia.setup.with(
-  inner: (far: 2.5cm),
-  outer: (far: opm-margin-note-far, width: opm-margin-note-width, sep: opm-margin-note-sep),
-  top: 2.5cm,
-  bottom: 2.5cm,
+  inner: (far: 1.6cm),
+  outer: (far: 1.2cm, width: 1.2cm, sep: 0.4em),
+  top: 2.4cm,
+  bottom: 2.2cm,
 )
 
 {{ odd_typst }}
