@@ -28,6 +28,13 @@ register-root = "/db/apps/serafin/data/registers"
 [transform.web.webcomponents]
 enabled = true
 
+[transform.typst]
+template = "templates/letter.typ.j2"
+
+[transform.typst.context]
+source_label = "Transcriptio (lat.)"
+translation_label = "Przekład (pol.)"
+
 [document]
 template = "templates/letter.html.j2"
 

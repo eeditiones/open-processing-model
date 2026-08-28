@@ -50,7 +50,79 @@
     <text>
         <body>
             <schemaSpec start="TEI teiCorpus" ident="serafin" source="teipublisher.odd">
+                <elementSpec ident="gap" mode="change">
+                    <desc>Lacunae, after the Leiden conventions. Copied from
+                        teipublisher.odd because a local elementSpec replaces the
+                        inherited one outright — only the two Typst models are new.
+                        Print needs its own models because the inherited one builds a
+                        &lt;pb-popover&gt;, whose alternate slot degrades outside the web
+                        to the bare words "4 chars" sitting in the running text.</desc>
+                    <model predicate="desc" behaviour="inline"/>
+
+                    <!-- Leiden: a lost passage of known extent is one dot per lost
+                         character, inside square brackets — [....] for four. -->
+                    <model output="typst" predicate="@unit = 'chars' and @quantity and xs:integer(@quantity) le 10" behaviour="inline">
+                        <param name="content" value="'[' || string-join((1 to xs:integer(@quantity)) ! '.', '') || ']'"/>
+                    </model>
+                    <!-- Beyond a handful of characters Leiden allows the count in place
+                         of the dots, so a long lacuna does not become a rule of dots. -->
+                    <model output="typst" predicate="@unit = 'chars' and @quantity" behaviour="inline">
+                        <param name="content" value="'[c. ' || @quantity || ']'"/>
+                    </model>
+                    <!-- Dashes mark a lacuna whose extent in characters is undetermined.
+                         A word count does not convert into one, so a gap measured in
+                         words prints this too; the count stays in the XML and in the
+                         web popover. The predicate is spelled out rather than left off:
+                         a model without one is compiled as the element's default and
+                         sorted last, where the inherited popover model would reach a
+                         quantified gap first. -->
+                    <model output="typst" predicate="not(@quantity and @unit = 'chars')" behaviour="inline">
+                        <param name="content" value="'[- - -]'"/>
+                    </model>
+
+                    <model output="plain" predicate="@extent or @quantity" behaviour="inline">
+                        <outputRendition xml:space="preserve" scope="before">
+                        content: "[.. ..]";
+                        </outputRendition>
+                    </model>
+                    <model predicate="@extent or @quantity" behaviour="inline">
+                        <param name="extent" value="head((@extent, @quantity))"/>
+                        <param name="unit" value="@unit"/>
+                        <param name="reason" value="if (@reason) then @reason || ': ' else ()"/>
+                        <pb:template xmlns="" xml:space="preserve"><pb-popover>
+                            <span class="gap" slot="default"/>
+                            <template slot="alternate">[[reason]] [[ extent ]] [[unit]]</template>
+                        </pb-popover></pb:template>
+                        <outputRendition xml:space="preserve" scope="before">
+                        content: "[.. ..]";
+                        </outputRendition>
+                    </model>
+                    <model behaviour="inline">
+                        <outputRendition xml:space="preserve" scope="before">
+                        content: '[...]';
+                        </outputRendition>
+                    </model>
+                </elementSpec>
+                <elementSpec ident="standOff" mode="change">
+                    <desc>The notes live in standOff and are pulled inline at their
+                        anchors, so the section itself must not also print. Without
+                        this it renders after the text as a run of unseparated note
+                        texts — invisible in the chunked pages, which never contain
+                        standOff, but present in every whole-document output.</desc>
+                    <model behaviour="omit"/>
+                </elementSpec>
                 <elementSpec ident="lb" mode="change">
+                    <!-- Print does not keep the manuscript lineation, so a line
+                         beginning becomes an ordinary word space. Dropping it outright
+                         (as the web does, where the source whitespace survives in the
+                         markup) runs words together in Typst whenever the text between
+                         two elements is whitespace only — "[....]grate" for a lacuna at
+                         a line end. @break="no" marks a word split across the line,
+                         which must not gain a space. -->
+                    <model output="typst" predicate="@break = 'no'" behaviour="omit"/>
+                    <model output="typst" predicate="not(@break = 'no')" behaviour="inline">
+                        <param name="content" value="' '"/>
+                    </model>
                     <model behaviour="omit"/>
                 </elementSpec>
                 <elementSpec ident="note" mode="change">
@@ -69,6 +141,17 @@
                     </model>
                 </elementSpec>
                 <elementSpec ident="seg" mode="change">
+                    <!-- Typst: a source segment and its translation are one row of a
+                         two-column parallel text. @corresp on the translation side
+                         carries the alignment, so the two columns stay in step even
+                         where one language runs longer. The trailing ; keeps whatever
+                         follows the call from being parsed as further arguments, and
+                         both halves are wrapped in content blocks so a comma in the
+                         text cannot split an argument. -->
+                    <model output="typst" predicate="ancestor::text[@type='source']" behaviour="inline">
+                        <param name="translation" value="let $id := @xml:id return root()//seg[@corresp = '#' || $id]"/>
+                        <pb:template xml:space="preserve">#opm-parallel([[[content]]], [[[translation]]]);</pb:template>
+                    </model>
                     <model output="print" behaviour="inline"/>
                     <model output="plain" behaviour="inline"/>
                     <model output="docx" behaviour="inline"/>
@@ -212,6 +295,9 @@
                     </model>
                 </elementSpec>
                 <elementSpec ident="text" mode="change">
+                    <!-- The translation is pulled into the parallel rows above, so it
+                         must not also print as a second block after the source. -->
+                    <model output="typst" predicate="@type = 'translation'" behaviour="omit"/>
                     <model output="print" behaviour="section"/>
                     <modelSequence output="docx">
                         <model behaviour="break">
@@ -225,6 +311,12 @@
                     <model behaviour="body"/>
                 </elementSpec>
                 <elementSpec ident="teiHeader" mode="change">
+                    <!-- Typst: this local elementSpec replaces the inherited one, which
+                         is where the title normally reaches the template's `metadata`
+                         map. Pass it through so the parallel edition can head itself. -->
+                    <model output="typst" behaviour="pass-through">
+                        <param name="content" value="fileDesc/titleStmt/title[1]"/>
+                    </model>
                     <model output="latex" behaviour="metadata"/>
                     <model output="fo" behaviour="omit"/>
                     <model output="docx" behaviour="pass-through">
@@ -294,6 +386,9 @@
                     <model behaviour="inline"/>
                 </elementSpec>
                 <elementSpec ident="title" mode="change">
+                    <model output="typst" predicate="ancestor::teiHeader" behaviour="metadata">
+                        <param name="key" value="'title'"/>
+                    </model>
                     <model output="print" behaviour="heading">
                         <param name="content" value="substring-before(., ',')"/>
                         <param name="level" value="1"/>

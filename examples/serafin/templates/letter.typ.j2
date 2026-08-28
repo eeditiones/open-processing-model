@@ -1,0 +1,81 @@
+// Parallel-text edition: the Latin transcription and the Polish translation set
+// side by side, aligned segment by segment through @corresp.
+//
+// Not facing pages (verso Latin / recto Polish): that needs the two texts
+// paginated independently and then interleaved with synchronised breaks, and
+// Typst exposes no way to flow content into a region and ask what is left over.
+// Columns are also the stricter layout — they hold the alignment at every
+// segment, where facing pages drift apart as soon as one side runs longer.
+
+{% include "opm_css_fns_default.typ.j2" %}
+
+{% set _authors = metadata.get('authors', []) -%}
+#let doc-title = "{{ (metadata.get('title') or [''])[0] | replace('"', '\\"') }}"
+#let source-label = "{{ context.source_label | default('Transcription', true) | replace('"', '\\"') }}"
+#let translation-label = "{{ context.translation_label | default('Translation', true) | replace('"', '\\"') }}"
+
+#set document(title: doc-title)
+
+#set page(
+  paper: "a4",
+  margin: (x: 2cm, top: 2.4cm, bottom: 2cm),
+  header-ascent: 40%,
+  header: context {
+    if counter(page).at(here()).first() <= 1 { return none }
+    grid(
+      columns: (1fr, auto),
+      align(left + bottom, text(size: 9pt, style: "italic")[#doc-title]),
+      align(right + bottom, text(size: 9pt)[#counter(page).display()]),
+    )
+    v(2pt)
+    line(length: 100%, stroke: 0.5pt + luma(140))
+  },
+)
+
+#set text(font: ("New Computer Modern", "Times New Roman"), size: 9.5pt)
+#set par(justify: true, leading: 0.58em)
+
+// One row of the parallel text. Consecutive calls are separate grids, but the
+// column widths are identical, so the two columns line up down the page and
+// Typst is free to break between segments — and inside one, if a segment runs
+// longer than the page.
+#let opm-parallel-gutter = 1.6em
+#let opm-parallel(left-col, right-col) = block(
+  above: 0.55em,
+  below: 0.55em,
+  width: 100%,
+  grid(
+    columns: (1fr, 1fr),
+    column-gutter: opm-parallel-gutter,
+    align: top,
+    left-col,
+    right-col,
+  ),
+)
+
+#show: marginalia.setup.with(
+  inner: (far: 2.5cm),
+  outer: (far: opm-margin-note-far, width: opm-margin-note-width, sep: opm-margin-note-sep),
+  top: 2.5cm,
+  bottom: 2.5cm,
+)
+
+{{ odd_typst }}
+
+{% include "opm_css.typ.j2" %}
+
+#align(center)[
+  #text(size: 1.35em)[#doc-title]
+  #v(1.4em)
+]
+
+// Column headings, set with the same grid so they sit over their columns.
+#opm-parallel(
+  align(center, text(size: 0.9em, style: "italic", fill: luma(80))[#source-label]),
+  align(center, text(size: 0.9em, style: "italic", fill: luma(80))[#translation-label]),
+)
+#v(0.3em)
+#line(length: 100%, stroke: 0.5pt + luma(160))
+#v(0.6em)
+
+{{ content_typst }}
