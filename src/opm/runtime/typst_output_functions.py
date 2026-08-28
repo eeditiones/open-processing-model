@@ -605,10 +605,12 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         config['apply_children'](config, node, content, buf)
         body = _join_buf(buf).strip()
         place_s = _param_str(place)
+        # Trailing ';' ends the code expression so a following ".Word" is
+        # markup, not field access (``#footnote[n].Sciatis``).
         if place_s and place_s.lower() == 'margin':
             # Document shells define ``#marginnote``; finish cleanup will not stub it.
-            return [f'#marginnote[{body}]']
-        return [f'#footnote[{body}]']
+            return [f'#marginnote[{body}];']
+        return [f'#footnote[{body}];']
 
     def cit(self, config, node, cls, content, source=None) -> PMResult:
         body: list = []

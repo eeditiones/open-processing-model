@@ -338,7 +338,7 @@ def test_typst_note_emits_inline_footnote() -> None:
         'apply_children': lambda cfg, node, content, buf: buf.extend(content),
     }
     result = pmf.note(config, Node(), [], ['note text'], None, None)
-    assert result == ['#footnote[note text]']
+    assert result == ['#footnote[note text];']
     assert 'footnotes' not in config
 
 
@@ -352,10 +352,10 @@ def test_typst_note_margin_emits_marginnote() -> None:
         'apply_children': lambda cfg, node, content, buf: buf.extend(content),
     }
     result = pmf.note(config, Node(), [], ['42'], 'margin', None)
-    assert result == ['#marginnote[42]']
+    assert result == ['#marginnote[42];']
     # ODD XPath often yields a singleton sequence for string params.
     result_seq = pmf.note(config, Node(), [], ['42'], ['margin'], None)
-    assert result_seq == ['#marginnote[42]']
+    assert result_seq == ['#marginnote[42];']
 
 
 def test_apply_typst_finish_cleanup_preserves_marginnote() -> None:
