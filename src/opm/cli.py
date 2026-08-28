@@ -25,8 +25,6 @@ except ImportError:  # typer < 0.27 still depends on the click package
 from lxml import etree
 
 from opm.config import (
-    DEFAULT_CDN_TEMPLATE,
-    DEFAULT_VERSION,
     ChunkingConfig,
     FragmentConfig,
     ProjectConfig,
@@ -538,9 +536,9 @@ def transform_cmd(
             else doc_root
         )
 
-        webcomponents_url: str | None = None
-        if effective_webcomponents:
-            webcomponents_url = cfg.webcomponents_cdn or DEFAULT_CDN_TEMPLATE.replace('{version}', DEFAULT_VERSION)
+        template_context = cfg.context_for(
+            primary, webcomponents=effective_webcomponents,
+        )
 
         out = run_transform(
             mod,
@@ -549,7 +547,7 @@ def transform_cmd(
             xpath_extensions=effective_extensions,
             webcomponents=effective_webcomponents,
             template_path=effective_template,
-            webcomponents_url=webcomponents_url,
+            template_context=template_context,
             docx_template=effective_docx_template,
             typst_template_path=effective_template if primary == 'typst' else None,
             xpath_base_uri=xpath_base_uri,

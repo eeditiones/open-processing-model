@@ -39,6 +39,13 @@ enabled = false
 # CDN URL template for pb-components (use {version} placeholder)
 # cdn = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@{version}/dist/pb-components-bundle.js"
 
+[context]
+# Free-form values handed to every Jinja2 template as `context`. TOML types are
+# preserved; a [transform.<type>.context] table overlays this per output type.
+site_name = "The Serafin Letters"
+show_downloads = true
+nav = [{ label = "Home", url = "/" }]
+
 [document]
 # Default Jinja2 template for full-document HTML output
 template = "templates/default.html.j2"
@@ -80,6 +87,8 @@ assets = ["templates/edition.css", "templates/parchment.jpg"]
 | `[transform.typst]` | Optional Typst `odd` override and Typst `template` | [Output formats](output-formats.md#typst) |
 | `[transform.markdown]`, … | Other optional per-type `odd` (and `template`) overrides | [Output formats](output-formats.md) |
 | `[transform.web.webcomponents]` | Web-only `enabled` flag and `cdn` URL for pb-components | [Templates & CSS](templates-and-css.md#web-components) |
+| `[context]` | Free-form values exposed to every template as `context` | [Templates & CSS](templates-and-css.md#template-context) |
+| `[transform.<type>.context]` | Per-output-type overlay on `[context]` | [Templates & CSS](templates-and-css.md#template-context) |
 | `[document]` | HTML `template` and `css` | [Templates & CSS](templates-and-css.md) |
 | `[chunking]` | Splitting rules, output, templates, fragments | [Chunking](chunking.md) |
 

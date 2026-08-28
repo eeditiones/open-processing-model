@@ -33,6 +33,17 @@ register-root = "/db/apps/{{ project_name }}/data/registers"
 [transform.web.webcomponents]
 enabled = {{ 'true' if webcomponents else 'false' }}
 
+# Anything here reaches every Jinja2 template as `context` — templates only,
+# never XPath — so TOML types survive: booleans, numbers, arrays, sub-tables.
+# Read it as {{ '{{ context.site_name }}' }} or {% raw %}{% if context.show_downloads %}{% endraw %}.
+# [context]
+# site_name = "My edition"
+# show_downloads = true
+#
+# A [transform.<type>.context] table overlays this for one output type only:
+# [transform.typst.context]
+# paper = "a5"
+
 {% if 'docx' in outputs -%}
 [transform.docx]
 template = "templates/default.docx"

@@ -307,6 +307,99 @@ cdn = "https://example.test/pb.js"
     assert cfg.webcomponents_cdn == 'https://example.test/pb.js'
 
 
+def test_load_project_config_reads_template_context(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    (tmp_path / 'opm.toml').write_text(
+        """[context]
+site_name = "My Edition"
+show_downloads = true
+issues = 3
+nav = [ { label = "Home", url = "/" } ]
+""",
+        encoding='utf-8',
+    )
+    cfg = load_project_config(tmp_path / 'opm.toml')
+    # TOML types survive: templates read these, XPath never does.
+    assert cfg.template_context == {
+        'site_name': 'My Edition',
+        'show_downloads': True,
+        'issues': 3,
+        'nav': [{'label': 'Home', 'url': '/'}],
+    }
+    assert cfg.context_for('web') == cfg.template_context
+
+
+def test_context_for_overlays_the_per_type_table(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    (tmp_path / 'opm.toml').write_text(
+        """[context]
+site_name = "My Edition"
+show_downloads = true
+
+[transform.typst.context]
+site_name = "My Edition (print)"
+paper = "a5"
+""",
+        encoding='utf-8',
+    )
+    cfg = load_project_config(tmp_path / 'opm.toml')
+    assert cfg.context_for('typst') == {
+        'site_name': 'My Edition (print)',
+        'show_downloads': True,
+        'paper': 'a5',
+    }
+    # The overlay is scoped to its own output type.
+    assert cfg.context_for('web') == {
+        'site_name': 'My Edition',
+        'show_downloads': True,
+    }
+
+
+def test_context_for_derives_webcomponents_url(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    (tmp_path / 'opm.toml').write_text(
+        """[transform.web.webcomponents]
+enabled = true
+cdn = "https://example.test/pb-{version}.js"
+version = "1.2.3"
+""",
+        encoding='utf-8',
+    )
+    cfg = load_project_config(tmp_path / 'opm.toml')
+    assert 'webcomponents_url' not in cfg.context_for('web')
+    assert cfg.context_for('web', webcomponents=True)['webcomponents_url'] == (
+        'https://example.test/pb-1.2.3.js'
+    )
+
+
+def test_explicit_context_wins_over_the_derived_webcomponents_url(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    (tmp_path / 'opm.toml').write_text(
+        """[context]
+webcomponents_url = "/local/pb-components-bundle.js"
+
+[transform.web.webcomponents]
+enabled = true
+""",
+        encoding='utf-8',
+    )
+    cfg = load_project_config(tmp_path / 'opm.toml')
+    ctx = cfg.context_for('web', webcomponents=True)
+    assert ctx['webcomponents_url'] == '/local/pb-components-bundle.js'
+
+
+def test_load_project_config_rejects_a_non_table_context(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    (tmp_path / 'opm.toml').write_text('context = "nope"\n', encoding='utf-8')
+    with pytest.raises(ValueError, match=r'\[context\] must be a table'):
+        load_project_config(tmp_path / 'opm.toml')
+
+
 def test_load_project_config_ignores_legacy_top_level_webcomponents(tmp_path: Path) -> None:
     from opm.config import load_project_config
 

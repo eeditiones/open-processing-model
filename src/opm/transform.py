@@ -66,8 +66,6 @@ from elementpath.tree_builders import get_node_tree
 from lxml import etree
 
 from opm.config import (
-    DEFAULT_CDN_TEMPLATE,
-    DEFAULT_VERSION,
     CollectionConfig,
     ProjectConfig,
     load_project_config,
@@ -221,7 +219,7 @@ def run_transform(
     apply_template: bool = True,
     template_path: Path | None = None,
     user_css: str | None = None,
-    webcomponents_url: str | None = None,
+    template_context: dict[str, Any] | None = None,
     docx_template: Path | None = None,
     typst_template_path: Path | None = None,
     xpath_base_uri: str | None = None,
@@ -249,7 +247,9 @@ def run_transform(
         user_css: Extra CSS inlined into ``<head>`` of full-document output.
             A library hook: the CLI leaves this unset, since ``--css`` /
             ``[document] css`` is compiled into the ODD stylesheet instead.
-        webcomponents_url: CDN URL for ``pb-components`` script tag.
+        template_context: Project ``[context]`` values exposed to the Jinja2
+            template as ``context`` (see
+            :meth:`~opm.config.ProjectConfig.context_for`).
         docx_template: Path to a ``.docx`` file used as the Word style template.
         typst_template_path: Jinja2 template for Typst document shell.
     """
@@ -301,6 +301,7 @@ def run_transform(
             odd_typst=getattr(mod, 'ODD_GENERATED_TYPST', ''),
             parameters=parameters or {},
             metadata=metadata,
+            context=template_context,
         )
     elif apply_template and is_document and primary == 'web':
         tpl = resolve_template_path(template_path)
@@ -310,14 +311,14 @@ def run_transform(
             odd_css=getattr(mod, 'ODD_GENERATED_CSS', ''),
             user_css=user_css or '',
             parameters=parameters or {},
-            webcomponents_url=webcomponents_url,
+            context=template_context,
         )
 
     return out
 
 
 def transform_node(
-    script_path: Path,
+    script_path: Path | ModuleType,
     root: etree._Element,
     *,
     xpath: str | None = None,
@@ -327,7 +328,7 @@ def transform_node(
     apply_template: bool = True,
     template_path: Path | None = None,
     user_css: str | None = None,
-    webcomponents_url: str | None = None,
+    template_context: dict[str, Any] | None = None,
     docx_template: Path | None = None,
     typst_template_path: Path | None = None,
     xpath_base_uri: str | None = None,
@@ -344,7 +345,10 @@ def transform_node(
     namespace.  Without *xpath*, *root* itself is the transform target.
 
     Args:
-        script_path: Path to the compiled transform ``.py`` module.
+        script_path: Path to the compiled transform ``.py`` module, or an
+            already-loaded one — callers that need to inspect the module first
+            (to learn its output channel, say) pass it in rather than paying
+            for a second exec.
         root: The lxml element that acts as the document root for XPath
             evaluation and (when *xpath* is ``None``) as the transform target.
         xpath: XPath 3.1 expression selecting a single child element to
@@ -357,9 +361,14 @@ def transform_node(
         user_css: Extra CSS inlined into ``<head>`` of full-document output.
             A library hook: the CLI leaves this unset, since ``--css`` /
             ``[document] css`` is compiled into the ODD stylesheet instead.
-        webcomponents_url: CDN URL for the ``pb-components`` script tag.
+        template_context: Project ``[context]`` values exposed to the Jinja2
+            template as ``context``.
     """
-    mod = load_transform_module(script_path)
+    mod = (
+        script_path
+        if isinstance(script_path, ModuleType)
+        else load_transform_module(script_path)
+    )
     effective_extensions: tuple[str, ...] = tuple(xpath_extensions) if xpath_extensions else ()
     effective_parameters: dict[str, Any] = dict(parameters or {})
     effective_parameters.update(
@@ -390,7 +399,7 @@ def transform_node(
         apply_template=apply_template,
         template_path=template_path,
         user_css=user_css,
-        webcomponents_url=webcomponents_url,
+        template_context=template_context,
         docx_template=docx_template,
         typst_template_path=typst_template_path,
         xpath_base_uri=xpath_base_uri,
@@ -442,9 +451,19 @@ def transform_file(
     effective_extensions: tuple[str, ...] = (
         tuple(xpath_extensions) if xpath_extensions is not None else cfg.xpath_extensions
     )
-    webcomponents_url: str | None = None
-    if effective_webcomponents:
-        webcomponents_url = cfg.webcomponents_cdn or DEFAULT_CDN_TEMPLATE.replace('{version}', DEFAULT_VERSION)
+    # The per-type context overlay ([transform.typst.context] and friends)
+    # keys off the module's own output channel, so the module is loaded here
+    # and handed to transform_node instead of being loaded twice.
+    mod = load_transform_module(module_path)
+    channels = mod.transform_output_channels()
+    primary = (
+        (channels[0] if channels else '')
+        if isinstance(channels, (list, tuple))
+        else channels
+    )
+    template_context = cfg.context_for(
+        primary, webcomponents=effective_webcomponents,
+    )
 
     doc_root = etree.parse(str(xml_path)).getroot()
     xpath_base_uri = xml_path.resolve().as_uri()
@@ -456,7 +475,7 @@ def transform_file(
     xpath_namespaces = dict(cfg.xpath_namespaces)
 
     return transform_node(
-        module_path,
+        mod,
         doc_root,
         xpath=xpath,
         parameters=parameters,
@@ -464,7 +483,7 @@ def transform_file(
         webcomponents=effective_webcomponents,
         template_path=template if template is not None else cfg.document_template,
         user_css=user_css,
-        webcomponents_url=webcomponents_url,
+        template_context=template_context,
         docx_template=cfg.document_docx_template,
         typst_template_path=template if template is not None else cfg.typst_template,
         xpath_base_uri=xpath_base_uri,

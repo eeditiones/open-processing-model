@@ -65,9 +65,15 @@ def render_document_template(
     odd_css: str | None,
     user_css: str | None,
     parameters: dict[str, str],
-    webcomponents_url: str | None = None,
+    context: dict | None = None,
 ) -> str:
-    """Render a full HTML document through the selected Jinja2 template."""
+    """Render a full HTML document through the selected Jinja2 template.
+
+    *context* is the project's ``[context]`` table (see
+    :meth:`~opm.config.ProjectConfig.context_for`), exposed to the template
+    under the single name ``context`` so a project key can never shadow a
+    built-in like ``content_html``.
+    """
     html_root = _first_html_root(serialized_html)
     if html_root is None:
         return serialized_html
@@ -97,7 +103,7 @@ def render_document_template(
         user_css=user_css or '',
         parameters=parameters or {},
         lang=html_root.get('lang', ''),
-        webcomponents_url=webcomponents_url,
+        context=context or {},
     )
 
 
@@ -110,6 +116,7 @@ def render_index_template(
     odd_css_url: str = '',
     assets: str = '',
     asset_styles: list[str] | None = None,
+    context: dict | None = None,
 ) -> str:
     """Render a collection index listing chunked documents.
 
@@ -139,6 +146,7 @@ def render_index_template(
         odd_css_url=odd_css_url,
         assets=assets,
         asset_styles=asset_styles or [],
+        context=context or {},
     )
 
 
@@ -159,6 +167,7 @@ def render_typst_document_template(
     odd_typst: str | None,
     parameters: dict[str, str],
     metadata: dict | None = None,
+    context: dict | None = None,
 ) -> str:
     """Render Typst body content through the selected Jinja2 document shell."""
     env = Environment(
@@ -174,4 +183,5 @@ def render_typst_document_template(
         odd_typst=odd_typst or '',
         parameters=parameters or {},
         metadata=metadata or {},
+        context=context or {},
     )

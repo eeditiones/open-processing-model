@@ -9,6 +9,7 @@ import pytest
 
 from opm.template_rendering import DEFAULT_TYPST_TEMPLATE_NAME
 from opm.template_rendering import default_template_path
+from opm.template_rendering import render_document_template
 from opm.template_rendering import render_typst_document_template
 from opm.template_rendering import resolve_template_path
 
@@ -96,3 +97,68 @@ def test_resolve_template_path_raises_for_missing_override(tmp_path: Path) -> No
     missing = tmp_path / 'does-not-exist.j2'
     with pytest.raises(FileNotFoundError):
         resolve_template_path(missing)
+
+
+def _write_context_template(tmp_path: Path) -> Path:
+    tpl = tmp_path / 'page.html.j2'
+    tpl.write_text(
+        '<!doctype html>\n'
+        '<html><head><title>{{ context.site_name }}</title>\n'
+        '{% if context.webcomponents_url %}'
+        '<script src="{{ context.webcomponents_url }}"></script>{% endif %}\n'
+        '</head><body>\n'
+        '{% for item in context.nav %}<a href="{{ item.url }}">{{ item.label }}</a>{% endfor %}\n'
+        '{% if context.show_banner %}<p class="banner"></p>{% endif %}\n'
+        '{{ content_html }}</body></html>\n',
+        encoding='utf-8',
+    )
+    return tpl
+
+
+def test_render_document_template_exposes_context(tmp_path: Path) -> None:
+    out = render_document_template(
+        serialized_html='<html><head></head><body><p>Body</p></body></html>',
+        template_path=_write_context_template(tmp_path),
+        odd_css=None,
+        user_css=None,
+        parameters={},
+        context={
+            'site_name': 'My Edition',
+            'show_banner': True,
+            'nav': [{'label': 'Home', 'url': '/'}],
+            'webcomponents_url': 'https://example.test/pb.js',
+        },
+    )
+    assert '<title>My Edition</title>' in out
+    assert '<script src="https://example.test/pb.js"></script>' in out
+    assert '<a href="/">Home</a>' in out
+    assert '<p class="banner"></p>' in out
+    assert '<p>Body</p>' in out
+
+
+def test_missing_context_keys_render_as_falsy(tmp_path: Path) -> None:
+    """An absent key must not raise — templates guard on it with {% if %}."""
+    out = render_document_template(
+        serialized_html='<html><head></head><body><p>Body</p></body></html>',
+        template_path=_write_context_template(tmp_path),
+        odd_css=None,
+        user_css=None,
+        parameters={},
+        context=None,
+    )
+    assert '<title></title>' in out
+    assert '<script' not in out
+    assert 'banner' not in out
+
+
+def test_render_typst_document_template_exposes_context(tmp_path: Path) -> None:
+    tpl = tmp_path / 'doc.typ.j2'
+    tpl.write_text('#set page(paper: "{{ context.paper }}")\n{{ content_typst }}\n', encoding='utf-8')
+    out = render_typst_document_template(
+        content_typst='= Hello\n',
+        template_path=tpl,
+        odd_typst='',
+        parameters={},
+        context={'paper': 'a5'},
+    )
+    assert '#set page(paper: "a5")' in out

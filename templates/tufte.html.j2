@@ -23,8 +23,8 @@
 {{ user_css }}
   </style>
   {% endif %}
-  {% if webcomponents_url %}
-  <script type="module" src="{{ webcomponents_url }}"></script>
+  {% if context.webcomponents_url %}
+  <script type="module" src="{{ context.webcomponents_url }}"></script>
   {% endif %}
 </head>
 <body>

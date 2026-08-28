@@ -14,7 +14,7 @@ from typing import Any, Callable
 
 from lxml import etree
 
-from opm.config import ChunkingConfig, FragmentConfig, ProjectConfig, DEFAULT_CDN_TEMPLATE, DEFAULT_VERSION
+from opm.config import ChunkingConfig, FragmentConfig, ProjectConfig
 from opm.transform import (
     load_transform_module,
     load_xpath_collections,
@@ -87,13 +87,11 @@ class ChunkProcessor:
         self.output_dir = project_root / config.output_dir
         self.webcomponents = webcomponents
         cfg = project_config or ProjectConfig()
-        if webcomponents:
-            self.webcomponents_url: str | None = (
-                cfg.webcomponents_cdn
-                or DEFAULT_CDN_TEMPLATE.replace('{version}', DEFAULT_VERSION)
-            )
-        else:
-            self.webcomponents_url = None
+        # Chunk pages are HTML, so the web overlay applies. Includes the derived
+        # webcomponents_url when web-component mode is on.
+        self.template_context: dict[str, Any] = cfg.context_for(
+            'web', webcomponents=webcomponents,
+        )
         self.xpath_extensions: tuple[str, ...] = (
             xpath_extensions if xpath_extensions is not None else cfg.xpath_extensions
         )
@@ -708,7 +706,7 @@ class ChunkProcessor:
                 odd_css=self.odd_css,
                 parameters=self.parameters,
                 lang="",
-                webcomponents_url=self.webcomponents_url,
+                context=self.template_context,
                 # Add chunk-specific context
                 fragments=all_fragments,
                 chunk=chunk_result.metadata,
@@ -1246,6 +1244,9 @@ def build_index(
     so writing this file is all that is needed for ``opm serve`` to show a real
     landing page.
 
+    *project_config* also supplies the template ``context``, so the index and
+    the chunk pages read the same ``[context]`` values.
+
     Pass *module_path* (and optionally *project_config*) to have the ODD's
     generated CSS and the project stylesheet resolved the same way chunk pages
     resolve them, so an index template can style a browse record's ``tei-*``
@@ -1282,6 +1283,7 @@ def build_index(
         odd_css_url=odd_css_url,
         assets='assets' if chunk_cfg.assets else '',
         asset_styles=asset_styles,
+        context=(project_config or ProjectConfig()).context_for('web'),
     )
     index_file = output_dir / 'index.html'
     index_file.write_text(rendered, encoding='utf-8')

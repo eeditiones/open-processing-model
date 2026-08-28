@@ -88,10 +88,11 @@ A document or chunk template receives:
 | `content_html` | The transformed document body, or the chunk/fragment markup |
 | `head_html` | Inner HTML of the transform `<head>`, or empty for fragments (see above) |
 | `odd_css` | ODD-generated stylesheet text when it is **not** already in `head_html` |
-| `webcomponents_url` | Script URL when web components mode is enabled |
+| `context` | The project's own `[context]` values — see [Template context](#template-context) |
 | `lang` | Document language (defaults to `en`) |
 | `chunk` | Chunk metadata (`id`, `file`, `prev`, `next`, …) when rendering via `opm chunk` |
 | `fragments` | Named HTML or text from `[chunking.fragments]` (chunk templates only) |
+| `parameters` | The `[transform.parameters]` map, as also bound to XPath `$parameters` |
 
 A minimal template:
 
@@ -102,7 +103,7 @@ A minimal template:
     <meta charset="utf-8">
     {{ head_html | safe }}
     {% if odd_css %}<style type="text/css">{{ odd_css }}</style>{% endif %}
-    {% if webcomponents_url %}<script type="module" src="{{ webcomponents_url }}"></script>{% endif %}
+    {% if context.webcomponents_url %}<script type="module" src="{{ context.webcomponents_url }}"></script>{% endif %}
   </head>
   <body>
     {% if fragments is defined and fragments.title %}
@@ -111,6 +112,57 @@ A minimal template:
     {{ content_html | safe }}
   </body>
 </html>
+```
+
+### Template context
+
+Everything a template needs beyond the transform output comes through one
+variable, `context`, filled from a `[context]` table in `opm.toml`:
+
+```toml
+[context]
+site_name = "The Serafin Letters"
+show_downloads = true
+nav = [
+    { label = "Home", url = "/" },
+    { label = "About", url = "/about" },
+]
+```
+
+```jinja
+<h1>{{ context.site_name }}</h1>
+<nav>
+  {% for item in context.nav %}<a href="{{ item.url }}">{{ item.label }}</a>{% endfor %}
+</nav>
+{% if context.show_downloads %}<a href="{{ chunk.file }}.pdf">PDF</a>{% endif %}
+```
+
+This is how a project drives its own template without a code change. Two
+properties matter:
+
+- **TOML types survive.** Booleans stay booleans, numbers stay numbers, and
+  arrays and sub-tables arrive as lists and dicts. Nothing but the template
+  reads these values, so there is no conversion to a string. `parameters` is
+  different — it is bound to XPath `$parameters` and is a flat map of strings.
+- **Keys are namespaced.** They live under `context.` rather than at the top
+  level, so a project key can never shadow `content_html` or `fragments`, and a
+  template makes plain which values are the project's own.
+
+A missing key is falsy rather than an error, so `{% if context.foo %}` is safe
+for a value the project has not set.
+
+The same `context` reaches document templates, chunk templates, the collection
+index template, and Typst templates. To vary it by output type, add a
+`[transform.<type>.context]` table — it overlays `[context]` for that type
+only:
+
+```toml
+[context]
+site_name = "The Serafin Letters"
+
+[transform.typst.context]
+site_name = "The Serafin Letters — print edition"
+paper = "a5"
 ```
 
 ## Two kinds of CSS
@@ -136,10 +188,20 @@ A minimal template:
 
 With web components mode enabled (`--webcomponents` or
 `[transform.web.webcomponents] enabled`),
-`alternate` behaviours emit `<pb-alternate>` and the template loads the
-tei-publisher `pb-components` bundle from the configured `cdn`. This integrates
-output with the [TEI Publisher](https://teipublisher.com/) web component
-ecosystem.
+`alternate` behaviours emit `<pb-alternate>` and `context.webcomponents_url` is
+set to the configured `cdn`, so the template can load the tei-publisher
+`pb-components` bundle:
+
+```jinja
+{% if context.webcomponents_url %}
+<script type="module" src="{{ context.webcomponents_url }}"></script>
+{% endif %}
+```
+
+This integrates output with the [TEI Publisher](https://teipublisher.com/) web
+component ecosystem. Setting `webcomponents_url` in `[context]` yourself wins
+over the derived value — useful to serve the bundle from your own host instead
+of the CDN.
 
 ## Typst and DOCX templates
 

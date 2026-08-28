@@ -72,6 +72,18 @@ enabled = false
 # pb-components version used by the default CDN template.
 # version = "3.6.7"
 
+# Free-form values handed to every Jinja2 template as `context`, e.g.
+# {{ context.site_name }}. TOML types are preserved, so booleans, numbers,
+# arrays and sub-tables all arrive intact. Templates only — XPath never sees
+# these; that is what [transform.parameters] is for.
+# [context]
+# site_name = "TEI Publisher"
+# show_downloads = true
+
+# A per-output-type overlay on [context], applied for that type only.
+# [transform.typst.context]
+# paper = "a5"
+
 [transform.docx]
 # Optional override: odd = "odd/docx-only.odd"
 # Word style template used for DOCX output.

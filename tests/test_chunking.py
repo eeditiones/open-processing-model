@@ -1308,3 +1308,58 @@ def test_chunk_document_applies_the_configured_base_override(tmp_path: Path) -> 
     odd_css = (tmp_path / 'libbase' / 'css' / 'teipublisher.css').read_text(encoding='utf-8')
     assert '.libbase { color: teal; }' in odd_css
     assert '.alternate .altcontent' not in odd_css
+
+
+def test_chunk_pages_and_index_receive_the_project_context(tmp_path: Path) -> None:
+    """``[context]`` reaches chunk pages and the collection index alike."""
+    from dataclasses import replace
+
+    from opm.config import ProjectConfig
+
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    template = tmp_path / 'page.html.j2'
+    template.write_text(
+        '<!doctype html><html><head><title>{{ context.site_name }}</title>'
+        '{% if context.webcomponents_url %}<script src="{{ context.webcomponents_url }}"></script>'
+        '{% endif %}</head><body>{{ content_html }}</body></html>',
+        encoding='utf-8',
+    )
+    index_template = tmp_path / 'index.html.j2'
+    index_template.write_text('<h1>{{ context.site_name }}</h1>', encoding='utf-8')
+
+    project_config = ProjectConfig(
+        template_context={'site_name': 'My Edition'},
+        webcomponents_cdn='https://example.test/pb.js',
+    )
+    config = replace(
+        _chunking_config('ctx-chunks'),
+        template=template,
+        index_template=index_template,
+    )
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=config,
+        project_root=tmp_path,
+        template_path=template,
+        project_config=project_config,
+        webcomponents=True,
+        output_format='html',
+    )
+
+    page = (tmp_path / 'ctx-chunks' / '001.html').read_text(encoding='utf-8')
+    assert '<title>My Edition</title>' in page
+    assert '<script src="https://example.test/pb.js"></script>' in page
+
+    # build_index scans the output root for per-document chunk directories.
+    index_html = build_index(
+        tmp_path,
+        template_path=index_template,
+        project_config=project_config,
+    ).read_text(encoding='utf-8')
+    assert '<h1>My Edition</h1>' in index_html

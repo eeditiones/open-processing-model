@@ -188,6 +188,21 @@ class CollectionConfig:
 class ProjectConfig:
     webcomponents_enabled: bool | None = None
     webcomponents_cdn: str | None = None
+    template_context: dict[str, Any] = field(default_factory=dict)
+    """Arbitrary values exposed to every Jinja2 template as ``context`` (``[context]``).
+
+    Unlike :attr:`parameters`, which is bound to XPath ``$parameters`` and so
+    must be a flat map of strings, this keeps TOML types intact — booleans,
+    numbers, arrays and nested tables all survive — because nothing but the
+    template ever reads it. It is how a project drives its own template
+    without a code change.
+    """
+    template_context_by_type: dict[str, dict[str, Any]] = field(default_factory=dict)
+    """Per-output-type context overlays from ``[transform.<type>.context]``.
+
+    Merged over :attr:`template_context` by :meth:`context_for`, so a value the
+    web template needs never leaks into the Typst one.
+    """
     document_template: Path | None = None
     document_css: Path | None = None
     document_docx_template: Path | None = None
@@ -221,6 +236,31 @@ class ProjectConfig:
 
     Per-type ``[transform.<type>].odd`` entries override ``[transform].odd``.
     """
+
+    def context_for(
+        self,
+        transform_type: str | None = None,
+        *,
+        webcomponents: bool = False,
+    ) -> dict[str, Any]:
+        """Return the template ``context`` for *transform_type*.
+
+        ``[context]`` supplies the base; ``[transform.<type>.context]`` overlays
+        it. When *webcomponents* is on, ``webcomponents_url`` is derived from
+        ``[transform.web.webcomponents] cdn``/``version`` — unless the project
+        set that key itself, which then wins.
+        """
+        merged = dict(self.template_context)
+        key = (transform_type or '').strip().lower()
+        if key:
+            merged.update(self.template_context_by_type.get(key, {}))
+        if webcomponents:
+            merged.setdefault(
+                'webcomponents_url',
+                self.webcomponents_cdn
+                or DEFAULT_CDN_TEMPLATE.replace('{version}', DEFAULT_VERSION),
+            )
+        return merged
 
     def odd_for_type(self, transform_type: str) -> Path | None:
         """Return the ODD for *transform_type*.
@@ -270,6 +310,18 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     typst_data = type_sections['typst']
     web_data = type_sections['web']
     wc = _section_table(web_data.get('webcomponents'))
+
+    raw_context = data.get('context', {})
+    if not isinstance(raw_context, dict):
+        raise ValueError('opm.toml: [context] must be a table')
+    # Values are handed to Jinja2 untouched: whatever TOML can express, a
+    # template can read. No coercion, no key whitelist.
+    template_context = dict(raw_context)
+    template_context_by_type = {
+        type_name: dict(_section_table(section.get('context')))
+        for type_name, section in type_sections.items()
+        if _section_table(section.get('context'))
+    }
 
     cdn_template = wc.get('cdn', DEFAULT_CDN_TEMPLATE)
     version = wc.get('version', DEFAULT_VERSION)
@@ -472,6 +524,8 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     return ProjectConfig(
         webcomponents_enabled=wc.get('enabled'),
         webcomponents_cdn=resolved_cdn,
+        template_context=template_context,
+        template_context_by_type=template_context_by_type,
         document_template=config_path.parent / str(template) if template else None,
         document_css=config_path.parent / str(css_file) if css_file else None,
         document_docx_template=config_path.parent / docx_template_file if docx_template_file else None,
