@@ -1,26 +1,66 @@
-// TEI Typst document shell (ilm).
-// Override via [transform.typst] template in project config or --template
-
-#import "@preview/zebraw:0.6.3": *
-#show: zebraw.with(..zebraw-themes.zebra, lang: true, lang-color: color.mix((blue, 15%), (white, 85%)))
-
-#import "@preview/ilm:2.1.0": *
-
-#set text(lang: "en")
-
-{% set _authors = metadata.get('authors', []) -%}
-#show: ilm.with(
-  title: [{{ (metadata.get('title') or ['Your Title'])[0] }}],
-  authors: {% if _authors | length > 1 %}({% for a in _authors %}"{{ a }}"{% if not loop.last %}, {% endif %}{% endfor %}){% elif _authors %}"{{ _authors[0] }}"{% else %}""{% endif %},
-  abstract: [{{ (metadata.get('abstract') or [''])[0] }}],
-  figure-index: (enabled: true),
-  table-index: (enabled: true),
-  listing-index: (enabled: true)
-)
-#set text(font: ("New Computer Modern", "Times New Roman"))
-#show raw: set text(font: ("Iosevka", "DejaVu Sans Mono", "Courier New"))
+// Reading edition of a First Folio play, after the Folger Shakespeare layout:
+// through-line numbers in the left margin, small-caps speech prefixes, centred
+// act/scene headings, and a running head carrying the act and scene.
+//
+// No template package: the Typst drama packages on Universe (playwright,
+// its-scripted) format *new* stageplays to Dramatists Guild / screenplay rules,
+// which is a different genre from a numbered scholarly text. Everything here is
+// built on Typst's own `par.line`, which numbers typeset lines natively.
 
 {% include "opm_css_fns_default.typ.j2" %}
+
+{% set _authors = metadata.get('authors', []) -%}
+{% set _full_title = (metadata.get('title') or [''])[0] -%}
+#let full-title = "{{ _full_title | replace('"', '\\"') }}"
+#let short-title = "{{ context.short_title | default(_full_title, true) | replace('"', '\\"') }}"
+#let author = "{{ (_authors[0] if _authors else '') | replace('"', '\\"') }}"
+#let source-note = "{{ context.source_note | default('', true) | replace('"', '\\"') }}"
+
+#set document(title: short-title, author: author)
+
+// ── Page ──────────────────────────────────────────────────────────────────
+// The left margin is wide enough to hold the line numbers outside the measure.
+#set page(
+  width: 6.75in,
+  height: 9.75in,
+  margin: (left: 1.3in, right: 0.95in, top: 1.05in, bottom: 0.95in),
+  header-ascent: 32%,
+  header: context {
+    let page-no = counter(page).at(here()).first()
+    if page-no <= 1 { return none }
+    let acts = query(heading.where(level: 1).before(here()))
+    let scenes = query(heading.where(level: 2).before(here()))
+    let where = if acts.len() > 0 and scenes.len() > 0 {
+      text(size: 7.5pt)[#smallcaps(acts.last().body). #smallcaps(scenes.last().body)]
+    } else { [] }
+    grid(
+      columns: (2em, 1fr, auto),
+      align(left + bottom, text(size: 10pt)[#page-no]),
+      align(center + bottom, text(size: 10pt, style: "italic")[#short-title]),
+      align(right + bottom, where),
+    )
+    v(2.5pt)
+    line(length: 100%, stroke: 1.1pt)
+  },
+)
+
+#set text(font: ("New Computer Modern", "Times New Roman"), size: 10.5pt, lang: "en")
+// Hanging indent gives verse and prose the same turn-under the Folger uses.
+#set par(justify: false, leading: 0.62em, spacing: 0.62em, hanging-indent: 1.4em)
+
+// ── Line numbers ──────────────────────────────────────────────────────────
+// Typst numbers *typeset* lines, so a wrapped turn-under stays unnumbered —
+// the same convention the Folger's through-line numbers follow.
+#let line-number-every = {{ context.line_number_every | default(5, true) }}
+#set par.line(
+  numbering: n => if calc.rem(n, line-number-every) == 0 {
+    text(size: 7pt, fill: luma(115))[#n]
+  },
+  number-align: right,
+  number-margin: left,
+  number-clearance: 1.5em,
+  numbering-scope: "document",
+)
 
 #show: marginalia.setup.with(
   inner: (far: 2.5cm),
@@ -29,22 +69,74 @@
   bottom: 2.5cm,
 )
 
-// Extra handlers for ODD @cssClass / @rend names (see templates/docbook.typ.j2):
-// #let opm-css-fns = opm-css-fns + (
-//   center: (body) => align(center, body),
-//   note: (body) => block(
-//     width: 100%,
-//     inset: (left: 0.8em, y: 0.35em),
-//     stroke: (left: 4pt + rgb("#d07f00")),
-//     body,
-//   ),
-// )
+// ── Headings ──────────────────────────────────────────────────────────────
+// Numbering an "ACT 1" line would make it part of the verse count, so headings
+// opt out. The rule under an act opening is the Folger's.
+#show heading.where(level: 1): it => {
+  set par.line(numbering: none)
+  block(above: 2.4em, below: 0.35em, width: 100%,
+    align(center, text(size: 1.2em, style: "italic")[#it.body]))
+  block(below: 1.4em, line(length: 100%, stroke: 1.4pt))
+}
+
+#show heading.where(level: 2): it => {
+  set par.line(numbering: none)
+  block(above: 1.5em, below: 0.9em, width: 100%,
+    align(center, text(size: 1em, weight: "regular")[#it.body]))
+}
+
+// ── ODD @cssClass handlers ────────────────────────────────────────────────
+// @cssClass names arrive here with hyphens folded to underscores, the same
+// normalisation the Typst generator applies when it emits opm-css("…").
+#let opm-css-fns = opm-css-fns + (
+  // Small caps, not italic: the Folio marks speech prefixes with @rend="italic",
+  // which arrives here as emphasis, so it is unwound first.
+  speaker: (body) => {
+    show emph: it => it.body
+    smallcaps(body)
+    h(0.9em)
+  },
+  // Stage directions sit outside the line count in the Folger, as they do here.
+  stage_center: (body) => {
+    set par.line(numbering: none)
+    block(above: 0.9em, below: 0.9em, width: 100%, align(center, emph(body)))
+  },
+  stage_right: (body) => {
+    set par.line(numbering: none)
+    block(above: 0.9em, below: 0.9em, width: 100%, align(right, emph(body)))
+  },
+  // The Folio's own scene heading ("Actus primus, Scena prima."), kept under
+  // the editorial one as a witness to the copy text.
+  folio_head: (body) => {
+    set par.line(numbering: none)
+    block(above: 0.2em, below: 1.4em, width: 100%,
+      align(center, text(size: 0.85em, fill: luma(90), style: "italic")[#body]))
+  },
+)
 
 {{ odd_typst }}
 
-#set heading(numbering: "1.")
-#set par(justify: true)
-
 {% include "opm_css.typ.j2" %}
+
+// ── Title page ────────────────────────────────────────────────────────────
+#{
+  set par.line(numbering: none)
+  set page(header: none)
+  align(center + horizon)[
+    #text(size: 2.1em, style: "italic")[#short-title]
+    #v(1.2em)
+    #line(length: 45%, stroke: 0.8pt)
+    #v(1.2em)
+    #if author != "" [#text(size: 1.1em)[#author]]
+    #v(3em)
+    #text(size: 0.85em, fill: luma(80))[#full-title]
+    #if source-note != "" [
+      #v(1.4em)
+      #text(size: 0.85em, fill: luma(80))[#source-note]
+    ]
+  ]
+  pagebreak(weak: true)
+}
+#counter(page).update(1)
 
 {{ content_typst }}

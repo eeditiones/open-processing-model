@@ -129,11 +129,45 @@ The images come from the same public server the TEI Publisher demo uses, so they
 are fetched over the network: that is the one part of this example that is not
 self-contained.
 
+## Print edition
+
+`opm transform -t typst` produces a reading text laid out after the Folger
+Shakespeare: through-line numbers in the left margin, small-caps speech
+prefixes, centred act and scene headings, and a running head carrying the act
+and scene.
+
+```bash
+uv run opm transform data/F-ado.xml -t typst -o folio.typ && typst compile folio.typ
+```
+
+The line numbers are Typst's own `par.line`, which numbers *typeset* lines — so
+a wrapped turn-under stays unnumbered, the convention the Folger follows.
+`templates/book.typ.j2` is hand-written rather than built on a package: the
+Typst drama templates on Universe format *new* stageplays to Dramatists Guild
+or screenplay rules, which is a different genre from a numbered scholarly text.
+
+Everything the print layout needs is either in `odd/shakespeare.odd`, scoped
+with `output="typst"` so the web models are untouched, or in the template:
+
+- **Act and scene headings.** Only the supplied heads (`[Act 1, Scene 2]`)
+  state both numbers, so they drive the headings; the first scene of an act
+  also opens the act. The Folio's own heading (*Actus primus, Scena prima.*) is
+  pulled in underneath, since where it stands it would print before the act.
+- **Speech prefixes.** Small caps in print, italic on the web. The Folio marks
+  them `@rend="italic"`, which arrives in Typst as emphasis, so the template
+  unwinds it before applying small caps.
+- **Stage directions.** `text-align` has no equivalent in the Typst generator,
+  so the alignment travels as a `@cssClass` the template resolves. Note that
+  `@cssClass` names arrive with hyphens folded to underscores.
+- **`[transform.typst.context]`.** The Folio title runs to two sentences and is
+  unusable as a running head, so print gets `short_title`; the web templates go
+  on using the full one. `line_number_every` sets the numbering interval.
+
 ## Layout
 
 - `odd/shakespeare.odd` — processing model (plus `shakespeare.css`)
 - `templates/chapbook.html.j2` — reading view (`chapbook.css` is inlined by it)
-- `templates/book.typ.j2` — Typst document shell
+- `templates/book.typ.j2` — Folger-style print edition (line numbers, running heads)
 - `opm.toml` — page chunking, `[context]`, `$global:` settings, chunk fragments
 - `iiif/F-ado.xml/manifest.json` — IIIF manifest, copied to `chunks/assets/`
 - `scripts/build_manifest.py` — regenerates that manifest from `pb/@facs`

@@ -50,11 +50,15 @@
         </model>
                 </elementSpec>
                 <elementSpec ident="speaker" mode="change">
-                    <model behaviour="inline">
-            <outputRendition xml:space="preserve">
-            font-style:italic; margin-right: 1rem; display: inline-block;
-            </outputRendition>
-        </model>
+                    <model output="typst" behaviour="inline" cssClass="speaker">
+                        <desc>Small-caps speech prefix; the gap after it is set in the
+                            template, since a CSS margin means nothing to Typst.</desc>
+                    </model>
+                    <model behaviour="inline" cssClass="speaker">
+                        <outputRendition xml:space="preserve">
+                        font-style:italic; margin-right: 1rem; display: inline-block;
+                        </outputRendition>
+                    </model>
                 </elementSpec>
                 <elementSpec ident="l" mode="change">
                     <model behaviour="block" useSourceRendition="true">
@@ -72,6 +76,11 @@
         </model>
                 </elementSpec>
                 <elementSpec ident="stage" mode="change">
+                    <model output="typst" predicate="contains(@rend, 'rightJustified')" behaviour="block" cssClass="stage-right"/>
+                    <model output="typst" behaviour="block" cssClass="stage-center">
+                        <desc>The Folger centres entrances and exits; text-align has no
+                            Typst equivalent in the generator, so the class carries it.</desc>
+                    </model>
                     <model predicate="contains(@rend, 'rightJustified')" behaviour="block">
             <outputRendition xml:space="preserve">
             font-style: italic; text-align: right;
@@ -89,6 +98,36 @@
         </model>
                 </elementSpec>
                 <elementSpec ident="head" mode="change">
+                    <!-- Typst: the title page already carries the play title. -->
+                    <model output="typst" predicate="parent::div[@type='play']" behaviour="omit"/>
+                    <!-- Every scene carries a supplied head ("[Act 1, Scene 2]"), which
+                         is the only place the act and scene numbers are stated in a
+                         head. The first scene of an act opens with the act heading. -->
+                    <modelSequence output="typst" predicate="@type='supplied' and not(parent::div/preceding-sibling::div)">
+                        <model behaviour="heading">
+                            <param name="level" value="1"/>
+                            <param name="content" value="'ACT ' || ancestor::div[@type='act']/@n"/>
+                        </model>
+                        <model behaviour="heading">
+                            <param name="level" value="2"/>
+                            <param name="content" value="'Scene ' || parent::div/@n"/>
+                        </model>
+                        <model predicate="parent::div/head[not(@type)]" behaviour="block" cssClass="folio-head">
+                            <param name="content" value="normalize-space(parent::div/head[not(@type)])"/>
+                        </model>
+                    </modelSequence>
+                    <modelSequence output="typst" predicate="@type='supplied'">
+                        <model behaviour="heading">
+                            <param name="level" value="2"/>
+                            <param name="content" value="'Scene ' || parent::div/@n"/>
+                        </model>
+                        <model predicate="parent::div/head[not(@type)]" behaviour="block" cssClass="folio-head">
+                            <param name="content" value="normalize-space(parent::div/head[not(@type)])"/>
+                        </model>
+                    </modelSequence>
+                    <!-- The Folio's own heading is pulled in above, after the editorial
+                         one; where it stands it would print before the act opening. -->
+                    <model output="typst" predicate="parent::div[@type='scene']" behaviour="omit"/>
                     <model predicate="$parameters?mode='toc'" behaviour="inline"/>
                     <model predicate="@type='supplied'" behaviour="omit"/>
                     <model predicate="parent::figure" behaviour="block">
@@ -117,6 +156,10 @@
                     <model behaviour="block"/>
                 </elementSpec>
                 <elementSpec ident="c" mode="change">
+                    <model output="typst" behaviour="inline">
+                        <desc>No 3em decorated capital in print: it would blow out the
+                            leading of the line it starts, and the numbers alongside.</desc>
+                    </model>
                     <model predicate="@rend='decoratedCapital'" behaviour="inline">
             <outputRendition xml:space="preserve">
             font-size: 3em; line-height: 0.9;

@@ -49,6 +49,15 @@ context-path = "assets"
 [transform.typst]
 template = "templates/book.typ.j2"
 
+# Overlays [context] for Typst only. The Folio title runs to two sentences,
+# which is unusable as a running head, so print needs a short form; the web
+# templates go on using the full one from the teiHeader.
+[transform.typst.context]
+short_title = "Much Ado About Nothing"
+source_note = "Bodleian First Folio, Arch. G c.7"
+# Print a line number every nth typeset line.
+line_number_every = 5
+
 [transform.web.webcomponents]
 # The <pb> model emits <pb-facs-link>, which stays inert markup showing the
 # folio number until the pb-components bundle is loaded. With it on, each folio
