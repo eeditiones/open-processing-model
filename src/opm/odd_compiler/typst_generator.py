@@ -70,6 +70,39 @@ _CSS_NAMED_COLORS = {
 }
 
 
+# CSS keyword sizes, as em factors relative to the surrounding text.
+_CSS_KEYWORD_SIZES = {
+    'xx-small': '0.6em',
+    'x-small': '0.75em',
+    'small': '0.83em',
+    'smaller': '0.83em',
+    'medium': '1em',
+    'large': '1.2em',
+    'larger': '1.2em',
+    'x-large': '1.5em',
+    'xx-large': '2em',
+}
+
+
+def _css_font_size_to_typst(css_size: str) -> str | None:
+    """Map a CSS font-size to a Typst text size, or None if unsupported.
+
+    ``em`` and ``rem`` both become ``em``: Typst has no separate root size, and
+    an ODD rendition means "relative to the surrounding text" either way. A bare
+    percentage is a ratio of the current size, which Typst accepts directly.
+    """
+    c = css_size.strip().lower()
+    if not c:
+        return None
+    if c in _CSS_KEYWORD_SIZES:
+        return _CSS_KEYWORD_SIZES[c]
+    m = re.match(r'^(\d*\.?\d+)(em|rem|pt|%)$', c)
+    if not m:
+        return None
+    value, unit = m.group(1), m.group(2)
+    return f'{value}{"em" if unit == "rem" else unit}'
+
+
 def _css_color_to_typst(css_color: str) -> str | None:
     """Map a CSS color value to a Typst color expression, or None if unsupported."""
     c = css_color.strip().lower()
@@ -93,10 +126,18 @@ def _wrap_typst_styling(expr: str, props: dict[str, str]) -> str:
     if 'line-through' in td:
         result = f'strike({result})'
     color = props.get('color', '').strip()
+    size = _css_font_size_to_typst(props.get('font-size', ''))
+    # One text() call carries both, so a rendition setting colour and size does
+    # not nest two wrappers.
+    text_args = []
+    if size:
+        text_args.append(f'size: {size}')
     if color:
         typst_color = _css_color_to_typst(color)
         if typst_color:
-            result = f'text(fill: {typst_color})[#{result}]'
+            text_args.append(f'fill: {typst_color}')
+    if text_args:
+        result = f'text({", ".join(text_args)})[#{result}]'
     return result
 
 

@@ -82,3 +82,43 @@ def test_compile_typst_mode_emits_odd_generated_typst() -> None:
     assert 'ODD_GENERATED_CSS' not in src
     assert 'TypstOutputFunctions' in src
     assert "return ['typst']" in src
+
+
+def test_css_body_to_typst_function_font_size() -> None:
+    fn = css_body_to_typst_function('small_text', 'font-size: 0.75em;')
+    assert 'text(size: 0.75em)' in fn
+
+
+def test_font_size_keyword_and_percentage() -> None:
+    assert 'text(size: 0.83em)' in css_body_to_typst_function('kw', 'font-size: small;')
+    assert 'text(size: 80%)' in css_body_to_typst_function('pct', 'font-size: 80%;')
+    # Typst has no root size; rem means the same thing as em for a rendition.
+    assert 'text(size: 1.5em)' in css_body_to_typst_function('rem', 'font-size: 1.5rem;')
+
+
+def test_font_size_and_color_share_one_text_call() -> None:
+    """Both land in a single text(), rather than nesting two wrappers."""
+    fn = css_body_to_typst_function('marker', 'font-size: 0.75em; color: grey;')
+    assert 'text(size: 0.75em, fill: gray)' in fn
+    assert fn.count('text(') == 1
+
+
+def test_unsupported_font_size_is_dropped() -> None:
+    """An unmappable value must not emit a broken Typst size."""
+    fn = css_body_to_typst_function('weird', 'font-size: calc(1em + 2px);')
+    assert 'text(' not in fn
+
+
+def test_teipublisher_pb_renders_inline_page_number_in_typst() -> None:
+    """The typst <pb> model is a small inline |<n> marker, not a margin note.
+
+    A margin note per page break is too loud in running text, and the number is
+    only meaningful next to the break it marks.
+    """
+    from opm.odd_compiler import compile_odd
+
+    src = compile_odd(str(packaged_odd('teipublisher.odd')), output_mode='typst')
+    assert "'|' || @n" in src
+    # The page number rides along with the marker instead of going to the margin.
+    assert "'margin'" not in src
+    assert 'text(size: 0.75em, fill: gray)' in src
