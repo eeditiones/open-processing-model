@@ -222,6 +222,14 @@ class ProjectConfig:
     """
     epub_skip_title: bool = False
     """When true, omit the generated EPUB title page (``[transform.epub] skip_title``)."""
+    epub_chunk_overrides: dict[str, Any] = field(default_factory=dict)
+    """``xpath`` / ``selector`` / ``depth`` from ``[transform.epub]``.
+
+    What belongs in the book is not always what the reading view pages through.
+    A parallel-text edition shows the translation in a second panel and chunks
+    only the source; an EPUB has no second panel, so selecting the same chunks
+    would drop half the document. Empty means "use ``[chunking]`` unchanged".
+    """
     xpath_extensions: tuple[str, ...] = ()
     xpath_documents: tuple[Path, ...] = ()
     xpath_collections: tuple[CollectionConfig, ...] = ()
@@ -276,6 +284,13 @@ class ProjectConfig:
                 or DEFAULT_CDN_TEMPLATE.replace('{version}', DEFAULT_VERSION),
             )
         return merged
+
+    @property
+    def epub_chunking(self) -> ChunkingConfig | None:
+        """Chunking config the EPUB packager selects chapters with."""
+        if self.chunking is None or not self.epub_chunk_overrides:
+            return self.chunking
+        return replace(self.chunking, **self.epub_chunk_overrides)
 
     def odd_for_type(self, transform_type: str) -> Path | None:
         """Return the ODD for *transform_type*.
@@ -554,6 +569,11 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         ),
         epub_css=config_path.parent / str(epub_css_file) if epub_css_file else None,
         epub_skip_title=bool(epub_data.get('skip_title', False)),
+        epub_chunk_overrides={
+            key: epub_data[key]
+            for key in ('xpath', 'selector', 'depth')
+            if key in epub_data
+        },
         xpath_extensions=xpath_extensions,
         xpath_documents=xpath_documents,
         xpath_collections=tuple(collections),

@@ -23,6 +23,7 @@ uv run opm transform data/F-ado.xml --preview
 uv run opm transform data/F-ado.xml -t markdown --preview
 uv run opm transform data/F-ado.xml -t typst -o folio.typ
 uv run opm transform data/F-ado.xml -t docx -o folio.docx
+uv run opm transform data/F-ado.xml -t epub -o folio.epub
 ```
 
 ## Chunk and preview
@@ -163,11 +164,21 @@ with `output="typst"` so the web models are untouched, or in the template:
   unusable as a running head, so print gets `short_title`; the web templates go
   on using the full one. `line_number_every` sets the numbering interval.
 
+## EPUB edition
+
+`opm transform -t epub` produces a reading text of the play: one chapter per
+scene, speeches hanging under small-caps prefixes, verse a line to a line.
+
+```bash
+uv run opm transform data/F-ado.xml -t epub -o folio.epub
+```
+
 ## Layout
 
 - `odd/shakespeare.odd` — processing model (plus `shakespeare.css`)
 - `templates/chapbook.html.j2` — reading view (`chapbook.css` is inlined by it)
 - `templates/book.typ.j2` — Folger-style print edition (line numbers, running heads)
+- `templates/epub.css` — EPUB reading text (scene chapters, no page furniture)
 - `opm.toml` — page chunking, `[context]`, `$global:` settings, chunk fragments
 - `iiif/F-ado.xml/manifest.json` — IIIF manifest, copied to `chunks/assets/`
 - `scripts/build_manifest.py` — regenerates that manifest from `pb/@facs`

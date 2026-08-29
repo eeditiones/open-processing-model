@@ -120,3 +120,31 @@ def test_dbk_intro_chunks_are_detached_copies() -> None:
     assert intro.get(XML_ID) == 'install'
     assert intro.getroottree().getroot() is intro
     assert pip.getroottree().getroot() is root
+
+
+def test_tei_pb_chunks_do_not_duplicate_text_across_a_break() -> None:
+    """A carved copy carries its own tail; the caller re-adds it in range."""
+    root = _parse(
+        f'''<TEI xmlns="{TEI_NS}">
+  <text><body>
+    <div>
+      <pb n="1"/>
+      <p>you haue of
+        <lb n="1"/>late stood out against your brother,
+        <pb n="2"/>
+        <lb n="2"/>and hee hath tane you newly into his grace.</p>
+    </div>
+  </body></text>
+</TEI>'''
+    )
+    chunks = tei_pb_chunks(root, ChunkingConfig())
+    assert len(chunks) == 2
+
+    page1 = ' '.join(chunks[0].itertext())
+    assert page1.count('late stood out') == 1
+    # Text past the closing milestone belongs to the next page only.
+    assert 'and hee hath tane' not in page1
+
+    page2 = ' '.join(chunks[1].itertext())
+    assert page2.count('and hee hath tane') == 1
+    assert 'late stood out' not in page2

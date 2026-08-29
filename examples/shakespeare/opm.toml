@@ -46,6 +46,14 @@ address-by-id = false
 static = "1"
 context-path = "assets"
 
+[transform.epub]
+# Cascades after the packaged EPUB baseline and odd/shakespeare.css, undoing
+# the two-column Folio layout and the page furniture that only makes sense
+# beside a facsimile. Nothing here selects the chapters: a reading system
+# repaginates, so EPUB output overrides the page selector in [chunking] below
+# and falls back to divisions — one chapter per scene.
+css = "templates/epub.css"
+
 [transform.typst]
 template = "templates/book.typ.j2"
 

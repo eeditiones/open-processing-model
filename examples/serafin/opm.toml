@@ -30,6 +30,14 @@ register-root = "/db/apps/serafin/data/registers"
 [transform.web.webcomponents]
 enabled = true
 
+[transform.epub]
+# [chunking] below selects only the source text: the reading view shows the
+# translation beside it, from the `translation` fragment. An EPUB has no second
+# panel and no fragments, so selecting the same chunks would drop half the
+# letter. Chapters are the two `text` elements instead, which is also what puts
+# the ODD's epub heading models on them.
+xpath = "//text[@type]"
+
 [transform.typst]
 template = "templates/letter.typ.j2"
 

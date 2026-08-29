@@ -269,6 +269,9 @@ def _milestone_chunk(
             return None
         if el is ms1:
             copied = copy.deepcopy(el)
+            # deepcopy carries the tail across; the caller re-adds it only when
+            # the slot is in range, so leaving it here duplicates the text.
+            copied.tail = None
             source_map.record_subtree(copied, el)
             return copied
 
@@ -296,6 +299,7 @@ def _milestone_chunk(
 
         if between(el_pos[el]):
             copied = copy.deepcopy(el)
+            copied.tail = None
             source_map.record_subtree(copied, el)
             return copied
 

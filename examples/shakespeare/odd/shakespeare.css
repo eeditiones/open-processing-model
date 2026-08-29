@@ -1,3 +1,51 @@
+/* @rend tokens reach the output as bare class names, and the processing model
+   defines none of them: it covers speakers and stage directions by element,
+   with outputRendition. So the tokens it does not reach — a line, a letter, a
+   word marked rend="italic" — arrive styled by nothing and print roman.
+   These belong to the source, not to one output, so every view shares them. */
+
+.italic {
+    font-style: italic;
+}
+
+.roman {
+    font-style: normal;
+}
+
+.large {
+    font-size: 1.2em;
+}
+
+.superscript {
+    font-size: 0.7em;
+    vertical-align: super;
+    line-height: 1;
+}
+
+/* A letter the compositor set upside down. The rotation turns the glyph about
+   the centre of its line box, which leaves it sitting high — an x-height letter
+   occupies only the lower band — so it is nudged back down to the baseline.
+   The nudge is an approximation: how far depends on the reader's font. */
+.inverted {
+    display: inline-block;
+    line-height: 1;
+    vertical-align: -0.25em;
+    transform: rotate(180deg);
+}
+
+.center {
+    text-align: center;
+}
+
+.left {
+    text-align: left;
+}
+
+/* A stage direction the Folio runs into the speech rather than setting off. */
+.tei-stage.inline {
+    display: inline;
+}
+
 .tei-speaker + * {
     display: inline;
 }

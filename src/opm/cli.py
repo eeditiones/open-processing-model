@@ -591,7 +591,7 @@ def transform_cmd(
             typst_template_path=effective_template if primary == 'typst' else None,
             xpath_base_uri=xpath_base_uri,
             xpath_documents=xpath_documents,
-            epub_chunking=cfg.chunking,
+            epub_chunking=cfg.epub_chunking,
             epub_css=cfg.epub_css,
             epub_skip_title=cfg.epub_skip_title,
         )

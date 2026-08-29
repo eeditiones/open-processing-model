@@ -398,3 +398,26 @@ def test_get_compiles_to_source_node() -> None:
     )
     assert 'tp:source-node(.)' in expr
     assert '$get' not in expr
+
+
+def test_apply_children_closes_up_a_word_split_at_a_soft_hyphen() -> None:
+    """``daugh<shy><lb/>ter`` is one word, not two: drop the source indentation."""
+    el = etree.Element('p')
+    config = {
+        'apply_children': apply_children,
+        'dispatch': lambda *a, **k: [],
+    }
+    apply_children(config, None, ['your daugh­\n            ter,'], el)
+    assert el.text == 'your daugh­ter,'
+
+
+def test_apply_children_closes_up_across_an_omitted_element() -> None:
+    """The two halves reach the output as separate runs when the ``lb`` is omitted."""
+    el = etree.Element('p')
+    config = {
+        'apply_children': apply_children,
+        'dispatch': lambda *a, **k: [],
+    }
+    apply_children(config, None, ['to your daugh­'], el)
+    apply_children(config, None, ['\n            (ter,'], el)
+    assert el.text == 'to your daugh­(ter,'

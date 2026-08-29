@@ -8,10 +8,18 @@ from pathlib import Path
 
 from lxml import etree
 
+from opm.config import ChunkingConfig, load_project_config
 from opm.epub import (
     XHTML_NS,
+    _chapter_heading_text,
+    _collect_body_nodes,
+    _milestone_label,
+    _rendered_heading_text,
+    extract_epub_metadata,
     _resolve_internal_links,
     _rewrite_to_xhtml,
+    _strip_footnotes,
+    select_epub_chapters,
 )
 from opm.odd_cache import ensure_compiled_module
 from opm.odd_compiler.codegen import _model_matches_output_mode
@@ -259,3 +267,135 @@ def test_epub_project_css_is_appended_last(tmp_path: Path) -> None:
     with zipfile.ZipFile(io.BytesIO(out)) as zf:
         css = zf.read('OEBPS/stylesheet.css').decode('utf-8')
     assert css.rstrip().endswith('body { color: rebeccapurple; }')
+
+
+def test_rewrite_to_xhtml_drops_templates_and_slots() -> None:
+    """Web-component plumbing has no counterpart in an EPUB content document."""
+    src = etree.fromstring(
+        '<pb-popover class="k"><span class="gap" slot="default">g</span>'
+        '<template slot="alternate">illegible: 1 chars</template></pb-popover>'
+    )
+    out = _rewrite_to_xhtml(src)
+    assert 'illegible' not in ''.join(out.itertext())
+    assert not out.findall(f'.//{{{XHTML_NS}}}template')
+    assert out[0].get('slot') is None
+
+
+def test_strip_footnotes_leaves_the_tail_behind() -> None:
+    """The aside is hoisted; the text after it stays where the reader reads it."""
+    src = etree.fromstring(
+        f'<div xmlns="{XHTML_NS}" xmlns:epub="http://www.idpf.org/2007/ops">'
+        '<p>before <aside epub:type="footnote" id="fn1">the note</aside>'
+        'after the note</p></div>'
+    )
+    cleaned, footnotes = _strip_footnotes([src])
+    assert len(footnotes) == 1
+    assert footnotes[0].tail is None
+    assert ''.join(footnotes[0].itertext()) == 'the note'
+    body = ''.join(cleaned[0].itertext())
+    assert body.count('after the note') == 1
+    assert 'the note' not in body.replace('after the note', '')
+
+
+def test_epub_falls_back_from_page_chunking_to_divisions() -> None:
+    """A reading system repaginates: folio-per-chapter is not a chapter scheme."""
+    tei_ns = 'http://www.tei-c.org/ns/1.0'
+    root = etree.fromstring(
+        f'''<TEI xmlns="{tei_ns}"><text><body>
+      <div type="play"><pb n="1"/>
+        <div type="act">
+          <div type="scene"><head>Scene 1</head><p>One <pb n="2"/> two</p></div>
+          <div type="scene"><head>Scene 2</head><p>Three</p></div>
+        </div>
+      </div>
+    </body></text></TEI>'''.encode('utf-8')
+    )
+    page_cfg = ChunkingConfig(selector='opm.navigation.tei_pb_chunks', depth=1)
+    chapters = select_epub_chapters(root, page_cfg)
+    assert [_chapter_heading_text(c) for c in chapters] == ['Scene 1', 'Scene 2']
+
+
+def test_chapter_heading_falls_back_to_the_page_number() -> None:
+    """A headless chunk carved at a milestone is named by the printed page."""
+    tei_ns = 'http://www.tei-c.org/ns/1.0'
+    div = etree.fromstring(
+        f'<div xmlns="{tei_ns}"><pb n="104"/><p>mid-speech</p></div>'.encode('utf-8')
+    )
+    assert _chapter_heading_text(div) is None
+    assert _milestone_label(div) == 'Page 104'
+
+
+def test_rendered_heading_names_the_chapter_the_way_it_names_itself() -> None:
+    """The ODD, not the source, decides what stands at the top of the chapter."""
+    body = etree.fromstring(
+        f'<div xmlns="{XHTML_NS}"><div class="wrap">'
+        '<h1>Act 2</h1><h2>Scene 1</h2>'
+        '<div class="folio-head">Actus Secundus.</div>'
+        '<div class="sp">Leonato. Was not Count Iohn here at supper?</div>'
+        '</div></div>'
+    )
+    assert _rendered_heading_text([body]) == 'Act 2, Scene 1'
+
+
+def test_rendered_heading_stops_at_the_body_proper() -> None:
+    """Only the headings a chapter opens with name it."""
+    body = etree.fromstring(
+        f'<div xmlns="{XHTML_NS}"><h1>Transcription (la)</h1>'
+        '<div class="letter"><p>Nobili domino</p><h2>A later heading</h2></div>'
+        '</div>'
+    )
+    assert _rendered_heading_text([body]) == 'Transcription (la)'
+
+
+def test_rendered_heading_absent_when_the_chapter_opens_with_text() -> None:
+    body = etree.fromstring(f'<div xmlns="{XHTML_NS}"><p>straight into it</p></div>')
+    assert _rendered_heading_text([body]) is None
+
+
+def test_metadata_survives_comments_in_the_header() -> None:
+    """``iter()`` yields comments and processing instructions, and QName rejects them."""
+    tei_ns = 'http://www.tei-c.org/ns/1.0'
+    root = etree.fromstring(
+        f'''<TEI xmlns="{tei_ns}"><teiHeader><fileDesc><titleStmt>
+        <!-- a note to the editor -->
+        <title>A Letter</title><author>Anon</author>
+      </titleStmt></fileDesc></teiHeader><text><body><div><p>x</p></div></body></text></TEI>'''.encode('utf-8')
+    )
+    meta = extract_epub_metadata(root)
+    assert meta.title == 'A Letter'
+    assert meta.creator == 'Anon'
+
+
+def test_collect_body_nodes_drops_comments() -> None:
+    """A comment reaching the packager would be asked for a local name it has not got."""
+    src = etree.fromstring('<div><!-- editorial --><p>text</p></div>')
+    nodes = _collect_body_nodes([src[0], src[1]])
+    assert len(nodes) == 1
+    assert etree.QName(nodes[0]).localname == 'p'
+
+
+def test_epub_chunking_override_selects_its_own_chapters(tmp_path: Path) -> None:
+    """[transform.epub] xpath decides what goes in the book, not [chunking]."""
+    (tmp_path / 'opm.toml').write_text(
+        '[chunking]\n'
+        'xpath = "//text[@type=\'source\']/div"\n'
+        '\n'
+        '[transform.epub]\n'
+        'xpath = "//text[@type]"\n',
+        encoding='utf-8',
+    )
+    cfg = load_project_config(tmp_path / 'opm.toml')
+    assert cfg.chunking is not None
+    assert cfg.chunking.xpath == "//text[@type='source']/div"
+    assert cfg.epub_chunking is not None
+    assert cfg.epub_chunking.xpath == '//text[@type]'
+    # Everything else carries over from [chunking].
+    assert cfg.epub_chunking.output_dir == cfg.chunking.output_dir
+
+
+def test_epub_chunking_defaults_to_the_reading_view(tmp_path: Path) -> None:
+    (tmp_path / 'opm.toml').write_text(
+        '[chunking]\nxpath = "//div"\n', encoding='utf-8',
+    )
+    cfg = load_project_config(tmp_path / 'opm.toml')
+    assert cfg.epub_chunking is cfg.chunking

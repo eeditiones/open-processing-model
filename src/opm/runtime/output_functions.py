@@ -218,11 +218,28 @@ def literal_code_body(node: etree._Element, content) -> str:
     return ''.join(parts)
 
 
+# A soft hyphen followed by source indentation: a word the source broke across
+# two lines.
+_EOL_HYPHEN_RE = re.compile('\u00ad[ \t\r\n]+')
+
+
+def join_eol_hyphen(s: str) -> str:
+    """Close up a word the source split across lines at a soft hyphen.
+
+    Where an encoder marks the split with U+00AD and indents the continuation
+    (``Arra\u00ad<lb/>gon``), dropping the ``lb`` leaves that indentation behind,
+    and every renderer collapses it to a space: "Arra gon". The soft hyphen is
+    kept, so a reading system may still break the word there.
+    """
+    return _EOL_HYPHEN_RE.sub('\u00ad', s)
+
+
 def maybe_normalize_text(s: str, norm) -> str:
     """Apply *norm* unless *s* is template output that must keep ``\\n``."""
-    if norm and not isinstance(s, TemplateOutput):
-        return norm(s)
-    return s
+    if isinstance(s, TemplateOutput):
+        return s
+    s = join_eol_hyphen(s)
+    return norm(s) if norm else s
 
 
 def _coerce_template_strings(nodes: list) -> list:

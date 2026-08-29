@@ -308,6 +308,17 @@
                         </model>
                         <model behaviour="block"/>
                     </modelSequence>
+                    <!-- EPUB: a book, not a reading view. Nothing can stand beside
+                         anything, so the transcription and the translation follow one
+                         another as chapters, each headed in the edition's own words —
+                         which is also what names it in the table of contents. -->
+                    <modelSequence output="epub">
+                        <model behaviour="heading">
+                            <param name="level" value="1"/>
+                            <param name="content" value="if (@type='source') then 'Transcriptio (lat.)' else 'Przekład (pol.)'"/>
+                        </model>
+                        <model behaviour="block"/>
+                    </modelSequence>
                     <model behaviour="body"/>
                 </elementSpec>
                 <elementSpec ident="teiHeader" mode="change">

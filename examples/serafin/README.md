@@ -19,6 +19,7 @@ cd examples/serafin
 
 ```bash
 uv run opm transform data/letters/serafin01.xml --preview
+uv run opm transform data/letters/serafin01.xml -t epub -o letter.epub
 ```
 
 ## Chunk and preview
@@ -49,6 +50,22 @@ The alignment is the encoding's: every translation `<seg>` carries
 `@corresp="#<id>"` pointing at its source `<seg>`, so `odd/serafin.odd` looks the
 counterpart up and emits the pair as one row of a two-column grid. The
 translation `<text>` is then omitted, or it would print again underneath.
+
+## Parallel text in an EPUB
+
+Nothing can stand beside anything in a reflowing book, so the EPUB sets the two
+texts one after the other, a chapter each.
+
+```bash
+uv run opm transform data/letters/serafin01.xml -t epub -o letter.epub
+```
+
+`[chunking]` selects only the source: the reading view fills the translation
+from a fragment, into a second panel. An EPUB has neither, so
+`[transform.epub] xpath = "//text[@type]"` selects both `<text>` elements
+instead — which is also what brings them within reach of the `output="epub"`
+models in `odd/serafin.odd`, whose headings name the chapters and, through them,
+the table of contents.
 
 ## Gaps in print
 

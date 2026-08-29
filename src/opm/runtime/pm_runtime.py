@@ -686,12 +686,27 @@ def append_to(parent_el: etree._Element | list, item) -> None:
         return
     if isinstance(item, str):
         if len(parent_el) == 0:
-            parent_el.text = (parent_el.text or '') + item
+            parent_el.text = _join_text(parent_el.text, item)
         else:
             last = parent_el[-1]
-            last.tail = (last.tail or '') + item
+            last.tail = _join_text(last.tail, item)
     elif isinstance(item, etree._Element):
         parent_el.append(item)
+
+
+def _join_text(existing: str | None, item: str) -> str:
+    """Concatenate two adjacent text runs of the same output element.
+
+    A soft hyphen left at the seam is a word the source broke across lines, so
+    the indentation opening the next run is not a word separator — see
+    :func:`~opm.runtime.output_functions.join_eol_hyphen`, which handles the
+    common case where both halves sit in one text node. Here the runs are
+    separated by an omitted element (``daugh\u00ad<lb/>\n(ter``).
+    """
+    base = existing or ''
+    if base.endswith('\u00ad'):
+        item = item.lstrip(' \t\r\n')
+    return base + item
 
 
 def apply_children(config, source_node, content, parent_el) -> None:

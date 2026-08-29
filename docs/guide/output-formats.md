@@ -117,6 +117,13 @@ ZIP (mimetype, OPF, `nav.xhtml`, NCX, chapters, CSS, images). Chapters are
 selected with the same `[chunking]` rules used by `opm chunk` (default:
 TEI `tei_div_chunks` / DocBook `dbk_section_chunks` at depth 1).
 
+`[transform.epub]` may override that selection with its own `xpath`, `selector`
+or `depth`: what belongs in a book is not always what the reading view pages
+through — `examples/serafin` chunks only the source text and fills the
+translation into a second panel, which an EPUB has not got. A page-milestone
+selector (`tei_pb_chunks`) is always replaced by divisions, since a reading
+system repaginates anyway.
+
 ```bash
 uv run opm transform examples/tei-test.xml -t epub -o book.epub
 ```
@@ -128,6 +135,9 @@ Optional config:
 # odd = "odd/my-epub.odd"
 css = "templates/epub.css"   # appended last to the packaged stylesheet
 skip_title = false           # omit the generated title page when true
+# xpath = "//text[@type]"    # chapter selection, when it differs from [chunking]
+# selector = "opm.navigation.tei_div_chunks"
+# depth = 2
 
 [chunking]
 selector = "opm.navigation.tei_div_chunks"
@@ -136,6 +146,11 @@ depth = 1
 
 Like DOCX, the result is binary — write it with `-o` (terminal preview is not
 supported). Packaging uses stdlib `zipfile` + lxml (no ebooklib).
+
+A chapter is named in the table of contents by the heading it opens with once
+transformed, consecutive headings joined (*Act 2, Scene 1*) — so the ODD can
+name a chapter the source does not. Failing that: the chunk's own `head` /
+`title`, then the page number of a `pb` it opens on.
 
 ### Styling
 
@@ -151,7 +166,15 @@ one before:
 3. **`[transform.epub] css`** — the project stylesheet, for restyling anything
    the reading view brought along that does not suit an e-reader (sticky
    chrome, `color-mix()`, viewport units). `examples/docbook/templates/epub.css`
-   is a worked example that recreates the handbook’s web look.
+   is a worked example that recreates the handbook’s web look;
+   `examples/shakespeare/templates/epub.css` is the opposite case, dropping the
+   reading view’s two-column Folio layout and its page furniture for a plain
+   reading text.
+
+Rules a project wants in *every* view belong in the ODD stylesheet, not here.
+`@rend` tokens in particular reach the output as bare class names that the
+processing model never defines, so they are the ODD stylesheet’s to declare —
+see `examples/shakespeare/odd/shakespeare.css`.
 
 Reading systems render EPUB 3 XHTML, which has no room for custom elements or
 their attributes. Web components are therefore degraded rather than emitted:

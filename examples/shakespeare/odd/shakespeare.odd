@@ -128,6 +128,32 @@
                     <!-- The Folio's own heading is pulled in above, after the editorial
                          one; where it stands it would print before the act opening. -->
                     <model output="typst" predicate="parent::div[@type='scene']" behaviour="omit"/>
+                    <!-- EPUB: a scene is a chapter, so it needs a title of its own, and
+                         the supplied head is the only one every scene has. Same shape as
+                         the typst headings above. -->
+                    <modelSequence output="epub" predicate="@type='supplied' and not(parent::div/preceding-sibling::div)">
+                        <model behaviour="heading">
+                            <param name="level" value="1"/>
+                            <param name="content" value="'Act ' || ancestor::div[@type='act']/@n"/>
+                        </model>
+                        <model behaviour="heading">
+                            <param name="level" value="2"/>
+                            <param name="content" value="'Scene ' || parent::div/@n"/>
+                        </model>
+                        <model predicate="parent::div/head[not(@type)]" behaviour="block" cssClass="folio-head">
+                            <param name="content" value="normalize-space(parent::div/head[not(@type)])"/>
+                        </model>
+                    </modelSequence>
+                    <modelSequence output="epub" predicate="@type='supplied'">
+                        <model behaviour="heading">
+                            <param name="level" value="2"/>
+                            <param name="content" value="'Scene ' || parent::div/@n"/>
+                        </model>
+                        <model predicate="parent::div/head[not(@type)]" behaviour="block" cssClass="folio-head">
+                            <param name="content" value="normalize-space(parent::div/head[not(@type)])"/>
+                        </model>
+                    </modelSequence>
+                    <model output="epub" predicate="parent::div[@type='scene']" behaviour="omit"/>
                     <model predicate="$parameters?mode='toc'" behaviour="inline"/>
                     <model predicate="@type='supplied'" behaviour="omit"/>
                     <model predicate="parent::figure" behaviour="block">
@@ -154,6 +180,37 @@
             <param name="level" value="count(ancestor::div)"/>
         </model>
                     <model behaviour="block"/>
+                </elementSpec>
+                <elementSpec ident="choice" mode="change">
+                    <desc>The Folio transcription pairs orig with corr, which
+                        teipublisher.odd does not cover — without a model for it
+                        both readings print, one after the other
+                        ("vveele weele obey you").</desc>
+                    <!-- EPUB: a reading text, and there are close to sixty of
+                         these compositor's slips. Correct them silently; the
+                         apparatus belongs in the reading view, where the
+                         alternate can be toggled, not in a footnote apiece. -->
+                    <model output="epub" behaviour="pass-through">
+                        <param name="content" value="(corr[1], reg[1], expan[1], sic[1], orig[1], abbr[1])[1]"/>
+                    </model>
+                    <model predicate="orig and corr" behaviour="alternate">
+                        <param name="default" value="corr[1]"/>
+                        <param name="alternate" value="orig[1]"/>
+                    </model>
+                    <!-- Restated from teipublisher.odd: a local elementSpec
+                         replaces the inherited one outright. -->
+                    <model predicate="sic and corr" behaviour="alternate">
+                        <param name="default" value="corr[1]"/>
+                        <param name="alternate" value="sic[1]"/>
+                    </model>
+                    <model predicate="abbr and expan" behaviour="alternate">
+                        <param name="default" value="expan[1]"/>
+                        <param name="alternate" value="abbr[1]"/>
+                    </model>
+                    <model predicate="orig and reg" behaviour="alternate">
+                        <param name="default" value="reg[1]"/>
+                        <param name="alternate" value="orig[1]"/>
+                    </model>
                 </elementSpec>
                 <elementSpec ident="c" mode="change">
                     <model output="typst" behaviour="inline">

@@ -1,0 +1,282 @@
+/* EPUB styling for the Folio comedy — a reading edition of the play.
+ *
+ * Cascades after the packaged EPUB baseline and odd/shakespeare.css, so it can
+ * undo what those two carry over from the reading view: the two-column Folio
+ * layout, the sans-serif headings, the grey page furniture, and the hover
+ * affordances that no reading system offers.
+ *
+ * The organising idea: a reading system repaginates, so the physical page of
+ * 1623 cannot survive as a page. What survives is the *text* — speeches, verse
+ * lines, stage directions — set the way a modern edition sets a play, with the
+ * folio number kept as the one thread back to the original leaf.
+ */
+
+:root {
+    /* Old-style serif with a large x-height, so the play reads as a book and
+       not as a web page. Every fallback is a face reading systems actually
+       ship; the generic serif at the end is what most e-ink devices land on. */
+    --opm-body-font: "Iowan Old Style", Palatino, "Palatino Linotype",
+        "Book Antiqua", Georgia, serif;
+    --opm-heading-font: var(--opm-body-font);
+    --opm-muted: #6b6257;
+    --opm-rule: #cfc7ba;
+    /* Links are footnote and variant markers, not navigation: a printed-book
+       ink colour rather than web blue. */
+    --opm-accent: #6b4a2f;
+    /* How far the speech text stands in from the page, leaving the speaker's
+       name to hang in the margin beside it. */
+    --folio-hang: 3.2em;
+}
+
+body {
+    line-height: 1.55;
+    text-align: left;
+}
+
+/*********************** Act and scene openings ***********************/
+
+/* Each scene is its own chapter file, so the opening is a title block:
+   the act as a quiet superscription, the scene as the title, and the Folio's
+   own heading ("Actus Secundus.") below it in the compositor's words. */
+
+h1:not(.doc-title), h2, .folio-head {
+    font-family: var(--opm-heading-font);
+    font-weight: normal;
+    text-align: center;
+    hyphens: none;
+    -epub-hyphens: none;
+    page-break-after: avoid;
+    break-after: avoid;
+}
+
+/* "Act 2" — set at text size, letterspaced, so it reads as a label above the
+   scene rather than as a second, competing title. The title page's h1 carries
+   the play's title and wants none of this. */
+h1:not(.doc-title) {
+    margin: 0 0 0.15em;
+    padding: 0;
+    border: none;
+    font-size: 1em;
+    letter-spacing: 0.24em;
+    /* The trailing letter-space counts toward the centred line box, pulling the
+       glyphs left of centre; half of it back puts them straight. */
+    text-indent: 0.12em;
+    text-transform: uppercase;
+    color: var(--opm-muted);
+}
+
+/* "Scene 1" — the chapter title. */
+h2 {
+    margin: 0 0 0.35em;
+    font-size: 1.5em;
+    letter-spacing: 0.01em;
+}
+
+/* A scene that opens an act carries both, and the pair must not drift apart. */
+h1 + h2 {
+    margin-top: 0;
+}
+
+.folio-head {
+    margin: 0 0 0.4em;
+    font-size: 0.95em;
+    font-style: italic;
+    color: var(--opm-muted);
+}
+
+/* An ornament closing the title block, on whichever line ends it. */
+h2:last-of-type,
+.folio-head {
+    padding-bottom: 1.1em;
+    border-bottom: none;
+}
+
+.tei-div > h2 + *,
+.tei-div > .folio-head + * {
+    margin-top: 0;
+}
+
+/*********************** Speeches ***********************/
+
+/* The speech hangs: the speaker's name sits in the margin and the text returns
+   under itself, so a reader can find who is speaking by running down the left
+   edge. odd/shakespeare.css already makes the element after the speaker inline,
+   which is what puts the first verse line on the speaker's own line. */
+.tei-sp {
+    margin: 0 0 0.55em var(--folio-hang);
+}
+
+/* Italic is the Folio's convention for a speaker, but this text italicises
+   every proper name as well, so "Leon." and "Messina" come out identical.
+   Small caps separate the label from the speech without adding a new voice. */
+.tei-speaker {
+    /* The hang itself: the name is pulled back out of the speech's margin.
+       Done this way rather than with a negative text-indent on the speech,
+       which Chromium — and so most reading systems — lets leak into the
+       position of any transformed glyph further down the block. */
+    margin-left: calc(-1 * var(--folio-hang));
+    margin-right: 0.45em;
+    font-style: normal;
+    font-variant: small-caps;
+    letter-spacing: 0.03em;
+    color: #3d3730;
+}
+
+/*********************** Verse ***********************/
+
+/* Verse lines are set one per line, flush with the speech's own left edge; a
+   line too long for the measure turns over indented, the way a printed play
+   distinguishes a turnover from a new line. */
+.tei-l {
+    /* A song is set at the division level, outside any speech; without this it
+       would stand a whole hanging indent to the left of every spoken line. */
+    margin: 0 0 0 var(--folio-hang);
+    padding-left: 1.1em;
+    text-indent: -1.1em;
+}
+
+.tei-sp .tei-l {
+    margin-left: 0;
+}
+
+/* The line that runs on after the speaker is inline (odd/shakespeare.css), so
+   the turnover indent above cannot hang there — it would only push that one
+   line right of the lines below it. */
+.tei-speaker + .tei-l {
+    padding-left: 0;
+}
+
+/*********************** Stage directions ***********************/
+
+.tei-stage {
+    margin: 0.7em 0;
+    font-style: italic;
+    color: var(--opm-muted);
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+/* An exit belongs to the speech it ends, not to the one that follows. */
+.tei-stage.rightJustified {
+    margin-top: -0.35em;
+}
+
+/*********************** The physical page ***********************/
+
+/* Furniture of the 1623 leaf. A reading system repaginates, so a running head,
+   a catchword or a signature mark lands in the middle of a speech, saying
+   nothing about the page the reader is actually on. */
+.running,
+.catchword,
+.sig {
+    display: none;
+}
+
+/* Column breaks: the Folio is set in two columns, the EPUB in one. */
+.tei-cb {
+    display: none;
+}
+
+/* The folio number is the exception, and the reason the rest can go: it is how
+   this text is cited. Kept as a small bracketed marker in the flow rather than
+   floated, which in a repaginated column would drift away from its own line. */
+.pb {
+    float: none;
+    margin: 0 0.15em;
+    font-family: var(--opm-heading-font);
+    font-size: 0.7em;
+    font-style: normal;
+    vertical-align: 0.35em;
+    letter-spacing: 0.02em;
+    color: var(--opm-muted);
+}
+
+.pb::before {
+    content: "[";
+}
+
+.pb::after {
+    content: "]";
+}
+
+/* Text the Folio prints that this copy does not carry. */
+.notPresent {
+    color: var(--opm-muted);
+}
+
+/*********************** Editorial apparatus ***********************/
+
+/* An ornamental initial opens the play. At the ODD's 3em it sets the height of
+   the whole first line and pushes the opening speech down the page; smaller,
+   with the leading pulled in, it still reads as an initial. */
+.decoratedCapital {
+    font-size: 2.1em;
+    line-height: 0.85;
+    letter-spacing: 0.02em;
+}
+
+/* An illegible or lost passage is marked by the ODD with a bracketed ellipsis;
+   set it back from the text so it reads as the editor speaking. */
+.tei-gap {
+    color: var(--opm-muted);
+}
+
+/* Notes and variant readings are the only links in the book, and both lead to
+   a footnote at the end of the chapter. Underlined web blue would read as
+   navigation; a marker in the text's own colour does not. */
+a {
+    color: var(--opm-accent);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--opm-rule);
+}
+
+.noteref {
+    border-bottom: none;
+}
+
+section[epub|type="footnotes"] {
+    margin-top: 2.5em;
+    padding-top: 0.8em;
+    border-top: 1px solid var(--opm-rule);
+    font-size: 0.85em;
+    color: var(--opm-muted);
+    text-indent: 0;
+}
+
+section[epub|type="footnotes"] aside {
+    margin-bottom: 0.6em;
+}
+
+/*********************** Title page ***********************/
+
+/* An early modern title page states itself in one long sentence; set it as
+   one, centred and open, rather than as a heading with a subtitle. */
+#title {
+    padding-top: 18%;
+    text-align: center;
+}
+
+#title .doc-title {
+    margin: 0;
+    padding: 0;
+    border: none;
+    text-transform: none;
+    color: inherit;
+    font-size: 1.45em;
+    font-style: normal;
+    font-weight: normal;
+    line-height: 1.45;
+    letter-spacing: 0.01em;
+    text-wrap: balance;
+}
+
+#title .tei-author {
+    display: block;
+    max-width: 14em;
+    margin: 1.8em auto 0;
+    padding-top: 1.2em;
+    border-top: 1px solid var(--opm-rule);
+    font-size: 0.95em;
+    font-style: italic;
+    color: var(--opm-muted);
+}

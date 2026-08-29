@@ -12,7 +12,7 @@ import mimetypes
 import re
 import uuid
 import zipfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from types import ModuleType
@@ -77,6 +77,15 @@ class EpubChapter:
 
 
 def _local(el: etree._Element) -> str:
+    """Local name of *el*, or ``''`` for a comment or processing instruction.
+
+    ``iter()`` yields those alongside elements and ``QName`` rejects them, so
+    every walk over a source document would otherwise have to guard itself.
+    They have no name, and the empty string matches none of the names callers
+    look for.
+    """
+    if not isinstance(el.tag, str):
+        return ''
     return etree.QName(el).localname
 
 
@@ -130,6 +139,17 @@ def extract_epub_metadata(root: etree._Element) -> EpubMetadata:
     return EpubMetadata(title=title, creator=creator, language=language)
 
 
+# Selectors that carve a chunk per page-break milestone rather than per division.
+_PAGE_SELECTORS = frozenset({'opm.navigation.tei_pb_chunks'})
+
+# Depth used when falling back from page chunking. ``depth`` carries no meaning
+# for a page selector, so there is nothing to inherit. Division chunkers return
+# leaves only, so this reads as "chunk at the finest division level": scenes in
+# a play (play/act/scene), sections in a volume, and still the top-level divs of
+# a document that is only one or two levels deep.
+_PAGE_FALLBACK_DEPTH = 3
+
+
 def _default_selector(root: etree._Element) -> str:
     ns = root.nsmap.get(None, '') or ''
     if DOCBOOK_NS in ns or 'docbook' in ns:
@@ -141,11 +161,25 @@ def select_epub_chapters(
     root: etree._Element,
     chunking: ChunkingConfig | None = None,
 ) -> list[etree._Element]:
-    """Select chapter roots using chunking config (or TEI/DocBook defaults)."""
+    """Select chapter roots using chunking config (or TEI/DocBook defaults).
+
+    Page-milestone chunking is overridden. It is the right unit for a facsimile
+    reading view, where a folio image sits beside its transcription, but an EPUB
+    has no facsimile column and reading systems repaginate anyway: it would turn
+    the book into a run of headless part-scenes broken mid-sentence. Divisions
+    are the chapter unit here whatever the reading view is configured to do.
+    """
     cfg = chunking or ChunkingConfig(
         depth=1,
         selector=_default_selector(root),
     )
+    if cfg.selector in _PAGE_SELECTORS:
+        cfg = replace(
+            cfg,
+            selector=_default_selector(root),
+            xpath=None,
+            depth=_PAGE_FALLBACK_DEPTH,
+        )
     if cfg.selector:
         module_name, _, func_name = cfg.selector.rpartition('.')
         selector_fn = getattr(importlib.import_module(module_name), func_name)
@@ -170,7 +204,62 @@ def select_epub_chapters(
     return [root]
 
 
-def _chapter_heading_text(el: etree._Element) -> str:
+HEADING_TAGS = frozenset({'h1', 'h2', 'h3', 'h4', 'h5', 'h6'})
+
+
+def _has_text(el: etree._Element) -> bool:
+    return bool(' '.join(el.itertext()).strip())
+
+
+def _collect_opening_headings(el: etree._Element, parts: list[str]) -> bool:
+    """Gather the headings *el* opens with; return False at the body proper."""
+    if el.text and el.text.strip():
+        return False
+    for child in el:
+        if not isinstance(child.tag, str):
+            continue
+        if _local(child) in HEADING_TAGS:
+            text = ' '.join(child.itertext()).strip()
+            if text:
+                parts.append(text)
+        elif any(_local(d) in HEADING_TAGS for d in child.iter()):
+            # A wrapper standing between the chapter root and its headings.
+            if not _collect_opening_headings(child, parts):
+                return False
+        elif _has_text(child):
+            return False
+        if child.tail and child.tail.strip():
+            return False
+    return True
+
+
+def _rendered_heading_text(nodes: Sequence[etree._Element]) -> str | None:
+    """The heading a reader sees at the top of the chapter, once transformed.
+
+    A table of contents should name a chapter the way the chapter names itself,
+    and the ODD is where that name is decided: a parallel-text edition heads its
+    two halves "Transcription" and "Translation" though neither word appears in
+    the source, and a play heads a scene from numbers the source carries only as
+    attributes. Consecutive opening headings are joined, because it is the pair
+    that identifies the chapter ("Act 2, Scene 1"), not the first of them.
+    """
+    parts: list[str] = []
+    for node in nodes:
+        if not isinstance(node.tag, str):
+            continue
+        if _local(node) in HEADING_TAGS:
+            text = ' '.join(node.itertext()).strip()
+            if text:
+                parts.append(text)
+            continue
+        # Anything else after a heading is the body: whatever headings it may
+        # contain further down belong to sections, not to the chapter.
+        if parts or not _collect_opening_headings(node, parts):
+            break
+    return ', '.join(parts) or None
+
+
+def _chapter_heading_text(el: etree._Element) -> str | None:
     """First ``head`` / ``title`` under *el*, skipping nested notes."""
     for child in el.iter():
         if _local(child) not in ('head', 'title'):
@@ -188,7 +277,23 @@ def _chapter_heading_text(el: etree._Element) -> str:
         cleaned = ' '.join(child.itertext()).strip()
         if cleaned:
             return cleaned
-    return 'Untitled'
+    return None
+
+
+def _milestone_label(el: etree._Element) -> str | None:
+    """``Page 104`` for a headless chunk carved at a ``pb`` milestone.
+
+    Page-based chunking (``tei_pb_chunks``) produces one chapter per folio, and
+    most folios open mid-scene with no ``head`` to name them. The printed page
+    number is what a reader would use, so it beats a run of "Untitled" entries
+    in the table of contents.
+    """
+    for node in el.iter():
+        if _local(node) != 'pb':
+            continue
+        n = (node.get('n') or '').strip()
+        return f'Page {n}' if n else None
+    return None
 
 
 def _build_chapter_list(
@@ -204,7 +309,9 @@ def _build_chapter_list(
             EpubChapter(
                 element=el,
                 file_id=file_id,
-                title=_chapter_heading_text(el),
+                # Provisional: the transform may name the chapter better than
+                # the source does. Resolved in :func:`build_epub`.
+                title=_chapter_heading_text(el) or '',
                 anchor_id=anchor,
             )
         )
@@ -238,12 +345,21 @@ def _rewrite_to_xhtml(node: etree._Element) -> etree._Element:
     new = etree.Element(f'{{{XHTML_NS}}}{local if known else "div"}')
     new.text = node.text
     for k, v in node.attrib.items():
+        # @slot wires a child into a custom element's shadow DOM. With the
+        # element itself degraded to a div, it names nothing.
+        if k == 'slot':
+            continue
         if known or _is_portable_attribute(k):
             new.set(k, v)
 
     for child in node:
         # Comments and processing instructions have no place in the package.
         if not isinstance(child.tag, str):
+            continue
+        # <template> is inert without the component that would stamp it out:
+        # dead weight in the package, and its content would surface as stray
+        # text in reading systems that ignore the element.
+        if etree.QName(child).localname == 'template':
             continue
         new_child = _rewrite_to_xhtml(child)
         new_child.tail = child.tail
@@ -272,6 +388,10 @@ def _collect_body_nodes(result: list) -> list[etree._Element]:
     nodes: list[etree._Element] = []
     for item in result:
         if isinstance(item, etree._Element):
+            # Comments and processing instructions are _Element too, and have
+            # no place in the package.
+            if not isinstance(item.tag, str):
+                continue
             q = etree.QName(item)
             if q.localname == 'html':
                 body = item.find('.//{*}body')
@@ -291,10 +411,7 @@ def _collect_body_nodes(result: list) -> list[etree._Element]:
 
 
 def _is_footnote_aside(el: etree._Element) -> bool:
-    return (
-        etree.QName(el).localname == 'aside'
-        and el.get(EPUB_TYPE) == 'footnote'
-    )
+    return _local(el) == 'aside' and el.get(EPUB_TYPE) == 'footnote'
 
 
 def _strip_footnotes(nodes: list[etree._Element]) -> tuple[list[etree._Element], list[etree._Element]]:
@@ -313,6 +430,9 @@ def _strip_footnotes(nodes: list[etree._Element]) -> tuple[list[etree._Element],
                 # remove footnote; preserve tail onto previous sibling / parent text
                 tail = child.tail
                 el.remove(child)
+                # The aside is now queued for the footnotes section: leaving its
+                # tail attached would repeat that run of text down there.
+                child.tail = None
                 if tail:
                     if kept_children:
                         kept_children[-1].tail = (kept_children[-1].tail or '') + tail
@@ -704,6 +824,12 @@ def build_epub(
                 for n in body_nodes:
                     wrap.append(n)
                 body_nodes = [wrap]
+        ch.title = (
+            _rendered_heading_text(body_nodes)
+            or ch.title
+            or _milestone_label(ch.element)
+            or 'Untitled'
+        )
         xhtml_docs[ch.file_id] = assemble_xhtml(ch.title, meta.language, body_nodes)
 
     _resolve_internal_links(xhtml_docs)
