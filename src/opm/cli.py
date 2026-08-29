@@ -138,7 +138,7 @@ def init_cmd(
 
 
 def _preview_kind_from_module(mod) -> str:
-    """Return ``'html'``, ``'markdown'``, ``'docx'``, or ``'text'`` based on output channels."""
+    """Return ``'html'``, ``'markdown'``, ``'docx'``, ``'epub'``, or ``'text'`` based on output channels."""
     raw = mod.transform_output_channels()
     if not raw:
         return 'text'
@@ -149,6 +149,8 @@ def _preview_kind_from_module(mod) -> str:
         return 'html'
     if primary == 'docx':
         return 'docx'
+    if primary == 'epub':
+        return 'epub'
     if primary == 'typst':
         return 'typst'
     return 'text'
@@ -165,6 +167,31 @@ def _preview_html_in_browser(html: str) -> None:
         f.write(html)
         path = Path(f.name)
     webbrowser.open(path.as_uri())
+
+
+def _preview_file_with_default_app(data: bytes, suffix: str, label: str) -> bool:
+    """Write *data* to a temp file and open it in the platform's default app.
+
+    Used for formats that cannot be rendered in a terminal or browser (docx,
+    epub).  Returns ``False`` when no handler could be launched, so the caller
+    can fall back to telling the user to pass ``--output``.
+    """
+    import click  # noqa: PLC0415
+
+    with tempfile.NamedTemporaryFile(
+        suffix=suffix,
+        delete=False,
+        prefix='opm-preview-',
+    ) as f:
+        f.write(data)
+        path = Path(f.name)
+    try:
+        if click.launch(str(path)) != 0:
+            return False
+    except OSError:
+        return False
+    typer.echo(f'Opened {label} preview: {path}', err=True)
+    return True
 
 
 def _preview_markdown_terminal(md: str) -> None:
@@ -379,7 +406,8 @@ def transform_cmd(
             '-v',
             help=(
                 'Preview output: channel web/print → browser, markdown → Rich (paged in a TTY so '
-                'bold/italic survive); other channels (e.g. typst) → plain text in the terminal.'
+                'bold/italic survive), docx/epub → the platform default application; other '
+                'channels (e.g. typst) → plain text in the terminal.'
             ),
         ),
     ] = False,
@@ -488,8 +516,8 @@ def transform_cmd(
         elif not isinstance(channels, (list, tuple)):
             primary = channels
 
-        # Print (paged media) has no interactive UI — never load web components.
-        if primary == 'print':
+        # Print / EPUB have no interactive UI — never load web components.
+        if primary in ('print', 'epub'):
             effective_webcomponents = False
 
         if primary == 'typst':
@@ -503,6 +531,9 @@ def transform_cmd(
         elif primary == 'print':
             # Do not fall back to the web/document shell (nav, web components).
             effective_template = template if template is not None else cfg.print_template
+            effective_docx_template = None
+        elif primary == 'epub':
+            effective_template = None
             effective_docx_template = None
         else:
             effective_template = template if template is not None else cfg.document_template
@@ -560,13 +591,24 @@ def transform_cmd(
             typst_template_path=effective_template if primary == 'typst' else None,
             xpath_base_uri=xpath_base_uri,
             xpath_documents=xpath_documents,
+            epub_chunking=cfg.chunking,
+            epub_css=cfg.epub_css,
+            epub_skip_title=cfg.epub_skip_title,
         )
 
         if isinstance(out, bytes):
             if output:
                 output.write_bytes(out)
             elif preview:
-                typer.echo('DOCX output cannot be previewed in the terminal. Use --output to write a .docx file.')
+                kind = _preview_kind_from_module(mod)
+                label = 'EPUB' if kind == 'epub' else 'DOCX'
+                ext = '.epub' if kind == 'epub' else '.docx'
+                if not _preview_file_with_default_app(out, ext, label):
+                    typer.echo(
+                        f'{label} output cannot be previewed in the terminal and no '
+                        f'application is registered for {ext} files. '
+                        f'Use --output to write a {ext} file.',
+                    )
             else:
                 sys.stdout.buffer.write(out)
         else:

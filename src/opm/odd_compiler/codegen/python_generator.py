@@ -184,6 +184,17 @@ class PythonGenerator(CodeGenerator):
             transform_config_extra = ''
             transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
             webcomponents_init = 'False'
+        elif output_mode == 'epub':
+            pmf_import = (
+                'from opm.runtime.epub_output_functions import EpubOutputFunctions'
+            )
+            pmf_ctor = 'EpubOutputFunctions()'
+            # EPUB readers have no tei-publisher web-component runtime.
+            transform_config_extra = (
+                "\n        'input_path': runtime_options.get('input_path'),"
+            )
+            transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
+            webcomponents_init = 'False'
         else:
             pmf_import = 'from opm.runtime.html_output_functions import HtmlOutputFunctions'
             pmf_ctor = 'HtmlOutputFunctions()'
@@ -455,6 +466,10 @@ def transform(root, options=None):
             from opm.runtime.print_output_functions import PrintOutputFunctions
 
             return PrintOutputFunctions
+        if output_mode == 'epub':
+            from opm.runtime.epub_output_functions import EpubOutputFunctions
+
+            return EpubOutputFunctions
         from opm.runtime.html_output_functions import HtmlOutputFunctions
 
         return HtmlOutputFunctions

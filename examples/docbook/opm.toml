@@ -13,6 +13,9 @@ enabled = true
 [transform.print]
 template = "templates/print.html.j2"
 
+[transform.epub]
+css = "templates/epub.css"
+
 [transform.typst]
 template = "templates/docbook.typ.j2"
 

@@ -23,7 +23,7 @@ DEFAULT_VERSION = '3.6.7'
 CONFIG_FILENAME = 'opm.toml'
 
 # Output types that may declare ``[transform.<type>]`` (odd + optional template).
-TRANSFORM_TYPE_SECTIONS = ('web', 'docx', 'typst', 'markdown', 'print')
+TRANSFORM_TYPE_SECTIONS = ('web', 'docx', 'typst', 'markdown', 'print', 'epub')
 
 
 def _section_table(value: Any) -> dict[str, Any]:
@@ -214,6 +214,14 @@ class ProjectConfig:
     include nav and web components that do not belong on a paged-media page.
     When unset, the packaged ``default_print.html.j2`` is used.
     """
+    epub_css: Path | None = None
+    """Stylesheet appended to the EPUB package from ``[transform.epub] css``.
+
+    Cascades last — after the packaged EPUB baseline and the ODD's own CSS — so
+    it can restyle rules the reading view brought along.
+    """
+    epub_skip_title: bool = False
+    """When true, omit the generated EPUB title page (``[transform.epub] skip_title``)."""
     xpath_extensions: tuple[str, ...] = ()
     xpath_documents: tuple[Path, ...] = ()
     xpath_collections: tuple[CollectionConfig, ...] = ()
@@ -316,6 +324,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     docx_data = type_sections['docx']
     typst_data = type_sections['typst']
     print_data = type_sections['print']
+    epub_data = type_sections['epub']
     web_data = type_sections['web']
     wc = _section_table(web_data.get('webcomponents'))
 
@@ -340,6 +349,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     docx_template_file = docx_data.get('template')
     typst_template_file = typst_data.get('template')
     print_template_file = print_data.get('template')
+    epub_css_file = epub_data.get('css')
     raw_xpath_extensions = transform.get('xpath_extensions')
     xpath_extensions: tuple[str, ...]
     if raw_xpath_extensions is None:
@@ -542,6 +552,8 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         print_template=(
             config_path.parent / str(print_template_file) if print_template_file else None
         ),
+        epub_css=config_path.parent / str(epub_css_file) if epub_css_file else None,
+        epub_skip_title=bool(epub_data.get('skip_title', False)),
         xpath_extensions=xpath_extensions,
         xpath_documents=xpath_documents,
         xpath_collections=tuple(collections),

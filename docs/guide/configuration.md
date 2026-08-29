@@ -84,6 +84,7 @@ assets = ["templates/edition.css", "templates/parchment.jpg"]
 | `[transform]` | Shared settings (`odd`, `xpath_extensions`, `documents`, `parameters`) | [Output formats](output-formats.md), [ODD `$parameters`](odd-files.md#parameters) |
 | `[transform.web]` | Optional web-only `odd` override | [Output formats](output-formats.md) |
 | `[transform.print]` | Optional print `odd` and HTML `template` | [Output formats](output-formats.md#print-paged-media) |
+| `[transform.epub]` | Optional EPUB `odd`, `css` and `skip_title` | [Output formats](output-formats.md#epub) |
 | `[transform.docx]` | Optional DOCX `odd` override and Word style `template` | [Output formats](output-formats.md#docx) |
 | `[transform.typst]` | Optional Typst `odd` override and Typst `template` | [Output formats](output-formats.md#typst) |
 | `[transform.markdown]`, … | Other optional per-type `odd` (and `template`) overrides | [Output formats](output-formats.md) |
@@ -126,6 +127,7 @@ Precedence for each mode:
 | --- | --- | --- |
 | `web` (default when `--type` is omitted) | `[transform.web].odd` | `[transform].odd` |
 | `print` | `[transform.print].odd` | `[transform].odd` |
+| `epub` | `[transform.epub].odd` | `[transform].odd` |
 | `docx` | `[transform.docx].odd` | `[transform].odd` |
 | `typst` | `[transform.typst].odd` | `[transform].odd` |
 | `markdown`, … | `[transform.<type>].odd` | `[transform].odd` |

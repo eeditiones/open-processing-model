@@ -80,6 +80,11 @@ def packaged_default_docx() -> Path | None:
     return _mirror_packaged_file(('templates', 'default.docx'))
 
 
+def packaged_epub_css() -> Path | None:
+    """Return the packaged EPUB base stylesheet, or ``None`` if absent."""
+    return _mirror_packaged_file(('styles', 'epub.css'))
+
+
 def _mirror_packaged_file(parts: tuple[str, ...]) -> Path | None:
     """Copy a packaged resource into the user cache and return that path."""
     packaged = _packaged_root().joinpath(*parts)

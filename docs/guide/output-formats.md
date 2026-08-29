@@ -10,12 +10,13 @@ emit output.
 | --- | --- | --- |
 | `web` (default) | HTML5 | `HtmlOutputFunctions` |
 | `print` | HTML for paged-media CSS | `PrintOutputFunctions` (extends HTML) |
+| `epub` | EPUB 3 (`.epub` ZIP) | `EpubOutputFunctions` + packager |
 | `markdown` | Markdown | `MarkdownOutputFunctions` |
 | `docx` | Word `.docx` (binary) | `DocxOutputFunctions` |
 | `typst` | Typst markup | `TypstOutputFunctions` |
 
-`print` (and later `epub`) also accept ODD models tagged `@output="web"`, matching
-tei-publisher-lib’s `output: ["print", "web"]` fallback. Models without `@output`
+`print` and `epub` also accept ODD models tagged `@output="web"`, matching
+tei-publisher-lib’s `output: ["print"|"epub", "web"]` fallback. Models without `@output`
 still apply to every mode.
 
 Models may use an optional `opm-` prefix on `@output` (e.g. `opm-web`) for rules
@@ -26,6 +27,7 @@ rule applies: the first whose conditions apply wins.
 ```bash
 uv run opm transform examples/tei-test.xml -t web --preview
 uv run opm transform examples/tei-test.xml -t print --preview
+uv run opm transform examples/tei-test.xml -t epub -o book.epub
 uv run opm transform examples/tei-test.xml -t markdown --preview
 uv run opm transform examples/tei-test.xml -t docx -o out.docx
 uv run opm transform examples/tei-test.xml -t typst -o out.typ
@@ -43,6 +45,7 @@ Pass an ODD with `--odd`/`-d`, or select from your TOML config with `--type`/`-t
 | --- | --- | --- |
 | `web` | `[transform.web].odd` | `[transform].odd` |
 | `print` | `[transform.print].odd` | `[transform].odd` |
+| `epub` | `[transform.epub].odd` | `[transform].odd` |
 | `docx` | `[transform.docx].odd` | `[transform].odd` |
 | `typst` | `[transform.typst].odd` | `[transform].odd` |
 | `markdown`, … | `[transform.<type>].odd` | `[transform].odd` |
@@ -105,6 +108,62 @@ uv run opm transform data/doc/quickstart.xml -t print --preview
 
 See `examples/docbook/templates/print.html.j2` and `[transform.print]` in that
 project’s `opm.toml`.
+
+## EPUB
+
+`epub` compiles with EPUB-oriented HTML behaviours (synthetic fragment ids,
+`epub:type` pagebreaks, footnote asides) and packages the result as an EPUB 3
+ZIP (mimetype, OPF, `nav.xhtml`, NCX, chapters, CSS, images). Chapters are
+selected with the same `[chunking]` rules used by `opm chunk` (default:
+TEI `tei_div_chunks` / DocBook `dbk_section_chunks` at depth 1).
+
+```bash
+uv run opm transform examples/tei-test.xml -t epub -o book.epub
+```
+
+Optional config:
+
+```toml
+[transform.epub]
+# odd = "odd/my-epub.odd"
+css = "templates/epub.css"   # appended last to the packaged stylesheet
+skip_title = false           # omit the generated title page when true
+
+[chunking]
+selector = "opm.navigation.tei_div_chunks"
+depth = 1
+```
+
+Like DOCX, the result is binary — write it with `-o` (terminal preview is not
+supported). Packaging uses stdlib `zipfile` + lxml (no ebooklib).
+
+### Styling
+
+`OEBPS/stylesheet.css` is a cascade of three parts, each able to override the
+one before:
+
+1. **The packaged baseline** (`opm/resources/styles/epub.css`) — typography for
+   headings, lists, code, tables, figures, footnotes and the title page. It
+   also defines fallbacks for the `--jinks-*` / `--pb-*` custom properties that
+   web-oriented ODD stylesheets reference, so rules carried over from the
+   reading view degrade instead of dropping out.
+2. **The ODD stylesheet** — base rules plus `outputRendition` styles.
+3. **`[transform.epub] css`** — the project stylesheet, for restyling anything
+   the reading view brought along that does not suit an e-reader (sticky
+   chrome, `color-mix()`, viewport units). `examples/docbook/templates/epub.css`
+   is a worked example that recreates the handbook’s web look.
+
+Reading systems render EPUB 3 XHTML, which has no room for custom elements or
+their attributes. Web components are therefore degraded rather than emitted:
+`pb-code-highlight` becomes `<pre><code>`, `pb-link` becomes an `<a>` pointing
+at its cross-reference, and anything else — including custom elements
+introduced by a `pb:template` — becomes a transparent `<div>` or `<span>`.
+Fragment links are rewritten to name the chapter file that holds the target, so
+cross-references keep working after the document is split.
+
+Images referenced by `img/@src` are resolved next to the source document and in
+a sibling `images/` directory. Images that cannot be found are left out of the
+manifest, since an OPF entry without a file makes the package invalid.
 
 ## Markdown
 

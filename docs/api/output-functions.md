@@ -3,7 +3,7 @@
 `ProcessingModelFunctions` is the abstract base every output format implements.
 The generated transform module calls its methods (`paragraph`, `heading`,
 `block`, `inline`, …) to emit output. Subclass it to add a new output format; see
-the concrete implementations for HTML, Print, Markdown, Typst, and DOCX.
+the concrete implementations for HTML, Print, EPUB, Markdown, Typst, and DOCX.
 
 ## Base class and helpers
 
@@ -16,6 +16,13 @@ the concrete implementations for HTML, Print, Markdown, Typst, and DOCX.
 ## Print (paged media)
 
 ::: opm.runtime.print_output_functions.PrintOutputFunctions
+
+## EPUB
+
+::: opm.runtime.epub_output_functions.EpubOutputFunctions
+
+EPUB packaging (ZIP / OPF / nav) lives in [`opm.epub`](../guide/output-formats.md#epub),
+not in the PMF.
 
 ## Markdown
 

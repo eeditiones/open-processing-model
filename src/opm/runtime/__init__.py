@@ -35,6 +35,7 @@ from .docx_output_functions import DocxOutputFunctions
 from .html_output_functions import HtmlOutputFunctions
 from .markdown_output_functions import MarkdownOutputFunctions
 from .print_output_functions import PrintOutputFunctions
+from .epub_output_functions import EpubOutputFunctions
 from .typst_output_functions import TypstOutputFunctions
 
 __all__ = [
@@ -62,5 +63,6 @@ __all__ = [
     'HtmlOutputFunctions',
     'MarkdownOutputFunctions',
     'PrintOutputFunctions',
+    'EpubOutputFunctions',
     'TypstOutputFunctions',
 ]

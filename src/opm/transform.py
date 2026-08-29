@@ -66,6 +66,7 @@ from elementpath.tree_builders import get_node_tree
 from lxml import etree
 
 from opm.config import (
+    ChunkingConfig,
     CollectionConfig,
     ProjectConfig,
     load_project_config,
@@ -227,6 +228,9 @@ def run_transform(
     xpath_collections: dict[str, list] | None = None,
     xpath_variables: dict[str, Any] | None = None,
     xpath_namespaces: dict[str, str] | None = None,
+    epub_chunking: ChunkingConfig | None = None,
+    epub_css: Path | None = None,
+    epub_skip_title: bool = False,
 ) -> str | bytes:
     """Run *mod* against *root* and return the serialized output.
 
@@ -234,7 +238,7 @@ def run_transform(
     *apply_template* is ``True``, the result is wrapped in the Jinja2 document
     template.  Fragment transforms (e.g. a single ``<div>``) skip this step.
 
-    For DOCX output, returns raw ``bytes`` (the ``.docx`` file content).
+    For DOCX / EPUB output, returns raw ``bytes`` (the package file content).
 
     Args:
         mod: A loaded transform module (from :func:`load_transform_module`).
@@ -249,6 +253,9 @@ def run_transform(
             :meth:`~opm.config.ProjectConfig.context_for`).
         docx_template: Path to a ``.docx`` file used as the Word style template.
         typst_template_path: Jinja2 template for Typst document shell.
+        epub_chunking: Chapter selection for ``-t epub`` (defaults from TEI/DocBook).
+        epub_css: Stylesheet appended last to the EPUB package.
+        epub_skip_title: Omit the generated EPUB title page.
     """
     serialize = getattr(mod, 'serialize', _default_serialize)
 
@@ -271,6 +278,24 @@ def run_transform(
 
     channels = mod.transform_output_channels()
     primary = (channels[0] if channels else '') if isinstance(channels, (list, tuple)) else channels
+
+    if primary == 'epub':
+        from opm.epub import build_epub
+
+        input_path = None
+        raw_input = (parameters or {}).get('input_path') if parameters else None
+        if raw_input:
+            input_path = Path(str(raw_input))
+        return build_epub(
+            mod,
+            root,
+            chunking=epub_chunking,
+            odd_css=getattr(mod, 'ODD_GENERATED_CSS', '') or '',
+            project_css=epub_css.read_text(encoding='utf-8') if epub_css else None,
+            input_path=input_path,
+            transform_opts=transform_opts,
+            skip_title=epub_skip_title,
+        )
 
     metadata: dict = {}
     if primary == 'typst':
@@ -342,6 +367,9 @@ def transform_node(
     xpath_collections: dict[str, list] | None = None,
     xpath_variables: dict[str, Any] | None = None,
     xpath_namespaces: dict[str, str] | None = None,
+    epub_chunking: ChunkingConfig | None = None,
+    epub_css: Path | None = None,
+    epub_skip_title: bool = False,
 ) -> str | bytes:
     """Load *script_path* as a transform module and apply it to *root*.
 
@@ -409,6 +437,9 @@ def transform_node(
         xpath_collections=xpath_collections,
         xpath_variables=xpath_variables,
         xpath_namespaces=xpath_namespaces,
+        epub_chunking=epub_chunking,
+        epub_css=epub_css,
+        epub_skip_title=epub_skip_title,
     )
 
 
@@ -443,7 +474,7 @@ def transform_file(
             When ``None``, ``opm.toml`` is loaded from the CWD.
 
     Returns ``str`` for text output modes (HTML, Markdown) and ``bytes`` for
-    binary modes (DOCX).
+    binary modes (DOCX, EPUB).
     """
     cfg = config if config is not None else load_project_config()
 
@@ -461,7 +492,7 @@ def transform_file(
         if isinstance(channels, (list, tuple))
         else channels
     )
-    if primary == 'print':
+    if primary in ('print', 'epub'):
         effective_webcomponents = False
     template_context = cfg.context_for(
         primary, webcomponents=effective_webcomponents,
@@ -481,11 +512,14 @@ def transform_file(
     else:
         effective_template = template if template is not None else cfg.document_template
 
+    parameters_with_path = dict(parameters or {})
+    parameters_with_path.setdefault('input_path', str(xml_path))
+
     return transform_node(
         mod,
         doc_root,
         xpath=xpath,
-        parameters=parameters,
+        parameters=parameters_with_path,
         xpath_extensions=effective_extensions or None,
         webcomponents=effective_webcomponents,
         template_path=effective_template,
@@ -497,4 +531,7 @@ def transform_file(
         xpath_collections=xpath_collections,
         xpath_variables=xpath_variables,
         xpath_namespaces=xpath_namespaces,
+        epub_chunking=cfg.chunking,
+        epub_css=cfg.epub_css,
+        epub_skip_title=cfg.epub_skip_title,
     )

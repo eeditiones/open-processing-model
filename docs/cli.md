@@ -80,7 +80,7 @@ opm transform [OPTIONS] [INPUT_XML]
 | `--odd, -d PATH` | ODD file to compile on demand into the user cache. Overrides transform.<type>.odd in config. |
 | `--type, -t TYPE` | Transform type / ODD output channel (web, docx, typst, markdown, …). Selects transform.<type>.odd from config when --odd is omitted; also sets the compile mode for --odd. |
 | `--output, -o PATH` | Write transform output to this file (default: stdout unless --preview) |
-| `--preview, -v` | Preview output: channel web/print → browser, markdown → Rich (paged in a TTY so bold/italic survive); other channels (e.g. typst) → plain text in the terminal. |
+| `--preview, -v` | Preview output: channel web/print → browser, markdown → Rich (paged in a TTY so bold/italic survive), docx/epub → the platform default application; other channels (e.g. typst) → plain text in the terminal. |
 | `--param, -p KEY=VALUE` | Runtime parameter for XPath $parameters (repeatable), e.g. -p mode=toc -p display=browse |
 | `--css PATH` | Optional external CSS file injected into <head> for full-document HTML output. |
 | `--template PATH` | Template path: Jinja2 for HTML/print/Typst output, or .docx for DOCX output. |
