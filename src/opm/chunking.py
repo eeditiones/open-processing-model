@@ -1,4 +1,4 @@
-"""Document chunking system for TEI Publisher.
+"""Document chunking
 
 Splits large TEI documents into smaller HTML pages with metadata and fragments
 for static site generation.
@@ -867,7 +867,7 @@ class ChunkProcessor:
     def _pb_view_part_nav(
         self, index: int, chunk_ids: list[str], xml_id: str
     ) -> dict[str, Any]:
-        """Build navigation fields mirroring ``/api/parts/.../json``.
+        """Build navigation fields mirroring TEI Publisher's ``/api/parts/.../json``.
 
         ``id`` / ``nextId`` / ``previousId`` carry xml:ids (or synthetic ids).
         ``root`` is always ``None``: ``pb-view`` assigns ``nodeId = resp.root``,

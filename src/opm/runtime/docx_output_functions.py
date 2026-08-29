@@ -75,6 +75,17 @@ def _w(tag: str) -> etree._Element:
     return etree.Element(f'{{{W}}}{tag}')
 
 
+def _ooxml_text(items: list) -> str:
+    """Flatten applied output to plain text by reading its ``w:t`` runs."""
+    parts: list[str] = []
+    for item in items:
+        if isinstance(item, str):
+            parts.append(item)
+        elif isinstance(item, etree._Element) and not callable(item.tag):
+            parts.extend(t.text or '' for t in item.iter(f'{{{W}}}t'))
+    return ''.join(parts)
+
+
 def _wsub(parent: etree._Element, tag: str) -> etree._Element:
     return etree.SubElement(parent, f'{{{W}}}{tag}')
 
@@ -863,7 +874,17 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         self._ensure_styles(config)
         return self._collect(config, node, content)
 
-    def metadata(self, config, node, cls, content) -> PMResult:
+    def metadata(self, config, node, cls, content, key=None) -> PMResult:
+        """Collect a header value under *key* instead of emitting body content.
+
+        Mirrors :meth:`TypstOutputFunctions.metadata`: the ODD names the field,
+        the collected text lands in ``config['parameters']['metadata']`` and is
+        mapped onto the ``.docx`` core properties by :meth:`finish`.
+        """
+        if key:
+            self._ensure_styles(config)
+            text = _ooxml_text(self._collect(config, node, content)).strip()
+            config['parameters'].setdefault('metadata', {}).setdefault(str(key), []).append(text)
         return []
 
     def title(self, config, node, cls, content) -> PMResult:
@@ -1025,6 +1046,29 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         for rId in to_drop:
             rels.pop(rId)
 
+    # ODD metadata key → python-docx core property name.  Core properties are
+    # plain strings, so multi-valued keys are joined.
+    _CORE_PROPERTY_KEYS = {
+        'title': 'title',
+        'author': 'author',
+        'authors': 'author',
+        'subject': 'subject',
+        'keywords': 'keywords',
+        'category': 'category',
+        'comments': 'comments',
+    }
+
+    def _apply_core_properties(self, config: dict, doc) -> None:
+        """Map values collected by :meth:`metadata` onto the document properties."""
+        collected = (config.get('parameters') or {}).get('metadata') or {}
+        for key, values in collected.items():
+            prop = self._CORE_PROPERTY_KEYS.get(str(key).lower())
+            if prop is None:
+                continue
+            text = ', '.join(v for v in values if v)
+            if text:
+                setattr(doc.core_properties, prop, text)
+
     def finish(self, config: dict, nodes: list) -> list:
         """Assemble body elements into a ``.docx`` and return ``[bytes]``."""
         from docx import Document  # noqa: PLC0415
@@ -1036,6 +1080,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         if not self._styles_loaded:
             self._load_style_index(doc)
         self._inject_missing_builtin_styles(doc)
+        self._apply_core_properties(config, doc)
 
         if self._needs_numbering:
             import docx as _docx_pkg  # noqa: PLC0415
@@ -1446,30 +1491,27 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         ]
         
         for orig_idx, sentinel in reversed(to_replace):  # Reverse to maintain indices
+            # A sentinel must never survive into the body — Word refuses to open a
+            # document containing elements outside the OOXML namespaces.  Any
+            # failure below (unregistered rId, missing/unreadable image file,
+            # drawing construction) degrades to a visible placeholder run.
             r_id = sentinel.get('rId')
-            if not r_id:
-                continue
+            actual_rid = config.get('_docx_image_rid_map', {}).get(r_id) if r_id else None
             
-            # Get actual relationship ID from map
-            actual_rid = config.get('_docx_image_rid_map', {}).get(r_id)
-            if not actual_rid:
-                continue
+            drawing_run = None
+            if actual_rid:
+                drawing_run = self._create_image_drawing_element(
+                    actual_rid,
+                    sentinel.get('width'),
+                    sentinel.get('height'),
+                    sentinel.get('scale'),
+                )
             
-            # Get image dimensions
-            width = sentinel.get('width')
-            height = sentinel.get('height')
-            scale = sentinel.get('scale')
-            
-            # Create drawing element
-            drawing_run = self._create_image_drawing_element(actual_rid, width, height, scale)
-            if drawing_run is not None:
-                el.remove(sentinel)  # type: ignore
-                el.insert(orig_idx, drawing_run)
-            else:
-                # Replace with placeholder if drawing creation fails
-                placeholder = self._make_run(f'[Image: {sentinel.get("url", "")}]')
-                el.remove(sentinel)  # type: ignore
-                el.insert(orig_idx, placeholder)
+            replacement = drawing_run
+            if replacement is None:
+                replacement = self._make_run(f'[Image: {sentinel.get("url", "")}]')
+            el.remove(sentinel)  # type: ignore
+            el.insert(orig_idx, replacement)
         
         # Recursively process child elements
         for child in el:

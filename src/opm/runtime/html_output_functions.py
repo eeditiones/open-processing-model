@@ -1,4 +1,4 @@
-"""HTML5 serialisation for the TEI processing model (``html-functions.xql`` equivalent)."""
+"""HTML5 serialisation for the TEI processing model."""
 
 from __future__ import annotations
 
@@ -20,13 +20,10 @@ from opm.runtime.output_functions import (
 
 
 class HtmlOutputFunctions(ProcessingModelFunctions):
-    """Serialise to HTML5 using lxml elements.
-
-    Equivalent to the ``pmf:*`` functions in ``html-functions.xql``.
-    """
+    """Serialise to HTML5 using lxml elements."""
 
     def finish(self, config, nodes: list) -> list:
-        """HTML pipeline has no ``pmf:finish`` normalisation; return *nodes* unchanged."""
+        """HTML pipeline has no ``finish`` normalisation; return *nodes* unchanged."""
         return nodes
 
     @staticmethod

@@ -1,4 +1,5 @@
-"""Built-in chunk-selection algorithms for TEI and DocBook documents.
+"""Built-in chunk-selection algorithms for TEI and DocBook documents. Those determine how a large 
+XML document is split into smaller sections to be viewed on one page.
 
 Functions here can be referenced in ``opm.toml`` via the
 ``chunking.selector`` key, e.g.::
@@ -32,7 +33,7 @@ def tei_div_chunks(root: etree._Element, config: ChunkingConfig) -> list[etree._
     """Return chunk elements by walking TEI ``div`` divisions up to *config.depth*.
 
     Algorithm (mirrors ``nav:next-page`` / ``nav:previous-page`` in
-    ``navigation-tei.xql``, pb-pagination excluded):
+    TEI Publisher's ``navigation-tei.xql``, pb-pagination excluded):
 
     * Walk every ``div`` in document order whose nesting level
       (``count(ancestor-or-self::div)``) is at most *depth*.

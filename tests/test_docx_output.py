@@ -23,6 +23,10 @@ ODD = packaged_odd('teipublisher')
 TEST_XML = ROOT / 'tests' / 'test-docx.xml'
 
 W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+TEI = 'http://www.tei-c.org/ns/1.0'
+DC = 'http://purl.org/dc/elements/1.1/'
+CORE_PROPS = 'docProps/core.xml'
+DOCX_SENTINEL_NS = 'http://www.tei-c.org/ns/docx'
 
 
 def _parse_docx(data: bytes) -> dict[str, etree._Element]:
@@ -334,3 +338,61 @@ def test_docx_image_file_present(docx_bytes):
         for img_file in image_files:
             assert img_file.endswith('.svg') or img_file.endswith('.png') or img_file.endswith('.jpg'), \
                 f'unexpected image file extension: {img_file}'
+
+
+def test_docx_title_reaches_core_properties(docx_parts):
+    """The ODD's metadata models populate the Word document properties."""
+    assert docx_parts[CORE_PROPS].findtext(f'{{{DC}}}title') == 'Testing'
+
+
+def test_docx_authors_joined_into_creator(tmp_path):
+    """Multiple authors collapse into one dc:creator and stay out of the body."""
+    from opm.transform import run_transform
+
+    mod = _compile_docx_module(tmp_path)
+    root = etree.parse(str(TEST_XML)).getroot()
+    title_stmt = root.find(f'.//{{{TEI}}}titleStmt')
+    assert title_stmt is not None
+    for name in ('Ada Lovelace', 'Charles Babbage'):
+        etree.SubElement(title_stmt, f'{{{TEI}}}author').text = name
+
+    parts = _parse_docx(run_transform(mod, root, docx_template=packaged_default_docx()))
+    assert parts[CORE_PROPS].findtext(f'{{{DC}}}creator') == 'Ada Lovelace, Charles Babbage'
+
+    body_text = ''.join(t.text or '' for t in parts['word/document.xml'].iter(f'{{{W}}}t'))
+    assert 'Ada Lovelace' not in body_text
+
+
+def test_docx_missing_image_leaves_no_sentinel(tmp_path):
+    """A missing image degrades to a placeholder run, never a foreign element.
+
+    Word refuses to open a document containing elements outside the OOXML
+    namespaces, so an unresolvable image must not leave its sentinel behind.
+    """
+    from opm.transform import run_transform
+
+    mod = _compile_docx_module(tmp_path)
+    root = etree.parse(str(TEST_XML)).getroot()
+    body = root.find(f'.//{{{TEI}}}body')
+    assert body is not None
+    p = etree.SubElement(body, f'{{{TEI}}}p')
+    etree.SubElement(p, f'{{{TEI}}}graphic').set('corresp', 'does_not_exist.png')
+
+    parts = _parse_docx(
+        run_transform(
+            mod,
+            root,
+            parameters={'input_path': str(TEST_XML)},
+            docx_template=packaged_default_docx(),
+        )
+    )
+    doc_root = parts['word/document.xml']
+    leftover = [
+        etree.QName(el).localname
+        for el in doc_root.iter()
+        if isinstance(el.tag, str) and etree.QName(el).namespace == DOCX_SENTINEL_NS
+    ]
+    assert not leftover, f'sentinels left in body: {leftover}'
+
+    texts = [t.text or '' for t in doc_root.iter(f'{{{W}}}t')]
+    assert any('does_not_exist.png' in t for t in texts), 'no placeholder for missing image'

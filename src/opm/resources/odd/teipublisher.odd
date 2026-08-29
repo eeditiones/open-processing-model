@@ -141,6 +141,9 @@
                     <model output="typst" predicate="ancestor::teiHeader" behaviour="metadata">
                         <param name="key" value="'authors'"/>
                     </model>
+                    <model output="docx" predicate="ancestor::teiHeader" behaviour="metadata">
+                        <param name="key" value="'authors'"/>
+                    </model>
                     <model predicate="ancestor::teiHeader" behaviour="block"/>
                     <model behaviour="inline"/>
                 </elementSpec>
@@ -783,6 +786,9 @@
                     <model output="typst" behaviour="pass-through">
                         <param name="content" value="fileDesc/titleStmt/title[1], fileDesc/titleStmt/author"/>
                     </model>
+                    <model output="docx" behaviour="pass-through">
+                        <param name="content" value="fileDesc/titleStmt/title[1], fileDesc/titleStmt/author"/>
+                    </model>
                     <model predicate="$parameters?mode=('breadcrumb', 'title')" behaviour="inline">
             <param name="content" value="fileDesc/titleStmt"/>
         </model>
@@ -830,6 +836,9 @@
                 </elementSpec>
                 <elementSpec ident="title" mode="change">
                     <model output="typst" predicate="parent::titleStmt" behaviour="metadata">
+                        <param name="key" value="'title'"/>
+                    </model>
+                    <model output="docx" predicate="parent::titleStmt" behaviour="metadata">
                         <param name="key" value="'title'"/>
                     </model>
                     <model predicate="$parameters?mode=('breadcrumb', 'title')" behaviour="inline"/>

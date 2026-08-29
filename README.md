@@ -5,7 +5,7 @@
 
 # Open Processing Model
 
-**Open Processing Model** (`opm`) implements the [TEI Processing Model](https://tei-c.org/release/doc/tei-p5-doc/en/html/TD.html#TDPM) for transforming XML into various output formats. The implementation is a Python port of the core library of TEI Publisher: [`tei-publisher-lib`](https://github.com/eeditiones/tei-publisher-lib). While `tei-publisher-lib` compiles the processing model instructions found in an ODD into XQuery code, `opm` outputs Python instead.
+**Open Processing Model** (`opm`) implements the [TEI Processing Model](https://tei-c.org/release/doc/tei-p5-doc/en/html/TD.html#TDPM) for transforming XML into various output formats. The design conceptually follows the [`tei-publisher-lib`](https://github.com/eeditiones/tei-publisher-lib) implementation in [TEI Publisher](https://tei-publisher.org) and aims to be as compatible as possible. While `tei-publisher-lib` compiles the processing model instructions found in an ODD into XQuery code, `opm` outputs Python instead.
 
 `opm` does not require a database, runs entirely on the command line, is very fast for batch processing and has very slim dependencies.
 
@@ -29,7 +29,7 @@ A one-off transform needs no project files (`opm transform my.xml --preview`
 uses the packaged stock ODD and templates). `opm init` writes editable
 `opm.toml`, templates, CSS, and an ODD.
 
-## Contributors
+## Development
 
 This repository uses [`uv`](https://docs.astral.sh/uv/). From a clone:
 

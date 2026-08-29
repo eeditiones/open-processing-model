@@ -145,6 +145,10 @@
                         <param name="key" value="'authors'"/>
                         <param name="content" value="(personname, orgname, affiliation)"/>
                     </model>
+                    <model output="docx" behaviour="metadata">
+                        <param name="key" value="'authors'"/>
+                        <param name="content" value="(personname, orgname, affiliation)"/>
+                    </model>
                     <model output="latex" predicate="preceding-sibling::author" behaviour="inline">
                         <param name="content" value="(personname, affiliation)"/>
                         <pb:template xml:space="preserve">\and [[content]]</pb:template>
@@ -177,6 +181,9 @@
                 </elementSpec>
                 <elementSpec ident="title">
                     <model output="typst" predicate="parent::info" behaviour="metadata">
+                        <param name="key" value="'title'"/>
+                    </model>
+                    <model output="docx" predicate="parent::info" behaviour="metadata">
                         <param name="key" value="'title'"/>
                     </model>
                     <model output="typst" behaviour="heading">
@@ -829,6 +836,9 @@ Not available in PDF edition. Go to \url{[[content]]} to view.
                 </elementSpec>
                 <elementSpec ident="abstract" mode="add">
                     <model output="typst" behaviour="metadata">
+                        <param name="key" value="'abstract'"/>
+                    </model>
+                    <model output="docx" behaviour="metadata">
                         <param name="key" value="'abstract'"/>
                     </model>
                     <model predicate="$parameters?path = $parameters?active" behaviour="omit"/>
