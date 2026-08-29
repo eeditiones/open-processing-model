@@ -29,7 +29,6 @@ env/
 # OS files
 .DS_Store
 
-modules/
 chunks/
 
 # MkDocs build output

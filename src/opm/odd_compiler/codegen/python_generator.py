@@ -145,6 +145,7 @@ class PythonGenerator(CodeGenerator):
             pmf_ctor = 'MarkdownOutputFunctions()'
             transform_config_extra = "\n        'normalize_text': normalize_markdown_xml_text,"
             transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
+            webcomponents_init = "runtime_options.get('webcomponents', False)"
         elif output_mode == 'docx':
             pmf_import = (
                 'from opm.runtime.docx_output_functions import (\n'
@@ -161,6 +162,7 @@ class PythonGenerator(CodeGenerator):
                 "\n        'input_path': runtime_options.get('input_path'),"
             )
             transform_opts_exclude = "('xpath_extensions', 'webcomponents', 'docx_template')"
+            webcomponents_init = "runtime_options.get('webcomponents', False)"
         elif output_mode == 'typst':
             pmf_import = (
                 'from opm.runtime.typst_output_functions import (\n'
@@ -172,11 +174,22 @@ class PythonGenerator(CodeGenerator):
             pmf_ctor = 'TypstOutputFunctions()'
             transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
             transform_config_extra += "\n        'text_escape': escape_typst_text_node,"
+            webcomponents_init = "runtime_options.get('webcomponents', False)"
+        elif output_mode == 'print':
+            pmf_import = (
+                'from opm.runtime.print_output_functions import PrintOutputFunctions'
+            )
+            pmf_ctor = 'PrintOutputFunctions()'
+            # Paged media has no interactive UI; never enable web components.
+            transform_config_extra = ''
+            transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
+            webcomponents_init = 'False'
         else:
             pmf_import = 'from opm.runtime.html_output_functions import HtmlOutputFunctions'
             pmf_ctor = 'HtmlOutputFunctions()'
             transform_config_extra = ''
             transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
+            webcomponents_init = "runtime_options.get('webcomponents', False)"
 
         template_helpers_block = helpers.functions_block
 
@@ -266,7 +279,7 @@ def transform(root, options=None):
     reset_counters()
     runtime_options = options or {{}}
     xpath_extensions = runtime_options.get('xpath_extensions')
-    webcomponents = runtime_options.get('webcomponents', False)
+    webcomponents = {webcomponents_init}
     parameters = {{
         k: v for k, v in runtime_options.items() if k not in {transform_opts_exclude}
     }}
@@ -438,6 +451,10 @@ def transform(root, options=None):
             from opm.runtime.typst_output_functions import TypstOutputFunctions
 
             return TypstOutputFunctions
+        if output_mode == 'print':
+            from opm.runtime.print_output_functions import PrintOutputFunctions
+
+            return PrintOutputFunctions
         from opm.runtime.html_output_functions import HtmlOutputFunctions
 
         return HtmlOutputFunctions

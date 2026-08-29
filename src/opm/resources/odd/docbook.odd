@@ -573,6 +573,10 @@ white-space: pre-wrap;
 [[code]]
 \end{lstlisting} </pb:template>
                     </model>
+                    <model output="print" behaviour="code">
+                        <param name="language" value="@language"/>
+                        <param name="content" value="text()"/>
+                    </model>
                     <modelGrp output="web">
                         <model predicate="@role='codepen'" behaviour="webcomponent">
                             <param name="hash" value="substring-after(@xlink:href, '#')"/>
@@ -630,7 +634,10 @@ white-space: pre-wrap;
 [[code]]
 \end{lstlisting} </pb:template>
                     </model>
-                    <model output="print" behaviour="block" cssClass="programlisting"/>
+                    <model output="print" behaviour="code">
+                        <param name="language" value="@language"/>
+                        <param name="content" value="text()"/>
+                    </model>
                     <model output="docx" behaviour="block" cssClass="Code"/>
                     <model behaviour="webcomponent">
                         <param name="name" value="'pb-code-highlight'"/>

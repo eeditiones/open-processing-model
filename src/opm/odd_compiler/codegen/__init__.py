@@ -113,6 +113,18 @@ def _model_ordinal(spec_el, model_el) -> int:
 
 OPM_OUTPUT_PREFIX = 'opm-'
 
+# Modes that extend another mode; e.g. print accepts both print and web models.
+OUTPUT_MODE_ALIASES: dict[str, tuple[str, ...]] = {
+    'print': ('print', 'web'),
+    'epub': ('epub', 'web'),
+}
+
+
+def _accepted_output_modes(output_mode: str) -> tuple[str, ...]:
+    """Return the ODD ``@output`` values that participate for *output_mode*."""
+    mode = (output_mode or 'web').strip().lower() or 'web'
+    return OUTPUT_MODE_ALIASES.get(mode, (mode,))
+
 
 def _model_matches_output_mode(el, output_mode: str) -> bool:
     """Whether *el* participates in the given ODD output channel (``@output`` on models).
@@ -120,13 +132,20 @@ def _model_matches_output_mode(el, output_mode: str) -> bool:
     Models without ``@output`` are generic and apply to all modes.  Mode-specific
     models override them via the predicate/ordering rules in ``_top_level_models``.
 
+    Some modes build upon other modes (see
+    :data:`OUTPUT_MODE_ALIASES`): e.g. ``print`` matches ``@output="print"`` and
+    ``@output="web"``.
+
     Values prefixed with ``opm-`` (e.g. ``opm-web``) are recognised only by this
     Python compiler; tei-publisher-lib ignores them.
     """
     o = el.get('output')
     if o is None:
         return True
-    return o == output_mode or o == f'{OPM_OUTPUT_PREFIX}{output_mode}'
+    accepted = _accepted_output_modes(output_mode)
+    if o in accepted:
+        return True
+    return any(o == f'{OPM_OUTPUT_PREFIX}{mode}' for mode in accepted)
 
 
 def _filter_by_output_mode(elements: list, output_mode: str) -> list:

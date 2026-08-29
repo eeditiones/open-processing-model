@@ -1,4 +1,4 @@
-"""Helpers for rendering full-document HTML through Jinja2 templates."""
+"""Helpers for wrapping transform output in Jinja2 templates (HTML and Typst)."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from lxml import etree
 
 DEFAULT_TEMPLATE_NAME = 'default_document.html.j2'
+DEFAULT_PRINT_TEMPLATE_NAME = 'default_print.html.j2'
 DEFAULT_TYPST_TEMPLATE_NAME = 'default_document.typ.j2'
 DEFAULT_INDEX_TEMPLATE_NAME = 'default_index.html.j2'
 

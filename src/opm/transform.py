@@ -73,6 +73,7 @@ from opm.config import (
 from opm.runtime.pm_runtime import resolve_context_element, xpath_runtime_context
 from opm.runtime.pm_runtime import serialize as _default_serialize
 from opm.template_rendering import (
+    DEFAULT_PRINT_TEMPLATE_NAME,
     DEFAULT_TYPST_TEMPLATE_NAME,
     render_document_template,
     render_typst_document_template,
@@ -299,6 +300,17 @@ def run_transform(
             metadata=metadata,
             context=template_context,
         )
+    elif apply_template and is_document and primary == 'print':
+        tpl = resolve_template_path(
+            template_path, default_name=DEFAULT_PRINT_TEMPLATE_NAME
+        )
+        out = render_document_template(
+            serialized_html=out,
+            template_path=tpl,
+            odd_css=getattr(mod, 'ODD_GENERATED_CSS', ''),
+            parameters=parameters or {},
+            context=template_context,
+        )
     elif apply_template and is_document and primary == 'web':
         tpl = resolve_template_path(template_path)
         out = render_document_template(
@@ -449,6 +461,8 @@ def transform_file(
         if isinstance(channels, (list, tuple))
         else channels
     )
+    if primary == 'print':
+        effective_webcomponents = False
     template_context = cfg.context_for(
         primary, webcomponents=effective_webcomponents,
     )
@@ -462,6 +476,11 @@ def transform_file(
     xpath_variables = dict(cfg.xpath_variables)
     xpath_namespaces = dict(cfg.xpath_namespaces)
 
+    if primary == 'print':
+        effective_template = template if template is not None else cfg.print_template
+    else:
+        effective_template = template if template is not None else cfg.document_template
+
     return transform_node(
         mod,
         doc_root,
@@ -469,7 +488,7 @@ def transform_file(
         parameters=parameters,
         xpath_extensions=effective_extensions or None,
         webcomponents=effective_webcomponents,
-        template_path=template if template is not None else cfg.document_template,
+        template_path=effective_template,
         template_context=template_context,
         docx_template=cfg.document_docx_template,
         typst_template_path=template if template is not None else cfg.typst_template,

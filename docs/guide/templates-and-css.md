@@ -19,6 +19,23 @@ uv run opm transform data/sample.xml \
   --template templates/tufte.html.j2 --css styles/main.css -o out.html
 ```
 
+### Print templates
+
+`-t print` uses its own shell so reading-view chrome (nav, web components) stays
+out of paged output:
+
+1. `--template`
+2. `[transform.print] template`
+3. Packaged `default_print.html.j2` (not `[document] template`)
+
+```toml
+[transform.print]
+template = "templates/print.html.j2"
+```
+
+The DocBook example ships a worked print shell under
+`examples/docbook/templates/print.html.j2`.
+
 The same Jinja file can wrap both a full-document transform and chunked pages.
 What you put in `<head>` has to work for **both** pipelines, which differ in
 how CSS arrives.

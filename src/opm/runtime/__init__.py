@@ -31,8 +31,11 @@ from .output_functions import (
     normalize,
     reset_counters,
 )
+from .docx_output_functions import DocxOutputFunctions
 from .html_output_functions import HtmlOutputFunctions
 from .markdown_output_functions import MarkdownOutputFunctions
+from .print_output_functions import PrintOutputFunctions
+from .typst_output_functions import TypstOutputFunctions
 
 __all__ = [
     # pm_runtime
@@ -55,6 +58,9 @@ __all__ = [
     'normalize',
     'reset_counters',
     # format implementations
+    'DocxOutputFunctions',
     'HtmlOutputFunctions',
     'MarkdownOutputFunctions',
+    'PrintOutputFunctions',
+    'TypstOutputFunctions',
 ]

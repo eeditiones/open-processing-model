@@ -83,6 +83,7 @@ assets = ["templates/edition.css", "templates/parchment.jpg"]
 | `[project]` | `pythonpath` additions so local extension modules import | [XPath extensions](xpath-extensions.md) |
 | `[transform]` | Shared settings (`odd`, `xpath_extensions`, `documents`, `parameters`) | [Output formats](output-formats.md), [ODD `$parameters`](odd-files.md#parameters) |
 | `[transform.web]` | Optional web-only `odd` override | [Output formats](output-formats.md) |
+| `[transform.print]` | Optional print `odd` and HTML `template` | [Output formats](output-formats.md#print-paged-media) |
 | `[transform.docx]` | Optional DOCX `odd` override and Word style `template` | [Output formats](output-formats.md#docx) |
 | `[transform.typst]` | Optional Typst `odd` override and Typst `template` | [Output formats](output-formats.md#typst) |
 | `[transform.markdown]`, … | Other optional per-type `odd` (and `template`) overrides | [Output formats](output-formats.md) |
@@ -124,9 +125,10 @@ Precedence for each mode:
 | `--type` | Config key (override) | Falls back to |
 | --- | --- | --- |
 | `web` (default when `--type` is omitted) | `[transform.web].odd` | `[transform].odd` |
+| `print` | `[transform.print].odd` | `[transform].odd` |
 | `docx` | `[transform.docx].odd` | `[transform].odd` |
 | `typst` | `[transform.typst].odd` | `[transform].odd` |
-| `markdown`, `print`, … | `[transform.<type>].odd` | `[transform].odd` |
+| `markdown`, … | `[transform.<type>].odd` | `[transform].odd` |
 
 Legacy configs that only set `[transform.web].odd` still work: that value is
 treated as the shared default when `[transform].odd` is omitted. Legacy

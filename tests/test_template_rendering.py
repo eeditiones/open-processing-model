@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from opm.template_rendering import DEFAULT_PRINT_TEMPLATE_NAME
 from opm.template_rendering import DEFAULT_TYPST_TEMPLATE_NAME
 from opm.template_rendering import default_template_path
 from opm.template_rendering import render_document_template
@@ -22,6 +23,18 @@ def test_default_template_is_packaged_and_resolvable() -> None:
     path = default_template_path()
     assert path.is_file()
     assert 'opm-default-template' in path.read_text(encoding='utf-8')
+
+
+def test_default_print_template_is_packaged() -> None:
+    path = default_template_path(DEFAULT_PRINT_TEMPLATE_NAME)
+    assert path.is_file()
+    assert 'opm-default-print-template' in path.read_text(encoding='utf-8')
+    assert 'webcomponents' not in path.read_text(encoding='utf-8')
+
+
+def test_resolve_print_template_uses_packaged_default_when_none() -> None:
+    path = resolve_template_path(None, default_name=DEFAULT_PRINT_TEMPLATE_NAME)
+    assert path == default_template_path(DEFAULT_PRINT_TEMPLATE_NAME)
 
 
 def test_default_typst_template_is_packaged() -> None:

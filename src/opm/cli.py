@@ -145,7 +145,7 @@ def _preview_kind_from_module(mod) -> str:
     primary = raw[0] if isinstance(raw, (list, tuple)) else raw
     if primary == 'markdown':
         return 'markdown'
-    if primary == 'web':
+    if primary in ('web', 'print'):
         return 'html'
     if primary == 'docx':
         return 'docx'
@@ -378,8 +378,8 @@ def transform_cmd(
             '--preview',
             '-v',
             help=(
-                'Preview output: channel web → browser, markdown → Rich (paged in a TTY so '
-                'bold/italic survive); other channels (e.g. print) → plain text in the terminal.'
+                'Preview output: channel web/print → browser, markdown → Rich (paged in a TTY so '
+                'bold/italic survive); other channels (e.g. typst) → plain text in the terminal.'
             ),
         ),
     ] = False,
@@ -403,7 +403,7 @@ def transform_cmd(
         Optional[Path],
         typer.Option(
             '--template',
-            help='Template path: Jinja2 for HTML/Typst output, or .docx for DOCX output.',
+            help='Template path: Jinja2 for HTML/print/Typst output, or .docx for DOCX output.',
         ),
     ] = None,
     xpath: Annotated[
@@ -488,6 +488,10 @@ def transform_cmd(
         elif not isinstance(channels, (list, tuple)):
             primary = channels
 
+        # Print (paged media) has no interactive UI — never load web components.
+        if primary == 'print':
+            effective_webcomponents = False
+
         if primary == 'typst':
             effective_template = template if template is not None else cfg.typst_template
             effective_docx_template = None
@@ -496,6 +500,10 @@ def transform_cmd(
             effective_docx_template = template if template is not None else cfg.document_docx_template
             if effective_docx_template is None:
                 effective_docx_template = packaged_default_docx()
+        elif primary == 'print':
+            # Do not fall back to the web/document shell (nav, web components).
+            effective_template = template if template is not None else cfg.print_template
+            effective_docx_template = None
         else:
             effective_template = template if template is not None else cfg.document_template
             effective_docx_template = None

@@ -49,7 +49,7 @@ def test_preview_kind_from_transform_output_channels() -> None:
     assert _preview_kind_from_module(MarkdownMod) == 'markdown'
     assert _preview_kind_from_module(WebMod) == 'html'
     assert _preview_kind_from_module(TupleMod) == 'markdown'
-    assert _preview_kind_from_module(PrintMod) == 'text'
+    assert _preview_kind_from_module(PrintMod) == 'html'
     assert _preview_kind_from_module(TypstMod) == 'typst'
     assert _preview_kind_from_module(EmptyChannels) == 'text'
 
@@ -201,6 +201,27 @@ template = "book.typ.j2"
     assert cfg.odd_for_type('markdown') == tmp_path / 'web.odd'  # falls back to web-as-default
     assert cfg.document_docx_template == tmp_path / 'style.docx'
     assert cfg.typst_template == tmp_path / 'book.typ.j2'
+
+
+def test_load_project_config_print_template(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    (tmp_path / 'opm.toml').write_text(
+        """[transform]
+odd = "shared.odd"
+
+[transform.print]
+template = "templates/print.html.j2"
+
+[document]
+template = "templates/web.html.j2"
+""",
+        encoding='utf-8',
+    )
+    cfg = load_project_config(tmp_path / 'opm.toml')
+    assert cfg.print_template == tmp_path / 'templates' / 'print.html.j2'
+    assert cfg.document_template == tmp_path / 'templates' / 'web.html.j2'
+    assert cfg.print_template != cfg.document_template
 
 
 def test_load_project_config_shared_transform_odd(tmp_path: Path) -> None:

@@ -136,9 +136,17 @@ pb-edit-xml {
     color: #d07f00;
 }
 
-pb-code-highlight {
+pb-code-highlight,
+pre.programlisting,
+.programlisting,
+pre[class*="tei-programlisting"],
+pre[class*="tei-synopsis"] {
+    display: block;
+    white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: .85em;
-    margin-bottom: var(--s0);
+    margin: 1em 0 1em .5em;
+    padding: 1em 0 1em .5em;
 }
 
 .footnotes {
@@ -261,6 +269,16 @@ pb-code-highlight {
     figure {
         break-inside: avoid;
         -prince-float: snap;
+    }
+
+    /* Keep short listings on one page when they fit; oversized blocks may still split. */
+    pb-code-highlight,
+    pre,
+    .programlisting,
+    pre[class*="tei-programlisting"],
+    pre[class*="tei-synopsis"] {
+        break-inside: avoid;
+        page-break-inside: avoid;
     }
 
     .footnote {

@@ -20,9 +20,13 @@ cd examples/docbook
 
 ```bash
 uv run opm transform data/doc/quickstart.xml --preview
+uv run opm transform data/doc/quickstart.xml -t print --preview
 uv run opm transform data/doc/quickstart.xml -t typst -o /tmp/quickstart.typ
 ```
 
+`-t print` uses `templates/print.html.j2` (no handbook chrome / web components).
+The ODD’s `docbook.css` supplies `@page` and `float: footnote` rules for Prince
+or the browser print dialog.
 ## Chunk and preview
 
 Sections are split at depth 2 (same as the `<?teipublisher … depth="2"?>`
@@ -42,5 +46,6 @@ uv run opm chunk data/doc --force --preview
 
 - `odd/docbook.odd` — DocBook processing model (plus `docbook.css`)
 - `templates/handbook.html.j2` — documentation shell with sidebar TOC
+- `templates/print.html.j2` — paged-media shell for `-t print`
 - `opm.toml` — `dbk_section_chunks`, depth 2, title/toc/breadcrumb fragments
 - `data/doc/` — sample DocBook articles

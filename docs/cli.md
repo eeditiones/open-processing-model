@@ -80,10 +80,10 @@ opm transform [OPTIONS] [INPUT_XML]
 | `--odd, -d PATH` | ODD file to compile on demand into the user cache. Overrides transform.<type>.odd in config. |
 | `--type, -t TYPE` | Transform type / ODD output channel (web, docx, typst, markdown, …). Selects transform.<type>.odd from config when --odd is omitted; also sets the compile mode for --odd. |
 | `--output, -o PATH` | Write transform output to this file (default: stdout unless --preview) |
-| `--preview, -v` | Preview output: channel web → browser, markdown → Rich (paged in a TTY so bold/italic survive); other channels (e.g. print) → plain text in the terminal. |
+| `--preview, -v` | Preview output: channel web/print → browser, markdown → Rich (paged in a TTY so bold/italic survive); other channels (e.g. typst) → plain text in the terminal. |
 | `--param, -p KEY=VALUE` | Runtime parameter for XPath $parameters (repeatable), e.g. -p mode=toc -p display=browse |
 | `--css PATH` | Optional external CSS file injected into <head> for full-document HTML output. |
-| `--template PATH` | Template path: Jinja2 for HTML/Typst output, or .docx for DOCX output. |
+| `--template PATH` | Template path: Jinja2 for HTML/print/Typst output, or .docx for DOCX output. |
 | `--xpath, -x EXPR` | XPath 3.1 expression evaluated with the document root as the context item; the single selected element becomes the transform root. Unprefixed names use the same default element namespace as the document root. $parameters is bound from --param. |
 | `--xpath-extensions TEXT` | Dotted import path(s) of Python module(s) whose public callables become XPath functions in the tp: namespace (repeat option to add modules; e.g. --xpath-extensions extensions.common --xpath-extensions extensions.dates). Importing these modules runs top-level code: only use trusted code. |
 | `--webcomponents, --no-webcomponents` | Enable/disable tei-publisher web components mode: alternate behaviours emit <pb-alternate> and the document template loads tei-publisher-components. Falls back to transform.web.webcomponents.enabled in the project config. |

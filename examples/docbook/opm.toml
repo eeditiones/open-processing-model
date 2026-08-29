@@ -10,6 +10,9 @@ xpath_extensions = [
 [transform.web.webcomponents]
 enabled = true
 
+[transform.print]
+template = "templates/print.html.j2"
+
 [transform.typst]
 template = "templates/docbook.typ.j2"
 

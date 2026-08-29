@@ -207,6 +207,13 @@ class ProjectConfig:
     document_css: Path | None = None
     document_docx_template: Path | None = None
     typst_template: Path | None = None
+    print_template: Path | None = None
+    """Jinja2 HTML shell for ``-t print`` from ``[transform.print] template``.
+
+    Print does not fall back to :attr:`document_template` — web shells usually
+    include nav and web components that do not belong on a paged-media page.
+    When unset, the packaged ``default_print.html.j2`` is used.
+    """
     xpath_extensions: tuple[str, ...] = ()
     xpath_documents: tuple[Path, ...] = ()
     xpath_collections: tuple[CollectionConfig, ...] = ()
@@ -308,6 +315,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     }
     docx_data = type_sections['docx']
     typst_data = type_sections['typst']
+    print_data = type_sections['print']
     web_data = type_sections['web']
     wc = _section_table(web_data.get('webcomponents'))
 
@@ -331,6 +339,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     css_file = doc.get('css')
     docx_template_file = docx_data.get('template')
     typst_template_file = typst_data.get('template')
+    print_template_file = print_data.get('template')
     raw_xpath_extensions = transform.get('xpath_extensions')
     xpath_extensions: tuple[str, ...]
     if raw_xpath_extensions is None:
@@ -530,6 +539,9 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         document_css=config_path.parent / str(css_file) if css_file else None,
         document_docx_template=config_path.parent / docx_template_file if docx_template_file else None,
         typst_template=config_path.parent / typst_template_file if typst_template_file else None,
+        print_template=(
+            config_path.parent / str(print_template_file) if print_template_file else None
+        ),
         xpath_extensions=xpath_extensions,
         xpath_documents=xpath_documents,
         xpath_collections=tuple(collections),

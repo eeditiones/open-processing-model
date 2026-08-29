@@ -14,7 +14,7 @@ import lxml.etree as ET
 
 # Stable namespace for ``tp:yourFunction()`` in XPath expressions.
 TEI_PUBLISHER_XPATH_EXT_PREFIX = 'tp'
-TEI_PUBLISHER_XPATH_EXT_NS = 'http://tei-publisher.dev/ns/xpath-extensions'
+TEI_PUBLISHER_XPATH_EXT_NS = 'https://opm.e-editiones.org/ns/xpath-extensions'
 
 
 def extension_namespace_map() -> dict[str, str]:

@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="{{ lang|default('en') }}">
+<head>
+  <meta charset="utf-8">
+  <!-- opm-default-print-template: minimal shell for paged-media CSS -->
+  {{ head_html | safe }}
+  {% if odd_css %}
+  <style type="text/css">
+{{ odd_css }}
+  </style>
+  {% endif %}
+</head>
+<body class="content print">
+  {{ content_html | safe }}
+</body>
+</html>

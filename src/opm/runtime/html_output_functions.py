@@ -285,6 +285,13 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         return [el]
 
     def webcomponent(self, config, node, cls, content, name, optional=None) -> PMResult:
+        # Without the JS bundle, custom elements are unknown inline tags and the
+        # browser collapses whitespace — fatal for code listings. Degrade to a
+        # real <pre><code> (same path print always takes: webcomponents=False).
+        if not config.get('webcomponents') and name == 'pb-code-highlight':
+            language = (optional or {}).get('language')
+            return self.code(config, node, cls, content, language=language)
+
         el = etree.Element(name)
         el.set('class', classes(*cls))
         xml_id = node.get(XML_ID)
@@ -298,6 +305,17 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
                 el.set(k, str(v))
         config['apply_children'](config, node, content, el)
         return [el]
+
+    def code(self, config, node, cls, content, language=None) -> PMResult:
+        """Emit a ``<pre><code>`` block so whitespace is preserved without JS."""
+        pre = self._el('pre', cls, node)
+        code_el = etree.SubElement(pre, 'code')
+        if language is not None and not isinstance(language, (list, tuple)):
+            lang = str(language).strip()
+            if lang:
+                code_el.set('data-language', lang)
+        config['apply_children'](config, node, content, code_el)
+        return [pre]
 
     def omit(self, config, node, cls, content) -> PMResult:
         return []
