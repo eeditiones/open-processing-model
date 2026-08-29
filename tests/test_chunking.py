@@ -89,6 +89,19 @@ def _render(node):
             el.set('data-target', target)
         el.text = 'marker'
         return [el]
+    if tag == 'pblink':
+        el = etree.Element('pb-link')
+        target = node.get('target')
+        if target:
+            el.set('xml-id', target)
+            el.set('node-id', target)
+            el.set('emit', 'transcription')
+            el.set('subscribe', 'transcription')
+        path = node.get('path')
+        if path:
+            el.set('path', path)
+        _append_children(node, el)
+        return [el]
     return [node.text or '']
 
 
@@ -123,6 +136,7 @@ def _write_chunking_fixture_xml(path: Path) -> None:
   <body>
     <div type="toc">
       <p><ref target="#a">A</ref> <ref target="#b">B</ref></p>
+      <p><pblink target="b">B page</pblink> <pblink path="other.xml">Other</pblink></p>
     </div>
     <div type="chunk" xml:id="a">
       <p><ref target="#a">self</ref> <ref target="#b">next</ref></p>
@@ -207,6 +221,34 @@ def test_chunk_document_rewrites_same_document_links_in_html_output(tmp_path: Pa
 
     assert 'href="001.html#a"' in toc_html
     assert 'href="002.html#b"' in toc_html
+
+
+def test_chunk_document_resolves_pb_links(tmp_path: Path) -> None:
+    """pb-link carries its target in xml-id, so it becomes a real anchor."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=_chunking_config('pb-link-chunks'),
+        project_root=tmp_path,
+        output_format='html',
+    )
+
+    toc_html = (tmp_path / 'pb-link-chunks' / 'toc.html').read_text(encoding='utf-8')
+    chunk_two_html = (tmp_path / 'pb-link-chunks' / '002.html').read_text(encoding='utf-8')
+
+    # Resolved through the anchor index, with the pb-view wiring dropped.
+    assert '<a href="002.html#b"' in toc_html
+    assert 'xml-id=' not in toc_html
+    assert 'emit=' not in toc_html
+    # Inside the owning chunk the link collapses to a plain fragment.
+    assert '<a href="#b"' in chunk_two_html
+    # A pb-link with no resolvable target is left alone.
+    assert '<pb-link path="other.xml">Other</pb-link>' in toc_html
 
 
 def test_chunk_html_template_includes_odd_css(tmp_path: Path) -> None:

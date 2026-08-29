@@ -33,6 +33,12 @@ from opm.template_rendering import (
 from opm.runtime.pm_runtime import serialize as _default_serialize, inject_cached_footnotes
 from opm.runtime.output_functions import XML_ID, reset_counters
 
+# ``pb-link`` carries its cross-reference in a pb-view attribute rather than an
+# href; the first one set wins when resolving the target.
+PB_LINK_TARGET_ATTRS = ('xml-id', 'node-id', 'hash')
+# pb-view wiring that means nothing once the element is a plain anchor.
+PB_LINK_DROP_ATTRS = PB_LINK_TARGET_ATTRS + ('emit', 'subscribe', 'browse')
+
 
 @dataclass
 class ChunkMetadata:
@@ -384,7 +390,10 @@ class ChunkProcessor:
         current_file: str | None = None,
     ) -> str:
         """Rewrite same-document links inside an HTML fragment string."""
-        if not html or '#' not in html or not self._chunk_anchor_map:
+        if not html:
+            return html
+        has_targets = '#' in html and bool(self._chunk_anchor_map)
+        if not has_targets and 'pb-link' not in html:
             return html
 
         parser = etree.HTMLParser(encoding='utf-8')
@@ -405,7 +414,53 @@ class ChunkProcessor:
                     element.set(attr_name, rewritten)
                     changed = True
 
+        if self._resolve_pb_links(wrapper, current_file=current_file):
+            changed = True
+
         return _inner_html(wrapper) if changed else html
+
+    def _resolve_pb_links(
+        self,
+        wrapper: etree._Element,
+        *,
+        current_file: str | None = None,
+    ) -> bool:
+        """Turn ``pb-link`` custom elements into real anchors.
+
+        Chunk pages are plain HTML with no ``pb-view`` to listen on the channel
+        a ``pb-link`` emits on, so a TOC built from them is unclickable. The
+        target sits in ``xml-id``/``node-id`` instead of an href, so resolve it
+        through the anchor index exactly as a ``#id`` href is resolved. The
+        stock templates pair every ``pb-link`` selector with an ``a`` one, so
+        the rewritten element keeps its styling.
+
+        A ``pb-link`` with no resolvable target (the ``path``-based browse form,
+        which points at another document) is left untouched.
+        """
+        changed = False
+        for element in wrapper.xpath('.//pb-link'):
+            if not isinstance(element, etree._Element):
+                continue
+            href = element.get('href')
+            if not href:
+                target = next(
+                    (element.get(attr) for attr in PB_LINK_TARGET_ATTRS if element.get(attr)),
+                    None,
+                )
+                if not target:
+                    continue
+                href = self._rewrite_same_document_target(
+                    target if target.startswith('#') else f'#{target}',
+                    current_file=current_file,
+                )
+            if not href:
+                continue
+            element.tag = 'a'
+            element.set('href', href)
+            for attr in PB_LINK_DROP_ATTRS:
+                element.attrib.pop(attr, None)
+            changed = True
+        return changed
 
     def _rewrite_fragments(
         self,
