@@ -69,7 +69,7 @@ def init_cmd(
         str,
         typer.Option(
             '--vocabulary',
-            help=f'Source vocabulary: {" or ".join(VOCABULARIES)} (default: tei).',
+            help=f'Source vocabulary: {", ".join(VOCABULARIES)} (default: tei).',
         ),
     ] = 'tei',
     no_sample: Annotated[
@@ -90,9 +90,9 @@ def init_cmd(
 ) -> None:
     """Create a local project (config, templates, ODD) from packaged defaults."""
     vocab = vocabulary.strip().lower()
-    if copy_base_odd and vocab == 'docbook':
+    if copy_base_odd and vocab != 'tei':
         typer.echo(
-            'opm: note: --copy-base-odd is TEI-only; DocBook already copies odd/docbook.odd.',
+            f'opm: note: --copy-base-odd is TEI-only; {vocab} already copies its own ODD.',
             err=True,
         )
     try:

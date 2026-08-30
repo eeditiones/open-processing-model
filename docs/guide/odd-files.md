@@ -7,14 +7,15 @@ transform module. The compiled module will automatically be cached for further u
 To learn more about ODD, it is best to read the [TEI Publisher documentation](https://teipublisher.org/doc/documentation.xml?id=odd#odd).
 It also includes a small tutorial in the [Gentle Introduction](https://teipublisher.org/doc/quickstart.xml?id=pm-tutorial#pm-tutorial) document.
 
-The library packages two stock models:
+The library packages three stock models:
 
 - `teipublisher.odd` (+ `tp.css`) — main TEI Publisher model, and the fallback
   when `--odd` is omitted
 - `docbook.odd` (+ `docbook.css`) — DocBook v5 model (`opm init --vocabulary docbook`)
+- `jats.odd` (+ `jats.css`) — JATS journal article model (`opm init --vocabulary jats`)
 
 `opm init` writes a short `odd/custom.odd` that inherits packaged `teipublisher`,
-or copies `docbook.odd` into the project. For worked customisations, see the
+or copies `docbook.odd` / `jats.odd` into the project. For worked customisations, see the
 projects under `examples/`, each of which ships its own ODD (for instance
 `examples/shakespeare/odd/shakespeare.odd`).
 

@@ -9,11 +9,33 @@ from pathlib import Path
 
 from jinja2 import Environment, PackageLoader
 
-VOCABULARIES = ('tei', 'docbook')
+VOCABULARIES = ('tei', 'docbook', 'jats')
 DEFAULT_OUTPUTS = frozenset({'web', 'typst', 'docx', 'markdown'})
 
-_TEI_TITLE_XPATH = "(//teiHeader/fileDesc/titleStmt/title)[1]"
-_DBK_TITLE_XPATH = "(/article/info/title, /book/info/title)[1]"
+_TITLE_XPATH = {
+    'tei': "(//teiHeader/fileDesc/titleStmt/title)[1]",
+    'docbook': "(/article/info/title, /book/info/title)[1]",
+    'jats': "(/article/front/article-meta/title-group)[1]",
+}
+_ODD_PATH = {
+    'tei': 'odd/custom.odd',
+    'docbook': 'odd/docbook.odd',
+    'jats': 'odd/jats.odd',
+}
+# JATS has no Typst-specific shell of its own; the generic one fits an article.
+_TYPST_TEMPLATE = {
+    'tei': 'templates/book.typ.j2',
+    'docbook': 'templates/docbook.typ.j2',
+    'jats': 'templates/book.typ.j2',
+}
+_CHUNK_SELECTOR = {
+    'tei': 'opm.navigation.tei_div_chunks',
+    'docbook': 'opm.navigation.dbk_section_chunks',
+    'jats': 'opm.navigation.jats_sec_chunks',
+}
+# jats.odd has no mode='breadcrumb' models, so asking for that fragment would
+# render each chunk's whole content into the breadcrumb bar.
+_BREADCRUMBS = {'tei', 'docbook'}
 
 
 @dataclass
@@ -110,12 +132,10 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
 
     title = (options.title or dest_dir.name).strip() or dest_dir.name
     is_tei = vocab == 'tei'
-    odd_path = 'odd/custom.odd' if is_tei else 'odd/docbook.odd'
-    typst_template = 'templates/book.typ.j2' if is_tei else 'templates/docbook.typ.j2'
-    chunk_selector = (
-        'opm.navigation.tei_div_chunks' if is_tei else 'opm.navigation.dbk_section_chunks'
-    )
-    title_xpath = _TEI_TITLE_XPATH if is_tei else _DBK_TITLE_XPATH
+    odd_path = _ODD_PATH[vocab]
+    typst_template = _TYPST_TEMPLATE[vocab]
+    chunk_selector = _CHUNK_SELECTOR[vocab]
+    title_xpath = _TITLE_XPATH[vocab]
 
     written: list[Path] = []
     skipped: list[Path] = []
@@ -130,6 +150,7 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         chunk_selector=chunk_selector if options.chunking else '',
         chunk_depth=options.chunk_depth,
         title_xpath=title_xpath,
+        breadcrumbs=vocab in _BREADCRUMBS,
     )
     _record(config_path, written, skipped, _write_text(config_path, toml_text, force=force))
 
@@ -214,13 +235,13 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         if options.copy_base_odd:
             copies.append(('odd/teipublisher.odd', dest_dir / 'odd' / 'teipublisher.odd'))
             copies.append(('odd/tp.css', dest_dir / 'odd' / 'tp.css'))
-        if options.include_sample:
-            copies.append(('scaffold/sample/tei.xml', dest_dir / 'data' / 'sample.xml'))
     else:
-        copies.append(('odd/docbook.odd', dest_dir / 'odd' / 'docbook.odd'))
-        copies.append(('odd/docbook.css', dest_dir / 'odd' / 'docbook.css'))
-        if options.include_sample:
-            copies.append(('scaffold/sample/docbook.xml', dest_dir / 'data' / 'sample.xml'))
+        # The ODD's tagsDecl points at its stylesheet by name, so both travel together.
+        stem = Path(odd_path).stem
+        copies.append((f'odd/{stem}.odd', dest_dir / 'odd' / f'{stem}.odd'))
+        copies.append((f'odd/{stem}.css', dest_dir / 'odd' / f'{stem}.css'))
+    if options.include_sample:
+        copies.append((f'scaffold/sample/{vocab}.xml', dest_dir / 'data' / 'sample.xml'))
 
     for src_rel, dest in copies:
         _record(dest, written, skipped, _copy_packaged(src_rel, dest, force=force))

@@ -30,6 +30,7 @@ For logic that XPath can't express, point `selector` at a Python callable
 | `opm.navigation.tei_div_chunks` | TEI by-division (`depth`) |
 | `opm.navigation.tei_pb_chunks` | TEI by page-break (`tei:pb` milestones, `view="page"`) |
 | `opm.navigation.dbk_section_chunks` | DocBook by `section` |
+| `opm.navigation.jats_sec_chunks` | JATS by `sec`, with `front` and `back` as their own chunks |
 
 ```toml
 [chunking]

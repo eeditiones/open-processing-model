@@ -709,7 +709,30 @@ def _join_text(existing: str | None, item: str) -> str:
     return base + item
 
 
+def template_config(config: dict) -> dict:
+    """Return *config* marked as "inside a ``pb:template``".
+
+    A behaviour combined with a ``pb:template`` receives the already-rendered
+    template nodes as its content, so :func:`apply` and :func:`apply_children`
+    must hand them straight on instead of dispatching them again. Mirrors
+    ``map:entry("template", true())`` in ``model.xql``, which is what stops
+    tei-publisher-lib from reprocessing template output.
+
+    Without it an ODD whose ``schemaSpec`` has ``ns=""`` (JATS, and any other
+    vocabulary in no namespace) loses every element a template builds: the
+    generated ``_dispatch`` passes foreign-namespace nodes through untouched,
+    but for those ODDs the template's ``<li>`` looks exactly like a source
+    element and falls through to "apply children", dropping the wrapper.
+    """
+    return {**config, 'template': True}
+
+
 def apply_children(config, source_node, content, parent_el) -> None:
+    if config.get('template'):
+        # Template output is finished markup — see :func:`template_config`.
+        for item in normalize(content):
+            append_to(parent_el, item)
+        return
     norm = config.get('normalize_text')
     text_escape = config.get('text_escape')
     for item in normalize(content):
@@ -731,6 +754,9 @@ def apply_children(config, source_node, content, parent_el) -> None:
 
 def apply(config, nodes, dispatch):
     """Transform nodes via *dispatch(config, node, params)*."""
+    if config.get('template'):
+        # Template output is finished markup — see :func:`template_config`.
+        return list(normalize(nodes))
     params = config.get('parameters', {})
     norm = config.get('normalize_text')
     text_escape = config.get('text_escape')

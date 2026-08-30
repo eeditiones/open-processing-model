@@ -80,9 +80,11 @@ scope = "global"
 xpath = "{{ title_xpath }}"
 parameters = { mode = "title" }
 
+{% if breadcrumbs -%}
 [[chunking.fragments]]
 name = "breadcrumbs"
 scope = "per-chunk"
 xpath = "."
 parameters = { mode = "breadcrumb" }
+{% endif -%}
 {% endif -%}

@@ -1,5 +1,5 @@
-"""Built-in chunk-selection algorithms for TEI and DocBook documents. Those determine how a large 
-XML document is split into smaller sections to be viewed on one page.
+"""Built-in chunk-selection algorithms for TEI, DocBook and JATS documents. Those determine how a
+large XML document is split into smaller sections to be viewed on one page.
 
 Functions here can be referenced in ``opm.toml`` via the
 ``chunking.selector`` key, e.g.::
@@ -325,13 +325,56 @@ def dbk_section_chunks(root: etree._Element, config: ChunkingConfig) -> list[etr
       before the child-section chunks.  This mirrors the ``nav:fill`` logic
       (without the fill-size threshold).
     """
-    depth = max(1, config.depth)
-    section_tag = f'{{{DBK_NS}}}section'
-    ns_map = {'dbk': DBK_NS}
+    return _nested_section_chunks(
+        root,
+        depth=max(1, config.depth),
+        step='dbk:section',
+        section_tag=f'{{{DBK_NS}}}section',
+        ns_map={'dbk': DBK_NS},
+    )
 
+
+def jats_sec_chunks(root: etree._Element, config: ChunkingConfig) -> list[etree._Element]:
+    """Return chunk elements for a JATS article: ``front``, then ``sec``, then ``back``.
+
+    ``sec`` nests exactly like DocBook ``section``, so the same depth walk and
+    intro-carving applies (see :func:`dbk_section_chunks`).  A journal article
+    keeps its scholarly apparatus outside ``body``, so the front matter (title,
+    contributors, abstract) becomes the landing chunk and ``back`` (reference
+    list, appendices) the closing one — otherwise chunking would drop both.
+    JATS has no namespace, so the element names are unprefixed.
+    """
+    chunks: list[etree._Element] = []
+    chunks.extend(root.xpath('/article/front'))
+    chunks.extend(
+        _nested_section_chunks(
+            root,
+            depth=max(1, config.depth),
+            step='sec',
+            section_tag='sec',
+            ns_map={},
+        )
+    )
+    chunks.extend(root.xpath('/article/back[node()]'))
+    return chunks
+
+
+def _nested_section_chunks(
+    root: etree._Element,
+    *,
+    depth: int,
+    step: str,
+    section_tag: str,
+    ns_map: dict[str, str],
+) -> list[etree._Element]:
+    """Walk a self-nesting sectioning element, carving intro content into its own chunk.
+
+    *step* is the (possibly prefixed) name used inside the XPath, *section_tag*
+    the matching Clark-notation tag used to compare children.
+    """
     candidates: list[etree._Element] = root.xpath(
-        f'//dbk:section[count(ancestor-or-self::dbk:section) <= {depth}]',
-        namespaces=ns_map,
+        f'//{step}[count(ancestor-or-self::{step}) <= {depth}]',
+        namespaces=ns_map or None,
     )
 
     candidate_set = set(candidates)

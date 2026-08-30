@@ -958,6 +958,52 @@ def test_init_docbook_copies_stock_odd(tmp_path: Path) -> None:
     assert (dest / 'templates' / 'docbook.typ.j2').is_file()
 
 
+def test_init_jats_copies_stock_odd(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    dest = tmp_path / 'jats'
+    rc = main(['init', str(dest), '--vocabulary', 'jats'])
+    assert rc == 0
+    assert (dest / 'odd' / 'jats.odd').is_file()
+    assert (dest / 'odd' / 'jats.css').is_file()
+    assert not (dest / 'odd' / 'custom.odd').exists()
+    sample = (dest / 'data' / 'sample.xml').read_text(encoding='utf-8')
+    assert '<article-title>' in sample
+    cfg = load_project_config(dest / 'opm.toml')
+    assert cfg.chunking is not None
+    assert cfg.chunking.selector == 'opm.navigation.jats_sec_chunks'
+    assert cfg.transform_odd is not None
+    assert cfg.transform_odd.name == 'jats.odd'
+    # jats.odd has no mode='breadcrumb' models, so that fragment is not declared.
+    assert [f.name for f in cfg.chunking.fragments] == ['title']
+
+
+def test_init_jats_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
+    dest = tmp_path / 'jats'
+    assert main(['init', str(dest), '--vocabulary', 'jats']) == 0
+    monkeypatch.chdir(dest)
+    html = dest / 'out.html'
+    assert main(['transform', 'data/sample.xml', '-o', str(html)]) == 0
+    text = html.read_text(encoding='utf-8')
+    assert '<html' in text.lower()
+    assert 'Sample article' in text
+    # A pb:template inside a no-namespace ODD must keep the markup it builds.
+    assert '<li id="ref1">' in text
+    assert main(['transform', 'data/sample.xml', '-t', 'markdown', '-o', str(dest / 'out.md')]) == 0
+    typ = dest / 'out.typ'
+    assert main(['transform', 'data/sample.xml', '-t', 'typst', '-o', str(typ)]) == 0
+    # Front matter feeds the Typst title block rather than the body.
+    assert 'title: [Sample article]' in typ.read_text(encoding='utf-8')
+    assert main(['transform', 'data/sample.xml', '-t', 'docx', '-o', str(dest / 'out.docx')]) == 0
+    assert (dest / 'out.docx').stat().st_size > 0
+    assert main(['chunk', 'data/sample.xml', '--force']) == 0
+    chunks = sorted((dest / 'chunks').glob('[0-9]*.html'))
+    # front + two sections + back
+    assert len(chunks) == 4
+    # @id anchors resolve across chunks even though JATS has no xml:id.
+    assert 'href="004.html#ref1"' in chunks[2].read_text(encoding='utf-8')
+
+
 def test_init_copy_base_odd_tei(tmp_path: Path) -> None:
     dest = tmp_path / 'with-base'
     rc = main(['init', str(dest), '--copy-base-odd'])

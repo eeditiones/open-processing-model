@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article xmlns:xlink="http://www.w3.org/1999/xlink" article-type="research-article" lang="en">
+  <front>
+    <journal-meta>
+      <journal-title-group>
+        <journal-title>Sample Journal</journal-title>
+      </journal-title-group>
+      <publisher>
+        <publisher-name>Sample Press</publisher-name>
+      </publisher>
+    </journal-meta>
+    <article-meta>
+      <title-group>
+        <article-title>Sample article</article-title>
+      </title-group>
+      <contrib-group>
+        <contrib contrib-type="person">
+          <name>
+            <surname>Doe</surname>
+            <given-names>Jane</given-names>
+          </name>
+        </contrib>
+      </contrib-group>
+      <pub-date iso-8601-date="2026-01-01">
+        <year>2026</year>
+      </pub-date>
+      <abstract>
+        <title>Abstract</title>
+        <p>A tiny JATS article so transform and chunk work out of the box.</p>
+      </abstract>
+    </article-meta>
+  </front>
+  <body>
+    <sec id="s1">
+      <title>Section One</title>
+      <p>Hello from a sample JATS document, with a
+        <uri xlink:href="https://jats.nlm.nih.gov/">link</uri> and a
+        footnote reference.<xref ref-type="fn" rid="fn1"/></p>
+    </sec>
+    <sec id="s2">
+      <title>Section Two</title>
+      <p>A second section so chunking produces more than one page, citing
+        an entry from the reference list.<xref ref-type="bibr" rid="ref1">[1]</xref></p>
+    </sec>
+  </body>
+  <back>
+    <fn-group>
+      <fn id="fn1">
+        <p>Footnotes live in <italic>back</italic> and are pulled in where referenced.</p>
+      </fn>
+    </fn-group>
+    <ref-list>
+      <title>References</title>
+      <ref id="ref1">
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Roe</surname>
+              <given-names>Richard</given-names>
+            </name>
+          </person-group>
+          <article-title>On sample citations</article-title>
+          <source>Journal of Examples</source>
+          <year>2025</year>
+        </element-citation>
+      </ref>
+    </ref-list>
+  </back>
+</article>

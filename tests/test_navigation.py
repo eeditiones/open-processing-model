@@ -1,11 +1,11 @@
-"""Tests for TEI pb milestone chunking (view=page)."""
+"""Tests for the built-in chunk selectors."""
 
 from __future__ import annotations
 
 from lxml import etree
 
 from opm.config import ChunkingConfig
-from opm.navigation import dbk_section_chunks, tei_pb_chunks
+from opm.navigation import dbk_section_chunks, jats_sec_chunks, tei_pb_chunks
 from opm.runtime.output_functions import XML_ID
 
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
@@ -120,6 +120,39 @@ def test_dbk_intro_chunks_are_detached_copies() -> None:
     assert intro.get(XML_ID) == 'install'
     assert intro.getroottree().getroot() is intro
     assert pip.getroottree().getroot() is root
+
+
+def test_jats_sec_chunks_wrap_sections_in_front_and_back() -> None:
+    """A journal article keeps title and references outside ``body``."""
+    root = etree.fromstring(
+        b"""<article>
+  <front><article-meta><title-group><article-title>T</article-title></title-group></article-meta></front>
+  <body>
+    <sec id="s1">
+      <title>One</title>
+      <p>Intro</p>
+      <sec id="s1a"><title>Nested</title><p>x</p></sec>
+    </sec>
+    <sec id="s2"><title>Two</title><p>y</p></sec>
+  </body>
+  <back><ref-list><ref id="r1"/></ref-list></back>
+</article>""",
+    )
+    chunks = jats_sec_chunks(root, ChunkingConfig(depth=2))
+    assert [c.tag for c in chunks] == ['front', 'sec', 'sec', 'sec', 'back']
+    # s1 has content before its nested sec, so it is carved into its own copy.
+    intro, nested, s2 = chunks[1:4]
+    assert intro.get('id') == 's1'
+    assert intro.getroottree().getroot() is intro
+    assert nested.get('id') == 's1a'
+    assert s2.get('id') == 's2'
+
+
+def test_jats_sec_chunks_omit_an_empty_back() -> None:
+    root = etree.fromstring(
+        b'<article><front/><body><sec id="s1"><title>One</title></sec></body><back/></article>',
+    )
+    assert [c.tag for c in jats_sec_chunks(root, ChunkingConfig(depth=2))] == ['front', 'sec']
 
 
 def test_tei_pb_chunks_do_not_duplicate_text_across_a_break() -> None:

@@ -328,17 +328,23 @@ class ChunkProcessor:
         )
 
     def build_anchor_index(self) -> dict[str, str]:
-        """Map source ``xml:id`` values to the chunk file that owns them."""
+        """Map source ``xml:id`` (or plain ``@id``) values to the chunk file that owns them.
+
+        JATS and other no-namespace vocabularies identify elements with ``@id``,
+        so both are indexed; ``xml:id`` wins where an element carries both.
+        """
         xml_ns = {'xml': 'http://www.w3.org/XML/1998/namespace'}
         anchor_map: dict[str, str] = {}
 
         for index, chunk in enumerate(self.chunks):
             chunk_file = self.generate_chunk_metadata(chunk, index).file
-            source_nodes = chunk.xpath('.//*[@xml:id] | self::*[@xml:id]', namespaces=xml_ns)
+            source_nodes = chunk.xpath(
+                './/*[@xml:id or @id] | self::*[@xml:id or @id]', namespaces=xml_ns,
+            )
             for node in source_nodes:
                 if not isinstance(node, etree._Element):
                     continue
-                xml_id = node.get(XML_ID)
+                xml_id = node.get(XML_ID) or node.get('id')
                 if xml_id and xml_id not in anchor_map:
                     anchor_map[xml_id] = chunk_file
 

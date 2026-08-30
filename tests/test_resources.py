@@ -34,8 +34,9 @@ def test_packaged_stock_odds_and_docx_exist() -> None:
     from opm.resources import packaged_default_docx, packaged_odd
 
     assert packaged_odd('teipublisher').is_file()
-    assert packaged_odd('docbook').is_file()
-    css = packaged_odd('docbook').with_suffix('.css')
-    assert css.is_file()
+    for stem in ('docbook', 'jats'):
+        assert packaged_odd(stem).is_file()
+        # The ODD's tagsDecl loads its stylesheet by name from the same directory.
+        assert packaged_odd(stem).with_suffix('.css').is_file()
     docx = packaged_default_docx()
     assert docx is not None and docx.is_file()

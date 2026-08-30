@@ -229,6 +229,7 @@ from opm.runtime.pm_runtime import (
     apply_children as apply_children_impl,
     apply_template_param_value,
     inject_cached_footnotes,
+    template_config,
     tag as _tag,
     ns as _ns,
     xpath_test,
@@ -544,6 +545,7 @@ def transform(root, options=None):
         output_mode: str,
         *,
         content_expr: str | None = None,
+        config_expr: str = 'config',
     ) -> str:
         method = method_for_behaviour(behaviour)
         cls_e = self._classes_expr(ident, model_el, spec_el)
@@ -583,7 +585,7 @@ def transform(root, options=None):
             if param.default is inspect.Parameter.empty:
                 kw_parts.append(f'{name}=None')
         kwargs_src = ', ' + ', '.join(kw_parts) if kw_parts else ''
-        return f'pmf.{method}(config, node, {cls_e}, {c}{kwargs_src})'
+        return f'pmf.{method}({config_expr}, node, {cls_e}, {c}{kwargs_src})'
 
     def _emit_template_params_dict_expr(self, pm: dict[str, str], *, pretty: bool = False) -> str:
         """Build the Python dict expression for ``pb:template`` ``[[param]]`` substitution."""
@@ -752,6 +754,9 @@ def transform(root, options=None):
             pm,
             output_mode,
             content_expr=inner,
+            # The template nodes are finished output; the behaviour must not
+            # dispatch them again (``pm_runtime.template_config``).
+            config_expr='template_config(config)',
         )
 
     def _emit_leaf_model(

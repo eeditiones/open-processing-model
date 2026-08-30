@@ -244,6 +244,57 @@ def test_hyphen_in_element_ident_emits_valid_template_helper_name(tmp_path: Path
     py_compile.compile(str(out), doraise=True)
 
 
+def test_template_output_is_not_reprocessed_in_a_no_namespace_odd(tmp_path: Path) -> None:
+    """A pb:template combined with a behaviour keeps the markup it builds.
+
+    ``_dispatch`` returns foreign-namespace nodes untouched, which is what
+    normally protects template output. An ODD with ``ns=""`` (JATS) has no such
+    guard, so the behaviour must be handed a template-marked config instead.
+    """
+    from opm.odd_compiler import compile_odd
+
+    odd = tmp_path / 'no_ns.odd'
+    odd.write_text(
+        '<?xml version="1.0"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:pb="http://teipublisher.com/1.0">'
+        '<teiHeader><fileDesc><titleStmt><title>t</title></titleStmt>'
+        '<publicationStmt><p>p</p></publicationStmt>'
+        '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
+        '<text><body>'
+        '<schemaSpec ident="x" ns="">'
+        '<elementSpec ident="list" mode="add">'
+        '<model behaviour="list"><param name="content" value="ref"/></model>'
+        '</elementSpec>'
+        '<elementSpec ident="ref" mode="add">'
+        '<model behaviour="pass-through">'
+        '<param name="id" value="@id"/>'
+        '<pb:template xmlns="" xml:space="preserve"><li id="[[id]]">[[content]]</li></pb:template>'
+        '</model>'
+        '</elementSpec>'
+        '</schemaSpec>'
+        '</body></text></TEI>',
+        encoding='utf-8',
+    )
+    src = compile_odd(str(odd))
+    assert 'pmf.pass_through(template_config(config)' in src
+
+    out = tmp_path / 'gen.py'
+    out.write_text(src, encoding='utf-8')
+    py_compile.compile(str(out), doraise=True)
+    spec = importlib.util.spec_from_file_location('no_ns_gen', str(out))
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    root = etree.fromstring(b'<list><ref id="r1">one</ref></list>')
+    html = ''.join(
+        part if isinstance(part, str)
+        else etree.tostring(part, encoding='unicode', method='html')
+        for part in mod.transform(root)
+    )
+    assert '<li id="r1">one</li>' in html
+
+
 def test_emit_template_params_use_apply_template_param_value(tmp_path: Path) -> None:
     """Literal ``.`` and XPath params must not inject raw context TEI into templates."""
     from opm.odd_compiler import compile_odd

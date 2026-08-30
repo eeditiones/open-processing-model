@@ -50,7 +50,7 @@ opm init [OPTIONS] [DIRECTORY]
 | Option | Description |
 | --- | --- |
 | `--force` | Overwrite existing generated files. |
-| `--vocabulary TEXT` | Source vocabulary: tei or docbook (default: tei). |
+| `--vocabulary TEXT` | Source vocabulary: tei, docbook, jats (default: tei). |
 | `--no-sample` | Do not copy a sample XML document. |
 | `--copy-base-odd` | TEI only: also copy packaged teipublisher.odd and tp.css into odd/. |
 | `--title TEXT` | Edition title used in README (default: directory name). |
