@@ -12,13 +12,14 @@ import tempfile
 import webbrowser
 from dataclasses import replace
 from pathlib import Path
-from typing import Annotated, Any, Optional, TYPE_CHECKING
+from typing import Annotated, Any, NoReturn, Optional, TYPE_CHECKING
 
 import typer
 from typer.main import get_command
 
 if TYPE_CHECKING:  # rich is imported lazily: it costs ~30ms of startup
     from rich.progress import Progress
+    from rich.style import Style
 
 try:
     from typer._click.exceptions import NoArgsIsHelpError, UsageError
@@ -94,10 +95,7 @@ def init_cmd(
     """Create a local project (config, templates, ODD) from packaged defaults."""
     vocab = vocabulary.strip().lower()
     if copy_base_odd and vocab != 'tei':
-        typer.echo(
-            f'opm: note: --copy-base-odd is TEI-only; {vocab} already copies its own ODD.',
-            err=True,
-        )
+        _note(f'--copy-base-odd is TEI-only; {vocab} already copies its own ODD.')
     try:
         result = scaffold(
             InitOptions(
@@ -110,34 +108,103 @@ def init_cmd(
             )
         )
     except ScaffoldError as e:
-        typer.echo(f'opm: error: {e}', err=True)
-        raise SystemExit(1) from e
+        _die(str(e), cause=e)
 
-    typer.echo(f'Created project in {result.directory}')
-    for path in result.written:
-        try:
-            rel = path.relative_to(result.directory)
-        except ValueError:
-            rel = path
-        typer.echo(f'  {rel}')
+    _print_path_tree(
+        result.directory,
+        result.written,
+        f'Created project in {result.directory}',
+    )
     if result.skipped:
-        typer.echo(
+        _print_path_tree(
+            result.directory,
+            result.skipped,
             'Skipped existing files (pass --force to overwrite; '
             'AGENTS.md / CLAUDE.md are never overwritten):',
-            err=True,
+            stderr=True,
         )
-        for path in result.skipped:
-            try:
-                rel = path.relative_to(result.directory)
-            except ValueError:
-                rel = path
-            typer.echo(f'  {rel}', err=True)
 
     sample = 'data/sample.xml' if result.include_sample else 'your.xml'
     typer.echo('')
     typer.echo('Next:')
     typer.echo(f'  opm transform {sample} --preview')
     typer.echo(f'  opm chunk {sample} --force --preview')
+
+
+def _stderr_message(prefix: str, style: str, message: str) -> None:
+    """Write ``opm: <prefix>: <message>`` to stderr, prefix styled.
+
+    The message is assembled as a ``Text``, never parsed as rich markup: it
+    routinely carries paths and quoted values, and ``[…]`` in one of those would
+    be read as a style tag and swallowed. ``soft_wrap`` keeps rich from folding
+    a line at 80 columns when stderr is redirected, so a script reading the
+    output still sees whole messages.
+    """
+    from rich.console import Console
+    from rich.text import Text
+
+    Console(stderr=True).print(
+        Text.assemble((f'opm: {prefix}:', style), ' ', message),
+        soft_wrap=True,
+        highlight=False,
+    )
+
+
+def _link_style(target: str) -> Style:
+    """Style for a path or URL the terminal can open (OSC-8 hyperlink).
+
+    Terminals that do not support hyperlinks simply show the styled text, so
+    the label always has to stay readable on its own.
+    """
+    from rich.style import Style
+
+    return Style(color='green', bold=True, link=target)
+
+
+def _print_path_tree(
+    root: Path, paths: list[Path], label: str, *, stderr: bool = False
+) -> None:
+    """Print *label*, then *paths* as a tree of *root*, nested by directory.
+
+    The heading is printed separately because a ``Tree`` crops its own label to
+    the console width — an absolute path would lose its tail. Leaves are
+    ``Text``, not markup: a file name is data, and one containing ``[…]`` would
+    otherwise be read as a style tag.
+    """
+    from rich.console import Console
+    from rich.text import Text
+    from rich.tree import Tree
+
+    tree = Tree(Text(f'{root.name}/', style='bold'))
+    branches: dict[Path, Tree] = {Path('.'): tree}
+    for path in sorted(paths):
+        try:
+            rel = path.relative_to(root)
+        except ValueError:
+            # Written outside the project directory: show the path whole.
+            tree.add(Text(str(path)))
+            continue
+        parent = Path('.')
+        for part in rel.parts[:-1]:
+            key = parent / part
+            if key not in branches:
+                branches[key] = branches[parent].add(Text(f'{part}/', style='bold'))
+            parent = key
+        branches[parent].add(Text(rel.name))
+    console = Console(stderr=stderr)
+    console.print(Text(label), soft_wrap=True)
+    console.print(tree)
+
+
+def _die(message: str, *, cause: BaseException | None = None) -> NoReturn:
+    """Report a fatal error and exit non-zero."""
+    _stderr_message('error', 'bold red', message)
+    raise SystemExit(1) from cause
+
+
+def _note(message: str) -> None:
+    """Report something the user should know about, without failing."""
+    _stderr_message('note', 'bold yellow', message)
 
 
 def _preview_kind_from_module(mod) -> str:
@@ -193,7 +260,14 @@ def _preview_file_with_default_app(data: bytes, suffix: str, label: str) -> bool
             return False
     except OSError:
         return False
-    typer.echo(f'Opened {label} preview: {path}', err=True)
+    from rich.console import Console
+    from rich.text import Text
+
+    Console(stderr=True).print(
+        Text.assemble(f'Opened {label} preview: ', (str(path), _link_style(path.as_uri()))),
+        soft_wrap=True,
+        highlight=False,
+    )
     return True
 
 
@@ -213,9 +287,17 @@ def _preview_markdown_terminal(md: str) -> None:
 
 
 def _preview_plain_terminal(text: str) -> None:
+    """Print source output (Typst, unrecognised channels) to the terminal.
+
+    Rich reads ``[...]`` as style tags and Typst content blocks are square
+    brackets, so markup has to be off — with it on, ``[transform.typst]`` in a
+    comment came out as an empty gap. Highlighting guesses at Python-ish tokens
+    in what is not Python, and ``soft_wrap`` leaves long lines to the terminal
+    rather than hard-wrapping source at the console width.
+    """
     from rich.console import Console
 
-    Console().print(text)
+    Console().print(text, markup=False, highlight=False, soft_wrap=True)
 
 
 def _parameters_from_cli(param_list: list[str] | None) -> dict[str, str]:
@@ -238,11 +320,16 @@ def _report_resolved_module(resolved: ResolvedTransform) -> None:
     """Print the cache path when the module was produced from an ODD."""
     if resolved.source_odd is None:
         return
-    styled = typer.style(str(resolved.module_path), fg=typer.colors.GREEN, bold=True)
-    if resolved.freshly_compiled:
-        typer.echo(f'Compiled {resolved.source_odd} → {styled}', err=True)
-    else:
-        typer.echo(f'Cached module: {styled}', err=True)
+    from rich.console import Console
+    from rich.text import Text
+
+    module = (str(resolved.module_path), _link_style(resolved.module_path.as_uri()))
+    line = (
+        Text.assemble(f'Compiled {resolved.source_odd} → ', module)
+        if resolved.freshly_compiled
+        else Text.assemble('Cached module: ', module)
+    )
+    Console(stderr=True).print(line, soft_wrap=True, highlight=False)
 
 
 def _resolve_cli_transform(
@@ -363,12 +450,10 @@ def _prepare_chunk_output_dir(out_dir: Path, *, force: bool) -> None:
             if not typer.confirm(prompt, default=False):
                 raise SystemExit(1)
         else:
-            typer.echo(
-                f'opm: error: output directory {out_dir} already exists. '
-                'Use --force to replace it.',
-                err=True,
+            _die(
+                f'output directory {out_dir} already exists. '
+                'Use --force to replace it.'
             )
-            raise SystemExit(1)
     if out_dir.is_dir():
         shutil.rmtree(out_dir)
     else:
@@ -500,8 +585,7 @@ def transform_cmd(
                 sys.path.insert(0, entry)
 
         if input_xml is None:
-            typer.echo('opm: error: input XML file is required.', err=True)
-            raise SystemExit(1)
+            _die('input XML file is required.')
 
         # --css / [document] css replaces the packaged base rules, which are
         # compiled into the ODD stylesheet — so it has to be known before the
@@ -638,8 +722,7 @@ def transform_cmd(
             else:
                 print(out)
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
-        typer.echo(f'opm: error: {e}', err=True)
-        raise SystemExit(1) from e
+        _die(str(e), cause=e)
 
 
 @app.command()
@@ -741,7 +824,10 @@ def chunk(
         typer.Option(
             '--preview',
             '-v',
-            help='After chunking, start a local HTTP server rooted at the output directory.',
+            help=(
+                'After chunking, start a local HTTP server rooted at the output '
+                'directory and open the first page in a browser (HTML output only).'
+            ),
         ),
     ] = False,
     port: Annotated[
@@ -770,15 +856,10 @@ def chunk(
                 sys.path.insert(0, entry)
 
         if input_xml is None:
-            typer.echo('opm: error: input XML file is required.', err=True)
-            raise SystemExit(1)
+            _die('input XML file is required.')
 
         if not cfg.chunking:
-            typer.echo(
-                'opm: error: no [chunking] section found in config.',
-                err=True
-            )
-            raise SystemExit(1)
+            _die('no [chunking] section found in config.')
         
         # Override config with CLI options
         chunking_config = cfg.chunking
@@ -798,21 +879,15 @@ def chunk(
             _report_resolved_module(resolved)
 
         if output_format not in ('html', 'json', 'pb-view'):
-            typer.echo(
-                'opm: error: --format must be "html", "json" or "pb-view", '
-                f'got {output_format!r}',
-                err=True,
+            _die(
+                '--format must be "html", "json" or "pb-view", '
+                f'got {output_format!r}'
             )
-            raise SystemExit(1)
 
         input_files = _chunk_input_files(input_xml)
         if input_xml.is_dir():
             if not input_files:
-                typer.echo(
-                    f'opm: error: no XML files found in directory {input_xml}.',
-                    err=True,
-                )
-                raise SystemExit(1)
+                _die(f'no XML files found in directory {input_xml}.')
 
         out_dir = Path.cwd() / chunking_config.output_dir
         _prepare_chunk_output_dir(out_dir, force=force)
@@ -939,11 +1014,12 @@ def chunk(
                 typer.echo(f'  - *.{ext}: chunk files')
 
         if preview:
-            _serve_directory(out_dir, port)
+            # Only HTML has a page to land on; json/pb-view output is served for
+            # another tool to fetch, so the browser would show a file listing.
+            _serve_directory(out_dir, port, open_browser=output_format == 'html')
 
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
-        typer.echo(f'opm: error: {e}', err=True)
-        raise SystemExit(1) from e
+        _die(str(e), cause=e)
 
 
 _SERVE_PORT_TRIES = 20
@@ -972,16 +1048,33 @@ def _bind_http_server(handler: Any, port: int, tries: int = _SERVE_PORT_TRIES):
     raise last_error
 
 
-def _serve_directory(root: Path, port: int) -> None:
-    """Serve *root* over HTTP until interrupted (same behaviour as ``opm serve``)."""
+def _preview_landing_url(root: Path, port: int) -> str:
+    """URL to open for a served chunk directory.
+
+    A directory run writes ``index.html`` at the site root, but a single
+    document does not: its pages are ``001.html`` and up, so the first one
+    stands in for an index rather than sending the reader to a file listing.
+    """
+    base = f'http://localhost:{port}/'
+    if (root / 'index.html').is_file():
+        return base
+    pages = sorted(path.name for path in root.glob('[0-9]*.html'))
+    return base + pages[0] if pages else base
+
+
+def _serve_directory(root: Path, port: int, *, open_browser: bool = False) -> None:
+    """Serve *root* over HTTP until interrupted (same behaviour as ``opm serve``).
+
+    With *open_browser*, the landing page is opened once the socket is bound —
+    the request waits in the listen backlog until ``serve_forever`` picks it up.
+    """
     import errno
     import functools
     import http.server
 
     root = root.resolve()
     if not root.is_dir():
-        typer.echo(f'opm: error: directory {root} does not exist.', err=True)
-        raise SystemExit(1)
+        _die(f'directory {root} does not exist.')
 
     handler = functools.partial(
         http.server.SimpleHTTPRequestHandler,
@@ -991,14 +1084,11 @@ def _serve_directory(root: Path, port: int) -> None:
         httpd, bound_port = _bind_http_server(handler, port)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
-            typer.echo(
-                f'opm: error: port {port} is already in use. '
-                f'Try a different port with -p.',
-                err=True,
+            _die(
+                f'port {port} is already in use. Try a different port with -p.',
+                cause=e,
             )
-            raise SystemExit(1) from e
-        typer.echo(f'opm: error: {e}', err=True)
-        raise SystemExit(1) from e
+        _die(str(e), cause=e)
 
     if bound_port != port:
         typer.echo(
@@ -1006,13 +1096,21 @@ def _serve_directory(root: Path, port: int) -> None:
             err=True,
         )
     with httpd:
-        typer.echo(
-            f'Serving {root} at ' + typer.style(
-                f'http://localhost:{bound_port}/',
-                fg=typer.colors.GREEN,
-                bold=True,
-            ) + ' — press Ctrl-C to stop.'
+        from rich.console import Console
+        from rich.text import Text
+
+        url = f'http://localhost:{bound_port}/'
+        Console().print(
+            Text.assemble(
+                f'Serving {root} at ',
+                (url, _link_style(url)),
+                ' — press Ctrl-C to stop.',
+            ),
+            soft_wrap=True,
+            highlight=False,
         )
+        if open_browser:
+            webbrowser.open(_preview_landing_url(root, bound_port))
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:

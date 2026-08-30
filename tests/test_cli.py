@@ -801,10 +801,10 @@ output_dir = "chunks"
     monkeypatch.setattr('opm.odd_cache.modules_cache_dir', lambda: tmp_path / 'cache' / 'modules')
     monkeypatch.chdir(tmp_path)
 
-    called: list[tuple[Path, int]] = []
+    called: list[tuple[Path, int, bool]] = []
 
-    def _fake_serve(root: Path, port: int) -> None:
-        called.append((root, port))
+    def _fake_serve(root: Path, port: int, *, open_browser: bool = False) -> None:
+        called.append((root, port, open_browser))
 
     monkeypatch.setattr('opm.cli._serve_directory', _fake_serve)
 
@@ -814,7 +814,34 @@ output_dir = "chunks"
     assert len(called) == 1
     assert called[0][0] == (tmp_path / 'chunks')
     assert called[0][1] == 9090
+    # HTML output has a page to land on, so --preview opens the browser too.
+    assert called[0][2] is True
     assert (tmp_path / 'chunks' / 'manifest.json').is_file()
+
+    # pb-view output is fetched by another tool; nothing to open.
+    called.clear()
+    assert main([
+        'chunk', 'doc.xml', '--force', '--preview', '-p', '9090',
+        '-c', 'opm.toml', '--format', 'pb-view',
+    ]) == 0
+    assert called[0][2] is False
+
+
+def test_preview_landing_url_prefers_index(tmp_path: Path) -> None:
+    from opm.cli import _preview_landing_url
+
+    # A single document writes numbered pages but no index; the first page
+    # stands in for one, so the browser does not open on a file listing.
+    (tmp_path / '001.html').write_text('a', encoding='utf-8')
+    (tmp_path / '002.html').write_text('b', encoding='utf-8')
+    (tmp_path / 'title.html').write_text('fragment', encoding='utf-8')
+    assert _preview_landing_url(tmp_path, 8080) == 'http://localhost:8080/001.html'
+
+    # A directory run does write one, and it belongs at the site root.
+    (tmp_path / 'index.html').write_text('index', encoding='utf-8')
+    assert _preview_landing_url(tmp_path, 8080) == 'http://localhost:8080/'
+
+    assert _preview_landing_url(tmp_path / 'empty', 8080) == 'http://localhost:8080/'
 
 
 def test_chunk_depth_overrides_config(tmp_path: Path, monkeypatch) -> None:

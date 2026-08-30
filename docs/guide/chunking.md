@@ -311,7 +311,10 @@ in a `<style>` block on the index — one place to change the design.
 
 ## Previewing
 
-Chunk and preview in one step:
+Chunk and preview in one step. `--preview` serves the output directory and
+opens the first page in a browser — `index.html` for a directory run, `001.html`
+for a single document, which writes no index. Only HTML output is opened;
+`--format json` / `pb-view` is served for another tool to fetch.
 
 ```bash
 uv run opm chunk examples/tei-test.xml -o chunks/ --force --preview
