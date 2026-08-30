@@ -12,10 +12,13 @@ import tempfile
 import webbrowser
 from dataclasses import replace
 from pathlib import Path
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any, Optional, TYPE_CHECKING
 
 import typer
 from typer.main import get_command
+
+if TYPE_CHECKING:  # rich is imported lazily: it costs ~30ms of startup
+    from rich.progress import Progress
 
 try:
     from typer._click.exceptions import NoArgsIsHelpError, UsageError
@@ -313,23 +316,31 @@ def _append_doc_path(base_doc_path: str | None, xml_path: Path) -> str:
     return f'{base_doc_path.rstrip("/")}/{xml_path.name}'
 
 
-_BAR_BLOCKS = ('\u2588', '\u2591')   # FULL BLOCK / LIGHT SHADE
-_BAR_ASCII = ('#', '-')
+def _chunk_progress() -> Progress:
+    """Progress display for ``opm chunk``: description, bar, count, ETA.
 
-
-def _progress_chars() -> tuple[str, str]:
-    """Progress-bar glyphs, falling back to ASCII when they cannot be encoded.
-
-    Click writes the bar straight to the output stream, so a stream that cannot
-    represent the block glyphs — a pipe under an ASCII locale, an older Windows
-    console — would raise UnicodeEncodeError part-way through a run.
+    Disabled whenever stdout is not a terminal. The bar is decoration, never
+    output — a piped or redirected run must see only what the command echoes,
+    and rich would otherwise print one final frame when the display stops.
     """
-    encoding = getattr(sys.stdout, 'encoding', None) or 'ascii'
-    try:
-        ''.join(_BAR_BLOCKS).encode(encoding)
-    except (LookupError, UnicodeEncodeError):
-        return _BAR_ASCII
-    return _BAR_BLOCKS
+    from rich.console import Console
+    from rich.progress import (
+        BarColumn,
+        MofNCompleteColumn,
+        Progress,
+        TextColumn,
+        TimeRemainingColumn,
+    )
+
+    console = Console()
+    return Progress(
+        TextColumn('{task.description}'),
+        BarColumn(complete_style='cyan', finished_style='cyan'),
+        MofNCompleteColumn(),
+        TimeRemainingColumn(),
+        console=console,
+        disable=not console.is_terminal,
+    )
 
 
 def _append_output_dir(base_output_dir: str, xml_path: Path) -> str:
@@ -827,36 +838,30 @@ def chunk(
             )
         else:
             typer.echo(f'Chunking {input_xml} using {effective_chunk_script or "module from config"}...')
-        # ``on_progress`` counts chunks *within one document*, so for a directory
-        # the first document's count would be taken for the whole job — with one
-        # chunk per file the bar hits 100% on file 1 and the rest run behind it.
-        # Count files instead when there is more than one; keep chunk-level
-        # granularity for a single document, where it is the useful unit.
+        # ``on_progress`` counts chunks *within one document*, so a directory run
+        # gets a second task counting files — one bar per unit, rather than
+        # trading chunk-level detail for a file count.
         per_file = len(input_files) > 1
-        bar_fill, bar_empty = _progress_chars()
-        # Colour only the bar itself, not the label or the ETA. Safe inside the
-        # template: Click measures the line with term_len(), which strips ANSI,
-        # and echo() drops the codes entirely when stdout is not a terminal.
-        bar_template = (
-            '%(label)s  [' + typer.style('%(bar)s', fg=typer.colors.CYAN) + ']  %(info)s'
-        )
-        with typer.progressbar(
-            length=len(input_files) if per_file else 0,
-            label='Processing chunks',
-            fill_char=bar_fill,
-            empty_char=bar_empty,
-            bar_template=bar_template,
-        ) as progress:
+        with _chunk_progress() as progress:
+            file_task = (
+                progress.add_task('Files', total=len(input_files)) if per_file else None
+            )
+            # Total arrives with the first callback: only the chunker knows how
+            # many chunks a document splits into. Until then the bar pulses.
+            chunk_task = progress.add_task('Processing chunks', total=None)
+
             def _on_progress(current: int, total: int) -> None:
-                if per_file:
-                    return
-                if progress.length == 0:
-                    progress.length = total  # type: ignore[assignment]
-                progress.update(1)
+                progress.update(chunk_task, completed=current, total=total)
 
             base_doc_path = doc_path or chunking_config.doc_path
 
             for xml_file in input_files:
+                if per_file:
+                    # `update` cannot clear a total, so the next document's first
+                    # callback replaces it; zero the count so the bar restarts.
+                    progress.update(
+                        chunk_task, completed=0, description=f'Chunking {xml_file.name}'
+                    )
                 if input_xml.is_dir() and output_format != 'pb-view':
                     effective_chunking_config = replace(
                         chunking_config,
@@ -890,8 +895,8 @@ def chunk(
                     output_format=output_format,
                     doc_path=effective_doc_path,
                 )
-                if per_file:
-                    progress.update(1)
+                if file_task is not None:
+                    progress.advance(file_task)
 
         # A directory run leaves one subdirectory per document, which the dev
         # server would otherwise show as a bare listing. Writing index.html is
