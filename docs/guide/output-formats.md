@@ -107,7 +107,9 @@ uv run opm transform data/doc/quickstart.xml -t print --preview
 ```
 
 See `examples/docbook/templates/print.html.j2` and `[transform.print]` in that
-project’s `opm.toml`.
+project’s `opm.toml`. `examples/jats` does the same the other way round: its
+print shell includes the web view’s `journal.css`, so the paged article keeps
+the reading view’s typography and only loses the masthead and TOC rail.
 
 ## EPUB
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 from io import BytesIO
+from xml.sax.saxutils import quoteattr
 
 from lxml import etree
 
@@ -1056,7 +1057,16 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         'keywords': 'keywords',
         'category': 'category',
         'comments': 'comments',
+        # An abstract has no core property of its own; Word's Comments field is
+        # the conventional home for a description. Without this the key would be
+        # collected and then silently dropped.
+        'abstract': 'comments',
     }
+
+    # OOXML caps core property strings at 255 characters and python-docx raises
+    # rather than truncating.  An abstract routinely runs longer, so clamp here:
+    # losing the tail of a description beats failing the whole transform.
+    _CORE_PROPERTY_MAX = 255
 
     def _apply_core_properties(self, config: dict, doc) -> None:
         """Map values collected by :meth:`metadata` onto the document properties."""
@@ -1066,6 +1076,8 @@ class DocxOutputFunctions(ProcessingModelFunctions):
             if prop is None:
                 continue
             text = ', '.join(v for v in values if v)
+            if len(text) > self._CORE_PROPERTY_MAX:
+                text = text[: self._CORE_PROPERTY_MAX - 1].rstrip() + '\u2026'
             if text:
                 setattr(doc.core_properties, prop, text)
 
@@ -1146,6 +1158,9 @@ class DocxOutputFunctions(ProcessingModelFunctions):
             ]
             for rId in existing_fn_rids:
                 doc.part.rels.pop(rId)
+            footnote_rels = self._resolve_footnote_sentinels(
+                footnotes_data, doc, doc_nsmap, config
+            )
             xml_bytes = self._build_footnotes_xml(footnotes_data)
             footnotes_part = Part(
                 PackURI('/word/footnotes.xml'),
@@ -1163,7 +1178,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         buf = self._normalize_document_xml(buf)
 
         if footnotes_data:
-            buf = self._inject_footnotes_rels(buf)
+            buf = self._inject_footnotes_rels(buf, footnote_rels)
 
         return [buf.getvalue()]
 
@@ -1262,8 +1277,124 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         out.seek(0)
         return out
 
-    def _inject_footnotes_rels(self, buf: BytesIO) -> BytesIO:
-        """Add an empty word/_rels/footnotes.xml.rels to the zip.
+    def _create_footnote_image_part(self, config: dict, sentinel: etree._Element, doc):
+        """Create the OOXML image part for a sentinel and return its ``word/``-relative name.
+
+        The part is also related from ``document.xml`` so python-docx serializes it
+        into the package; the footnote's own relationship is written separately by
+        :meth:`_inject_footnotes_rels`.
+        """
+        import os  # noqa: PLC0415
+
+        image_url = sentinel.get('url')
+        input_path = config.get('input_path')
+        if not image_url or not input_path:
+            return None
+        image_path = os.path.join(os.path.dirname(os.path.abspath(input_path)), image_url)
+        if not os.path.exists(image_path):
+            return None
+
+        _, ext = os.path.splitext(image_path.lower())
+        mime_type = self._IMAGE_MIME_TYPES.get(ext)
+        if not mime_type:
+            ext, mime_type = '.png', 'image/png'
+        try:
+            with open(image_path, 'rb') as fh:
+                image_data = fh.read()
+        except OSError:
+            return None
+
+        config['_docx_image_counter'] = config.get('_docx_image_counter', 0) + 1
+        filename = f'media/image{10 + config["_docx_image_counter"]}{ext}'
+        try:
+            from docx.opc.packuri import PackURI  # noqa: PLC0415
+            from docx.opc.part import Part  # noqa: PLC0415
+
+            image_part = Part(PackURI(f'/word/{filename}'), mime_type, image_data, doc.part.package)
+            doc.part.relate_to(image_part, IMAGE_RT)
+        except Exception:
+            return None
+        return filename
+
+    def _resolve_footnote_sentinels(
+        self, footnotes_data: dict, doc, nsmap: dict, config: dict
+    ) -> list[tuple[str, str, bool]]:
+        """Resolve hyperlink and image sentinels inside footnote content.
+
+        Body sentinels are handled by :meth:`_replace_hyperlink_sentinels` /
+        :meth:`_replace_image_sentinels`, which register targets on ``document.xml``'s
+        relationship part.  A ``w:hyperlink`` or ``w:drawing`` inside ``footnotes.xml``
+        must instead reference ``word/_rels/footnotes.xml.rels``, so ids are allocated
+        here and returned for :meth:`_inject_footnotes_rels` to write out.  Left in
+        place, a sentinel is an element outside the OOXML namespaces and Word offers
+        to repair the file.
+
+        Returns ``(rId, target, is_external)`` triples.
+        """
+        rels: list[tuple[str, str, bool]] = []
+        by_href: dict[str, str] = {}
+
+        def next_rid() -> str:
+            return f'rId{len(rels) + 1}'
+
+        def to_hyperlink(sentinel: etree._Element) -> etree._Element:
+            href = sentinel.get('href', '')
+            r_id = by_href.get(href)
+            if r_id is None:
+                r_id = by_href[href] = next_rid()
+                rels.append((r_id, href, True))
+            hl = etree.Element(f'{{{W}}}hyperlink', nsmap=nsmap)
+            hl.set(f'{{{R_NS}}}id', r_id)
+            for child in list(sentinel):
+                hl.append(child)
+            return hl
+
+        def to_image(sentinel: etree._Element) -> etree._Element:
+            target = self._create_footnote_image_part(config, sentinel, doc)
+            if target:
+                r_id = next_rid()
+                rels.append((r_id, target, False))
+                drawing = self._create_image_drawing_element(
+                    r_id, sentinel.get('width'), sentinel.get('height'), sentinel.get('scale')
+                )
+                if drawing is not None:
+                    return drawing
+            # Same degradation as the body path: a visible placeholder, never a
+            # sentinel that would corrupt the package.
+            return self._make_run(f'[Image: {sentinel.get("url", "")}]')
+
+        def convert(el: etree._Element) -> etree._Element | None:
+            if el.tag == HYPERLINK_SENTINEL_TAG:
+                return to_hyperlink(el)
+            if el.tag == IMAGE_SENTINEL_TAG:
+                return to_image(el)
+            return None
+
+        def walk(el: etree._Element) -> None:
+            for child in list(el):
+                replacement = convert(child)
+                if replacement is not None:
+                    el.replace(child, replacement)
+                    walk(replacement)
+                else:
+                    walk(child)
+
+        for fn_id, items in footnotes_data.items():
+            resolved = []
+            for item in items:
+                if isinstance(item, etree._Element):
+                    replacement = convert(item)
+                    if replacement is not None:
+                        walk(replacement)
+                        resolved.append(replacement)
+                        continue
+                    walk(item)
+                resolved.append(item)
+            footnotes_data[fn_id] = resolved
+        return rels
+
+    def _inject_footnotes_rels(self, buf: BytesIO, rels: list[tuple[str, str, bool]]) -> BytesIO:
+        """Write word/_rels/footnotes.xml.rels, carrying any footnote hyperlinks.
 
         python-docx does not auto-generate a .rels file for raw Part instances.
         The XQuery always emits this file; Word may reject a package that has
@@ -1271,18 +1402,27 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         """
         import zipfile as _zipfile  # noqa: PLC0415
         RELS_NAME = 'word/_rels/footnotes.xml.rels'
-        EMPTY_RELS = (
-            b"<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\r\n"
-            b'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>'
+        entries = ''.join(
+            f'<Relationship Id="{r_id}" Type="{HYPERLINK_RT if external else IMAGE_RT}" '
+            f'Target={quoteattr(target)}'
+            + (' TargetMode="External"' if external else '')
+            + '/>'
+            for r_id, target, external in rels
         )
+        rels_xml = (
+            "<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\r\n"
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            f'{entries}</Relationships>'
+        ).encode('utf-8')
         buf.seek(0)
         src = _zipfile.ZipFile(buf, 'r')
         out = BytesIO()
         with _zipfile.ZipFile(out, 'w', _zipfile.ZIP_DEFLATED) as dst:
             for item in src.infolist():
+                if item.filename == RELS_NAME:
+                    continue
                 dst.writestr(item, src.read(item.filename))
-            if RELS_NAME not in src.namelist():
-                dst.writestr(RELS_NAME, EMPTY_RELS)
+            dst.writestr(RELS_NAME, rels_xml)
         src.close()
         out.seek(0)
         return out

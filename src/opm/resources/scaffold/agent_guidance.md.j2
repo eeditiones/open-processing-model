@@ -45,7 +45,7 @@ Defaults (ODD path, templates, chunking) come from `opm.toml`; CLI flags overrid
 ## Customizing output
 
 1. Prefer editing `{{ odd_path }}` (element behaviours, CSS in the ODD `tagsDecl`).
-2. Adjust HTML/chunk chrome in `templates/chapbook.html.j2` or `templates/handbook.html.j2`.
+2. Adjust HTML/chunk chrome in `templates/{{ html_template }}.html.j2` — the shell `opm.toml` wires up. The shells copied beside it (`chapbook`, `journal`, `handbook`, `tufte`, `bootstrap`) are alternatives to swap in, not partials to include.
 3. Add XPath helpers under `extensions/` and list modules in `[transform] xpath_extensions`.
 4. Keep relative paths in `opm.toml` relative to that file's directory.
 

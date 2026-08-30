@@ -504,7 +504,9 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         _ = n
         ind = config.get('indent', '')
         list_type = config.get('listType', 'unordered')
-        pos = len(list(node.itersiblings(preceding=True))) + 1
+        # Count only siblings of the same element, so an ordered list whose items
+        # follow a heading (JATS <ref-list><title>… then <ref>) still starts at 1.
+        pos = sum(1 for s in node.itersiblings(preceding=True) if s.tag == node.tag) + 1
         marker = f'{pos}. ' if list_type == 'ordered' else '- '
         body: list = []
         deeper = {**config, 'indent': ind + TYPST_INDENT}

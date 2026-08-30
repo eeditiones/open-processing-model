@@ -10,9 +10,11 @@ section — is **not** a complete HTML document; the template supplies the shell
 Pass a template with `--template`, or set a default under `[document]` in
 `opm.toml`. Chunk pages use `chunking.template` instead. If none is given, a
 packaged default template is used. `opm init` copies editable shells into
-`templates/`: the `chapbook` and `handbook` HTML shells, the `tufte` and
-`bootstrap` demo shells, plus the Typst and Word templates. Edit them in place —
-they are yours once copied.
+`templates/`: the `chapbook` (reading), `journal` (scholarly article: masthead,
+TOC rail, one measure) and `handbook` (docs) HTML shells, the `tufte` and
+`bootstrap` demo shells, plus the Typst and Word templates. `opm.toml` wires up
+whichever suits the vocabulary — `journal` for JATS, `chapbook` otherwise — and
+swapping is a one-line edit. Edit them in place: they are yours once copied.
 
 ```bash
 uv run opm transform data/sample.xml \

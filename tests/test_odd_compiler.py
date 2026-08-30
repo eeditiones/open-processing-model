@@ -456,3 +456,96 @@ def test_compile_child_odd_inherits_packaged_teipublisher(tmp_path: Path) -> Non
     src = compile_odd(str(child))
     assert "case 'p':" in src
     assert 'external styles loaded from tp.css' in src
+
+
+_JATS_NESTED = (
+    '<article>'
+    '<front><article-meta><title-group><article-title>A</article-title></title-group>'
+    '</article-meta></front>'
+    '<body>'
+    '<sec id="s1"><title>One</title><p>x</p>'
+    '<sec id="s1a"><title>One A</title><p>y</p></sec>'
+    '</sec>'
+    '<sec id="s2"><title>Two</title><p>z</p></sec>'
+    '</body>'
+    '</article>'
+)
+
+
+def _jats_toc(tmp_path: Path, **params: str) -> str:
+    """Render packaged ``jats.odd`` in ``mode=toc``, the fragment ``opm chunk`` builds."""
+    from opm.odd_compiler import compile_odd
+    from opm.transform import load_transform_module, run_transform
+
+    mod_path = tmp_path / 'jats_web.py'
+    mod_path.write_text(
+        compile_odd(str(packaged_odd('jats')), output_mode='web'), encoding='utf-8'
+    )
+    root = etree.fromstring(_JATS_NESTED.encode())
+    return str(
+        run_transform(
+            load_transform_module(mod_path),
+            root,
+            parameters={'mode': 'toc', **params},
+            apply_template=False,
+        )
+    )
+
+
+def test_jats_toc_nests_sections_and_links_by_id(tmp_path: Path) -> None:
+    """JATS sections carry ``@id``, not ``@xml:id``; the TOC has to link on that."""
+    out = _jats_toc(tmp_path)
+    # Root list holds the two top-level sections, not front matter.
+    assert out.count('<li') == 3
+    assert 'article-title' not in out
+    # Leaf entry.
+    assert 'xml-id="s2"' in out and 'node-id="s2"' in out
+    assert '>Two<' in out
+    # Parent section keeps its child in a nested list.
+    assert '<details open="open">' in out
+    assert 'xml-id="s1a"' in out
+
+
+def test_jats_toc_collapse_parameter_closes_the_details(tmp_path: Path) -> None:
+    out = _jats_toc(tmp_path, collapse='true')
+    assert '<details>' in out
+    assert '<details open="open">' not in out
+
+
+def test_docbook_toc_prefers_opm_web_over_tei_publisher_lib_models(tmp_path: Path) -> None:
+    """docbook.odd carries both TOC forms; the ``opm-web`` ones must win in web mode.
+
+    The plain ``mode='toc'`` models exist for the eXist-side webcomponents TOC and sit
+    after the ``opm-web`` ones. Document order decides, so reordering them upstream would
+    silently swap opm's static TOC for the live one.
+    """
+    from opm.odd_compiler import compile_odd
+    from opm.transform import load_transform_module, run_transform
+
+    dbk = 'http://docbook.org/ns/docbook'
+    root = etree.fromstring(
+        f'<article xmlns="{dbk}" version="5.0"><info><title>Guide</title></info>'
+        f'<section xml:id="a"><title>A</title>'
+        f'<section xml:id="a1"><title>A one</title><para>x</para></section>'
+        f'</section>'
+        f'<section xml:id="b"><title>B</title><para>y</para></section>'
+        f'</article>'.encode()
+    )
+    mod_path = tmp_path / 'dbk_web.py'
+    mod_path.write_text(
+        compile_odd(str(packaged_odd('docbook')), output_mode='web'), encoding='utf-8'
+    )
+    out = str(
+        run_transform(
+            load_transform_module(mod_path),
+            root,
+            parameters={'mode': 'toc'},
+            apply_template=False,
+        )
+    )
+    # opm-web form: <details> wrapper and a pb-link carrying node-id.
+    assert '<details open="open">' in out
+    assert 'node-id="a"' in out
+    assert 'node-id="b"' in out
+    # The tei-publisher-lib leaf model would emit a bare <li> with no pb-link.
+    assert '<li><span' not in out

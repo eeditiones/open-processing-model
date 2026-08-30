@@ -1,0 +1,452 @@
+/* Journal — a scholarly article surface: masthead, TOC rail, single measure.
+
+   Written around journal front matter — byline, affiliations, citation line,
+   abstract, reference list — so it suits JATS out of the box, but the shell
+   itself is vocabulary-neutral: anything the ODD renders lands in `.content`. */
+
+:root {
+  --jr-paper: #fbfaf7;
+  --jr-surface: #ffffff;
+  --jr-ink: #1c1b19;
+  --jr-muted: #6b6862;
+  --jr-rule: #dcd8d0;
+  --jr-accent: #7a2e2e;
+  --jr-accent-soft: rgba(122, 46, 46, 0.08);
+  --jr-measure: 36rem;
+  --jr-rail: 15rem;
+  --jr-pad: clamp(1.1rem, 4vw, 2.5rem);
+  --jr-sans: "Source Sans 3", -apple-system, "Segoe UI", sans-serif;
+  --jr-serif: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+
+  /* ODD stylesheets reach for TEI Publisher web-component tokens — jats.css
+     draws the abstract's rule with var(--pb-color-focus). A static page has no
+     <pb-page> to define them, so bind them here or those rules collapse. */
+  --pb-color-focus: var(--jr-accent);
+  --pb-footnote-font-size: 0.8125rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body.jr {
+  margin: 0;
+  background: var(--jr-paper);
+  color: var(--jr-ink);
+  font-family: var(--jr-serif);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+}
+
+.jr-skip {
+  position: absolute;
+  left: -9999px;
+}
+
+.jr-skip:focus {
+  left: 1rem;
+  top: 1rem;
+  z-index: 20;
+  background: var(--jr-surface);
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--jr-rule);
+}
+
+/* --- masthead ------------------------------------------------------- */
+
+.jr-masthead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--jr-surface);
+  border-bottom: 1px solid var(--jr-rule);
+}
+
+.jr-masthead__inner {
+  max-width: calc(var(--jr-rail) + var(--jr-measure) + 8rem);
+  margin: 0 auto;
+  padding: 0.6rem var(--jr-pad);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+  font-family: var(--jr-sans);
+}
+
+.jr-masthead__journal {
+  font-size: 0.8125rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--jr-accent);
+}
+
+/* journal-meta prints title, publisher and ISSN as inline spans */
+.jr-masthead__journal .journal-meta {
+  font-size: inherit;
+}
+
+.jr-masthead__article {
+  font-size: 0.8125rem;
+  color: var(--jr-muted);
+  margin-left: auto;
+  max-width: 24rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Nothing on the left of the masthead without a `journal` fragment, so the
+   article title starts there instead of hanging off the right edge. */
+.jr:not(.jr--journal-meta) .jr-masthead__article {
+  margin-left: 0;
+}
+
+/* --- shell ---------------------------------------------------------- */
+
+.jr-shell {
+  max-width: calc(var(--jr-rail) + var(--jr-measure) + 8rem);
+  margin: 0 auto;
+  padding: 0 var(--jr-pad) 4rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2.5rem;
+}
+
+.jr--with-toc .jr-shell {
+  grid-template-columns: var(--jr-rail) minmax(0, 1fr);
+}
+
+.jr-main {
+  min-width: 0;
+  max-width: var(--jr-measure);
+}
+
+/* --- contents rail -------------------------------------------------- */
+
+.jr-rail__toggle,
+.jr-rail__open,
+.jr-rail__backdrop {
+  display: none;
+}
+
+.jr-rail__nav {
+  position: sticky;
+  top: 4.5rem;
+  padding-top: 2.5rem;
+  font-family: var(--jr-sans);
+  font-size: 0.875rem;
+}
+
+.jr-rail__title {
+  margin: 0 0 0.6rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--jr-muted);
+}
+
+.jr-rail__nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.jr-rail__nav ul ul {
+  padding-left: 0.85rem;
+}
+
+.jr-rail__nav li {
+  margin: 0 0 0.35rem;
+  line-height: 1.35;
+}
+
+.jr-rail__nav a {
+  color: var(--jr-ink);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  padding-left: 0.6rem;
+  display: block;
+}
+
+.jr-rail__nav a:hover {
+  color: var(--jr-accent);
+  border-left-color: var(--jr-accent);
+  background: var(--jr-accent-soft);
+}
+
+/* --- article -------------------------------------------------------- */
+
+.content {
+  padding-top: 2.5rem;
+}
+
+.content .title,
+.content h1 {
+  font-size: 1.9rem;
+  line-height: 1.2;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+}
+
+.content h2 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 2.25rem 0 0.6rem;
+}
+
+.content h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 1.75rem 0 0.5rem;
+}
+
+.content p {
+  margin: 0 0 1.1rem;
+  hyphens: auto;
+}
+
+.content a {
+  color: var(--jr-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+/* byline, affiliations, citation line: the front-matter apparatus */
+.content .flex {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  font-family: var(--jr-sans);
+}
+
+.content .flex .tei-contrib-group {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.content .pub-date {
+  color: var(--jr-muted);
+  font-size: 0.875rem;
+}
+
+.content .orcid,
+.content .email {
+  font-family: var(--jr-sans);
+  font-size: 0.75rem;
+  font-weight: 400;
+  margin-left: 0.5rem;
+  text-decoration: none;
+  border-bottom: 1px dotted currentColor;
+}
+
+.content .affiliations,
+.content .citation-line {
+  font-family: var(--jr-sans);
+  font-size: 0.8125rem;
+  color: var(--jr-muted);
+}
+
+.content .citation-line {
+  margin: 0.35rem 0 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--jr-rule);
+}
+
+.content .abstract {
+  background: var(--jr-surface);
+  border-left: 3px solid var(--jr-accent);
+  padding: 0.9rem 1.2rem 0.1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+.content .abstract h2 {
+  font-family: var(--jr-sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--jr-muted);
+  margin: 0 0 0.4rem;
+}
+
+/* On chunked pages the masthead already carries journal title, publisher and
+   ISSN — but only when a `journal` fragment supplies them. Without that
+   fragment, and in a standalone transform, they stay in the flow. */
+.jr--chunk.jr--journal-meta .content .journal-meta {
+  display: none;
+}
+
+.content .permissions .license {
+  margin-left: 0.4em;
+}
+
+.content .permissions {
+  font-family: var(--jr-sans);
+  font-size: 0.75rem;
+  color: var(--jr-muted);
+}
+
+.content blockquote,
+.content .tei-disp-quote {
+  margin: 1.2rem 0 1.2rem 1.2rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--jr-rule);
+  color: var(--jr-muted);
+}
+
+.content figure {
+  margin: 1.6rem 0;
+}
+
+.content .figure-head {
+  font-family: var(--jr-sans);
+  font-size: 0.8125rem;
+  color: var(--jr-muted);
+}
+
+.content table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.content th,
+.content td {
+  border-bottom: 1px solid var(--jr-rule);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+}
+
+/* footnote markers and the note apparatus the ODD emits */
+.content a.note {
+  font-family: var(--jr-sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  vertical-align: super;
+  line-height: 0;
+  text-decoration: none;
+  padding: 0 0.1em;
+}
+
+.content .footnote {
+  display: grid;
+  grid-template-columns: 1.75rem 1fr;
+  gap: 0 0.25rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--jr-muted);
+}
+
+.content .footnote .fn-number {
+  font-family: var(--jr-sans);
+  font-weight: 600;
+  color: var(--jr-accent);
+}
+
+.content .footnote .fn-content {
+  margin: 0;
+}
+
+.content .fn-back {
+  text-decoration: none;
+  margin-left: 0.35rem;
+}
+
+/* reference list */
+.content ol.references {
+  padding-left: 1.4rem;
+  font-size: 0.9rem;
+}
+
+.content ol.references li {
+  margin-bottom: 0.65rem;
+}
+
+/* --- pager ---------------------------------------------------------- */
+
+.jr-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--jr-rule);
+  font-family: var(--jr-sans);
+  font-size: 0.875rem;
+}
+
+.jr-pager__slot--next {
+  text-align: right;
+}
+
+.jr-pager a {
+  color: var(--jr-accent);
+  text-decoration: none;
+}
+
+.jr-pager a:hover {
+  text-decoration: underline;
+}
+
+/* --- narrow screens: the rail becomes a disclosure ------------------- */
+
+@media (max-width: 60rem) {
+  .jr--with-toc .jr-shell {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .jr-rail__open {
+    display: inline-block;
+    margin-top: 1.25rem;
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--jr-rule);
+    border-radius: 999px;
+    background: var(--jr-surface);
+    font-family: var(--jr-sans);
+    font-size: 0.8125rem;
+    cursor: pointer;
+  }
+
+  .jr-rail__panel {
+    display: none;
+  }
+
+  .jr-rail__toggle:checked ~ .jr-rail__panel {
+    display: block;
+  }
+
+  .jr-rail__nav {
+    position: static;
+    padding: 1rem 0 0;
+  }
+
+  .jr-main {
+    max-width: none;
+  }
+}
+
+@media print {
+  .jr-masthead,
+  .jr-rail,
+  .jr-pager,
+  .jr-skip {
+    display: none;
+  }
+
+  body.jr {
+    background: #fff;
+  }
+
+  .jr--with-toc .jr-shell {
+    grid-template-columns: 1fr;
+  }
+}

@@ -40,7 +40,8 @@ view = "page"
 
 `examples/shakespeare` is a worked page-chunked project: a First Folio play
 split at every `<pb/>`, where speeches spanning a page break stay intact on
-both pages.
+both pages. `examples/jats` is the JATS counterpart: a real journal article
+where `front` and `back` become chunks alongside the body sections.
 
 ## Output formats
 

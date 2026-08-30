@@ -17,7 +17,9 @@ The library packages three stock models:
 `opm init` writes a short `odd/custom.odd` that inherits packaged `teipublisher`,
 or copies `docbook.odd` / `jats.odd` into the project. For worked customisations, see the
 projects under `examples/`, each of which ships its own ODD (for instance
-`examples/shakespeare/odd/shakespeare.odd`).
+`examples/shakespeare/odd/shakespeare.odd`). `examples/jats` is a good model for
+extending a copied stock ODD: it widens the static TOC and adds journal
+front-matter apparatus to `jats.odd`, each change marked with a `<desc>`.
 
 `schemaSpec/@source` is resolved next to the child ODD first, then as a packaged
 stock ODD — so `source="teipublisher.odd"` works after a pip install without

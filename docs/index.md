@@ -7,7 +7,7 @@
 
 **Open Processing Model** (`opm`) is an implementation of the [TEI Processing Model](https://tei-c.org/release/doc/tei-p5-doc/en/html/TD.html#TDPM) 
 in Python. It provides a Python CLI and library for transforming
-XML documents — TEI, DocBook, and others — into (currently) HTML, Markdown, DOCX, and [Typst](https://typst.app/).
+XML documents — TEI, DocBook, and others — into (currently) HTML, Markdown, DOCX, [Typst](https://typst.app/), HTML for print and ePub.
 The transformation rules are not hard-coded: they are declared in an **ODD** file
 using the TEI Processing Model, and `opm` compiles that ODD into a reusable
 Python transform module.
@@ -15,8 +15,7 @@ Python transform module.
 To learn more about ODD, it is best to read the [TEI Publisher documentation](https://teipublisher.org/doc/documentation.xml?id=odd#odd).
 It also includes a small tutorial in the [Gentle Introduction](https://teipublisher.org/doc/quickstart.xml?id=pm-tutorial#pm-tutorial) document.
 
-The implementation is a Python port of the core library of TEI Publisher: [`tei-publisher-lib`](https://github.com/eeditiones/tei-publisher-lib).
-While `tei-publisher-lib` compiles the processing model instructions found in an ODD into XQuery code, `opm` outputs Python instead. If you compare
+The design conceptually follows the [`tei-publisher-lib`](https://github.com/eeditiones/tei-publisher-lib) implementation in [TEI Publisher](https://tei-publisher.org) and aims to be as compatible as possible. While `tei-publisher-lib` compiles the processing model instructions found in an ODD into XQuery code, `opm` outputs Python instead. If you compare
 the generated code of both, you'll notice a lot of similarities. However, `tei-publisher-lib` uses the full power of XQuery 3.1 inside an eXist-db database. `opm`, on the other hand, is limited to XPath 3.1 and completely file-system based.
 
 ## Uses

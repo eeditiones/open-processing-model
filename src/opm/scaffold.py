@@ -28,6 +28,13 @@ _TYPST_TEMPLATE = {
     'docbook': 'templates/docbook.typ.j2',
     'jats': 'templates/book.typ.j2',
 }
+# Which of the copied HTML shells `opm.toml` wires up. A journal article wants
+# the journal surface; the rest read as books or documentation.
+_HTML_TEMPLATE = {
+    'tei': 'chapbook',
+    'docbook': 'chapbook',
+    'jats': 'journal',
+}
 _CHUNK_SELECTOR = {
     'tei': 'opm.navigation.tei_div_chunks',
     'docbook': 'opm.navigation.dbk_section_chunks',
@@ -46,7 +53,7 @@ class InitOptions:
     force: bool = False
     title: str | None = None
     vocabulary: str = 'tei'
-    html_template: str = 'chapbook'
+    html_template: str = ''  # empty: pick the shell that suits the vocabulary
     outputs: frozenset[str] = field(default_factory=lambda: frozenset(DEFAULT_OUTPUTS))
     chunking: str = 'div'
     chunk_depth: int = 2
@@ -136,6 +143,7 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
     typst_template = _TYPST_TEMPLATE[vocab]
     chunk_selector = _CHUNK_SELECTOR[vocab]
     title_xpath = _TITLE_XPATH[vocab]
+    html_template = options.html_template.strip() or _HTML_TEMPLATE[vocab]
 
     written: list[Path] = []
     skipped: list[Path] = []
@@ -151,6 +159,7 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         chunk_depth=options.chunk_depth,
         title_xpath=title_xpath,
         breadcrumbs=vocab in _BREADCRUMBS,
+        html_template=html_template,
     )
     _record(config_path, written, skipped, _write_text(config_path, toml_text, force=force))
 
@@ -159,6 +168,7 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         vocabulary=vocab,
         odd_path=odd_path,
         include_sample=options.include_sample,
+        html_template=html_template,
     )
     _record(
         dest_dir / 'README.md',
@@ -172,6 +182,7 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         'vocabulary': vocab,
         'odd_path': odd_path,
         'include_sample': options.include_sample,
+        'html_template': html_template,
     }
     agent_tpl = env.get_template('agent_guidance.md.j2')
     for name, heading, intro in (
@@ -217,6 +228,8 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         ('scaffold/templates/chapbook.css', dest_dir / 'templates' / 'chapbook.css'),
         ('scaffold/templates/handbook.html.j2', dest_dir / 'templates' / 'handbook.html.j2'),
         ('scaffold/templates/handbook.css', dest_dir / 'templates' / 'handbook.css'),
+        ('scaffold/templates/journal.html.j2', dest_dir / 'templates' / 'journal.html.j2'),
+        ('scaffold/templates/journal.css', dest_dir / 'templates' / 'journal.css'),
         ('scaffold/templates/tufte.html.j2', dest_dir / 'templates' / 'tufte.html.j2'),
         ('scaffold/templates/bootstrap.html.j2', dest_dir / 'templates' / 'bootstrap.html.j2'),
     ]

@@ -163,3 +163,47 @@ def test_docx_docbook_hyperlink_relationship_in_rels(docx_parts):
     targets = [el.get('Target', '') for el in hyperlinks]
     assert any('example.com' in t for t in targets), \
         f'expected example.com in hyperlink targets; got: {targets}'
+
+
+def test_docbook_docx_front_matter_becomes_core_properties(tmp_path) -> None:
+    """``info`` feeds Word's document properties instead of being retyped in the body.
+
+    Without the ``output="docx"`` metadata models the title, author and abstract were
+    printed as body paragraphs and the Author property fell back to whoever ran the
+    transform.
+    """
+    from docx import Document
+
+    from opm.odd_compiler import compile_odd
+    from opm.resources import packaged_odd
+    from opm.transform import load_transform_module, run_transform
+
+    dbk = 'http://docbook.org/ns/docbook'
+    root = etree.fromstring(
+        f'<article xmlns="{dbk}" version="5.0">'
+        f'<info><title>A DocBook article</title>'
+        f'<author><personname>Ada Lovelace</personname></author>'
+        f'<abstract><para>What the article covers.</para></abstract></info>'
+        f'<section xml:id="s1"><title>One</title><para>Body text.</para></section>'
+        f'</article>'.encode()
+    )
+    mod_path = tmp_path / 'dbk_docx.py'
+    mod_path.write_text(
+        compile_odd(str(packaged_odd('docbook')), output_mode='docx'), encoding='utf-8'
+    )
+    out = run_transform(load_transform_module(mod_path), root)
+    assert isinstance(out, bytes)
+    path = tmp_path / 'out.docx'
+    path.write_bytes(out)
+
+    doc = Document(str(path))
+    props = doc.core_properties
+    assert props.title == 'A DocBook article'
+    assert props.author == 'Ada Lovelace'
+    # No core property is named "abstract"; Comments is its conventional home.
+    assert props.comments == 'What the article covers.'
+
+    body = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+    assert 'A DocBook article' not in body
+    assert 'Ada Lovelace' not in body
+    assert body[0] == 'One'

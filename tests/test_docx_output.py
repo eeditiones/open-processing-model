@@ -396,3 +396,65 @@ def test_docx_missing_image_leaves_no_sentinel(tmp_path):
 
     texts = [t.text or '' for t in doc_root.iter(f'{{{W}}}t')]
     assert any('does_not_exist.png' in t for t in texts), 'no placeholder for missing image'
+
+
+_FOOTNOTE_LINK_TEI = (
+    '<TEI xmlns="http://www.tei-c.org/ns/1.0">'
+    '<teiHeader><fileDesc><titleStmt><title>Notes</title></titleStmt>'
+    '<publicationStmt><p>n</p></publicationStmt><sourceDesc><p>s</p></sourceDesc>'
+    '</fileDesc></teiHeader>'
+    '<text><body><div><p>Text.'
+    '<note place="foot">See <ref target="https://example.org/a">A</ref>.</note>'
+    '<note place="foot">And <ref target="https://example.org/b">B</ref>.</note>'
+    '<note place="foot">Again <ref target="https://example.org/a">A</ref>.</note>'
+    '</p></div></body></text></TEI>'
+)
+
+
+def _docx_zip(xml: str, tmp_path):
+    import zipfile
+
+    from opm.odd_compiler import compile_odd
+    from opm.resources import packaged_odd
+    from opm.transform import load_transform_module, run_transform
+
+    mod_path = tmp_path / 'tei_docx.py'
+    mod_path.write_text(
+        compile_odd(str(packaged_odd('teipublisher')), output_mode='docx'), encoding='utf-8'
+    )
+    out = run_transform(load_transform_module(mod_path), etree.fromstring(xml.encode()))
+    assert isinstance(out, bytes)
+    path = tmp_path / 'out.docx'
+    path.write_bytes(out)
+    return zipfile.ZipFile(str(path))
+
+
+def test_footnote_hyperlinks_become_relationships_not_sentinels(tmp_path) -> None:
+    """A link inside a footnote must resolve against footnotes.xml.rels.
+
+    Only body sentinels used to be replaced, so ``footnotes.xml`` kept internal
+    placeholder elements and an empty rels part — Word offered to repair the file.
+    """
+    import re
+
+    z = _docx_zip(_FOOTNOTE_LINK_TEI, tmp_path)
+    footnotes = z.read('word/footnotes.xml').decode()
+    rels = z.read('word/_rels/footnotes.xml.rels').decode()
+
+    assert 'hyperlink-sentinel' not in footnotes
+    assert footnotes.count('<w:hyperlink') == 3
+
+    used = set(re.findall(r'r:id="(rId\d+)"', footnotes))
+    declared = set(re.findall(r'Id="(rId\d+)"', rels))
+    assert used and not used - declared
+    # Repeated targets share one relationship.
+    assert rels.count('<Relationship ') == 2
+    assert 'TargetMode="External"' in rels
+
+
+def test_no_part_keeps_an_internal_sentinel_namespace(tmp_path) -> None:
+    """Sentinels are an internal device; any that survive make the package invalid."""
+    z = _docx_zip(_FOOTNOTE_LINK_TEI, tmp_path)
+    for name in z.namelist():
+        if name.endswith(('.xml', '.rels')):
+            assert b'tei-c.org/ns/docx' not in z.read(name), name

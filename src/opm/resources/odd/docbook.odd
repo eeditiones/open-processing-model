@@ -98,6 +98,14 @@
                     </model>
                     <model behaviour="document"/>
                 </elementSpec>
+                <elementSpec ident="book">
+                    <model output="opm-web" predicate="$parameters?mode='toc'" behaviour="pass-through">
+                        <desc>Static/OPM TOC: top-level chapters/sections (live TOC uses nav:toc-entry)</desc>
+                        <param name="content" value="section|chapter"/>
+                        <pb:template xml:space="preserve"><ul xmlns="">[[content]]</ul></pb:template>
+                    </model>
+                    <model behaviour="document"/>
+                </elementSpec>
                 <elementSpec ident="info">
                     <model output="typst" predicate="parent::article|parent::book" behaviour="pass-through"/>
                     <model output="print" predicate="parent::article|parent::book" behaviour="block" cssClass="frontmatter">
@@ -137,6 +145,12 @@
                         <param name="key" value="'authors'"/>
                         <param name="content" value="(personname, orgname, affiliation)"/>
                     </model>
+                    <model output="docx" behaviour="metadata">
+                        <desc>opm-only: DocBook front matter belongs in Word's document
+                            properties, not repeated at the top of the body.</desc>
+                        <param name="key" value="'authors'"/>
+                        <param name="content" value="(personname, orgname, affiliation)"/>
+                    </model>
                     <model output="latex" predicate="preceding-sibling::author" behaviour="inline">
                         <param name="content" value="(personname, affiliation)"/>
                         <pb:template xml:space="preserve">\and [[content]]</pb:template>
@@ -169,6 +183,9 @@
                 </elementSpec>
                 <elementSpec ident="title">
                     <model output="typst" predicate="parent::info" behaviour="metadata">
+                        <param name="key" value="'title'"/>
+                    </model>
+                    <model output="docx" predicate="parent::info" behaviour="metadata">
                         <param name="key" value="'title'"/>
                     </model>
                     <model output="typst" behaviour="heading">
@@ -210,6 +227,12 @@
                     </model>
                     <model output="opm-web" predicate="$parameters?mode='toc'" behaviour="inline">
                         <desc>Label only; section opm-web TOC models wrap pb-link</desc>
+                    </model>
+                    <model predicate="$parameters?mode='toc' and ../@xml:id" behaviour="inline">
+                        <desc>TOC entry for tei-publisher-lib / webcomponents</desc>
+                        <param name="id" value="../@xml:id"/>
+                        <param name="hash" value="../@xml:id"/>
+                        <pb:template xml:space="preserve"><pb-link xmlns="" xml-id="[[id]]" hash="[[hash]]" emit="transcription">[[content]]</pb-link></pb:template>
                     </model>
                     <model predicate="$parameters?mode='toc'" behaviour="inline"/>
                     <model predicate="parent::note" behaviour="heading">
@@ -285,6 +308,18 @@
                         <pb:template xml:space="preserve"><li xmlns="">
   <pb-link xml-id="[[id]]" node-id="[[id]]" emit="[[target]]" subscribe="[[target]]">[[heading]]</pb-link>
 </li></pb:template>
+                    </model>
+                    <model predicate="$parameters?mode='toc' and section" behaviour="pass-through">
+                        <desc>TOC entry with nested child sections (tei-publisher-lib)</desc>
+                        <param name="heading" value="title"/>
+                        <param name="children" value="section"/>
+                        <pb:template xml:space="preserve"><li xmlns="">[[heading]]
+  <ul>[[children]]</ul>
+</li></pb:template>
+                    </model>
+                    <model predicate="$parameters?mode='toc'" behaviour="listItem">
+                        <desc>Leaf TOC entry (tei-publisher-lib)</desc>
+                        <param name="content" value="title"/>
                     </model>
                     <model output="print" behaviour="section"/>
                     <model output="opm-web" behaviour="block">
@@ -434,11 +469,17 @@ font-style: italic;
                 <elementSpec ident="variablelist">
                     <model behaviour="list" output="docx"/>
                     <model output="typst" behaviour="list">
+                        <desc>A variablelist is a description list, which Typst has as
+                            `terms`. The two-column grid this replaces gave the term a
+                            fixed 4cm whatever its length, and nested lists took another
+                            4cm out of an already narrow cell, so the definitions were
+                            squeezed into a third of the measure. A run-in term costs
+                            only its own width and one indent per level.</desc>
                         <pb:template>
-                            #grid(
-                                columns: (4cm, 1fr),
-                                column-gutter: 1em,
-                                row-gutter: 0.6em,
+                            #terms(
+                                tight: false,
+                                hanging-indent: 1.2em,
+                                separator: [#h(0.55em)],
                                 [[content]]
                             )
                         </pb:template>
@@ -470,7 +511,7 @@ font-style: italic;
                         <param name="term" value="term"/>
                         <param name="definition" value="listitem"/>
                         <pb:template>
-                            [*[[term]]*], [[[definition]]],
+                            terms.item([*[[term]]*], [[[definition]]]),
                         </pb:template>
                     </model>
                     <model output="latex" behaviour="block">
@@ -574,6 +615,8 @@ white-space: pre-wrap;
 \end{lstlisting} </pb:template>
                     </model>
                     <model output="print" behaviour="code">
+                        <desc>opm-only: print keeps &lt;pre&gt;&lt;code data-language&gt; rather than a
+                            styled div, so the paged-media stylesheet and the syntax hint survive.</desc>
                         <param name="language" value="@language"/>
                         <param name="content" value="text()"/>
                     </model>
@@ -635,6 +678,8 @@ white-space: pre-wrap;
 \end{lstlisting} </pb:template>
                     </model>
                     <model output="print" behaviour="code">
+                        <desc>opm-only: print keeps &lt;pre&gt;&lt;code data-language&gt; rather than a
+                            styled div, so the paged-media stylesheet and the syntax hint survive.</desc>
                         <param name="language" value="@language"/>
                         <param name="content" value="text()"/>
                     </model>
@@ -797,6 +842,12 @@ Not available in PDF edition. Go to \url{[[content]]} to view.
                 </elementSpec>
                 <elementSpec ident="abstract" mode="add">
                     <model output="typst" behaviour="metadata">
+                        <param name="key" value="'abstract'"/>
+                    </model>
+                    <model output="docx" behaviour="metadata">
+                        <desc>Lands in Word's Comments property, which is where a
+                            description belongs; without this the abstract would be
+                            repeated as body text under the title.</desc>
                         <param name="key" value="'abstract'"/>
                     </model>
                     <model predicate="$parameters?path = $parameters?active" behaviour="omit"/>

@@ -1,0 +1,78 @@
+// JATS journal article shell (arkheion: rules above and below the title, authors
+// with ORCID badges, centred abstract). Override via [transform.typst] template
+// in project config or --template.
+//
+// The book shells opm ships (book.typ.j2, docbook.typ.j2) open with a title page
+// and a table of contents, which is wrong for a fifteen-page article: a journal
+// article starts on page one with its own masthead.
+
+#import "@preview/zebraw:0.6.3": *
+#import "@preview/arkheion:0.1.0": arkheion, arkheion-appendices
+
+{% include "opm_css_fns_default.typ.j2" %}
+
+// No `marginalia.setup` here on purpose: it would replace arkheion's page
+// geometry with its own. Add it back (see book.typ.j2) if your ODD emits margin
+// notes — JATS has no element that does.
+
+{{ odd_typst }}
+
+{% include "opm_css.typ.j2" %}
+
+// The title block below is built from ODD-rendered content, so every #tei_* and
+// #opm-css definition above has to be in scope before the show rule runs.
+#show: zebraw.with(..zebraw-themes.zebra, lang: true, lang-color: color.mix((blue, 15%), (white, 85%)))
+
+// Metadata values arrive Typst-*markup* escaped (`a\@b.c`), which is right inside
+// `[…]` content but invalid inside a "…" string literal. Strip the escapes where a
+// string is required — arkheion needs author names as strings for `set document`.
+{% macro tstr(value) -%}
+{{ value | replace('\\', '') | replace('"', '\\"') }}
+{%- endmacro %}
+
+{% set _authors = metadata.get('author_records', []) -%}
+{% set _journal = (metadata.get('journal') or [''])[0] -%}
+{% set _volume = (metadata.get('volume') or [''])[0] -%}
+{% set _elocation = (metadata.get('elocation') or [''])[0] -%}
+{% set _date = (metadata.get('date') or [''])[0] -%}
+{% set _doi = (metadata.get('doi') or [''])[0] -%}
+{% set _license = (metadata.get('license') or [''])[0] -%}
+#show: arkheion.with(
+  title: "{{ tstr((metadata.get('title') or ['Untitled'])[0]) }}",
+  authors: (
+{%- for a in _authors %}
+{%- set _p = a.split('|') %}
+    (
+      name: "{{ tstr(_p[0]) }}",
+      email: "{{ tstr(_p[1] if _p | length > 1 else '') }}",
+      affiliation: "{{ tstr(_p[2] if _p | length > 2 else '') }}",
+      {%- if _p | length > 3 and _p[3] %}
+      orcid: "{{ tstr(_p[3]) }}",
+      {%- endif %}
+    ),
+{%- endfor %}
+  ),
+  abstract: [{{ (metadata.get('abstract') or [''])[0] }}],
+  // arkheion centres `date` under the byline — the natural slot for the line a
+  // journal cites itself by.
+  date: [
+    {%- if _journal %}#emph[{{ _journal }}]{% endif %}
+    {%- if _volume %} {{ _volume }}{% endif %}
+    {%- if _date %} ({{ _date }}){% endif %}
+    {%- if _elocation %}, article {{ _elocation }}{% endif %}
+    {%- if _doi %} · #link("https://doi.org/{{ tstr(_doi) }}")[doi:{{ _doi }}]{% endif %}
+  ],
+)
+
+#show raw: set text(font: ("Iosevka", "DejaVu Sans Mono", "Courier New"))
+
+// A journal article numbers its sections rarely; arkheion turns numbering on.
+#set heading(numbering: none)
+
+{{ content_typst }}
+
+{% if _license %}
+#v(2em)
+#line(length: 100%, stroke: 0.5pt)
+#align(center)[#text(size: 8pt)[#link("{{ tstr(_license) }}")[{{ _license }}]]]
+{% endif %}

@@ -89,6 +89,22 @@
                     </model>
                     <model behaviour="section"/>
                 </elementSpec>
+                <elementSpec ident="front" mode="add">
+                    <desc>front is a chunk of its own (see opm.navigation.jats_sec_chunks), so it
+                        needs a TOC entry. It carries no @id, so anchor on the first id inside it.</desc>
+                    <model output="opm-web" predicate="$parameters?mode='toc'" behaviour="pass-through">
+                        <param name="id" value="(descendant::*[@id])[1]/@id"/>
+                        <param name="heading" value="article-meta/title-group/article-title"/>
+                        <pb:template xml:space="preserve"><li xmlns="">
+  <pb-link xml-id="[[id]]" node-id="[[id]]" emit="transcription" subscribe="transcription">[[heading]]</pb-link>
+</li></pb:template>
+                    </model>
+                    <model output="opm-print" behaviour="block" cssClass="frontmatter">
+                        <desc>Paged media only: wraps the title, byline and abstract in a block the
+                            print stylesheet can put on its own @page Title. The web view leaves
+                            front as pass-through, so this model is scoped to print.</desc>
+                    </model>
+                </elementSpec>
                 <elementSpec ident="title" mode="add">
                     <model predicate="$parameters?mode='toc'" behaviour="inline"/>
                     <model predicate="parent::caption or parent::abstract" behaviour="heading">
@@ -215,17 +231,30 @@ padding: 0 4px;
                         <param name="content" value="(title-group, contrib-group)"/>
                     </model>
                     <modelSequence>
+                        <desc>Front matter of a journal article: title, byline, affiliations,
+                            the citation line, abstract and rights. The packaged jats.odd stops
+                            after title/byline/abstract — everything else is added here.</desc>
                         <model behaviour="pass-through">
                             <param name="content" value="title-group"/>
                         </model>
                         <model behaviour="block" cssClass="flex">
                             <param name="content" value="(contrib-group, (pub-date[@iso-8601-date], pub-date)[1])"/>
                             <outputRendition xml:space="preserve">
-                            margin-bottom: 2em;
+                            margin-bottom: .5em;
                             </outputRendition>
+                        </model>
+                        <model behaviour="block" cssClass="affiliations">
+                            <param name="content" value="aff"/>
+                        </model>
+                        <model behaviour="block" cssClass="citation-line">
+                            <desc>Volume, article number and DOI, the way a journal cites itself.</desc>
+                            <param name="content" value="(volume, elocation-id, article-id[@pub-id-type='doi'])"/>
                         </model>
                         <model behaviour="block">
                             <param name="content" value="abstract"/>
+                        </model>
+                        <model behaviour="block">
+                            <param name="content" value="permissions"/>
                         </model>
                     </modelSequence>
                 </elementSpec>
@@ -248,7 +277,7 @@ padding: 0 4px;
                         <desc>Feeds the Typst title block instead of printing in the flow.</desc>
                         <param name="key" value="'title'"/>
                     </model>
-                    <model predicate="$parameters?mode='breadcrumb'" behaviour="inline"/>
+                    <model predicate="$parameters?mode=('breadcrumb', 'toc')" behaviour="inline"/>
                     <model predicate="$parameters?display='browse'" behaviour="heading">
             <param name="level" value="5"/>
         </model>
@@ -334,14 +363,109 @@ padding: 0 4px;
                         </model>
                     </modelSequence>
                     <model predicate="preceding-sibling::contrib" behaviour="inline">
-            <param name="content" value="name"/>
+            <param name="content" value="(name, contrib-id, email)"/>
             <outputRendition xml:space="preserve" scope="after">
             content: ', ';
             </outputRendition>
         </model>
                     <model behaviour="inline">
-            <param name="content" value="name"/>
+            <param name="content" value="(name, contrib-id, email)"/>
         </model>
+                </elementSpec>
+                <elementSpec ident="contrib-id" mode="add">
+                    <desc>An ORCID is stored as a full https://orcid.org/… URI, so it links to itself.</desc>
+                    <model predicate="@contrib-id-type='orcid'" behaviour="link" cssClass="orcid">
+                        <param name="uri" value="normalize-space(.)"/>
+                        <param name="content" value="'ORCID'"/>
+                    </model>
+                    <model behaviour="inline"/>
+                </elementSpec>
+                <elementSpec ident="email" mode="add">
+                    <model behaviour="link" cssClass="email">
+                        <param name="uri" value="'mailto:' || normalize-space(.)"/>
+                    </model>
+                </elementSpec>
+                <elementSpec ident="aff" mode="add">
+                    <desc>Affiliation: department, institution and place on one line. Empty
+                        addr-line/city elements are common in JATS, so filter the blanks out.</desc>
+                    <model behaviour="block" cssClass="aff">
+                        <param name="content" value="*[normalize-space()]"/>
+                    </model>
+                </elementSpec>
+                <elementSpec ident="institution" mode="add">
+                    <model predicate="preceding-sibling::institution" behaviour="inline">
+                        <outputRendition xml:space="preserve" scope="before">
+                        content: ', ';
+                        </outputRendition>
+                    </model>
+                    <model behaviour="inline"/>
+                </elementSpec>
+                <elementSpec ident="city" mode="add">
+                    <model behaviour="inline">
+                        <outputRendition xml:space="preserve" scope="before">
+                        content: ', ';
+                        </outputRendition>
+                    </model>
+                </elementSpec>
+                <elementSpec ident="country" mode="add">
+                    <model behaviour="inline">
+                        <outputRendition xml:space="preserve" scope="before">
+                        content: ', ';
+                        </outputRendition>
+                    </model>
+                </elementSpec>
+                <elementSpec ident="volume" mode="add">
+                    <model output="typst" behaviour="metadata">
+                        <param name="key" value="'volume'"/>
+                    </model>
+                    <model behaviour="inline">
+                        <outputRendition xml:space="preserve" scope="before">
+                        content: 'Vol. ';
+                        </outputRendition>
+                    </model>
+                </elementSpec>
+                <elementSpec ident="elocation-id" mode="add">
+                    <model output="typst" behaviour="metadata">
+                        <param name="key" value="'elocation'"/>
+                    </model>
+                    <model behaviour="inline">
+                        <outputRendition xml:space="preserve" scope="before">
+                        content: ', article ';
+                        </outputRendition>
+                        <outputRendition xml:space="preserve" scope="after">
+                        content: ' · ';
+                        </outputRendition>
+                    </model>
+                </elementSpec>
+                <elementSpec ident="article-id" mode="add">
+                    <desc>Only the DOI is shown; publisher ids stay out of the reading view.</desc>
+                    <model output="typst" predicate="@pub-id-type='doi'" behaviour="metadata">
+                        <param name="key" value="'doi'"/>
+                        <param name="content" value="replace(normalize-space(.), '^https?://(dx\.)?doi\.org/', '')"/>
+                    </model>
+                    <model predicate="@pub-id-type='doi'" behaviour="link" cssClass="doi">
+                        <param name="uri" value="if (starts-with(normalize-space(.), 'http')) then normalize-space(.) else 'https://doi.org/' || normalize-space(.)"/>
+                        <param name="content" value="'doi:' || replace(normalize-space(.), '^https?://(dx\.)?doi\.org/', '')"/>
+                    </model>
+                    <model behaviour="omit"/>
+                </elementSpec>
+                <elementSpec ident="permissions" mode="add">
+                    <model behaviour="block" cssClass="permissions">
+                        <param name="content" value="(copyright-statement, license)"/>
+                    </model>
+                </elementSpec>
+                <elementSpec ident="license" mode="add">
+                    <desc>The licence URI lives on @xlink:href; license-p repeats it as text,
+                        so print the href as a link and drop the duplicate paragraph.</desc>
+                    <model output="typst" behaviour="metadata">
+                        <param name="key" value="'license'"/>
+                        <param name="content" value="string(@xlink:href)"/>
+                    </model>
+                    <model predicate="@xlink:href" behaviour="link" cssClass="license">
+                        <param name="uri" value="string(@xlink:href)"/>
+                        <param name="content" value="string(@xlink:href)"/>
+                    </model>
+                    <model behaviour="inline"/>
                 </elementSpec>
                 <elementSpec ident="contrib-group" mode="add">
                     <model predicate="$parameters?mode='breadcrumb'" behaviour="inline">
@@ -440,33 +564,6 @@ padding: 0 4px;
                         <param name="content" value="tp:format_date(@iso-8601-date, ($parameters?language, 'en')[1])"/>
                     </model>
                 </elementSpec>
-                <elementSpec ident="volume" mode="add">
-                    <desc>Typst-only. Nothing here changes web, docx or epub output: with no
-                        model for those outputs the element falls through to the default, which
-                        is what it did before this spec existed.</desc>
-                    <model output="typst" behaviour="metadata">
-                        <param name="key" value="'volume'"/>
-                    </model>
-                </elementSpec>
-                <elementSpec ident="elocation-id" mode="add">
-                    <model output="typst" behaviour="metadata">
-                        <param name="key" value="'elocation'"/>
-                    </model>
-                </elementSpec>
-                <elementSpec ident="article-id" mode="add">
-                    <desc>Only the DOI reaches the title block; publisher-internal ids do not.</desc>
-                    <model output="typst" predicate="@pub-id-type='doi'" behaviour="metadata">
-                        <param name="key" value="'doi'"/>
-                        <param name="content" value="replace(normalize-space(.), '^https?://(dx\.)?doi\.org/', '')"/>
-                    </model>
-                </elementSpec>
-                <elementSpec ident="license" mode="add">
-                    <desc>The licence URI is on @xlink:href; license-p usually repeats it as text.</desc>
-                    <model output="typst" behaviour="metadata">
-                        <param name="key" value="'license'"/>
-                        <param name="content" value="string(@xlink:href)"/>
-                    </model>
-                </elementSpec>
                 <elementSpec ident="disp-formula" mode="add">
                     <model behaviour="pass-through">
             <pb:template xmlns="" xml:space="preserve">
@@ -485,9 +582,12 @@ padding: 0 4px;
                 </elementSpec>
             <elementSpec ident="article" mode="add">
                     <model output="opm-web" predicate="$parameters?mode='toc'" behaviour="pass-through">
-                        <desc>Static/OPM TOC: top-level sections (live TOC uses nav:toc-entry)</desc>
-                        <param name="content" value="body/sec"/>
-                        <pb:template xml:space="preserve"><ul xmlns="">[[content]]</ul></pb:template>
+                        <desc>Widens the packaged model, which lists body/sec only because that is
+                            what eXist-side JATS navigation chunks. opm.navigation.jats_sec_chunks
+                            also makes front and back chunks of their own, so they need entries or
+                            two of the three pages here would be unreachable from the TOC.</desc>
+                        <param name="content" value="front | body/sec | back[node()]"/>
+                        <pb:template xml:space="preserve"><ul xmlns="" class="toc">[[content]]</ul></pb:template>
                     </model>
                     <model predicate="$parameters?mode='metadata'" behaviour="block">
             <param name="content" value="(front/journal-meta, front/article-meta)"/>
@@ -498,6 +598,14 @@ padding: 0 4px;
                     <model behaviour="document"/>
                 </elementSpec>
             <elementSpec ident="back" mode="add">
+                    <model output="opm-web" predicate="$parameters?mode='toc'" behaviour="pass-through">
+                        <desc>TOC entry for the back matter chunk; like front it has no @id.</desc>
+                        <param name="id" value="(descendant::*[@id])[1]/@id"/>
+                        <param name="heading" value="ref-list/title"/>
+                        <pb:template xml:space="preserve"><li xmlns="">
+  <pb-link xml-id="[[id]]" node-id="[[id]]" emit="transcription" subscribe="transcription">[[heading]]</pb-link>
+</li></pb:template>
+                    </model>
                     <model behaviour="block">
             <param name="content" value="ref-list"/>
         </model>
@@ -532,7 +640,7 @@ padding: 0 4px;
                 </elementSpec>
             <elementSpec ident="journal-meta" mode="add">
                     <model output="typst" behaviour="metadata">
-                        <desc>Feeds the Typst title block; no journal header in the print flow.</desc>
+                        <desc>Feeds the citation line under the Typst title; nothing prints here.</desc>
                         <param name="key" value="'journal'"/>
                         <param name="content" value="normalize-space(.//journal-title)"/>
                     </model>

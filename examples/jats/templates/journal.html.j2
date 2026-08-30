@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="{{ lang|default('en') }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+{% set work_title = fragments.title | striptags | trim if fragments is defined and fragments.title else '' %}
+  <title>{{ work_title or 'Journal article' }}</title>
+  <!-- journal template: single-column scholarly article with a sticky masthead and TOC rail -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..600&display=swap"
+    rel="stylesheet"
+  >
+  {{ head_html | safe }}
+  <style type="text/css">
+    {% include "journal.css" %}
+  </style>
+  {% if odd_css %}
+  <style type="text/css">
+{{ odd_css }}
+  </style>
+  {% endif %}
+  {% if context.webcomponents_url %}
+  <script type="module" src="{{ context.webcomponents_url }}"></script>
+  {% endif %}
+</head>
+{% set is_chunk = chunk is defined and chunk %}
+{% set has_toc = fragments is defined and fragments.toc %}
+{% set has_journal = fragments is defined and fragments.journal %}
+<body class="jr{% if has_toc %} jr--with-toc{% endif %}{% if is_chunk %} jr--chunk{% endif %}{% if has_journal %} jr--journal-meta{% endif %}">
+  <a class="jr-skip" href="#jr-content">Skip to content</a>
+
+{% set has_masthead = has_journal or (is_chunk and work_title) %}
+{% if has_masthead %}
+  <header class="jr-masthead">
+    <div class="jr-masthead__inner">
+      {% if has_journal %}
+      <div class="jr-masthead__journal">{{ fragments.journal | safe }}</div>
+      {% endif %}
+      {% if is_chunk and work_title %}
+      <div class="jr-masthead__article">{{ work_title }}</div>
+      {% endif %}
+    </div>
+  </header>
+{% endif %}
+
+  <div class="jr-shell">
+    {% if has_toc %}
+    <aside class="jr-rail" aria-label="Article contents">
+      <input type="checkbox" id="jr-toc-toggle" class="jr-rail__toggle" autocomplete="off">
+      <label for="jr-toc-toggle" class="jr-rail__open">Contents</label>
+      <div class="jr-rail__panel">
+        <label for="jr-toc-toggle" class="jr-rail__backdrop" aria-hidden="true"></label>
+        <nav class="jr-rail__nav">
+          <p class="jr-rail__title">Contents</p>
+          {{ fragments.toc | safe }}
+        </nav>
+      </div>
+    </aside>
+    {% endif %}
+
+    <main class="jr-main" id="jr-content">
+      <article class="content">
+        {{ content_html | safe }}
+      </article>
+
+      {% if is_chunk and (chunk.prev or chunk.next) %}
+      <nav class="jr-pager" aria-label="Article navigation">
+        <div class="jr-pager__slot">
+          {% if chunk.prev %}
+          <a href="{{ chunk.prev }}.html" rel="prev">
+            <span class="jr-pager__dir">&larr; Previous</span>
+          </a>
+          {% endif %}
+        </div>
+        <div class="jr-pager__slot jr-pager__slot--next">
+          {% if chunk.next %}
+          <a href="{{ chunk.next }}.html" rel="next">
+            <span class="jr-pager__dir">Next &rarr;</span>
+          </a>
+          {% endif %}
+        </div>
+      </nav>
+      {% endif %}
+    </main>
+  </div>
+</body>
+</html>

@@ -32,5 +32,7 @@ opm serve
 ## Customize
 
 - Processing model: `{{ odd_path }}`
-- HTML / chunk shell: `templates/chapbook.html.j2` (reading) or `templates/handbook.html.j2` (docs)
+- HTML / chunk shell: `templates/{{ html_template }}.html.j2` (wired in `opm.toml`).
+  Also copied, ready to swap in: `chapbook` (reading), `journal` (article with
+  masthead and TOC rail), `handbook` (docs), `tufte`, `bootstrap`
 - XPath extensions: `extensions/` (see `[project] pythonpath` in `opm.toml`)

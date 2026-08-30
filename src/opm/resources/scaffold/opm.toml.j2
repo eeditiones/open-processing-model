@@ -61,7 +61,7 @@ template = "{{ typst_template }}"
 # Optional per-type ODD override: odd = "{{ odd_path }}"
 {% endif %}
 [document]
-template = "templates/chapbook.html.j2"
+template = "templates/{{ html_template }}.html.j2"
 # Your own stylesheet, layered over the ODD's. The rules every ODD-rendered
 # document needs are already part of the ODD stylesheet, so this is for
 # project-specific overrides only.
@@ -72,7 +72,7 @@ template = "templates/chapbook.html.j2"
 selector = "{{ chunk_selector }}"
 depth = {{ chunk_depth }}
 output_dir = "chunks"
-template = "templates/chapbook.html.j2"
+template = "templates/{{ html_template }}.html.j2"
 
 [[chunking.fragments]]
 name = "title"

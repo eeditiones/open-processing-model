@@ -146,6 +146,8 @@
                         <param name="content" value="(personname, orgname, affiliation)"/>
                     </model>
                     <model output="docx" behaviour="metadata">
+                        <desc>opm-only: DocBook front matter belongs in Word's document
+                            properties, not repeated at the top of the body.</desc>
                         <param name="key" value="'authors'"/>
                         <param name="content" value="(personname, orgname, affiliation)"/>
                     </model>
@@ -613,6 +615,8 @@ white-space: pre-wrap;
 \end{lstlisting} </pb:template>
                     </model>
                     <model output="print" behaviour="code">
+                        <desc>opm-only: print keeps &lt;pre&gt;&lt;code data-language&gt; rather than a
+                            styled div, so the paged-media stylesheet and the syntax hint survive.</desc>
                         <param name="language" value="@language"/>
                         <param name="content" value="text()"/>
                     </model>
@@ -674,6 +678,8 @@ white-space: pre-wrap;
 \end{lstlisting} </pb:template>
                     </model>
                     <model output="print" behaviour="code">
+                        <desc>opm-only: print keeps &lt;pre&gt;&lt;code data-language&gt; rather than a
+                            styled div, so the paged-media stylesheet and the syntax hint survive.</desc>
                         <param name="language" value="@language"/>
                         <param name="content" value="text()"/>
                     </model>
@@ -839,6 +845,9 @@ Not available in PDF edition. Go to \url{[[content]]} to view.
                         <param name="key" value="'abstract'"/>
                     </model>
                     <model output="docx" behaviour="metadata">
+                        <desc>Lands in Word's Comments property, which is where a
+                            description belongs; without this the abstract would be
+                            repeated as body text under the title.</desc>
                         <param name="key" value="'abstract'"/>
                     </model>
                     <model predicate="$parameters?path = $parameters?active" behaviour="omit"/>

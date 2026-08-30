@@ -1,0 +1,54 @@
+[project]
+pythonpath = ["."]
+
+[transform]
+odd = "odd/jats.odd"
+# tp:format_date() lives here; the pub-date model in odd/jats.odd calls it
+# because XSLT's format-date() is not available to the XPath engine.
+xpath_extensions = [
+    "opm.runtime.common_xpath_functions"
+]
+
+[transform.web.webcomponents]
+enabled = true
+
+[transform.print]
+# Paged view: the same article surface as the web reading view, minus the
+# masthead, TOC rail and web components.
+template = "templates/print.html.j2"
+
+[transform.typst]
+template = "templates/article.typ.j2"
+
+[document]
+template = "templates/journal.html.j2"
+
+# jats_sec_chunks keeps front and back as chunks of their own: a journal article
+# holds its title, authors, abstract and reference list outside <body>, so
+# chunking on <sec> alone would drop all of it.
+[chunking]
+selector = "opm.navigation.jats_sec_chunks"
+depth = 2
+output_dir = "chunks"
+template = "templates/journal.html.j2"
+doc_path = "article"
+
+[[chunking.fragments]]
+name = "title"
+scope = "global"
+xpath = "(/article/front/article-meta/title-group)[1]"
+parameters = { mode = "title" }
+
+# The masthead strip: journal title, publisher, ISSN.
+[[chunking.fragments]]
+name = "journal"
+scope = "global"
+xpath = "/article/front/journal-meta"
+
+# Static table of contents. The mode='toc' models this needs are added in
+# odd/jats.odd — the packaged JATS ODD has none.
+[[chunking.fragments]]
+name = "toc"
+scope = "global"
+xpath = "/article"
+parameters = { mode = "toc" }

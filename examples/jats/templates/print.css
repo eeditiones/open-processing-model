@@ -1,0 +1,140 @@
+/* Print shell for the journal view.
+
+   journal.css is included ahead of this file, so the paged view inherits the
+   reading view's tokens and every `.content …` rule — title block, byline,
+   abstract, reference list. What is replaced here is only what the web shell
+   contributed: `body.jr`, the sticky masthead and the TOC rail, none of which
+   exist on paper. Paged layout itself (@page, running heads, float: footnote)
+   lives in odd/jats.css under @media print. */
+
+:root {
+  --jr-note: 13rem;
+  --jr-note-gap: 1.75rem;
+}
+
+body.print {
+  margin: 0 auto;
+  /* measure + the side-note column the footnotes float into */
+  max-width: calc(var(--jr-measure) + var(--jr-note) + var(--jr-note-gap) + 2 * var(--jr-pad));
+  padding: 2.5rem var(--jr-pad) 4rem;
+  background: #fff;
+  color: var(--jr-ink);
+  font-family: var(--jr-serif);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+}
+
+body.print .content {
+  max-width: var(--jr-measure);
+  padding-top: 0;
+}
+
+/* The reading view lifts journal title, publisher and ISSN into a sticky
+   masthead; on paper they stay in the flow, set like that masthead. */
+body.print .journal-meta {
+  display: block;
+  margin-bottom: 1.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--jr-rule);
+  font-family: var(--jr-sans);
+  font-size: 0.8125rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--jr-accent);
+}
+
+/* journal.css lays `.footnote` out as the web view's numbered grid — that is
+   the collected `dl.footnote` the HTML output builds. Print notes are inline
+   spans instead (a grid item cannot float), so undo the grid first. */
+body.print .footnote {
+  display: inline;
+}
+
+/* --- footnotes on screen -------------------------------------------------
+
+   PrintOutputFunctions leaves notes inline so a paged-media engine can
+   `float: footnote` them (odd/jats.css does that under @media print). No
+   browser implements that float, so the note text would otherwise sit in the
+   middle of the sentence. On screen it is numbered and moved out of the way
+   instead — into the margin when there is room, bracketed inline when not. */
+
+@media screen {
+  .content .footnote {
+    font-size: 0.85rem;
+    color: var(--jr-muted);
+  }
+
+  .content .footnote::before {
+    content: " [";
+  }
+
+  .content .footnote::after {
+    content: "] ";
+  }
+}
+
+@media screen and (min-width: 60rem) {
+  body.print {
+    counter-reset: fn-call fn-note;
+  }
+
+  /* Two counters, both walking the notes in document order: the marker left in
+     the text, and the one on the note that floated into the margin. */
+  .content .footnote::before {
+    counter-increment: fn-call;
+    content: counter(fn-call);
+    font-family: var(--jr-sans);
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 0;
+    vertical-align: super;
+    color: var(--jr-accent);
+  }
+
+  .content .footnote::after {
+    content: none;
+  }
+
+  .content .footnote > * {
+    float: right;
+    clear: right;
+    width: var(--jr-note);
+    margin-right: calc(-1 * (var(--jr-note) + var(--jr-note-gap)));
+    margin-bottom: 0.75rem;
+    font-family: var(--jr-sans);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    text-align: left;
+    text-indent: 0;
+    hyphens: none;
+  }
+
+  .content .footnote > *::before {
+    counter-increment: fn-note;
+    content: counter(fn-note);
+    margin-right: 0.35em;
+    font-weight: 600;
+    color: var(--jr-accent);
+  }
+}
+
+/* --- paper ---------------------------------------------------------------
+   The screen rules above are all inside @media screen, so printing (or a
+   Prince/Paged.js run) falls back to the ODD's own paged rules untouched. */
+
+@media print {
+  body.print {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    font-size: 11pt;
+  }
+
+  body.print .content {
+    max-width: none;
+  }
+
+  body.print .journal-meta {
+    border-bottom: 0;
+  }
+}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -876,6 +877,8 @@ def test_init_tei_creates_project(tmp_path: Path) -> None:
     assert not (dest / 'odd' / 'teipublisher.odd').exists()
     assert (dest / 'templates' / 'chapbook.html.j2').is_file()
     assert (dest / 'templates' / 'chapbook.css').is_file()
+    assert (dest / 'templates' / 'journal.html.j2').is_file()
+    assert (dest / 'templates' / 'journal.css').is_file()
     assert (dest / 'templates' / 'book.typ.j2').is_file()
     assert (dest / 'templates' / 'default.docx').is_file()
     # The base rules ship inside the ODD stylesheet, so no copy is scaffolded.
@@ -889,6 +892,8 @@ def test_init_tei_creates_project(tmp_path: Path) -> None:
     assert 'odd/custom.odd' in agents
     assert 'Claude Code' in (dest / 'CLAUDE.md').read_text(encoding='utf-8')
     cfg = load_project_config(dest / 'opm.toml')
+    assert cfg.document_template is not None
+    assert cfg.document_template.name == 'chapbook.html.j2'
     assert cfg.chunking is not None
     assert cfg.chunking.selector == 'opm.navigation.tei_div_chunks'
     assert cfg.transform_odd is not None
@@ -978,6 +983,24 @@ def test_init_jats_copies_stock_odd(tmp_path: Path) -> None:
     assert [f.name for f in cfg.chunking.fragments] == ['title']
 
 
+def test_init_jats_wires_journal_shell(tmp_path: Path) -> None:
+    """A JATS project reads as a journal article, so it gets the journal shell."""
+    from opm.config import load_project_config
+
+    dest = tmp_path / 'jats'
+    assert main(['init', str(dest), '--vocabulary', 'jats']) == 0
+    cfg = load_project_config(dest / 'opm.toml')
+    assert cfg.document_template is not None
+    assert cfg.document_template.name == 'journal.html.j2'
+    assert cfg.chunking is not None
+    assert cfg.chunking.template is not None
+    assert cfg.chunking.template.name == 'journal.html.j2'
+    # The shell only styles what the ODD renders into .content, so the other
+    # shells are still copied alongside it.
+    assert (dest / 'templates' / 'journal.css').is_file()
+    assert (dest / 'templates' / 'chapbook.html.j2').is_file()
+
+
 def test_init_jats_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
     dest = tmp_path / 'jats'
     assert main(['init', str(dest), '--vocabulary', 'jats']) == 0
@@ -987,6 +1010,12 @@ def test_init_jats_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
     text = html.read_text(encoding='utf-8')
     assert '<html' in text.lower()
     assert 'Sample article' in text
+    # The journal shell wraps the article; without a `journal` fragment the
+    # masthead stays out and journal-meta keeps its place in the flow.
+    body_tag = re.search(r'<body[^>]*>', text).group(0)
+    assert 'jr' in body_tag
+    assert 'jr--journal-meta' not in body_tag
+    assert '<header class="jr-masthead">' not in text
     # A pb:template inside a no-namespace ODD must keep the markup it builds.
     assert '<li id="ref1">' in text
     assert main(['transform', 'data/sample.xml', '-t', 'markdown', '-o', str(dest / 'out.md')]) == 0
