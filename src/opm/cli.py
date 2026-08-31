@@ -37,7 +37,14 @@ from opm.config import (
 )
 from opm.odd_cache import ResolvedTransform, resolve_transform_module
 from opm.resources import packaged_default_css, packaged_default_docx
-from opm.scaffold import InitOptions, ScaffoldError, VOCABULARIES, scaffold
+from opm.scaffold import (
+    EXAMPLE_NAMES,
+    EXAMPLES,
+    InitOptions,
+    ScaffoldError,
+    VOCABULARIES,
+    scaffold,
+)
 from opm.runtime.pm_runtime import resolve_context_element
 from opm.transform import (
     load_transform_module,
@@ -70,15 +77,32 @@ def init_cmd(
         typer.Option('--force', help='Overwrite existing generated files.'),
     ] = False,
     vocabulary: Annotated[
-        str,
+        Optional[str],
         typer.Option(
             '--vocabulary',
-            help=f'Source vocabulary: {", ".join(VOCABULARIES)} (default: tei).',
+            help=(
+                f'Empty project for this vocabulary: {", ".join(VOCABULARIES)} '
+                '(default: tei).'
+            ),
         ),
-    ] = 'tei',
-    no_sample: Annotated[
+    ] = None,
+    example: Annotated[
+        Optional[str],
+        typer.Option(
+            '--example',
+            '-e',
+            help=(
+                'Start from a bundled example project instead of an empty one: '
+                f'{", ".join(EXAMPLE_NAMES)}.'
+            ),
+        ),
+    ] = None,
+    list_examples: Annotated[
         bool,
-        typer.Option('--no-sample', help='Do not copy a sample XML document.'),
+        typer.Option(
+            '--list-examples',
+            help='List the bundled example projects and exit.',
+        ),
     ] = False,
     copy_base_odd: Annotated[
         bool,
@@ -92,9 +116,27 @@ def init_cmd(
         typer.Option('--title', help='Edition title used in README (default: directory name).'),
     ] = None,
 ) -> None:
-    """Create a local project (config, templates, ODD) from packaged defaults."""
-    vocab = vocabulary.strip().lower()
-    if copy_base_odd and vocab != 'tei':
+    """Create a local project: an empty one, or a copy of a bundled example."""
+    if list_examples:
+        _print_examples()
+        return
+
+    if vocabulary is not None and example is not None:
+        _die('--vocabulary and --example both choose a starting point; pass one.')
+
+    if vocabulary is None and example is None:
+        vocabulary, example = _choose_start()
+
+    if example is not None:
+        for flag, given in (
+            ('--copy-base-odd', copy_base_odd),
+            ('--title', title is not None),
+        ):
+            if given:
+                _note(f'{flag} does not apply to --example; ignoring it.')
+
+    vocab = (vocabulary or 'tei').strip().lower()
+    if example is None and copy_base_odd and vocab != 'tei':
         _note(f'--copy-base-odd is TEI-only; {vocab} already copies its own ODD.')
     try:
         result = scaffold(
@@ -103,8 +145,8 @@ def init_cmd(
                 force=force,
                 title=title,
                 vocabulary=vocab,
-                copy_base_odd=copy_base_odd and vocab == 'tei',
-                include_sample=not no_sample,
+                example=example,
+                copy_base_odd=copy_base_odd and vocab == 'tei' and example is None,
             )
         )
     except ScaffoldError as e:
@@ -124,11 +166,154 @@ def init_cmd(
             stderr=True,
         )
 
-    sample = 'data/sample.xml' if result.include_sample else 'your.xml'
+    sample = result.sample_path
     typer.echo('')
     typer.echo('Next:')
     typer.echo(f'  opm transform {sample} --preview')
-    typer.echo(f'  opm chunk {sample} --force --preview')
+    if result.example is None:
+        typer.echo(f'  opm chunk {sample} --force --preview')
+    else:
+        # Chunk targets differ per example (serafin chunks a whole directory),
+        # and each README walks through what its project demonstrates.
+        typer.echo('  see README.md for what this project shows')
+
+
+#: How the vocabularies are spelled in the picker.
+_VOCABULARY_LABELS = {'tei': 'TEI', 'docbook': 'DocBook', 'jats': 'JATS'}
+
+
+def _print_examples() -> None:
+    """List the bundled example projects."""
+    from rich.console import Console
+    from rich.table import Table
+
+    table = Table(title='Bundled example projects', title_justify='left', box=None)
+    table.add_column('name', style='bold')
+    table.add_column('project')
+    table.add_column('shows')
+    for example in EXAMPLES:
+        table.add_row(example.name, example.title, example.summary)
+    console = Console()
+    console.print(table)
+    console.print('\nStart from one with: opm init <dir> --example <name>')
+
+
+#: Rows offered by the ``opm init`` picker: (label, summary, (vocabulary, example)).
+def _start_rows() -> list[tuple[str, str, tuple[str | None, str | None]]]:
+    rows: list[tuple[str, str, tuple[str | None, str | None]]] = [
+        (
+            f'Empty project — {_VOCABULARY_LABELS.get(vocab, vocab)}',
+            'stub ODD, templates, sample document',
+            (vocab, None),
+        )
+        for vocab in VOCABULARIES
+    ]
+    rows += [
+        (example.title, example.summary, (None, example.name))
+        for example in EXAMPLES
+    ]
+    return rows
+
+
+def _fit(text: str, room: int) -> str:
+    """Shorten *text* to *room* columns, ending in an ellipsis when cut."""
+    if len(text) <= room:
+        return text
+    return text[: max(1, room - 1)].rstrip() + '…'
+
+
+def _select_from_menu(
+    rows: list[tuple[str, str, tuple[str | None, str | None]]],
+) -> tuple[str | None, str | None] | None:
+    """Arrow-key menu. Returns ``None`` when this terminal cannot host one."""
+    try:
+        import questionary
+        from questionary import Choice, Style
+    except ImportError:
+        # Editable installs whose dependencies were resolved before questionary
+        # was added still have to reach the numbered prompt, not a traceback.
+        return None
+
+    # Labels padded to a common width so the dim summaries line up. A menu row
+    # cannot wrap — prompt_toolkit clips it at the edge — so the summary is
+    # truncated to what is left, and dropped when that is not worth reading.
+    width = max(len(label) for label, _, _ in rows)
+    room = shutil.get_terminal_size((80, 24)).columns - width - 6
+    choices = [
+        Choice(
+            title=(
+                [('class:label', label.ljust(width)), ('class:summary', f'  {_fit(summary, room)}')]
+                if room >= 20
+                else [('class:label', label)]
+            ),
+            value=value,
+        )
+        for label, summary, value in rows
+    ]
+    try:
+        return questionary.select(
+            'Start from:',
+            choices=choices,
+            qmark='',
+            pointer='▸',
+            instruction='(↑/↓, Enter)',
+            style=Style([
+                ('question', 'bold'),
+                ('pointer', 'fg:cyan bold'),
+                ('highlighted', 'fg:cyan bold'),
+                ('selected', 'fg:cyan'),
+                ('answer', 'fg:green bold'),
+                ('label', ''),
+                ('summary', 'fg:#8a8a8a'),
+            ]),
+        ).unsafe_ask()
+    except KeyboardInterrupt:
+        _die('cancelled.')
+    except Exception:
+        # prompt_toolkit needs a full-screen capable terminal; a dumb TERM or an
+        # emulated console raises rather than degrading. Fall back to numbers.
+        return None
+
+
+def _choose_start() -> tuple[str | None, str | None]:
+    """Ask what to start from, returning ``(vocabulary, example)``.
+
+    Only prompts on a terminal: a piped or scripted ``opm init`` keeps its old
+    behaviour and gets an empty TEI project.
+    """
+    if not sys.stdin.isatty():
+        return None, None
+
+    rows = _start_rows()
+    picked = _select_from_menu(rows)
+    if picked is not None:
+        return picked
+
+    from rich.console import Console
+    from rich.prompt import Prompt
+    from rich.table import Table
+
+    table = Table(box=None, padding=(0, 2, 0, 0), show_header=False)
+    table.add_column('', style='bold')
+    table.add_column('')
+    table.add_column('', style='dim')
+    for number, (label, summary, _) in enumerate(rows, 1):
+        table.add_row(str(number), label, summary)
+
+    console = Console()
+    console.print('Start from:')
+    console.print(table)
+    try:
+        answer = Prompt.ask(
+            'Choice',
+            choices=[str(i) for i in range(1, len(rows) + 1)],
+            default='1',
+            show_choices=False,
+            console=console,
+        )
+    except EOFError:
+        _die('cancelled.')
+    return rows[int(answer) - 1][2]
 
 
 def _stderr_message(prefix: str, style: str, message: str) -> None:

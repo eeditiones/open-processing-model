@@ -23,14 +23,14 @@ opm [OPTIONS] COMMAND [ARGS]...
 
 **Commands:**
 
-- [`init`](#opm-init): Create a local project (config, templates,...
+- [`init`](#opm-init): Create a local project: an empty one, or a...
 - [`transform`](#opm-transform): Transform an XML document via an ODD with...
 - [`chunk`](#opm-chunk): Chunk a large XML document into smaller...
 - [`serve`](#opm-serve): Start a local HTTP server rooted at the...
 
 ### `opm init`
 
-Create a local project (config, templates, ODD) from packaged defaults.
+Create a local project: an empty one, or a copy of a bundled example.
 
 **Usage:**
 
@@ -50,8 +50,9 @@ opm init [OPTIONS] [DIRECTORY]
 | Option | Description |
 | --- | --- |
 | `--force` | Overwrite existing generated files. |
-| `--vocabulary TEXT` | Source vocabulary: tei, docbook, jats (default: tei). |
-| `--no-sample` | Do not copy a sample XML document. |
+| `--vocabulary TEXT` | Empty project for this vocabulary: tei, docbook, jats (default: tei). |
+| `--example, -e TEXT` | Start from a bundled example project instead of an empty one: jats, docbook, serafin, shakespeare. |
+| `--list-examples` | List the bundled example projects and exit. |
 | `--copy-base-odd` | TEI only: also copy packaged teipublisher.odd and tp.css into odd/. |
 | `--title TEXT` | Edition title used in README (default: directory name). |
 | `--help` | Show this message and exit. |

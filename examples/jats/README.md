@@ -11,12 +11,14 @@ It shows what a journal article needs beyond the packaged `jats.odd`:
 front-matter apparatus (affiliations, ORCID, DOI, licence), a static table of
 contents, and a chunked reading surface.
 
+<!-- opm:repo-only -->
 From a clone, `uv run` finds the repo project even from this directory.
 `opm` then loads this `opm.toml` automatically.
 
 ```bash
 cd examples/jats
 ```
+<!-- /opm:repo-only -->
 
 ## Transform
 

@@ -9,12 +9,14 @@ breaks, catchwords, signatures and running heads left in the markup.
 (`schemaSpec/@source="teipublisher.odd"`) and overrides what a play needs:
 speeches, stage directions, decorated capitals, and `pb`.
 
+<!-- opm:repo-only -->
 From a clone, `uv run` finds the repo project even from this directory. `opm`
 then loads this `opm.toml` automatically.
 
 ```bash
 cd examples/shakespeare
 ```
+<!-- /opm:repo-only -->
 
 ## Transform
 

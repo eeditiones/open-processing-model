@@ -15,8 +15,11 @@ opm init
 `opm init` writes `opm.toml`, templates, a stub ODD, agent guidance
 (`AGENTS.md`, `CLAUDE.md`), and a sample document into the current directory
 (or a path you pass). Existing `AGENTS.md` / `CLAUDE.md` files are never
-overwritten. Use `--vocabulary docbook` for a DocBook project. See the
-[Quickstart](quickstart.md).
+overwritten. Use `--vocabulary docbook` for a DocBook project.
+
+On a terminal it first asks what to start from — an empty project, or a copy of
+one of the worked examples that ship with the package (`opm init --list-examples`,
+then `opm init --example jats`). See the [Quickstart](quickstart.md).
 
 A one-off transform needs no project files: `opm transform my.xml --preview`
 uses the packaged stock ODD, HTML/Typst templates, CSS, and Word style template.

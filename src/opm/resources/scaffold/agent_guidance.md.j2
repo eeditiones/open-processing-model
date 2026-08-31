@@ -10,19 +10,11 @@ XML ({{ vocabulary|upper }}) is transformed via ODD processing models configured
 ## Commands
 
 ```bash
-{% if include_sample -%}
-opm transform data/sample.xml --preview
-opm transform data/sample.xml -t markdown --preview
-opm transform data/sample.xml -t typst -o output.typ
-opm transform data/sample.xml -t docx -o output.docx
-opm chunk data/sample.xml --force --preview
-{% else -%}
-opm transform your.xml --preview
-opm transform your.xml -t markdown --preview
-opm transform your.xml -t typst -o output.typ
-opm transform your.xml -t docx -o output.docx
-opm chunk your.xml --force --preview
-{% endif -%}
+opm transform {{ sample }} --preview
+opm transform {{ sample }} -t markdown --preview
+opm transform {{ sample }} -t typst -o output.typ
+opm transform {{ sample }} -t docx -o output.docx
+opm chunk {{ sample }} --force --preview
 opm serve
 ```
 
@@ -38,9 +30,7 @@ Defaults (ODD path, templates, chunking) come from `opm.toml`; CLI flags overrid
 | `templates/` | HTML / Typst / DOCX shells |
 | `styles/` | Shared CSS |
 | `extensions/` | Project-local Python XPath extensions (`[project] pythonpath`) |
-{% if include_sample -%}
-| `data/sample.xml` | Sample source document |
-{% endif -%}
+| `{{ sample }}` | Source document |
 
 ## Customizing output
 

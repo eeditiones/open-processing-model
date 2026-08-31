@@ -3,18 +3,22 @@
 A worked `opm` project for handbook-style DocBook, matching the TEI Publisher
 documentation setup: section chunking, global TOC, title and browse fragments,
 and per-chunk breadcrumbs. This is the config
-[Integration with TEI Publisher](../../docs/guide/tei-publisher.md) refers to.
+[Integration with TEI Publisher][tp-guide] refers to.
 
-Two articles ship here (Gentle Introduction and Installing). The rest of the
+[tp-guide]: https://github.com/eeditiones/tei-publisher-py/blob/main/docs/guide/tei-publisher.md
+
+Only one article ships here (Gentle Introduction). The rest of the
 corpus lives in the Jinks docs profile (`../jinks/profiles/docs/data/doc`).
 Screenshots referenced from those files are not included.
 
+<!-- opm:repo-only -->
 From a clone, `uv run` finds the repo project even from this directory.
 `opm` then loads this `opm.toml` automatically.
 
 ```bash
 cd examples/docbook
 ```
+<!-- /opm:repo-only -->
 
 ## Transform
 

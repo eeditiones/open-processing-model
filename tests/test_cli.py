@@ -1060,6 +1060,128 @@ def test_init_jats_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
     assert 'href="004.html#ref1"' in chunks[2].read_text(encoding='utf-8')
 
 
+def test_init_from_example_copies_project(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    dest = tmp_path / 'article'
+    assert main(['init', str(dest), '--example', 'jats']) == 0
+    assert (dest / 'opm.toml').is_file()
+    assert (dest / 'odd' / 'jats.odd').is_file()
+    assert (dest / 'templates' / 'journal.html.j2').is_file()
+    assert (dest / 'data' / 'article' / 'hertziana-digital-editions.xml').is_file()
+    # Furniture the example tree does not carry itself.
+    assert (dest / '.gitignore').is_file()
+    assert (dest / 'AGENTS.md').is_file()
+    assert (dest / 'CLAUDE.md').is_file()
+    # Generated output is never copied into a new project.
+    assert not (dest / 'chunks').exists()
+    cfg = load_project_config(dest / 'opm.toml')
+    assert cfg.transform_odd is not None
+    assert cfg.transform_odd.name == 'jats.odd'
+
+
+def test_init_from_example_strips_repo_only_readme(tmp_path: Path) -> None:
+    dest = tmp_path / 'article'
+    assert main(['init', str(dest), '--example', 'jats']) == 0
+    readme = (dest / 'README.md').read_text(encoding='utf-8')
+    # The passage about running the example from a clone has no place here.
+    assert 'cd examples/' not in readme
+    assert 'opm:repo-only' not in readme
+    # …but the rest of the example's own documentation survives.
+    assert '# JATS journal article' in readme
+    assert 'What this project adds to the packaged ODD' in readme
+
+
+def test_init_unknown_example_lists_choices(tmp_path: Path, capsys) -> None:
+    rc = main(['init', str(tmp_path / 'x'), '--example', 'nonesuch'])
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert 'nonesuch' in err
+    assert 'jats' in err
+    assert not (tmp_path / 'x' / 'opm.toml').exists()
+
+
+def test_init_example_and_vocabulary_conflict(tmp_path: Path, capsys) -> None:
+    rc = main(['init', str(tmp_path / 'x'), '--example', 'jats', '--vocabulary', 'tei'])
+    assert rc == 1
+    assert 'one' in capsys.readouterr().err
+    assert not (tmp_path / 'x' / 'opm.toml').exists()
+
+
+def test_init_example_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
+    """A copied example runs on its own, with no repo around it."""
+    from opm.scaffold import find_example
+
+    dest = tmp_path / 'article'
+    assert main(['init', str(dest), '--example', 'jats']) == 0
+    monkeypatch.chdir(dest)
+    sample = find_example('jats').sample
+    assert (dest / sample).is_file()
+    html = dest / 'out.html'
+    assert main(['transform', sample, '-o', str(html)]) == 0
+    assert 'Digital Editions at Bibliotheca Hertziana' in html.read_text(encoding='utf-8')
+    assert main(['chunk', sample, '--force']) == 0
+    assert (dest / 'chunks' / 'manifest.json').is_file()
+
+
+def test_example_catalogue_matches_shipped_directories() -> None:
+    """The picker's catalogue and the bundled trees must not drift apart."""
+    from opm.resources import example_dir, example_names
+    from opm.scaffold import EXAMPLE_NAMES, EXAMPLES
+
+    assert sorted(EXAMPLE_NAMES) == example_names()
+    for example in EXAMPLES:
+        root = example_dir(example.name)
+        assert (root / 'opm.toml').is_file()
+        # The "Next:" hint has to name a document that is actually there.
+        assert (root / example.sample).is_file()
+
+
+def test_examples_are_packaged_by_the_build_hook() -> None:
+    """Every tracked example file must reach the wheel (see hatch_build.py)."""
+    import subprocess
+    import tomllib
+
+    pytest.importorskip('hatchling', reason='build backend not installed')
+    repo = Path(__file__).resolve().parents[1]
+    pyproject = tomllib.loads((repo / 'pyproject.toml').read_text(encoding='utf-8'))
+    hooks = pyproject['tool']['hatch']['build']['targets']['wheel']['hooks']
+    assert hooks['custom']['path'] == 'hatch_build.py'
+
+    try:
+        tracked = subprocess.run(
+            ['git', 'ls-files', 'examples'],
+            cwd=repo, capture_output=True, text=True, check=True,
+        ).stdout.split()
+    except (OSError, subprocess.CalledProcessError):
+        pytest.skip('git not available')
+
+    from hatch_build import ExamplesBuildHook
+
+    build_data: dict = {}
+    ExamplesBuildHook(str(repo), {}, {}, None, '', '').initialize('standard', build_data)
+    included = set(build_data['force_include'])
+    missing = [p for p in tracked if str(repo / p) not in included]
+    assert not missing, f'not packaged: {missing}'
+    assert not [p for p in included if '/chunks/' in p]
+
+
+def test_init_picker_only_prompts_on_a_terminal(tmp_path: Path, monkeypatch) -> None:
+    from opm import cli
+
+    # Piped/scripted runs keep the old behaviour: an empty TEI project.
+    monkeypatch.setattr('sys.stdin.isatty', lambda: False)
+    assert main(['init', str(tmp_path / 'piped')]) == 0
+    assert (tmp_path / 'piped' / 'odd' / 'custom.odd').is_file()
+
+    # On a terminal, the answer selects the row.
+    monkeypatch.setattr('sys.stdin.isatty', lambda: True)
+    monkeypatch.setattr(cli, '_choose_start', lambda: (None, 'jats'))
+    assert main(['init', str(tmp_path / 'picked')]) == 0
+    assert (tmp_path / 'picked' / 'templates' / 'journal.html.j2').is_file()
+    assert (tmp_path / 'picked' / 'data' / 'article').is_dir()
+
+
 def test_init_copy_base_odd_tei(tmp_path: Path) -> None:
     dest = tmp_path / 'with-base'
     rc = main(['init', str(dest), '--copy-base-odd'])

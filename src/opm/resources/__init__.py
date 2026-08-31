@@ -70,6 +70,44 @@ def packaged_odd(name: str = 'teipublisher') -> Path:
     return path
 
 
+def examples_root() -> Path | None:
+    """Return the directory holding the bundled example projects, if any.
+
+    Installed wheels carry them as package data (see ``hatch_build.py``). An
+    editable install has no such copy, so fall back to the ``examples/`` tree of
+    the source checkout — which is also the one a contributor edits.
+    """
+    packaged = _packaged_root().joinpath('examples')
+    try:
+        with resources.as_file(packaged) as path:
+            if path.is_dir():
+                return Path(path)
+    except (FileNotFoundError, TypeError, OSError):
+        pass
+    # src/opm/resources/__init__.py → src/opm/resources → src/opm → src → repo
+    source_tree = Path(__file__).resolve().parents[3] / 'examples'
+    return source_tree if source_tree.is_dir() else None
+
+
+def example_names() -> list[str]:
+    """Return the names of the bundled example projects, sorted."""
+    root = examples_root()
+    if root is None:
+        return []
+    return sorted(p.name for p in root.iterdir() if p.is_dir() and not p.name.startswith('.'))
+
+
+def example_dir(name: str) -> Path:
+    """Return a filesystem path to one bundled example project."""
+    root = examples_root()
+    path = root / name if root is not None else None
+    if path is None or not path.is_dir():
+        raise FileNotFoundError(
+            f'Example project {name!r} not found. Available: {example_names()}',
+        )
+    return path
+
+
 def packaged_default_css() -> Path | None:
     """Return the packaged ``default-styles.css``, or ``None`` if absent."""
     return _mirror_packaged_file(('styles', 'default-styles.css'))

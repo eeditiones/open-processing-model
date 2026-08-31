@@ -8,12 +8,14 @@ The tree is self-contained. `odd/serafin.odd` inherits the packaged
 the full registers ship here; the rest of the corpus lives in the TEI Publisher
 jinks profile.
 
+<!-- opm:repo-only -->
 From a clone, `uv run` finds the repo project even from this directory.
 `opm` then loads this `opm.toml` automatically.
 
 ```bash
 cd examples/serafin
 ```
+<!-- /opm:repo-only -->
 
 ## Transform
 

@@ -8,15 +8,38 @@ need the `opm` CLI.
 
 ```bash
 opm init
-# or: opm init --vocabulary docbook
-# or: opm init --vocabulary jats
 ```
 
-That writes `opm.toml`, templates, CSS, an ODD, `AGENTS.md` / `CLAUDE.md`
-(agent guidance; existing copies are left untouched), and `data/sample.xml`
-(skip the sample with `--no-sample`). TEI is the default: `odd/custom.odd`
-inherits the packaged `teipublisher` model. DocBook and JATS copy
-`odd/docbook.odd` / `odd/jats.odd` into the project.
+In a terminal that asks what to start from: an empty project for one of the
+vocabularies, or a copy of one of the worked example projects. Both are also
+reachable directly, which is what a script or a CI job wants:
+
+```bash
+opm init --vocabulary docbook     # empty project, no prompt
+opm init --example jats           # copy of the JATS journal-article project
+opm init --list-examples          # what is on offer
+```
+
+A run that is not attached to a terminal never prompts: it writes the empty TEI
+project, as before.
+
+An **empty project** writes `opm.toml`, templates, CSS, an ODD, `AGENTS.md` /
+`CLAUDE.md` (agent guidance; existing copies are left untouched), and
+`data/sample.xml`. TEI is the default: `odd/custom.odd` inherits the packaged
+`teipublisher` model. DocBook and JATS copy `odd/docbook.odd` / `odd/jats.odd`
+into the project.
+
+An **example** is a complete project — ODD, templates, config and real source
+documents — copied out of the package, with its own `README.md` describing what
+it demonstrates. `.gitignore` and agent guidance are added; the generated
+`chunks/` output is not copied.
+
+| `--example` | Project |
+| --- | --- |
+| `jats` | Journal article: masthead, TOC rail, margin notes in print |
+| `docbook` | Software handbook: section chunking, global TOC, breadcrumbs, print and EPUB |
+| `serafin` | Correspondence: transcription and translation, with person/place registers |
+| `shakespeare` | Shakespeare play: chunked by page rather than division, with IIIF facsimiles |
 
 ## 2. Transform a document
 

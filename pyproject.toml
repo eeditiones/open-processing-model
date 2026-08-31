@@ -17,12 +17,15 @@ dependencies = [
     "babel",
     "python-docx>=1.1",
     "platformdirs>=4.10.0",
+    "questionary>=2.1.1",
 ]
 
 [dependency-groups]
 dev = [
     "pyinstrument>=5.1.2",
     "pytest>=8.0",
+    # Build backend, needed here so tests can exercise hatch_build.py directly.
+    "hatchling",
 ]
 docs = [
     "zensical>=0.0.38",
@@ -35,3 +38,8 @@ opm = "opm.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/opm"]
+
+# Ships examples/ as opm/resources/examples for `opm init --example`; see the
+# module docstring for why a plain force-include map will not do.
+[tool.hatch.build.targets.wheel.hooks.custom]
+path = "hatch_build.py"

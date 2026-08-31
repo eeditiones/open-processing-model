@@ -17,8 +17,9 @@ Python ≥ 3.12. Install the package, then scaffold a project:
 pip install open-processing-model
 # or: uv add open-processing-model
 
-opm init                          # TEI project in the current directory
-# opm init --vocabulary docbook   # DocBook instead
+opm init                          # asks: empty project, or one of the examples
+# opm init --vocabulary docbook   # empty DocBook project, no prompt
+# opm init --example jats         # copy of a worked example project
 
 opm transform data/sample.xml --preview
 opm chunk data/sample.xml --force
@@ -27,7 +28,8 @@ opm serve
 
 A one-off transform needs no project files (`opm transform my.xml --preview`
 uses the packaged stock ODD and templates). `opm init` writes editable
-`opm.toml`, templates, CSS, and an ODD.
+`opm.toml`, templates, CSS, and an ODD — or, with `--example`, copies one of the
+worked projects under [`examples/`](examples) (`--list-examples` shows them).
 
 ## Development
 
@@ -44,7 +46,26 @@ uv run opm serve -d chunks/
 # Worked projects (run from the example directory):
 cd examples/serafin && uv run opm chunk data/letters/serafin01.xml --force --preview
 cd examples/docbook && uv run opm chunk data/doc/quickstart.xml --force --preview
+cd examples/jats && uv run opm chunk data/article/hertziana-digital-editions.xml --force --preview
 ```
+
+### `opm` without `uv run`
+
+To get `opm` on your `PATH` while still running the working tree, install the
+clone as an editable tool:
+
+```bash
+uv tool install --editable . --force
+```
+
+Code changes are picked up straight away — the tool venv links to `src/`, so
+there is nothing to re-sync after an edit. **Dependency changes are not**: when
+`[project] dependencies` in `pyproject.toml` gains an entry, run the same
+command again, or the installed `opm` keeps the dependency set it was resolved
+with and fails on the new import.
+
+Note that `.venv/bin/opm` shadows the tool whenever the project venv is on
+`PATH`; `which -a opm` shows which one you are about to run.
 
 ## Tests
 
