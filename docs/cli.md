@@ -26,6 +26,7 @@ opm [OPTIONS] COMMAND [ARGS]...
 - [`init`](#opm-init): Create a local project: an empty one, or a...
 - [`transform`](#opm-transform): Transform an XML document via an ODD with...
 - [`chunk`](#opm-chunk): Chunk a large XML document into smaller...
+- [`index`](#opm-index): Emit embedding-ready JSONL records for a...
 - [`serve`](#opm-serve): Start a local HTTP server rooted at the...
 
 ### `opm init`
@@ -80,6 +81,7 @@ opm transform [OPTIONS] [INPUT_XML]
 | --- | --- |
 | `--odd, -d PATH` | ODD file to compile on demand into the user cache. Overrides transform.<type>.odd in config. |
 | `--type, -t TYPE` | Transform type / ODD output channel (web, docx, typst, markdown, …). Selects transform.<type>.odd from config when --odd is omitted; also sets the compile mode for --odd. |
+| `--channel CHANNEL` | With -t json only: which ODD output channel to record decisions for (web, print, epub, markdown, docx, typst). Default: web. |
 | `--output, -o PATH` | Write transform output to this file (default: stdout unless --preview) |
 | `--preview, -v` | Preview output: channel web/print → browser, markdown → Rich (paged in a TTY so bold/italic survive), docx/epub → the platform default application; other channels (e.g. typst) → plain text in the terminal. |
 | `--param, -p KEY=VALUE` | Runtime parameter for XPath $parameters (repeatable), e.g. -p mode=toc -p display=browse |
@@ -123,6 +125,39 @@ opm chunk [OPTIONS] [INPUT_XML]
 | `--doc-path TEXT` | For --format pb-view: document path subdirectory. Data is written to <output-dir>/<doc-path>/ and must match the pb-document @path; CSS stays shared at <output-dir>/css/. Falls back to chunking.doc_path in config. |
 | `--preview, -v` | After chunking, start a local HTTP server rooted at the output directory and open the first page in a browser (HTML output only). |
 | `--port, -p INTEGER` | Port for --preview (default: 8080). |
+| `--config, -c PATH` | Path to a TOML configuration file (default: opm.toml in the current directory). |
+| `--help` | Show this message and exit. |
+
+### `opm index`
+
+Emit embedding-ready JSONL records for a search index or vector store.
+
+Records come from the processing model, not the raw source, so the ODD's
+editorial decisions carry into the index: omitted apparatus stays out, and
+``alternate`` contributes the reading the page displays.
+
+**Usage:**
+
+```text
+opm index [OPTIONS] [INPUT_XML]
+```
+
+**Arguments:**
+
+| Argument | Description |
+| --- | --- |
+| `INPUT_XML` | XML file to index, or a directory of XML files. |
+
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--odd, -d PATH` | ODD file to compile on demand (overrides transform.json.odd in config). |
+| `--output, -o PATH` | JSONL file to write (default: stdout). |
+| `--max-chars INTEGER` | Split a section longer than this at record boundaries. Falls back to index.max_chars in opm.toml (default: 1500). |
+| `--min-chars INTEGER` | Drop units shorter than this — bare headings are retrieval noise. Falls back to index.min_chars in opm.toml (default: 40). |
+| `--overlap INTEGER` | Records of context carried into the next part when a unit splits. Falls back to index.overlap in opm.toml (default: 1). |
 | `--config, -c PATH` | Path to a TOML configuration file (default: opm.toml in the current directory). |
 | `--help` | Show this message and exit. |
 

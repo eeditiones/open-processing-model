@@ -23,7 +23,7 @@ DEFAULT_VERSION = '3.6.7'
 CONFIG_FILENAME = 'opm.toml'
 
 # Output types that may declare ``[transform.<type>]`` (odd + optional template).
-TRANSFORM_TYPE_SECTIONS = ('web', 'docx', 'typst', 'markdown', 'print', 'epub')
+TRANSFORM_TYPE_SECTIONS = ('web', 'docx', 'typst', 'markdown', 'print', 'epub', 'json')
 
 
 def _section_table(value: Any) -> dict[str, Any]:
@@ -251,6 +251,12 @@ class ProjectConfig:
     parameters: dict[str, str] = field(default_factory=dict)
     """User parameters bound to XPath ``$parameters`` (from ``[transform.parameters]``)."""
     chunking: ChunkingConfig | None = None
+    index_max_chars: int = 1500
+    """``[index] max_chars`` — split a section longer than this for ``opm index``."""
+    index_min_chars: int = 40
+    """``[index] min_chars`` — drop units shorter than this; bare headings are noise."""
+    index_overlap: int = 1
+    """``[index] overlap`` — records of context carried into the next part on a split."""
     pythonpath: tuple[Path, ...] = ()
     transform_odd: Path | None = None
     """Default transform ODD from ``[transform].odd`` or ``[transform.web].odd``."""
@@ -329,6 +335,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     doc = _section_table(data.get('document'))
     transform = _section_table(data.get('transform'))
     chunking_data = _section_table(data.get('chunking'))
+    index_data = _section_table(data.get('index'))
     project_data = _section_table(data.get('project'))
 
     # Per-type tables: prefer [transform.<type>], accept legacy top-level [<type>].
@@ -581,6 +588,9 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         xpath_namespaces=xpath_namespaces,
         parameters=parameters,
         chunking=chunking,
+        index_max_chars=int(index_data.get('max_chars', 1500)),
+        index_min_chars=int(index_data.get('min_chars', 40)),
+        index_overlap=int(index_data.get('overlap', 1)),
         pythonpath=pythonpath,
         transform_odd=transform_odd,
         transform_odds=transform_odds,

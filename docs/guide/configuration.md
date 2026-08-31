@@ -87,12 +87,14 @@ assets = ["templates/edition.css", "templates/parchment.jpg"]
 | `[transform.epub]` | Optional EPUB `odd`, `css` and `skip_title` | [Output formats](output-formats.md#epub) |
 | `[transform.docx]` | Optional DOCX `odd` override and Word style `template` | [Output formats](output-formats.md#docx) |
 | `[transform.typst]` | Optional Typst `odd` override and Typst `template` | [Output formats](output-formats.md#typst) |
+| `[transform.json]` | Optional `odd` override for the JSON data output | [Output formats](output-formats.md#json) |
 | `[transform.markdown]`, … | Other optional per-type `odd` (and `template`) overrides | [Output formats](output-formats.md) |
 | `[transform.web.webcomponents]` | Web-only `enabled` flag and `cdn` URL for pb-components | [Templates & CSS](templates-and-css.md#web-components) |
 | `[context]` | Free-form values exposed to every template as `context` | [Templates & CSS](templates-and-css.md#template-context) |
 | `[transform.<type>.context]` | Per-output-type overlay on `[context]` | [Templates & CSS](templates-and-css.md#template-context) |
 | `[document]` | HTML `template` and `css` | [Templates & CSS](templates-and-css.md) |
 | `[chunking]` | Splitting rules, output, templates, fragments | [Chunking](chunking.md) |
+| `[index]` | `max_chars`, `min_chars`, `overlap` for `opm index` | [Search indexing](search-indexing.md) |
 
 Loaded programmatically, these map to
 [`ProjectConfig`](../api/config.md) and

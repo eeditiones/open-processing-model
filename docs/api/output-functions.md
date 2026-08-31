@@ -3,7 +3,7 @@
 `ProcessingModelFunctions` is the abstract base every output format implements.
 The generated transform module calls its methods (`paragraph`, `heading`,
 `block`, `inline`, …) to emit output. Subclass it to add a new output format; see
-the concrete implementations for HTML, Print, EPUB, Markdown, Typst, and DOCX.
+the concrete implementations for HTML, Print, EPUB, Markdown, Typst, DOCX and JSON.
 
 ## Base class and helpers
 
@@ -35,3 +35,11 @@ not in the PMF.
 ## DOCX
 
 ::: opm.runtime.docx_output_functions.DocxOutputFunctions
+
+## JSON
+
+Records the processing model's own decisions rather than rendering the document.
+It is the only implementation that overrides `unmatched`, which the generated
+dispatch calls for elements no model matched.
+
+::: opm.runtime.json_output_functions.JsonOutputFunctions

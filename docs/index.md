@@ -6,8 +6,8 @@
 # Open Processing Model
 
 **Open Processing Model** (`opm`) is an implementation of the [TEI Processing Model](https://tei-c.org/release/doc/tei-p5-doc/en/html/TD.html#TDPM) 
-in Python. It provides a Python command-line client and library for transforming
-XML documents — TEI, DocBook, and others — into (currently) HTML, Markdown, DOCX, [Typst](https://typst.app/), HTML for print and ePub. The transformation rules are not hard-coded: they are declared in an **TEI ODD** document, which `opm` compiles into a reusable Python module.
+in Python. It provides a command-line client and library for transforming
+XML documents — TEI, DocBook, and others — into (currently) HTML, Markdown, DOCX, [Typst](https://typst.app/), HTML for print and ePub. Instead of being hard-coded in XSLT or XQuery, transformation rules are declared in an **TEI ODD** document, which `opm` compiles into a reusable Python module.
 
 `opm` is pure Python with minimal dependencies and implements the full _TEI Processing Model_. Most ODDs will be compatible and can be exchanged between _TEI Publisher_ and `opm`, allowing users to combine the benefits of a dynamic, database-backed website with the speed of static rendering.
 

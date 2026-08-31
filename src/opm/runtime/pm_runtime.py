@@ -678,6 +678,10 @@ def append_to(parent_el: etree._Element | list, item) -> None:
     if isinstance(parent_el, list):
         if isinstance(item, str):
             parent_el.append(item)
+        elif isinstance(item, dict):
+            # JSON output records; every other mode produces str / Element only,
+            # so without this arm they would be dropped here without a trace.
+            parent_el.append(item)
         elif isinstance(item, etree._Element):
             result = etree.tostring(item, encoding='utf-8', method='html')
             if isinstance(result, bytes):

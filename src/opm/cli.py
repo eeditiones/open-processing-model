@@ -1,4 +1,4 @@
-"""Unified CLI: ``opm init``, ``opm transform``, ``opm chunk``, and ``opm serve``.
+"""Unified CLI: ``opm init``, ``opm transform``, ``opm chunk``, ``opm index``, and ``opm serve``.
 
 ODDs are compiled on demand into the user cache (``platformdirs``); there is no
 separate ``compile`` command.
@@ -408,6 +408,8 @@ def _preview_kind_from_module(mod) -> str:
         return 'epub'
     if primary == 'typst':
         return 'typst'
+    if primary == 'json' or primary.startswith('json-'):
+        return 'json'
     return 'text'
 
 
@@ -485,6 +487,19 @@ def _preview_plain_terminal(text: str) -> None:
     Console().print(text, markup=False, highlight=False, soft_wrap=True)
 
 
+def _preview_json_terminal(text: str) -> None:
+    """Print JSON output with syntax highlighting."""
+    from rich.console import Console
+    from rich.json import JSON
+
+    console = Console()
+    try:
+        console.print(JSON(text))
+    except ValueError:
+        # Malformed JSON is worth seeing verbatim rather than swallowing.
+        _preview_plain_terminal(text)
+
+
 def _parameters_from_cli(param_list: list[str] | None) -> dict[str, str]:
     """Parse ``KEY=VALUE`` strings into a parameters dict (XPath ``$parameters``)."""
     if not param_list:
@@ -515,6 +530,27 @@ def _report_resolved_module(resolved: ResolvedTransform) -> None:
         else Text.assemble('Cached module: ', module)
     )
     Console(stderr=True).print(line, soft_wrap=True, highlight=False)
+
+
+def _apply_json_channel(transform_type: str | None, channel: str | None) -> str | None:
+    """Fold ``--channel`` into the compile mode, giving ``json-<channel>``.
+
+    JSON output records what some other channel decided, so which channel it
+    inspects is part of the compile: the models that participate, and therefore
+    the cached module, differ per channel.
+    """
+    from opm.odd_compiler.codegen import RENDER_MODES, is_json_mode
+
+    if channel is None:
+        return transform_type
+    if not is_json_mode(transform_type or ''):
+        _die('--channel applies to -t json only.')
+    picked = channel.strip().lower()
+    if picked not in RENDER_MODES:
+        _die(
+            f'--channel must be one of {", ".join(RENDER_MODES)}, got {channel!r}.',
+        )
+    return f'json-{picked}'
 
 
 def _resolve_cli_transform(
@@ -672,6 +708,17 @@ def transform_cmd(
             ),
         ),
     ] = None,
+    channel: Annotated[
+        Optional[str],
+        typer.Option(
+            '--channel',
+            metavar='CHANNEL',
+            help=(
+                'With -t json only: which ODD output channel to record decisions '
+                'for (web, print, epub, markdown, docx, typst). Default: web.'
+            ),
+        ),
+    ] = None,
     output: Annotated[
         Optional[Path],
         typer.Option(
@@ -778,10 +825,11 @@ def transform_cmd(
         # NB: cwd is the root only for the bare styles/default-styles.css
         # fallback; a configured path is already absolute by this point.
         effective_css = css if css is not None else cfg.document_css
+        effective_type = _apply_json_channel(transform_type, channel)
         resolved = _resolve_cli_transform(
             cfg=cfg,
             odd=odd,
-            transform_type=transform_type,
+            transform_type=effective_type,
             base_css=resolve_base_css(effective_css, Path.cwd()),
         )
         _report_resolved_module(resolved)
@@ -900,6 +948,8 @@ def transform_cmd(
                     _preview_html_in_browser(out)
                 elif kind == 'markdown':
                     _preview_markdown_terminal(out)
+                elif kind == 'json':
+                    _preview_json_terminal(out)
                 elif kind == 'typst':
                     _preview_plain_terminal(out)
                 else:
@@ -1300,6 +1350,122 @@ def _serve_directory(root: Path, port: int, *, open_browser: bool = False) -> No
             httpd.serve_forever()
         except KeyboardInterrupt:
             pass
+
+
+@app.command('index')
+def index_cmd(
+    input_xml: Annotated[
+        Optional[Path],
+        typer.Argument(
+            help='XML file to index, or a directory of XML files.',
+        ),
+    ] = None,
+    odd: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--odd',
+            '-d',
+            help='ODD file to compile on demand (overrides transform.json.odd in config).',
+        ),
+    ] = None,
+    output: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--output',
+            '-o',
+            help='JSONL file to write (default: stdout).',
+        ),
+    ] = None,
+    max_chars: Annotated[
+        Optional[int],
+        typer.Option(
+            '--max-chars',
+            help=(
+                'Split a section longer than this at record boundaries. '
+                'Falls back to index.max_chars in opm.toml (default: 1500).'
+            ),
+        ),
+    ] = None,
+    min_chars: Annotated[
+        Optional[int],
+        typer.Option(
+            '--min-chars',
+            help=(
+                'Drop units shorter than this — bare headings are retrieval noise. '
+                'Falls back to index.min_chars in opm.toml (default: 40).'
+            ),
+        ),
+    ] = None,
+    overlap: Annotated[
+        Optional[int],
+        typer.Option(
+            '--overlap',
+            help=(
+                'Records of context carried into the next part when a unit splits. '
+                'Falls back to index.overlap in opm.toml (default: 1).'
+            ),
+        ),
+    ] = None,
+    config: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--config',
+            '-c',
+            help='Path to a TOML configuration file (default: opm.toml in the current directory).',
+        ),
+    ] = None,
+) -> None:
+    """Emit embedding-ready JSONL records for a search index or vector store.
+
+    Records come from the processing model, not the raw source, so the ODD's
+    editorial decisions carry into the index: omitted apparatus stays out, and
+    ``alternate`` contributes the reading the page displays.
+    """
+    import json
+
+    from opm.indexing import IndexOptions, index_document, write_jsonl
+
+    try:
+        cfg = load_project_config(config)
+        for p in cfg.pythonpath:
+            entry = str(p.resolve())
+            if entry not in sys.path:
+                sys.path.insert(0, entry)
+
+        if input_xml is None:
+            _die('input XML file is required.')
+
+        input_files = _chunk_input_files(input_xml)
+        if input_xml.is_dir() and not input_files:
+            _die(f'no XML files found in directory {input_xml}.')
+
+        options = IndexOptions(
+            max_chars=max_chars if max_chars is not None else cfg.index_max_chars,
+            min_chars=min_chars if min_chars is not None else cfg.index_min_chars,
+            overlap=overlap if overlap is not None else cfg.index_overlap,
+        )
+        records: list[dict] = []
+        for path in input_files:
+            records.extend(
+                index_document(
+                    path, cfg=cfg, odd=odd, project_root=Path.cwd(), options=options,
+                ),
+            )
+
+        if output:
+            from rich.console import Console
+
+            write_jsonl(records, output)
+            # Progress goes to stderr so `opm index ... | jq` stays clean.
+            Console(stderr=True).print(
+                f'Wrote {len(records)} records from {len(input_files)} '
+                f'document(s) to {output}',
+            )
+        else:
+            for record in records:
+                print(json.dumps(record, ensure_ascii=False))
+    except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
+        _die(str(e), cause=e)
 
 
 @app.command('serve')

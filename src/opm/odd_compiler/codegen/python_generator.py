@@ -14,11 +14,13 @@ from . import (
     _local,
     _model_children,
     _model_desc,
+    _model_matches_output_mode,
     _model_ordinal,
     _pb_template,
     _sanitize_ident,
     _serialize_template_content,
     _top_level_models,
+    is_json_mode,
 )
 from ..behaviour_map import BEHAVIOUR_METHOD, method_for_behaviour
 from ..css_generator import collect_odd_generated_css
@@ -122,18 +124,26 @@ class PythonGenerator(CodeGenerator):
             )
             cases.append(f"        case {ident!r}:\n{block}")
 
+        # JSON output routes unmatched elements through the PMF so they appear
+        # in the record tree; every other mode recurses inline exactly as
+        # before, so their generated dispatch is unchanged.
+        if is_json_mode(output_mode):
+            fallthrough = 'return pmf.unmatched(config, node)'
+        else:
+            fallthrough = 'return apply(config, child_nodes(node))'
+
         if cases:
             dispatch_body = (
                 '    match _tag(node):\n'
                 + '\n'.join(cases) + '\n'
                 '        case _:\n'
-                '            return apply(config, child_nodes(node))'
+                f'            {fallthrough}'
             )
         else:
             # No web-output specs — skip the match entirely; a bare `match` with no
             # `case` is a SyntaxError, and a match followed by a stray `return` is
             # also invalid.
-            dispatch_body = '    return apply(config, child_nodes(node))'
+            dispatch_body = f'    {fallthrough}'
 
         if output_mode == 'markdown':
             pmf_import = (
@@ -195,12 +205,35 @@ class PythonGenerator(CodeGenerator):
             )
             transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
             webcomponents_init = 'False'
+        elif is_json_mode(output_mode):
+            pmf_import = (
+                'from opm.runtime.json_output_functions import JsonOutputFunctions\n'
+                'from opm.runtime.markdown_output_functions import normalize_markdown_xml_text'
+            )
+            pmf_ctor = 'JsonOutputFunctions()'
+            # ODD_MODELS lets a record name not just *which* model won but what
+            # it was, and lets `finish` list the models that did not win. `root`
+            # is what it prunes that list against; normalize_text keeps XML
+            # pretty-printing out of the text runs.
+            transform_config_extra = (
+                "\n        'models': ODD_MODELS,"
+                "\n        'root': root,"
+                "\n        'input_path': runtime_options.get('input_path'),"
+                "\n        'normalize_text': normalize_markdown_xml_text,"
+            )
+            transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
+            webcomponents_init = 'False'
         else:
             pmf_import = 'from opm.runtime.html_output_functions import HtmlOutputFunctions'
             pmf_ctor = 'HtmlOutputFunctions()'
             transform_config_extra = ''
             transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
             webcomponents_init = "runtime_options.get('webcomponents', False)"
+
+        if is_json_mode(output_mode):
+            odd_generated_constants += (
+                f'\n\nODD_MODELS = {self._python_models_literal(parsed, output_mode)}'
+            )
 
         template_helpers_block = helpers.functions_block
 
@@ -467,6 +500,9 @@ def transform(root, options=None):
             from opm.runtime.print_output_functions import PrintOutputFunctions
 
             return PrintOutputFunctions
+        if is_json_mode(output_mode):
+            from opm.runtime.json_output_functions import JsonOutputFunctions
+            return JsonOutputFunctions
         if output_mode == 'epub':
             from opm.runtime.epub_output_functions import EpubOutputFunctions
 
@@ -498,6 +534,50 @@ def transform(root, options=None):
             ):
                 allowed[p.name] = p
         return allowed, allows_var_kw
+
+    def _python_models_literal(self, parsed: ParsedOdd, output_mode: str) -> str:
+        """Emit the ``ODD_MODELS`` table keyed by the model class in ``cls[1]``.
+
+        JSON records name the model that won (``tei-div11``); on its own that
+        says *which* model matched but not *what* it was, which is the question
+        an ODD author is actually asking. This side table carries the predicate
+        and ``<desc>`` so the output explains itself.
+        """
+        models: dict[str, dict] = {}
+        for spec in iter_element_specs(parsed):
+            ident = spec.get('ident')
+            if not ident or ident in ('*', 'text()'):
+                continue
+            san = _sanitize_ident(ident)
+            for model_el in spec.findall(f'.//{{{self._TEI_NS}}}model'):
+                if not _model_matches_output_mode(model_el, output_mode):
+                    continue
+                key = f'tei-{san}{_model_ordinal(spec, model_el)}'
+                if key in models:
+                    continue
+                behaviour = model_el.get('behaviour')
+                entry: dict = {
+                    'element': ident,
+                    'behaviour': (
+                        method_for_behaviour(behaviour) if behaviour else None
+                    ),
+                }
+                predicate = model_el.get('predicate')
+                if predicate:
+                    entry['predicate'] = predicate
+                output = model_el.get('output')
+                if output:
+                    entry['output'] = output
+                desc = _model_desc(model_el)
+                if desc:
+                    entry['desc'] = desc
+                models[key] = entry
+
+        lines = ['{']
+        for key in sorted(models):
+            lines.append(f'    {key!r}: {models[key]!r},')
+        lines.append('}')
+        return '\n'.join(lines)
 
     def _classes_expr(self, ident: str, model_el, spec_el) -> str:
         san = _sanitize_ident(ident)
@@ -666,10 +746,14 @@ def transform(root, options=None):
                 model_el,
                 default_content=self._default_content_for_template_combo(template_str),
             )
-            cls_e = '[]'
+            # The enclosing behaviour already puts these classes on its own
+            # element, and no backend reads `cls` in `template` — but passing
+            # them keeps the model attributable, which the JSON view needs to
+            # say which model a template came from.
+            cls_e = self._classes_expr(ident, model_el, spec_el)
             params_line = self._emit_template_params_dict_expr(pm, pretty=True)
             tmpl_lit = self._python_triple_quoted(template_str)
-            sig = f'def {name}(config, node, pmf, params, xpath_extensions)'
+            sig = f'def {name}(config, node, pmf, params, xpath_extensions, r)'
             return (
                 f'{sig}:\n'
                 f'    return pmf.template(\n'
@@ -698,10 +782,12 @@ def transform(root, options=None):
         )
 
     def _template_helper_call(self, name: str, *, combo: bool) -> str:
+        # Both forms take `r` (the @rend classes) because both build their
+        # class list with _classes_expr, which references it.
         if combo:
             return (
                 f'{name}(config, node, pmf, params, '
-                f'xpath_extensions=config.get("xpath_extensions"))'
+                f'xpath_extensions=config.get("xpath_extensions"), r=r)'
             )
         return (
             f'{name}(config, node, pmf, params, '

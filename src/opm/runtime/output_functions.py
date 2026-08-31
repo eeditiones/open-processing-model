@@ -508,6 +508,16 @@ class ProcessingModelFunctions(ABC):
         """Inline code span — raw text, no markup escaping applied to the body."""
         return self.inline(config, node, cls, content)
 
+    def unmatched(self, config, node) -> PMResult:
+        """Handle an element no model matched, i.e. the generated ``case _:`` arm.
+
+        Default: recurse into the children, which is what the generated dispatch
+        does inline for every other output mode.  Only the JSON mode overrides
+        this — it is the sole way to see elements the ODD has no model for,
+        since they otherwise never reach a ``pmf`` method at all.
+        """
+        return config['apply'](config, child_nodes(node))
+
     def finish(self, config, nodes: list) -> list:
         """Post-process output after :func:`~opm.pm_runtime.apply`, before footnotes.
 

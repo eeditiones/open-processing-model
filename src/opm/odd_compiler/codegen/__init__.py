@@ -113,11 +113,41 @@ def _model_ordinal(spec_el, model_el) -> int:
 
 OPM_OUTPUT_PREFIX = 'opm-'
 
+JSON_MODE_PREFIX = 'json'
+
+# Every rendering channel an ODD may tag models for.
+RENDER_MODES: tuple[str, ...] = (
+    'web', 'print', 'epub', 'markdown', 'docx', 'typst',
+)
+
 # Modes that extend another mode; e.g. print accepts both print and web models.
 OUTPUT_MODE_ALIASES: dict[str, tuple[str, ...]] = {
     'print': ('print', 'web'),
     'epub': ('epub', 'web'),
+    # JSON has no models of its own in practice: it records what some *other*
+    # channel decided. Plain `json` inspects the reading view; `json-<channel>`
+    # inspects that channel, so a typst or docx ODD can be debugged too.
+    'json': ('json', 'web'),
 }
+for _channel in RENDER_MODES:
+    OUTPUT_MODE_ALIASES[f'{JSON_MODE_PREFIX}-{_channel}'] = (
+        JSON_MODE_PREFIX,
+        *OUTPUT_MODE_ALIASES.get(_channel, (_channel,)),
+    )
+del _channel
+
+
+def is_json_mode(output_mode: str) -> bool:
+    """Whether *output_mode* emits JSON records (``json`` or ``json-<channel>``)."""
+    mode = (output_mode or '').strip().lower()
+    return mode == JSON_MODE_PREFIX or mode.startswith(f'{JSON_MODE_PREFIX}-')
+
+
+def json_channel(output_mode: str) -> str:
+    """The rendering channel a JSON mode inspects (``json-typst`` → ``typst``)."""
+    mode = (output_mode or '').strip().lower()
+    _, _, channel = mode.partition('-')
+    return channel or 'web'
 
 
 def _accepted_output_modes(output_mode: str) -> tuple[str, ...]:
