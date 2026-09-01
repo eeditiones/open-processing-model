@@ -109,7 +109,7 @@ Development of `opm` is supported by:
       <a href="https://www.zde.uzh.ch/"><img src="docs/assets/uzh-logo-black.png#gh-light-mode-only" alt="Universität Zürich" height="44"><img src="docs/assets/uzh-logo-white.png#gh-dark-mode-only" alt="Universität Zürich" height="44"></a><br><sub>Zentrum Digitale Editionen &amp; Editionsanalytik</sub>
     </td>
     <td align="center" colspan="2">
-      <a href="https://karlbarth.unibas.ch/"><img src="docs/assets/uni-basel-logo.svg#gh-light-mode-only" alt="Universität Basel" height="44"><img src="docs/assets/uni-basel-logo-white.svg#gh-dark-mode-only" alt="Universität Basel" height="44"></a><br><sub>Karl Barth-Archiv</sub>
+      <a href="https://theologie.unibas.ch/de/karl-barth-zentrum/"><img src="docs/assets/karl-barth.png#gh-light-mode-only" alt="Karl Barth-Stiftung" height="44"><img src="docs/assets/karl-barth-white.png#gh-dark-mode-only" alt="Karl Barth-Stiftung" height="44"></a><br><sub>Karl Barth-Stiftung</sub>
     </td>
     <td></td>
   </tr>

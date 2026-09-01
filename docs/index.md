@@ -66,10 +66,10 @@ Development of `opm` is supported by:
     </a>
   </li>
   <li>
-    <a href="https://karlbarth.unibas.ch/" title="Karl Barth-Archiv, Universität Basel">
-      <img src="assets/uni-basel-logo.svg#only-light" alt="Universität Basel">
-      <img src="assets/uni-basel-logo-white.svg#only-dark" alt="Universität Basel">
-      <span class="supporters__note">Karl Barth-Archiv</span>
+    <a href="https://theologie.unibas.ch/de/karl-barth-zentrum/" title="Karl Barth-Zentrum für reformierte Theologie">
+      <img src="assets/karl-barth.png#only-light" alt="Karl Barth-Stiftung">
+      <img src="assets/karl-barth-white.png#only-dark" alt="Karl Barth-Stiftung">
+      <span class="supporters__note">Karl Barth-Stiftung</span>
     </a>
   </li>
 </ul>
