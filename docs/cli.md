@@ -27,6 +27,7 @@ opm [OPTIONS] COMMAND [ARGS]...
 - [`transform`](#opm-transform): Transform an XML document via an ODD with...
 - [`chunk`](#opm-chunk): Chunk a large XML document into smaller...
 - [`index`](#opm-index): Emit embedding-ready JSONL records for a...
+- [`coverage`](#opm-coverage): Diagnose an ODD against a corpus: what...
 - [`serve`](#opm-serve): Start a local HTTP server rooted at the...
 
 ### `opm init`
@@ -146,7 +147,7 @@ opm index [OPTIONS] [INPUT_XML]
 
 | Argument | Description |
 | --- | --- |
-| `INPUT_XML` | XML file to index, or a directory of XML files. |
+| `INPUT_XML` | XML file to index, or a directory of XML files (searched recursively). Defaults to ./data when it exists. |
 
 
 **Options:**
@@ -159,6 +160,43 @@ opm index [OPTIONS] [INPUT_XML]
 | `--min-chars INTEGER` | Drop units shorter than this — bare headings are retrieval noise. Falls back to index.min_chars in opm.toml (default: 40). |
 | `--overlap INTEGER` | Records of context carried into the next part when a unit splits. Falls back to index.overlap in opm.toml (default: 1). |
 | `--config, -c PATH` | Path to a TOML configuration file (default: opm.toml in the current directory). |
+| `--help` | Show this message and exit. |
+
+### `opm coverage`
+
+Diagnose an ODD against a corpus: what never runs, and what is never handled.
+
+Reports the models and elementSpecs you wrote that no document exercised,
+models that can never fire at all, elements no model matched, and elements
+whose spec exists but whose predicates were all false. Models inherited from
+an extended ODD are counted separately — a local elementSpec replaces the
+inherited one wholesale, so they are not yours to change.
+
+Coverage transforms whole documents; chunking config is ignored.
+
+**Usage:**
+
+```text
+opm coverage [OPTIONS] [INPUT_XML]
+```
+
+**Arguments:**
+
+| Argument | Description |
+| --- | --- |
+| `INPUT_XML` | XML file or directory of XML files to measure the ODD against. Defaults to ./data when it exists. |
+
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--odd, -d PATH` | ODD file to compile on demand (overrides transform.json.odd in config). |
+| `--channel CHANNEL` | ODD output channel to report on (web, print, epub, markdown, docx, typst). Default: web. |
+| `--param, -p TEXT` | Transform parameter KEY=VALUE (repeatable), as for opm transform. |
+| `--all, -a` | List every finding instead of the first 20 per section. |
+| `--json` | Print the whole report as JSON instead of tables. |
+| `--config, -c PATH` | Path to opm.toml. |
 | `--help` | Show this message and exit. |
 
 ### `opm serve`

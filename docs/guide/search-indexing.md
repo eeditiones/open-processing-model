@@ -6,7 +6,8 @@ link back to the published page.
 
 ```bash
 uv run opm index examples/tei-test.xml -o records.jsonl
-uv run opm index data/ -o corpus.jsonl          # a whole directory
+uv run opm index data/ -o corpus.jsonl          # a directory, subdirectories included
+uv run opm index -o corpus.jsonl                # no path: defaults to ./data
 ```
 
 ## Why index the processing model

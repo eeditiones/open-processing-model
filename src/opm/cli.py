@@ -1,4 +1,5 @@
-"""Unified CLI: ``opm init``, ``opm transform``, ``opm chunk``, ``opm index``, and ``opm serve``.
+"""Unified CLI: ``opm init``, ``opm transform``, ``opm chunk``, ``opm index``,
+``opm coverage``, and ``opm serve``.
 
 ODDs are compiled on demand into the user cache (``platformdirs``); there is no
 separate ``compile`` command.
@@ -615,6 +616,32 @@ def _chunk_input_files(input_path: Path) -> list[Path]:
     if input_path.is_dir():
         return sorted(path for path in input_path.iterdir() if path.is_file() and path.suffix.lower() == '.xml')
     return [input_path]
+
+
+def _corpus_files(input_path: Path | None) -> list[Path]:
+    """XML files for a corpus-wide command (``opm index``, ``opm coverage``).
+
+    Three things ``opm chunk`` does not do, because chunking publishes a given
+    set of pages while these commands read a body of material:
+
+    * ``./data`` is the default when no path is given — the layout ``opm init``
+      scaffolds and every bundled example uses.
+    * Directories are searched recursively: corpora are routinely filed in
+      subdirectories (``data/article/…``), and silently reading none of them
+      would understate an index or a coverage report.
+    * An empty or missing corpus is an error, not an empty result.
+    """
+    source = input_path if input_path is not None else Path('data')
+    if input_path is None and not source.is_dir():
+        _die('input XML file is required (no ./data directory to fall back on).')
+    if not source.exists():
+        _die(f'no such file or directory: {source}')
+    if not source.is_dir():
+        return [source]
+    files = sorted(path for path in source.rglob('*.xml') if path.is_file())
+    if not files:
+        _die(f'no XML files found in directory {source}.')
+    return files
 
 
 def _append_doc_path(base_doc_path: str | None, xml_path: Path) -> str:
@@ -1357,7 +1384,10 @@ def index_cmd(
     input_xml: Annotated[
         Optional[Path],
         typer.Argument(
-            help='XML file to index, or a directory of XML files.',
+            help=(
+                'XML file to index, or a directory of XML files (searched '
+                'recursively). Defaults to ./data when it exists.'
+            ),
         ),
     ] = None,
     odd: Annotated[
@@ -1432,12 +1462,7 @@ def index_cmd(
             if entry not in sys.path:
                 sys.path.insert(0, entry)
 
-        if input_xml is None:
-            _die('input XML file is required.')
-
-        input_files = _chunk_input_files(input_xml)
-        if input_xml.is_dir() and not input_files:
-            _die(f'no XML files found in directory {input_xml}.')
+        input_files = _corpus_files(input_xml)
 
         options = IndexOptions(
             max_chars=max_chars if max_chars is not None else cfg.index_max_chars,
@@ -1467,6 +1492,259 @@ def index_cmd(
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
         _die(str(e), cause=e)
 
+
+def _coverage_table(
+    console,
+    title: str,
+    columns: list[str],
+    rows: list[list[str]],
+    note: str = '',
+    limit: int | None = 20,
+) -> None:
+    """One section of the coverage report; skipped when it has no findings.
+
+    Long sections are cut off rather than paged: a stock ODD against one
+    document can leave a hundred models unused, and a wall of them buries the
+    sections below it. ``--all`` and ``--json`` both give the full list.
+    """
+    if not rows:
+        return
+    from rich.table import Table
+
+    shown = rows if limit is None else rows[:limit]
+    heading = f'[bold]{title}[/bold]'
+    console.print(f'{heading}  [dim]{note}[/dim]' if note else heading, highlight=False)
+
+    table = Table(box=None, padding=(0, 2, 0, 0), pad_edge=False)
+    for index, column in enumerate(columns):
+        # Identifier columns get a floor so the long free-text ones (a
+        # predicate, a description) cannot squeeze them down to an ellipsis.
+        content = max((len(row[index]) for row in shown), default=0)
+        table.add_column(
+            column,
+            style='bold' if index == 0 else None,
+            min_width=min(max(len(column), content), 18),
+            no_wrap=True,
+            overflow='ellipsis',
+        )
+    for row in shown:
+        table.add_row(*row)
+    console.print(table)
+    if len(shown) < len(rows):
+        console.print(
+            f'[dim]… and {len(rows) - len(shown)} more '
+            '(--all to list them, --json for everything)[/dim]',
+            highlight=False,
+        )
+    console.print()
+
+
+def _relative_path(path: Path) -> str:
+    """Shorten a path against the working directory when it is below it."""
+    try:
+        return str(Path(path).resolve().relative_to(Path.cwd()))
+    except (OSError, ValueError):
+        return str(path)
+
+
+def _truncate(text: str | None, width: int = 60) -> str:
+    if not text:
+        return ''
+    flat = ' '.join(text.split())
+    return flat if len(flat) <= width else f'{flat[: width - 1]}…'
+
+
+def _render_coverage(report, *, limit: int | None = 20) -> None:
+    """Print the coverage report as a set of tables (see ``opm coverage``)."""
+    from rich.console import Console
+
+    from opm.coverage import _by_count
+
+    console = Console()
+    local = report.local_models()
+    inherited = report.inherited_models()
+    fired_local = sum(1 for m in local if m.hits)
+    fired_inherited = sum(1 for m in inherited if m.hits)
+    unused = report.unused_models()
+    docs = len(report.documents)
+
+    console.print(
+        f'[bold]ODD coverage[/bold] — {_relative_path(report.odd)} '
+        f'[dim](channel: {report.channel})[/dim]',
+        highlight=False, soft_wrap=True,
+    )
+    console.print(
+        f'{docs} document{"s" if docs != 1 else ""}, '
+        f'{report.records} records, {report.suppressed} suppressed',
+        highlight=False, soft_wrap=True,
+    )
+    console.print()
+
+    percent = f'{fired_local * 100 // len(local)}%' if local else '—'
+    summary = [
+        ['Local models', str(len(local)), f'fired {fired_local} ({percent})',
+         f'unused {len(unused)}'],
+        ['Inherited models', str(len(inherited)), f'fired {fired_inherited}', ''],
+        ['Elements in documents', str(len(report.elements_seen)),
+         f'no model {len(report.unmatched)}', f'dropped {len(report.dropped)}'],
+    ]
+    _coverage_table(console, 'Summary', ['', 'total', '', ''], summary, limit=None)
+
+    _coverage_table(
+        console, 'Unused local models',
+        ['model', 'element', 'behaviour', 'predicate'],
+        [
+            [m.key, m.element, m.behaviour or '(template)',
+             _truncate(m.predicate, 60)]
+            for m in unused
+        ],
+        note='element is in the corpus, this model never won',
+        limit=limit,
+    )
+    _coverage_table(
+        console, 'Unreachable models',
+        ['model', 'element', 'why'],
+        [[m.key, m.element, _truncate(m.unreachable, 70)]
+         for m in report.unreachable_models()],
+        note='can never fire, whatever the document',
+        limit=limit,
+    )
+    _coverage_table(
+        console, 'Models that emit nothing',
+        ['model', 'element'],
+        [[m.key, m.element] for m in report.silent_models()],
+        note='no @behaviour and no pb:template',
+        limit=limit,
+    )
+    _coverage_table(
+        console, 'Elements with no model',
+        ['element', 'count', 'first seen'],
+        [[o.element, str(o.count), o.location] for o in _by_count(report.unmatched)],
+        note='nothing in the ODD matched them',
+        limit=limit,
+    )
+    _coverage_table(
+        console, 'Elements dropped',
+        ['element', 'count', 'first seen'],
+        [[o.element, str(o.count), o.location] for o in _by_count(report.dropped)],
+        note='a spec exists, but every predicate was false',
+        limit=limit,
+    )
+    _coverage_table(
+        console, 'Element specs never exercised',
+        ['element', 'models'],
+        [[entry['element'], str(entry['models'])] for entry in report.unused_specs],
+        note='declared here, absent from the corpus',
+        limit=limit,
+    )
+    if report.attribute_only_specs:
+        console.print(
+            '[dim]Attribute-only specs (no models): '
+            f'{", ".join(report.attribute_only_specs)}[/dim]',
+            highlight=False,
+        )
+
+
+
+@app.command('coverage')
+def coverage_cmd(
+    input_xml: Annotated[
+        Optional[Path],
+        typer.Argument(
+            help=(
+                'XML file or directory of XML files to measure the ODD against. '
+                'Defaults to ./data when it exists.'
+            ),
+        ),
+    ] = None,
+    odd: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--odd',
+            '-d',
+            help='ODD file to compile on demand (overrides transform.json.odd in config).',
+        ),
+    ] = None,
+    channel: Annotated[
+        Optional[str],
+        typer.Option(
+            '--channel',
+            metavar='CHANNEL',
+            help=(
+                'ODD output channel to report on '
+                '(web, print, epub, markdown, docx, typst). Default: web.'
+            ),
+        ),
+    ] = None,
+    param: Annotated[
+        Optional[list[str]],
+        typer.Option(
+            '--param',
+            '-p',
+            help='Transform parameter KEY=VALUE (repeatable), as for opm transform.',
+        ),
+    ] = None,
+    show_all: Annotated[
+        bool,
+        typer.Option(
+            '--all',
+            '-a',
+            help='List every finding instead of the first 20 per section.',
+        ),
+    ] = False,
+    as_json: Annotated[
+        bool,
+        typer.Option(
+            '--json',
+            help='Print the whole report as JSON instead of tables.',
+        ),
+    ] = False,
+    config: Annotated[
+        Optional[Path],
+        typer.Option('--config', '-c', help='Path to opm.toml.'),
+    ] = None,
+) -> None:
+    """Diagnose an ODD against a corpus: what never runs, and what is never handled.
+
+    Reports the models and elementSpecs you wrote that no document exercised,
+    models that can never fire at all, elements no model matched, and elements
+    whose spec exists but whose predicates were all false. Models inherited from
+    an extended ODD are counted separately — a local elementSpec replaces the
+    inherited one wholesale, so they are not yours to change.
+
+    Coverage transforms whole documents; chunking config is ignored.
+    """
+    import json
+
+    from opm.coverage import analyze
+
+    try:
+        cfg = load_project_config(config)
+        for p in cfg.pythonpath:
+            entry = str(p.resolve())
+            if entry not in sys.path:
+                sys.path.insert(0, entry)
+
+        mode = _apply_json_channel('json', channel) or 'json'
+        input_files = _corpus_files(input_xml)
+
+        resolved = _resolve_cli_transform(cfg=cfg, odd=odd, transform_type=mode)
+        _report_resolved_module(resolved)
+
+        report = analyze(
+            input_files,
+            cfg=cfg,
+            odd=resolved.source_odd,
+            output_mode=mode,
+            parameters=_parameters_from_cli(param),
+        )
+
+        if as_json:
+            print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
+        else:
+            _render_coverage(report, limit=None if show_all else 20)
+    except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
+        _die(str(e), cause=e)
 
 @app.command('serve')
 def serve_cmd(

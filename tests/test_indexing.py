@@ -394,3 +394,56 @@ def test_template_content_reaches_the_index() -> None:
     records = _build(doc)
 
     assert 'template wraps and must not lose' in ' '.join(r['document'] for r in records)
+
+
+# ── CLI ──────────────────────────────────────────────────────────────────────
+
+def _tiny_corpus(tmp_path: Path, monkeypatch) -> Path:
+    """A project with an ODD and one document filed in a subdirectory."""
+    odd = tmp_path / 'tiny.odd'
+    odd.write_text(
+        '<?xml version="1.0"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body>'
+        '<schemaSpec ident="tiny" ns="">'
+        '<elementSpec ident="doc"><model behaviour="document"/></elementSpec>'
+        '<elementSpec ident="div"><model behaviour="section"/></elementSpec>'
+        '<elementSpec ident="p"><model behaviour="paragraph"/></elementSpec>'
+        '</schemaSpec></body></text></TEI>',
+        encoding='utf-8',
+    )
+    nested = tmp_path / 'data' / 'article'
+    nested.mkdir(parents=True)
+    (nested / 'one.xml').write_text(
+        '<doc><div><p>Indexable prose, filed a directory deeper.</p></div></doc>',
+        encoding='utf-8',
+    )
+    cache = tmp_path / 'cache'
+    # platformdirs on macOS ignores XDG_CACHE_HOME; redirect the dir instead.
+    monkeypatch.setattr('opm.odd_cache.modules_cache_dir', lambda: cache / 'modules')
+    monkeypatch.setattr('opm.resources.user_opm_cache_dir', lambda: cache)
+    monkeypatch.chdir(tmp_path)
+    return odd
+
+
+def test_cli_defaults_to_the_data_directory_and_recurses(
+    tmp_path: Path, monkeypatch, capsys,
+) -> None:
+    """``opm index`` with no path indexes ./data, subdirectories included."""
+    from opm.cli import main
+
+    odd = _tiny_corpus(tmp_path, monkeypatch)
+
+    assert main(['index', '-d', str(odd)]) == 0
+    records = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert records
+    assert records[0]['metadata']['source'] == str(Path('data') / 'article' / 'one.xml')
+    assert 'filed a directory deeper' in records[0]['document']
+
+
+def test_cli_reports_a_missing_corpus(tmp_path: Path, monkeypatch, capsys) -> None:
+    from opm.cli import main
+
+    monkeypatch.chdir(tmp_path)
+
+    assert main(['index']) == 1
+    assert 'input XML file is required' in capsys.readouterr().err

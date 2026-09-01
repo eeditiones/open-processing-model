@@ -8,6 +8,8 @@ transforms in your own scripts, a static site generator, or a web service.
 | --- | --- |
 | Run a transform on an XML file or element | [`opm.transform`](transform.md) |
 | Split a document into pages / JSON for a site | [`opm.chunking`](chunking.md) |
+| Build search / embedding records from a document | [`opm.indexing`](indexing.md) |
+| Find what an ODD never runs, or never handles | [`opm.coverage`](coverage.md) |
 | Read `opm.toml` settings programmatically | [`opm.config`](config.md) |
 | Compile an ODD into a transform module | [`opm.odd_compiler`](odd-compiler.md) |
 | Implement a new output format | [`opm.runtime.output_functions`](output-functions.md) |

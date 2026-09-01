@@ -6,7 +6,6 @@ import inspect
 import keyword
 import re
 from pathlib import Path
-from urllib.parse import unquote, urlparse
 
 from . import (
     CodeGenerator,
@@ -22,11 +21,12 @@ from . import (
     _serialize_template_content,
     _top_level_models,
     is_json_mode,
+    model_key,
 )
 from ..behaviour_map import BEHAVIOUR_METHOD, method_for_behaviour
 from ..css_generator import collect_odd_generated_css
 from ..typst_generator import collect_odd_generated_typst
-from ..parse_odd import ParsedOdd, iter_element_specs
+from ..parse_odd import ParsedOdd, iter_element_specs, spec_origin
 
 # When combining @behaviour with pb:template, default ``content`` for [[content]] substitution:
 # use ``.`` (process children) only if the template references that placeholder; otherwise ``()``.
@@ -44,24 +44,14 @@ _PREFIX_RE = re.compile(r'(?<![\w.-])([A-Za-z_][\w.-]*):[A-Za-z_]')
 def _inherited_source(spec_el, primary: Path) -> str | None:
     """The ODD file *spec_el* came from, when that is not *primary*.
 
-    ``_collect_element_specs`` merges inherited specs by reference, so a spec
-    taken from a parent ODD still belongs to that file's tree and ``docinfo.URL``
-    names it. Returning ``None`` for the ODD under compilation keeps the models
-    table quiet about the common case: a ``source`` entry means "this model came
-    from an ODD I extend", which is what tells an author whether editing the
-    local ODD can change it.
+    Returning ``None`` for the ODD under compilation keeps the models table
+    quiet about the common case: a ``source`` entry means "this model came from
+    an ODD I extend", which is what tells an author whether editing the local
+    ODD can change it.
     """
-    tree = spec_el.getroottree()
-    url = tree.docinfo.URL if tree is not None else None
-    if not url:
+    origin = spec_origin(spec_el)
+    if origin is None:
         return None
-    if url.startswith('file://'):
-        url = unquote(urlparse(url).path)
-    origin = Path(url)
-    try:
-        origin = origin.resolve()
-    except OSError:
-        return origin.name
     return None if origin == primary else origin.name
 
 
@@ -575,12 +565,11 @@ def transform(root, options=None):
             ident = spec.get('ident')
             if not ident or ident in ('*', 'text()'):
                 continue
-            san = _sanitize_ident(ident)
             inherited_from = _inherited_source(spec, primary)
             for model_el in spec.findall(f'.//{{{self._TEI_NS}}}model'):
                 if not _model_matches_output_mode(model_el, output_mode):
                     continue
-                key = f'tei-{san}{_model_ordinal(spec, model_el)}'
+                key = model_key(ident, spec, model_el)
                 if key in models:
                     continue
                 behaviour = model_el.get('behaviour')
@@ -590,6 +579,11 @@ def transform(root, options=None):
                         method_for_behaviour(behaviour) if behaviour else None
                     ),
                 }
+                if _pb_template(model_el) is not None:
+                    # A template-only model has no @behaviour yet still emits a
+                    # record; without this flag it is indistinguishable from a
+                    # model that produces no output at all.
+                    entry['template'] = True
                 if inherited_from:
                     entry['source'] = inherited_from
                 predicate = model_el.get('predicate')
@@ -611,8 +605,7 @@ def transform(root, options=None):
 
     def _classes_expr(self, ident: str, model_el, spec_el) -> str:
         san = _sanitize_ident(ident)
-        n = _model_ordinal(spec_el, model_el)
-        parts = [f"'tei-{san}'", f"'tei-{san}{n}'", 'r']
+        parts = [f"'tei-{san}'", repr(model_key(ident, spec_el, model_el)), 'r']
         cc = model_el.get('cssClass')
         if cc:
             for tok in cc.split():

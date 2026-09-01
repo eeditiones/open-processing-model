@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 from lxml import etree
 
@@ -23,6 +24,31 @@ class ParsedOdd:
     element_specs: list
     odd_chain: list[str]
     nsmap: dict[str, str]  # prefix -> namespace URI from ODD root
+
+
+def spec_origin(spec_el) -> Path | None:
+    """The ODD file an ``elementSpec`` was parsed from.
+
+    :func:`_collect_element_specs` merges inherited specs *by reference*, so a
+    spec taken from a parent ODD still belongs to that file's tree and
+    ``docinfo.URL`` names it. That is what separates "I wrote this" from "I
+    inherited this" — the only question that tells an ODD author whether editing
+    the local file can change a decision at all.
+
+    Returns ``None`` when the origin cannot be determined (a spec built in
+    memory has no document URL).
+    """
+    tree = spec_el.getroottree()
+    url = tree.docinfo.URL if tree is not None else None
+    if not url:
+        return None
+    if url.startswith('file://'):
+        url = unquote(urlparse(url).path)
+    origin = Path(url)
+    try:
+        return origin.resolve()
+    except OSError:
+        return origin
 
 
 def _schema_spec(root) -> etree._Element:

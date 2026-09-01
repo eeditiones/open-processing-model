@@ -337,21 +337,15 @@ source". Here they leave a record marked `"suppressed": true`.
 
 **Unmatched elements.** An element with no matching model never reaches a
 behaviour at all — its text just surfaces in some ancestor. In JSON it appears
-with `"behaviour": null`, so you can find everything an ODD does not cover:
+with `"behaviour": null`, so everything an ODD does not cover is findable:
 
 ```bash
-uv run opm transform doc.xml -t json -o out.json
-python -c "
-import json
-from collections import Counter
-d = json.load(open('out.json'))
-def walk(r):
-    if isinstance(r, dict):
-        if r.get('behaviour') is None: yield r['element']
-        for c in r.get('children', []): yield from walk(c)
-print(Counter(e for root in d['document'] for e in walk(root)))
-"
+uv run opm coverage doc.xml     # counts them, with a file:line for each
 ```
+
+[`opm coverage`](coverage.md) rolls these records up across a corpus: unmatched
+elements, models that never fired, models that can never fire, and elements
+whose spec exists but whose predicates were all false.
 
 ### Choosing which channel to inspect
 
@@ -448,7 +442,9 @@ keeps its models: that is precisely what you are reading when you ask why
 nothing came out of it.
 
 Models that survive pruning but never fired are the coverage report: elements
-the document uses, models the ODD declares for them, and no match.
+the document uses, models the ODD declares for them, and no match. That reading
+is what [`opm coverage`](coverage.md) automates, across a whole corpus and with
+the local/inherited split applied.
 
 For building a search index from this data, see
 [Search indexing](search-indexing.md).
