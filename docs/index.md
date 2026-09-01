@@ -35,3 +35,52 @@ Typical usage scenarios for `opm` include:
   [Integration with TEI Publisher](guide/tei-publisher.md), and the
   [`opm.toml` configuration](guide/configuration.md).
 - Reference: the [CLI](cli.md) and the [Python API](api/index.md).
+
+## Supporters
+
+Development of `opm` is supported by:
+
+<ul class="supporters">
+  <li>
+    <a href="https://www.ernst-goehner-stiftung.ch/" title="Ernst Göhner Stiftung">
+      <img src="assets/EGS_Logo_Standard_RGB.svg#only-light" alt="Ernst Göhner Stiftung">
+      <img src="assets/EGS_Logo_Standard_RGB_white.svg#only-dark" alt="Ernst Göhner Stiftung">
+    </a>
+  </li>
+  <li>
+    <a href="https://www.sagw.ch/" title="Swiss Academy of Humanities and Social Sciences">
+      <img src="assets/SAGW_Logo_addition_supported_pos.svg#only-light" alt="Swiss Academy of Humanities and Social Sciences">
+      <img src="assets/SAGW_Logo_addition_supported_pos_white.svg#only-dark" alt="Swiss Academy of Humanities and Social Sciences">
+    </a>
+  </li>
+  <li>
+    <a href="https://www.zb.uzh.ch/" title="Zentralbibliothek Zürich">
+      <img src="assets/ZB_Logo_RGB_1024px.png" alt="Zentralbibliothek Zürich">
+    </a>
+  </li>
+  <li>
+    <a href="https://www.zde.uzh.ch/" title="Zentrum Digitale Editionen &amp; Editionsanalytik, Universität Zürich">
+      <img src="assets/uzh-logo-black.png#only-light" alt="Universität Zürich">
+      <img src="assets/uzh-logo-white.png#only-dark" alt="Universität Zürich">
+      <span class="supporters__note">Zentrum Digitale Editionen &amp; Editionsanalytik</span>
+    </a>
+  </li>
+  <li>
+    <a href="https://karlbarth.unibas.ch/" title="Karl Barth-Archiv, Universität Basel">
+      <img src="assets/uni-basel-logo.svg#only-light" alt="Universität Basel">
+      <img src="assets/uni-basel-logo-white.svg#only-dark" alt="Universität Basel">
+      <span class="supporters__note">Karl Barth-Archiv</span>
+    </a>
+  </li>
+</ul>
+
+### An initiative of
+
+<ul class="supporters supporters--initiative">
+  <li>
+    <a href="https://e-editiones.org/" title="e-editiones">
+      <img src="assets/e-editiones-logo-color.svg#only-light" alt="e-editiones">
+      <img src="assets/e-editiones-logo-white.svg#only-dark" alt="e-editiones">
+    </a>
+  </li>
+</ul>

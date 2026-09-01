@@ -86,3 +86,40 @@ uv run python scripts/gen_cli_docs.py                # refresh CLI reference fro
 uv run --group docs zensical serve                   # http://127.0.0.1:8000
 uv run --group docs zensical build                   # static site into ./site
 ```
+
+## Supporters
+
+Development of `opm` is supported by:
+
+<table>
+  <tr>
+    <td align="center" colspan="2">
+      <a href="https://www.ernst-goehner-stiftung.ch/"><img src="docs/assets/EGS_Logo_Standard_RGB.svg#gh-light-mode-only" alt="Ernst Göhner Stiftung" height="44"><img src="docs/assets/EGS_Logo_Standard_RGB_white.svg#gh-dark-mode-only" alt="Ernst Göhner Stiftung" height="44"></a>
+    </td>
+    <td align="center" colspan="2">
+      <a href="https://www.sagw.ch/"><img src="docs/assets/SAGW_Logo_addition_supported_pos.svg#gh-light-mode-only" alt="Swiss Academy of Humanities and Social Sciences" height="64"><img src="docs/assets/SAGW_Logo_addition_supported_pos_white.svg#gh-dark-mode-only" alt="Swiss Academy of Humanities and Social Sciences" height="64"></a>
+    </td>
+    <td align="center" colspan="2">
+      <a href="https://www.zb.uzh.ch/"><img src="docs/assets/ZB_Logo_RGB_1024px.png" alt="Zentralbibliothek Zürich" height="62"></a>
+    </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td align="center" colspan="2">
+      <a href="https://www.zde.uzh.ch/"><img src="docs/assets/uzh-logo-black.png#gh-light-mode-only" alt="Universität Zürich" height="44"><img src="docs/assets/uzh-logo-white.png#gh-dark-mode-only" alt="Universität Zürich" height="44"></a><br><sub>Zentrum Digitale Editionen &amp; Editionsanalytik</sub>
+    </td>
+    <td align="center" colspan="2">
+      <a href="https://karlbarth.unibas.ch/"><img src="docs/assets/uni-basel-logo.svg#gh-light-mode-only" alt="Universität Basel" height="44"><img src="docs/assets/uni-basel-logo-white.svg#gh-dark-mode-only" alt="Universität Basel" height="44"></a><br><sub>Karl Barth-Archiv</sub>
+    </td>
+    <td></td>
+  </tr>
+</table>
+
+### An initiative of
+
+<p>
+  <a href="https://e-editiones.org/">
+    <img src="docs/assets/e-editiones-logo-color.svg#gh-light-mode-only" alt="e-editiones" height="40">
+    <img src="docs/assets/e-editiones-logo-white.svg#gh-dark-mode-only" alt="e-editiones" height="40">
+  </a>
+</p>

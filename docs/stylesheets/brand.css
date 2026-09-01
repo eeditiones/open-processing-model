@@ -23,3 +23,86 @@
 .md-header__button.md-logo img {
   height: 1.6rem;
 }
+
+/* --- Supporters ------------------------------------------------------- */
+
+/* :not([hidden]) matches the theme's own `display: flow-root` specificity */
+.md-typeset .supporters:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem 1.5rem;
+  margin: 1.5rem 0 2.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+/* three per row; a trailing partial row stays centred */
+.md-typeset .supporters:not([hidden]) li {
+  flex: 0 1 calc((100% - 3.2rem) / 3);
+  max-width: calc((100% - 3.2rem) / 3);
+  /* let wide logos shrink into the column instead of forcing a wrap */
+  min-width: 0;
+  margin: 0;
+}
+
+@media screen and (max-width: 44.98em) {
+  .md-typeset .supporters:not([hidden]) li {
+    flex-basis: calc((100% - 1.6rem) / 2);
+    max-width: calc((100% - 1.6rem) / 2);
+  }
+}
+
+@media screen and (max-width: 29.98em) {
+  .md-typeset .supporters:not([hidden]) li {
+    flex-basis: 100%;
+    max-width: 100%;
+  }
+}
+
+.md-typeset .supporters:not([hidden]) li > a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  min-width: 0;
+  color: inherit;
+  text-align: center;
+  transition: opacity 125ms;
+}
+
+.md-typeset .supporters:not([hidden]) li > a:hover,
+.md-typeset .supporters:not([hidden]) li > a:focus {
+  opacity: .7;
+}
+
+.md-typeset .supporters img {
+  height: auto;
+  width: auto;
+  max-height: 3rem;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+/* the ZB mark is squarer than the other wordmarks, so it needs more box
+   height before its "Zentralbibliothek Zürich" line is readable */
+.md-typeset .supporters img[src*="ZB_Logo"] {
+  max-height: 4.2rem;
+}
+
+.md-typeset .supporters .supporters__note {
+  font-size: .62rem;
+  line-height: 1.35;
+  color: var(--md-default-fg-color--light);
+}
+
+.md-typeset .supporters--initiative:not([hidden]) {
+  display: flex;
+  justify-content: center;
+}
+
+.md-typeset .supporters--initiative img {
+  max-height: 2.6rem;
+}
