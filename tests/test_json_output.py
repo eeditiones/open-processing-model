@@ -582,3 +582,41 @@ def test_demo_record_paths_are_named_and_resolvable(demo_output) -> None:
     assert not [p for p in paths if p.startswith('/*')], 'wildcard root path'
     root = etree.parse(str(DEMO_TEI_TEST_XML)).getroot()
     assert _paths_round_trip(root) == []
+
+
+def test_models_table_marks_inherited_models(tmp_path) -> None:
+    """``source`` says the model came from an extended ODD, not this one.
+
+    An author reading the table needs to know whether editing the local ODD can
+    change a decision at all — a model inherited from ``teipublisher.odd`` has
+    to be overridden there or redeclared here.
+    """
+    from opm.odd_compiler.codegen.python_generator import PythonGenerator
+    from opm.odd_compiler.parse_odd import load_odd
+
+    odd = tmp_path / 'child.odd'
+    odd.write_text(
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body>'
+        '<schemaSpec ident="child" start="TEI" source="teipublisher.odd">'
+        '<elementSpec ident="hi" mode="change">'
+        '<model behaviour="inline"><desc>local override</desc></model>'
+        '</elementSpec>'
+        '</schemaSpec>'
+        '</body></text></TEI>',
+        encoding='utf-8',
+    )
+
+    src = PythonGenerator().generate_module(load_odd(str(odd)), 'm', output_mode='json')
+    namespace: dict = {}
+    start = src.index('ODD_MODELS = {')
+    exec(src[start:src.index('\n\n', start)], namespace)  # noqa: S102
+    models = namespace['ODD_MODELS']
+
+    # `hi` is redeclared locally, so it is the local ODD's to change.
+    hi = {key: entry for key, entry in models.items() if entry['element'] == 'hi'}
+    assert hi
+    assert all('source' not in entry for entry in hi.values())
+
+    # Everything else comes in from the ODD being extended.
+    inherited = {entry.get('source') for entry in models.values() if entry['element'] != 'hi'}
+    assert inherited == {'teipublisher.odd'}

@@ -6,6 +6,7 @@ import inspect
 import keyword
 import re
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 from . import (
     CodeGenerator,
@@ -38,6 +39,30 @@ _RESERVED_PARAM_ALIASES: dict[str, str] = {}
 _EXTERNAL_VAR_RE = re.compile(r'\$[A-Za-z_][\w.-]*:')
 # Any prefixed name in an expression, for the compile-time syntax check.
 _PREFIX_RE = re.compile(r'(?<![\w.-])([A-Za-z_][\w.-]*):[A-Za-z_]')
+
+
+def _inherited_source(spec_el, primary: Path) -> str | None:
+    """The ODD file *spec_el* came from, when that is not *primary*.
+
+    ``_collect_element_specs`` merges inherited specs by reference, so a spec
+    taken from a parent ODD still belongs to that file's tree and ``docinfo.URL``
+    names it. Returning ``None`` for the ODD under compilation keeps the models
+    table quiet about the common case: a ``source`` entry means "this model came
+    from an ODD I extend", which is what tells an author whether editing the
+    local ODD can change it.
+    """
+    tree = spec_el.getroottree()
+    url = tree.docinfo.URL if tree is not None else None
+    if not url:
+        return None
+    if url.startswith('file://'):
+        url = unquote(urlparse(url).path)
+    origin = Path(url)
+    try:
+        origin = origin.resolve()
+    except OSError:
+        return origin.name
+    return None if origin == primary else origin.name
 
 
 class PythonGenerator(CodeGenerator):
@@ -541,14 +566,17 @@ def transform(root, options=None):
         JSON records name the model that won (``tei-div11``); on its own that
         says *which* model matched but not *what* it was, which is the question
         an ODD author is actually asking. This side table carries the predicate
-        and ``<desc>`` so the output explains itself.
+        and ``<desc>`` so the output explains itself, and ``source`` when the
+        model was inherited rather than written in the ODD being compiled.
         """
+        primary = Path(parsed.odd_path).resolve()
         models: dict[str, dict] = {}
         for spec in iter_element_specs(parsed):
             ident = spec.get('ident')
             if not ident or ident in ('*', 'text()'):
                 continue
             san = _sanitize_ident(ident)
+            inherited_from = _inherited_source(spec, primary)
             for model_el in spec.findall(f'.//{{{self._TEI_NS}}}model'):
                 if not _model_matches_output_mode(model_el, output_mode):
                     continue
@@ -562,6 +590,8 @@ def transform(root, options=None):
                         method_for_behaviour(behaviour) if behaviour else None
                     ),
                 }
+                if inherited_from:
+                    entry['source'] = inherited_from
                 predicate = model_el.get('predicate')
                 if predicate:
                     entry['predicate'] = predicate

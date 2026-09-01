@@ -406,8 +406,25 @@ A record names the model that won, but not what that model *was*. The
 }
 ```
 
-`predicate`, `desc` and `output` appear nowhere in the record tree, so the
-table is not derivable from the records. Neither are the models that **did
+`source` appears when the model was inherited from an extended ODD rather than
+written in the one being compiled, and names that file:
+
+```json
+"tei-hi3": {
+  "element": "hi",
+  "behaviour": "inline",
+  "source": "teipublisher.odd",
+  "predicate": "@rend='italic'"
+}
+```
+
+Its absence means the model is local. Because a local `elementSpec` replaces the
+inherited one wholesale, every model of an element you redeclare is local; the
+flag tells you whether a decision you dislike can be changed here at all, or has
+to be overridden by redeclaring the element.
+
+`predicate`, `desc`, `output` and `source` appear nowhere in the record tree, so
+the table is not derivable from the records. Neither are the models that **did
 not** fire — and those are the more valuable half, because "why did my model
 not win?" is answered by reading the predicate of the one that beat it:
 
