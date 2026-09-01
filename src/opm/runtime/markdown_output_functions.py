@@ -66,6 +66,30 @@ def _get_css_map(config: dict) -> dict:
     return config['_css_map']
 
 
+def _css_class_names(cls: list) -> set[str]:
+    """Flatten dispatch class list entries into individual class names."""
+    class_names: set[str] = set()
+    for item in cls:
+        if item:
+            for name in str(item).split():
+                class_names.add(name)
+    return class_names
+
+
+def _css_trailing_space(config: dict, cls: list) -> str:
+    """Return a trailing space when ODD CSS specifies ``margin-right``.
+
+    HTML margins have no plain-text equivalent; a space after the span keeps
+  emphasis markers like ``_Leon._`` from running into the following word.
+    """
+    css_map = _get_css_map(config)
+    for name in _css_class_names(cls):
+        margin = css_map.get(name, {}).get('margin-right', '')
+        if margin and margin not in ('0', '0px', '0em', '0rem', '0%'):
+            return ' '
+    return ''
+
+
 def _css_md_markers(config: dict, cls: list) -> tuple[str, str]:
     """Return ``(prefix, suffix)`` markdown markers derived from the CSS classes in *cls*.
 
@@ -75,15 +99,9 @@ def _css_md_markers(config: dict, cls: list) -> tuple[str, str]:
     defined by :data:`_CSS_TO_MD_MARKERS`.
     """
     css_map = _get_css_map(config)
-    # Flatten class names from the cls list (entries may be space-separated strings or None)
-    class_names: set[str] = set()
-    for item in cls:
-        if item:
-            for name in str(item).split():
-                class_names.add(name)
     # Collect CSS properties for the matched classes
     combined: dict = {}
-    for name in class_names:
+    for name in _css_class_names(cls):
         if name in css_map:
             combined.update(css_map[name])
     if not combined:
@@ -168,18 +186,19 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         out: list = []
         config['apply_children'](config, node, content, out)
         text = _join_buf(out)
+        trailing = _css_trailing_space(config, cls)
 
         # Explicit @rend attribute takes priority over CSS-derived formatting.
         rend = (node.get('rend') or '').split()
         if 'bold' in rend:
-            return [f'**{text}**']
+            return [f'**{text}**{trailing}']
         if 'italic' in rend or 'italics' in rend:
-            return [f'_{text}_']
+            return [f'_{text}_{trailing}']
 
         # Fall back to CSS-based formatting derived from the element's class list.
         prefix, suffix = _css_md_markers(config, cls)
         if prefix:
-            return [f'{prefix}{text}{suffix}']
+            return [f'{prefix}{text}{suffix}{trailing}']
         return [text]
 
     def paragraph(self, config, node, cls, content) -> PMResult:

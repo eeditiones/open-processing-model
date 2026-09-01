@@ -52,6 +52,44 @@ def test_markdown_code_preserves_xml_markup_literally() -> None:
     assert '#tei_' not in body
 
 
+def test_markdown_inline_margin_right_adds_trailing_space() -> None:
+    from opm.runtime.markdown_output_functions import MarkdownOutputFunctions
+    from opm.runtime.pm_runtime import apply_children
+
+    pmf = MarkdownOutputFunctions()
+    config = {
+        'odd_css': '.tei-speaker { margin-right: 1rem; }\n',
+        'apply_children': apply_children,
+        'dispatch': lambda *a, **k: [],
+    }
+
+    class Node:
+        def get(self, key):
+            return 'italic' if key == 'rend' else None
+
+    result = pmf.inline(config, Node(), ['tei-speaker'], ['Leon.'])
+    assert result == ['_Leon._ ']
+
+
+def test_markdown_inline_without_margin_right_has_no_trailing_space() -> None:
+    from opm.runtime.markdown_output_functions import MarkdownOutputFunctions
+    from opm.runtime.pm_runtime import apply_children
+
+    pmf = MarkdownOutputFunctions()
+    config = {
+        'odd_css': '.tei-hi { font-style: italic; }\n',
+        'apply_children': apply_children,
+        'dispatch': lambda *a, **k: [],
+    }
+
+    class Node:
+        def get(self, key):
+            return 'italic' if key == 'rend' else None
+
+    result = pmf.inline(config, Node(), ['tei-hi'], ['word'])
+    assert result == ['_word_']
+
+
 def test_markdown_block_programlisting_preserves_whitespace() -> None:
     pmf = MarkdownOutputFunctions()
     config = {
