@@ -1,0 +1,14 @@
+Logos and wordmarks
+
+The image files under docs/assets/ are logos and wordmarks: those of e-editiones and Open
+Processing Model, and those of the institutions that support the project's development —
+among them the Schweizerische Akademie der Geistes- und Sozialwissenschaften, the
+Universität Basel, the Universität Zürich, the Zentralbibliothek Zürich and the
+Ernst Göhner Stiftung.
+
+They are trademarks of their respective owners and are reproduced here for attribution,
+with permission. They are not part of the software and are not covered by the licences
+that apply to it: no licence to use these marks is granted by the AGPL, by the CC0
+dedication in LICENSE-EXCEPTIONS.md, or by any other document in this repository.
+
+Remove or replace them if you redistribute a modified version of this documentation.

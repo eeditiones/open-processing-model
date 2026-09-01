@@ -1,0 +1,133 @@
+version = 1
+
+# Licensing for files that carry no SPDX header of their own — binaries, data, and the
+# repo-only paths where a header in every new file would be noise. Precedence is the
+# default `closest`, so a file's own header always wins over anything declared here.
+#
+# The three licences in play:
+#   AGPL-3.0-or-later  opm itself — see LICENSE
+#   GPL-3.0-or-later   the stock ODDs and stylesheets taken from TEI Publisher
+#   CC0-1.0            scaffolding `opm init` writes into a user's project,
+#                      per section 4 of LICENSE-EXCEPTIONS.md
+
+# ---------------------------------------------------------------------------
+# opm itself. Every module under src/opm/ also carries the header in-file, which
+# matters because the wheel ships the modules but not this file.
+# ---------------------------------------------------------------------------
+
+[[annotations]]
+path = "src/opm/**"
+SPDX-FileCopyrightText = "2026 e-editiones"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# ---------------------------------------------------------------------------
+# Scaffolding: CC0, and copied into user projects by `opm init`.
+# ---------------------------------------------------------------------------
+
+[[annotations]]
+path = ["src/opm/resources/scaffold/**", "src/opm/resources/templates/**"]
+SPDX-FileCopyrightText = "2026 e-editiones"
+SPDX-License-Identifier = "CC0-1.0"
+
+# Example projects, copied wholesale by `opm init --example <name>`. Listed per
+# subdirectory rather than as `examples/*/**` on purpose — the documents under
+# `examples/*/data/` are source texts with their own rights, annotated separately below.
+[[annotations]]
+path = [
+  "examples/*/README.md",
+  "examples/*/opm.toml",
+  "examples/*/odd/**",
+  "examples/*/templates/**",
+  "examples/*/extensions/**",
+  "examples/*/scripts/**",
+  "examples/*/iiif/**",
+]
+SPDX-FileCopyrightText = "2026 e-editiones"
+SPDX-License-Identifier = "CC0-1.0"
+
+# ---------------------------------------------------------------------------
+# From TEI Publisher, and not ours to relicense. Each of these ODDs states the GPL in its
+# own teiHeader/publicationStmt/availability — that declaration is authoritative, and these
+# annotations only repeat it in machine-readable form, which is why the files carry no SPDX
+# comment. They override the CC0 blocks above because a later annotation wins.
+#
+# AGPLv3 section 13 permits distributing them alongside opm, but the CC0 dedication in
+# section 4 of LICENSE-EXCEPTIONS.md does not reach them, and neither does the LGPL in
+# LICENSE-MEMBER-GRANT.md.
+# ---------------------------------------------------------------------------
+
+[[annotations]]
+path = [
+  "src/opm/resources/odd/teipublisher.odd",
+  "src/opm/resources/odd/tp.css",
+  "src/opm/resources/odd/docbook.odd",
+  "src/opm/resources/odd/docbook.css",
+  "examples/docbook/odd/docbook.odd",
+  "examples/docbook/odd/docbook.css",
+  "examples/serafin/odd/serafin.odd",
+  "examples/shakespeare/odd/shakespeare.odd",
+  "src/opm/resources/odd/jats.odd",
+  "src/opm/resources/odd/jats.css",
+  "examples/jats/odd/jats.odd",
+  "examples/jats/odd/jats.css",
+]
+SPDX-FileCopyrightText = "eXistSolutions GmbH"
+SPDX-License-Identifier = "GPL-3.0-or-later"
+
+# ---------------------------------------------------------------------------
+# Scholarly source documents. Not covered by the CC0 dedication: each carries its own
+# provenance and rights, described in LICENSES/LicenseRef-SourceDocuments.txt and in the
+# README of the example it belongs to.
+# ---------------------------------------------------------------------------
+
+[[annotations]]
+path = "examples/*/data/**"
+SPDX-FileCopyrightText = "The respective authors and editors"
+SPDX-License-Identifier = "LicenseRef-SourceDocuments"
+
+# ---------------------------------------------------------------------------
+# Repo-only paths. None of these are conveyed to users separately, so they carry no
+# in-file header and are declared here instead.
+# ---------------------------------------------------------------------------
+
+[[annotations]]
+path = [
+  "tests/**",
+  "scripts/**",
+  "typings/**",
+  "docs/**",
+  "*.md",
+  "*.toml",
+  "*.yml",
+  "*.json",
+  "*.lock",
+  "*.sh",
+  "hatch_build.py",
+  ".gitignore",
+  ".python-version",
+]
+SPDX-FileCopyrightText = "2026 e-editiones"
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# The licence documents themselves, which are not code and are meant to be copied verbatim.
+[[annotations]]
+path = ["LICENSE", "LICENSE-EXCEPTIONS.md", "LICENSE-MEMBER-GRANT.md", "CLA.md", "CLA-ENTITY.md"]
+SPDX-FileCopyrightText = "2026 e-editiones"
+SPDX-License-Identifier = "CC0-1.0"
+
+# ---------------------------------------------------------------------------
+# Logos of e-editiones and of the institutions supporting the project. Trademarks, not
+# software: the AGPL above must not be read as licensing anyone else's mark. Overrides the
+# `docs/**` block.
+# ---------------------------------------------------------------------------
+
+[[annotations]]
+path = "docs/assets/**"
+SPDX-FileCopyrightText = "The respective trademark owners"
+SPDX-License-Identifier = "LicenseRef-Logos"
+
+# Loose files under examples/ that are not part of a project `opm init` copies.
+[[annotations]]
+path = ["examples/*.xml", "examples/*.py"]
+SPDX-FileCopyrightText = "2026 e-editiones"
+SPDX-License-Identifier = "CC0-1.0"

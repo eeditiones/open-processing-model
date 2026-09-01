@@ -87,12 +87,19 @@ permissive, commercial, or proprietary licenses. As a condition on the exercise 
 right, We agree to also license the Contribution under the terms of the license or
 licenses which We are using for the Material on the Submission Date.
 
-> **What this means in practice.** On the Submission Date the Material is licensed under
-> the GNU Affero General Public License, version 3 or later. We are therefore bound to
-> keep publishing Your Contribution under the AGPL. In addition, this clause lets
-> e-editiones offer the same code on other terms — the LGPL-based licence available to
-> institutional members (see [LICENSE-MEMBER-GRANT.md](LICENSE-MEMBER-GRANT.md)), and
-> commercial licences whose proceeds fund the long-term maintenance of the project.
+> **What this means in practice.** This is **Option Five** of the five alternatives
+> Harmony offers for this clause: outbound licensing under any licence, coupled with the
+> standing condition in the second sentence. On the Submission Date the Material is
+> licensed under the GNU Affero General Public License, version 3 or later. We are
+> therefore bound to keep publishing Your Contribution under the AGPL — that obligation
+> does not expire and We cannot waive it unilaterally. What the first sentence adds is the
+> room to offer the same code on other terms: the LGPL available to institutional members
+> (see [LICENSE-MEMBER-GRANT.md](LICENSE-MEMBER-GRANT.md)), the additional permissions
+> granted to everyone under AGPL §7 (see
+> [LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md)), and commercial licences whose proceeds
+> fund the long-term maintenance of the project. The narrower Harmony options — an
+> enumerated list of licences, or any licence approved by the Open Source Initiative —
+> would foreclose those commercial licences, which is why Option Five was chosen.
 
 In addition, We may use the following licenses for Media in the Contribution: Creative
 Commons Attribution 4.0 International (CC BY 4.0) (including any right to adopt any
@@ -228,4 +235,6 @@ Date:      ______________________________
 
 Adapted from the Harmony Entity Contributor License Agreement, Version 1.0
 (<https://www.harmonyagreements.org/>), which is licensed under a Creative Commons
-Attribution 3.0 Unported License.
+Attribution 3.0 Unported License. Section 2.3 uses Harmony's **Option Five**
+(outbound licensing under any licence, conditioned on continued licensing under the
+terms in force on the Submission Date); the remaining sections follow the template.

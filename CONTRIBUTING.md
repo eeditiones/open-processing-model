@@ -6,7 +6,15 @@ documentation fixes.
 ## Licence
 
 Open Processing Model is licensed under the **GNU Affero General Public License, version
-3 or later** ([LICENSE](LICENSE)). Contributions are released under the same licence.
+3 or later** ([LICENSE](LICENSE)), with additional permissions granted under section 7 of
+that licence ([LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md)). Contributions are released
+under the same terms.
+
+Two parts of the tree are not AGPL: the packaged scaffolding that `opm init` writes into
+a user's project, and the example projects, are dedicated to the public domain under CC0
+1.0 — see section 5 of [LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md) and
+[REUSE.toml](REUSE.toml). If your contribution touches those paths, it is contributed
+under CC0 rather than the AGPL, and new files there need the CC0 header shown below.
 
 ## Contributor License Agreement
 
@@ -14,15 +22,22 @@ Before your first pull request can be merged, you need to sign a CLA. It takes a
 
 You keep the copyright in your contribution. What you grant e-editiones is the right to
 relicense it — which is what allows the society to offer `opm` to institutional members
-under [LGPL-based terms](LICENSE-MEMBER-GRANT.md) and to sell commercial licences that
-fund the project's maintenance. In exchange, e-editiones is contractually bound to keep
-publishing your contribution under the AGPL. It cannot take the code proprietary and
-leave the community behind; that promise is written into section 2.3 of the agreement
-itself.
+under [the LGPL](LICENSE-MEMBER-GRANT.md), to grant the
+[additional permissions](LICENSE-EXCEPTIONS.md) everyone benefits from, and to sell
+commercial licences that fund the project's maintenance. In exchange, e-editiones is
+contractually bound to keep publishing your contribution under the AGPL. It cannot take
+the code proprietary and leave the community behind; that promise is written into section
+2.3 of the agreement itself.
 
 The text is adapted from the [Harmony Agreements](https://www.harmonyagreements.org/),
 the standard templates for exactly this arrangement — nothing in it was invented for this
-project.
+project. Harmony offers five alternatives for the outbound-licence clause in section 2.3;
+this project uses **Option Five**, which lets e-editiones license contributions under any
+licence *on condition* that it also keeps licensing them under the terms in force on the
+day you submitted — the AGPL. The narrower options (an enumerated list of licences, or
+any OSI-approved licence) would rule out the commercial licences that pay for
+maintenance, so Option Five is a deliberate choice, and its reciprocal condition is what
+keeps it honest.
 
 **Which one to sign:**
 
@@ -83,9 +98,27 @@ See [CLAUDE.md](CLAUDE.md) for an overview of the pipeline and source layout.
 
 Every new Python file under `src/opm/` starts with:
 
+<!-- REUSE-IgnoreStart -->
 ```python
 # SPDX-FileCopyrightText: 2026 e-editiones
 # SPDX-License-Identifier: AGPL-3.0-or-later
 ```
+<!-- REUSE-IgnoreEnd -->
 
-above the module docstring. Tests, scripts and examples do not need it.
+above the module docstring. Tests and scripts do not need it.
+
+Files under `src/opm/resources/scaffold/`, `src/opm/resources/odd/` and `examples/` are
+public-domain scaffolding instead, and carry the CC0 header in whatever comment syntax
+the format uses:
+
+<!-- REUSE-IgnoreStart -->
+```
+SPDX-FileCopyrightText: 2026 e-editiones
+SPDX-License-Identifier: CC0-1.0
+```
+<!-- REUSE-IgnoreEnd -->
+
+Keep [REUSE.toml](REUSE.toml) in step when you add a path that cannot carry a header
+(binaries, JSON) or a new subdirectory under `examples/`. The documents under
+`examples/*/data/` are excluded on purpose — they are source texts with their own
+provenance.

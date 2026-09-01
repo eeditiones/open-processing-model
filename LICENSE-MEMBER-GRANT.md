@@ -1,76 +1,76 @@
-# e-editiones Member Licence for Open Processing Model
+# Member Licence Grant
 
-**This is an additional offer, not a restriction.** Open Processing Model ("opm") is and
-remains free software under the GNU Affero General Public License, version 3 or later,
-for everyone. See [LICENSE](LICENSE). Nothing here takes anything away from anyone.
+**DRAFT — not reviewed by counsel.**
 
-Institutional members of e-editiones may, in addition, use the software under the terms
-described below. Membership is what makes the difference, and the proceeds fund the
-long-term maintenance of the project.
+Open Processing Model (`opm`) is licensed to the public under AGPL-3.0-or-later, with the
+additional permissions in [LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md). This document
+sets out an alternative licence available to members of e-editiones.
 
-## The grant
+## 1. The grant
 
-> For so long as You are a member of e-editiones in good standing, e-editiones
-> additionally offers You Open Processing Model ("opm") under the terms of the GNU Lesser
-> General Public License, version 3 or (at Your option) any later version, as an
-> alternative to the GNU Affero General Public License.
+e-editiones grants to each member in good standing a licence to use, modify and convey
+`opm` under the terms of the GNU Lesser General Public License, version 3 or later
+(LGPL-3.0-or-later), as an alternative to the AGPL.
 
-You may rely on either licence for any given copy. Choosing the LGPL for one project does
-not commit You to it for another.
+The grant is automatic on becoming a member. No application, signature or key is required.
+On request, e-editiones will issue a written confirmation naming the member and the
+covered releases, for members whose institutions require one for their records.
 
-## What this changes
+## 2. Which releases are covered
 
-The AGPL requires that anything You build on top of `opm` is itself released as free
-software — including, under section 13, software You never distribute but merely operate
-as a network service. That is the obligation the member licence lifts.
+The grant covers every release of `opm` published during the member's membership.
 
-| Obligation under AGPLv3 | Under this member licence |
-| --- | --- |
-| §5(b) — your entire combined work must be licensed under the AGPL | **Waived.** Your application may remain proprietary. |
-| §13 — source disclosure to users interacting with your service over a network | **Waived.** You may run a hosted service without publishing your stack. |
-| §6 — Corresponding Source for everything you convey | **Narrowed** to `opm` itself; your own source stays closed. |
-| §6 — Installation Information / anti-tivoization for User Products | **Waived.** |
-| §5(a), §5(c) — modification notices, Appropriate Legal Notices display | **Waived** for your own code. |
-| Changes you make to `opm`'s own files | **Retained** — improvements to the library are still released. |
-| Attribution, a copy of the licence, notice that `opm` is used | **Retained.** |
-| Your users' ability to substitute a modified `opm` | **Retained** — satisfied by depending on the PyPI package rather than vendoring it. |
-| §15, §16 — warranty and liability disclaimers | **Retained.** |
+For those releases the licence is perpetual and irrevocable: it survives the end of
+membership, and the member and its downstream recipients keep their LGPL rights in them
+indefinitely.
 
-In Python the substitution requirement is close to free: declare
-`open-processing-model` as an ordinary dependency and install it from PyPI. Vendoring a
-patched copy into your application is what would create work for you, and is the case
-this licence does not cover.
+Releases published after membership ends are not covered and are available under the AGPL
+like any other public release.
 
-## Terms
+## 3. What this changes in practice
 
-**1. Eligibility.** This offer is available to members of e-editiones in good standing,
-and is a stated benefit of institutional membership. Membership status is determined by
-e-editiones.
+Under the LGPL, in contrast to the AGPL:
 
-**2. Scope.** The grant covers Your own use of the software and software You deliver to
-third parties — for instance an edition or platform built for another institution. You
-remain responsible for ensuring that Your recipients receive, and comply with, the terms
-under which You pass the software on. Your recipients do not thereby become members, and
-this offer does not extend to them.
+- an application that uses `opm` as a library may remain proprietary; and
+- a hosted service built on `opm` owes its users nothing corresponding to AGPL section 13.
 
-**3. Lapse and grandfathering.** If Your membership ends, this offer ends with it: You may
-not apply it to versions of `opm` published after Your membership lapsed. Everything You
-have already released under it stays covered, permanently, including maintenance of those
-releases. No project is stranded by a lapsed membership.
+## 4. What still applies
 
-**4. What is not covered.** Private forks of `opm` itself, vendoring without preserving
-substitution rights, and removal of attribution are outside this grant. Those require a
-separate commercial licence — write to `info@e-editiones.org`.
+The LGPL's own obligations remain in force. In particular, under section 4:
 
-**5. Relationship to the AGPL.** This document creates no obligation and removes no right
-under [LICENSE](LICENSE). If You are not a member, or prefer the AGPL, that licence
-governs and is entirely sufficient to use, modify and redistribute the software.
+- modifications to `opm` itself must be made available under the LGPL when conveyed;
+- recipients of your application must be able to substitute their own build of `opm`. In
+  Python this is satisfied by depending on the published package rather than vendoring a
+  patched copy — and, where you do ship a modified `opm`, by providing its source. Where
+  the substitution cannot happen at install time at all — a vendored copy, a frozen binary,
+  an image the user cannot alter — section 4d0 applies instead, and your application must
+  be shipped in a form that permits relinking against a modified `opm`;
+- copyright and licence notices must be preserved.
 
-## Getting the grant in writing
+## 5. Onward distribution
 
-The offer above is effective for members on its own terms. If Your legal department wants
-a signed, countersigned instrument naming Your institution and the covered versions —
-most do — write to `info@e-editiones.org` and e-editiones will issue one.
+This grant is a genuine LGPL licence. A member may therefore convey copies received under
+it to third parties under the LGPL, including publicly, and those recipients acquire LGPL
+rights directly. e-editiones accepts this consequence knowingly.
+
+Membership is worth having for currency, support, participation in the roadmap and
+assurance about future releases — not for exclusivity, which no LGPL grant could provide.
+
+## 6. What requires a separate agreement
+
+- Removing or altering copyright notices and licence information.
+- Conveying `opm`, or a work containing it, on terms that do not satisfy the LGPL.
+
+Write to `info@e-editiones.org`.
+
+## 7. Relationship to the public licence
+
+This grant does not modify, replace or restrict the AGPL licence under which `opm` is
+published, nor the additional permissions in
+[LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md). A member may rely on either licence, and
+may rely on different licences for different projects.
+
+---
 
 ```
 e-editiones
@@ -83,4 +83,5 @@ info@e-editiones.org
 UID CHE-474.398.996
 ```
 
-This document is governed by the laws of Switzerland.
+*Plain-language summary; the LGPL-3.0 text governs the terms it grants. This document is
+governed by the laws of Switzerland.*

@@ -1,0 +1,14 @@
+Source documents
+
+The files under examples/*/data/ are scholarly source texts — journal articles,
+correspondence, dramatic works and their editorial apparatus — used to demonstrate what
+Open Processing Model does. They are not part of the software, and e-editiones does not
+claim copyright in them.
+
+Each carries its own provenance and rights, stated in the README of the example project
+it belongs to. The CC0 dedication that covers the surrounding scaffolding (section 4 of
+LICENSE-EXCEPTIONS.md) does not extend to them, and neither does the AGPL that covers opm
+itself.
+
+If you reuse one of these documents outside this repository, check the example's README
+for its source and terms first.

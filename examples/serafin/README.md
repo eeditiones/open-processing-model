@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2026 e-editiones
+SPDX-License-Identifier: CC0-1.0
+-->
+
 # Serafin letters
 
 A worked `opm` project for the 15th-century correspondence of Mikołaj Serafin:
@@ -89,3 +94,17 @@ in Typst output, the standard sigla for lacunae in a critical edition:
 - `opm.toml` — collections, `$global:register-root`, chunk fragments
 - `data/letters/` — sample TEI
 - `data/registers/` — persons, places, organizations, works
+
+## Licence
+
+The project furniture here — stylesheets, templates, `opm.toml`, extension and helper
+scripts — is released by e-editiones under
+[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/); `opm init --example` copies
+it into your own project with no strings attached.
+
+The ODD under `odd/` is the exception: it comes from TEI Publisher and is GPL-3.0-or-later,
+copyright eXistSolutions GmbH, as its own `teiHeader` states. Transform modules compiled
+from it carry that licence with them.
+
+The documents under `data/` are not covered by that dedication. They are source texts with
+their own provenance and rights, noted above.

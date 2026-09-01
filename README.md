@@ -124,13 +124,20 @@ Development of `opm` is supported by:
 ## License
 
 Copyright © 2026 e-editiones. Licensed under the [GNU Affero General Public License,
-version 3 or later](LICENSE).
+version 3 or later](LICENSE), with [additional permissions](LICENSE-EXCEPTIONS.md).
 
 The AGPL means that if you build on `opm` and offer it to others — including as a hosted
 service — your users are entitled to the source. Institutional members of
-[e-editiones](https://www.e-editiones.org/) may instead use `opm` under LGPL terms,
-which lift that obligation: see [LICENSE-MEMBER-GRANT.md](LICENSE-MEMBER-GRANT.md).
+[e-editiones](https://www.e-editiones.org/) may instead use `opm` under the **LGPL**,
+which lifts that obligation: see [LICENSE-MEMBER-GRANT.md](LICENSE-MEMBER-GRANT.md).
 Membership funds the long-term maintenance of TEI Publisher and its tooling.
+
+[LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md) grants everyone additional permissions
+under AGPL §7: invoking `opm` as a separate process leaves your program alone, transform
+modules compiled from your ODDs are yours to license and to execute, so are XPath
+extension modules, and the files `opm init` writes into your project are released under
+CC0. Vendoring `opm`'s own source into your tree is the case those permissions do not
+cover.
 
 Documents you transform with `opm` are your own; the licence does not reach the output.
 See [the licensing guide](docs/license.md) for where the line falls in practice.

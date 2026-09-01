@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: CC0-1.0
+
 """Build the IIIF manifest the facsimile viewer reads.
 
 A deployed TEI Publisher answers ``api/iiif/<doc>`` with a generated manifest.

@@ -9,7 +9,7 @@ description = "Open Processing Model — transform XML via ODD processing models
 readme = "README.md"
 requires-python = ">=3.12"
 license = "AGPL-3.0-or-later"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "LICENSE-EXCEPTIONS.md", "LICENSE-MEMBER-GRANT.md"]
 authors = [{ name = "e-editiones", email = "info@e-editiones.org" }]
 classifiers = [
     "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
