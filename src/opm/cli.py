@@ -1468,6 +1468,7 @@ def index_cmd(
             max_chars=max_chars if max_chars is not None else cfg.index_max_chars,
             min_chars=min_chars if min_chars is not None else cfg.index_min_chars,
             overlap=overlap if overlap is not None else cfg.index_overlap,
+            fields=cfg.index_fields,
         )
         records: list[dict] = []
         for path in input_files:

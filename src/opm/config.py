@@ -184,6 +184,61 @@ class CollectionConfig:
     documents: tuple[Path, ...]
 
 
+def _index_fields(index_data: dict) -> tuple:
+    """Parse ``[[index.fields]]`` into :class:`opm.indexing.FieldSpec`s.
+
+    A field names records by behaviour, element or model — the three handles a
+    JSON record carries — and says where their text goes; see
+    :class:`opm.indexing.FieldSpec`.
+    """
+    from opm.indexing import FieldSpec
+
+    raw = index_data.get('fields', [])
+    if isinstance(raw, dict):
+        raw = [raw]
+    elif not isinstance(raw, list):
+        raise ValueError('opm.toml: index.fields must be an array of tables')
+
+    specs: list[FieldSpec] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            raise ValueError('opm.toml: each index.fields entry must be a table')
+        name = str(entry.get('name', '')).strip()
+        if not name:
+            raise ValueError('opm.toml: index.fields entry is missing "name"')
+        selectors = {
+            key: _string_list(entry.get(key, []), f'index.fields["{name}"].{key}')
+            for key in ('behaviours', 'elements', 'models')
+        }
+        if not any(selectors.values()):
+            raise ValueError(
+                f'opm.toml: index.fields["{name}"] selects nothing — give it '
+                '"behaviours", "elements" or "models"',
+            )
+        inline = entry.get('inline')
+        specs.append(
+            FieldSpec(
+                name=name,
+                behaviours=frozenset(selectors['behaviours']),
+                elements=frozenset(selectors['elements']),
+                models=frozenset(selectors['models']),
+                metadata=bool(entry.get('metadata', True)),
+                inline=None if inline is None else bool(inline),
+                separator=str(entry.get('separator', '; ')),
+            ),
+        )
+    return tuple(specs)
+
+
+def _string_list(value, label: str) -> list[str]:
+    """Accept a single string or a list of them for a config key."""
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list) and all(isinstance(v, str) for v in value):
+        return list(value)
+    raise ValueError(f'opm.toml: {label} must be a string or list of strings')
+
+
 @dataclass
 class ProjectConfig:
     webcomponents_enabled: bool | None = None
@@ -257,6 +312,8 @@ class ProjectConfig:
     """``[index] min_chars`` — drop units shorter than this; bare headings are noise."""
     index_overlap: int = 1
     """``[index] overlap`` — records of context carried into the next part on a split."""
+    index_fields: tuple = ()
+    """``[[index.fields]]`` — :class:`opm.indexing.FieldSpec`s pulled out of a passage."""
     pythonpath: tuple[Path, ...] = ()
     transform_odd: Path | None = None
     """Default transform ODD from ``[transform].odd`` or ``[transform.web].odd``."""
@@ -591,6 +648,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         index_max_chars=int(index_data.get('max_chars', 1500)),
         index_min_chars=int(index_data.get('min_chars', 40)),
         index_overlap=int(index_data.get('overlap', 1)),
+        index_fields=_index_fields(index_data),
         pythonpath=pythonpath,
         transform_odd=transform_odd,
         transform_odds=transform_odds,

@@ -88,3 +88,27 @@ xpath = "."
 parameters = { mode = "breadcrumb" }
 {% endif -%}
 {% endif -%}
+
+[index]
+# `opm index` rolls the ODD's own output up into JSONL records for a search
+# index or vector store. The defaults suit prose; uncomment to tune.
+# max_chars = 1500   # split a passage longer than this
+# min_chars = 40     # drop units shorter than this; a bare heading is noise
+# overlap = 1        # records of context carried into the next part on a split
+
+# Material pulled out of a passage, selected by `elements`, `behaviours` or
+# `models`. A facet stays in the prose and is repeated as metadata you can
+# filter on:
+#
+# [[index.fields]]
+# name = "persons"
+# elements = ["{{ index_name_element }}"]
+#
+# With metadata = false each match becomes a record of its own instead, tagged
+# kind = "note" and linked to the passage it came from, and it leaves that
+# passage's text (inline = true keeps it in both places):
+#
+# [[index.fields]]
+# name = "note"
+# elements = ["{{ index_note_element }}"]
+# metadata = false

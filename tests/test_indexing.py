@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from opm.indexing import IndexOptions, build_records, write_jsonl
+from opm.indexing import FieldSpec, IndexOptions, build_records, write_jsonl
 
 ROOT = Path(__file__).resolve().parents[1]
 DEMO_TEI_TEST_XML = ROOT / 'examples' / 'tei-test.xml'
@@ -395,6 +395,189 @@ def test_template_content_reaches_the_index() -> None:
 
     assert 'template wraps and must not lose' in ' '.join(r['document'] for r in records)
 
+
+# ── fields ───────────────────────────────────────────────────────────────────
+
+def _note(text: str, xml_id: str | None = None, xpath: str = '/*/p/note') -> dict:
+    record: dict = {
+        'xpath': xpath,
+        'element': 'note',
+        'behaviour': 'note',
+        'model': 'tei-note1',
+        'children': [text],
+    }
+    if xml_id:
+        record['id'] = xml_id
+    return record
+
+
+def _fields(*specs: FieldSpec, **tuning) -> IndexOptions:
+    return IndexOptions(fields=specs, min_chars=1, **tuning)
+
+
+def _para_with(*children, xpath: str = '/*/p') -> dict:
+    return {
+        'xpath': xpath, 'element': 'p', 'behaviour': 'paragraph', 'model': 'tei-p1',
+        'children': list(children),
+    }
+
+
+def test_metadata_field_joins_values_onto_the_passage() -> None:
+    """A facet: the name stays in the prose and is repeated as metadata."""
+    name = {
+        'xpath': '/*/p/persName', 'element': 'persName', 'behaviour': 'inline',
+        'model': 'tei-persName1', 'children': ['Aldo Manuzio'],
+    }
+    other = dict(name, xpath='/*/p/persName[2]', children=['Serafino'])
+    doc = [_section('s1', 'A heading', _para_with('Printed by ', name, ' and ', other, '.'))]
+
+    records = _build(doc, options=_fields(
+        FieldSpec(name='persons', elements=frozenset({'persName'})),
+    ))
+
+    assert records[0]['metadata']['persons'] == 'Aldo Manuzio; Serafino'
+    assert 'Aldo Manuzio' in records[0]['document']
+
+
+def test_metadata_field_reports_each_value_once() -> None:
+    name = {
+        'xpath': '/*/p/persName', 'element': 'persName', 'behaviour': 'inline',
+        'model': 'tei-persName1', 'children': ['Serafino'],
+    }
+    doc = [_section('s1', 'A heading', _para_with('A ', name, ' and again ', dict(name), '.'))]
+
+    records = _build(doc, options=_fields(
+        FieldSpec(name='persons', elements=frozenset({'persName'}), separator=' | '),
+    ))
+
+    assert records[0]['metadata']['persons'] == 'Serafino'
+
+
+def test_extracted_field_becomes_its_own_record() -> None:
+    """``metadata=False``: a note is retrievable on its own, and tagged."""
+    doc = [_section(
+        's1', 'A heading',
+        _para_with('Prose that carries a note', _note('The note text itself.'), '.'),
+    )]
+
+    records = _build(doc, options=_fields(
+        FieldSpec(name='note', elements=frozenset({'note'}), metadata=False),
+    ))
+
+    passage, note = records
+    assert note['metadata']['kind'] == 'note'
+    assert note['document'] == 'The note text itself.'
+    # Whether to embed notes is then a filter on `kind`, not a choice baked in.
+    assert note['metadata']['parent'] == passage['id']
+    # `inline` defaults off the flag, so the note leaves the passage it annotates.
+    assert 'note text itself' not in passage['document']
+
+
+def test_extracted_field_can_stay_in_its_passage_too() -> None:
+    doc = [_section(
+        's1', 'A heading',
+        _para_with('Prose that carries a note', _note('The note text itself.'), '.'),
+    )]
+
+    records = _build(doc, options=_fields(
+        FieldSpec(
+            name='note', elements=frozenset({'note'}), metadata=False, inline=True,
+        ),
+    ))
+
+    assert len(records) == 2
+    assert 'note text itself' in records[0]['document']
+    assert records[1]['metadata']['kind'] == 'note'
+
+
+def test_extracted_field_keeps_its_own_id_and_xpath() -> None:
+    doc = [_section(
+        's1', 'A heading',
+        _para_with('Prose. ', _note('A note with an id of its own.', xml_id='n1'), ''),
+    )]
+
+    records = _build(doc, options=_fields(
+        FieldSpec(name='note', behaviours=frozenset({'note'}), metadata=False),
+    ))
+    note = records[-1]
+
+    assert note['id'] == 'doc#n1'
+    assert note['metadata']['xml_id'] == 'n1'
+    assert note['metadata']['xpath'] == '/*/p/note'
+
+
+def test_fields_select_by_behaviour_element_or_model() -> None:
+    """All three handles a JSON record carries pick the same note."""
+    doc = [_section('s1', 'A heading', _para_with('Prose. ', _note('Note text.')))]
+
+    for spec in (
+        FieldSpec(name='n', behaviours=frozenset({'note'}), metadata=False),
+        FieldSpec(name='n', elements=frozenset({'note'}), metadata=False),
+        FieldSpec(name='n', models=frozenset({'tei-note1'}), metadata=False),
+    ):
+        records = _build(doc, options=_fields(spec))
+        assert [r['metadata'].get('kind') for r in records] == [None, 'n']
+
+
+def test_suppressed_content_never_reaches_a_field() -> None:
+    """What the ODD dropped stays dropped, facet or not."""
+    hidden = dict(_note('Apparatus the reader never sees.'), suppressed=True)
+    doc = [_section('s1', 'A heading', _para_with('Prose. ', hidden))]
+
+    records = _build(doc, options=_fields(
+        FieldSpec(name='note', elements=frozenset({'note'}), metadata=False),
+    ))
+
+    assert len(records) == 1
+    assert 'Apparatus' not in records[0]['document']
+
+
+def test_field_specs_default_inline_to_the_metadata_flag() -> None:
+    assert FieldSpec(name='persons', metadata=True).keeps_text_inline
+    assert not FieldSpec(name='note', metadata=False).keeps_text_inline
+    assert FieldSpec(name='note', metadata=False, inline=True).keeps_text_inline
+
+# ── config ───────────────────────────────────────────────────────────────────
+
+def _config(tmp_path: Path, body: str):
+    from opm.config import load_project_config
+
+    path = tmp_path / 'opm.toml'
+    path.write_text(body, encoding='utf-8')
+    return load_project_config(path)
+
+
+def test_index_fields_are_read_from_the_config(tmp_path: Path) -> None:
+    cfg = _config(tmp_path, """
+[[index.fields]]
+name = "note"
+elements = ["note"]
+metadata = false
+
+[[index.fields]]
+name = "persons"
+elements = "persName"
+separator = " | "
+""")
+
+    note, persons = cfg.index_fields
+    assert note.elements == frozenset({'note'})
+    assert not note.metadata
+    assert not note.keeps_text_inline
+    # A single string is accepted where a list would do.
+    assert persons.elements == frozenset({'persName'})
+    assert persons.metadata
+    assert persons.separator == ' | '
+
+
+def test_a_field_must_select_something(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match='selects nothing'):
+        _config(tmp_path, '[[index.fields]]\nname = "note"\n')
+
+
+def test_a_field_must_be_named(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match='missing "name"'):
+        _config(tmp_path, '[[index.fields]]\nelements = ["note"]\n')
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
 

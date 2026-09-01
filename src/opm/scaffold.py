@@ -36,6 +36,13 @@ _HTML_TEMPLATE = {
     'docbook': 'chapbook',
     'jats': 'journal',
 }
+# Elements the commented-out [[index.fields]] examples point at, per vocabulary:
+# (footnote-like element, person-name element).
+_INDEX_FIELD_ELEMENTS = {
+    'tei': ('note', 'persName'),
+    'docbook': ('footnote', 'personname'),
+    'jats': ('fn', 'name'),
+}
 _CHUNK_SELECTOR = {
     'tei': 'opm.navigation.tei_div_chunks',
     'docbook': 'opm.navigation.dbk_section_chunks',
@@ -387,6 +394,8 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         title_xpath=title_xpath,
         breadcrumbs=vocab in _BREADCRUMBS,
         html_template=html_template,
+        index_note_element=_INDEX_FIELD_ELEMENTS[vocab][0],
+        index_name_element=_INDEX_FIELD_ELEMENTS[vocab][1],
     )
     _record(config_path, written, skipped, _write_text(config_path, toml_text, force=force))
 

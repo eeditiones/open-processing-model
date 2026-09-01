@@ -45,6 +45,45 @@ _TITLE_XPATH = {
 _WS_RE = re.compile(r'\s+')
 
 
+@dataclass(frozen=True)
+class FieldSpec:
+    """Material to pull out of a passage: a facet, or a passage of its own.
+
+    A note and a person name are the same operation — recognise a record, take
+    its text — differing only in where the text goes. ``metadata=True`` joins it
+    onto the passage that contains it, for filtering; ``metadata=False`` emits it
+    as its own retrievable record tagged ``kind`` and linked to its parent, and
+    whether a search engine indexes those is then a filter at load time rather
+    than a decision baked into the file.
+
+    ``inline`` is the one choice that cannot be deferred: it decides whether the
+    text stays in the containing passage's embedded ``document`` string. It
+    defaults to *metadata*, which is what each case usually wants — a name reads
+    as part of the sentence, an extracted note does not — and can be set
+    explicitly to keep a fragment in both places.
+    """
+
+    name: str
+    behaviours: frozenset[str] = frozenset()
+    elements: frozenset[str] = frozenset()
+    models: frozenset[str] = frozenset()
+    metadata: bool = True
+    inline: bool | None = None
+    separator: str = '; '
+    """Joins several values of a metadata field: Chroma takes scalars, not lists."""
+
+    @property
+    def keeps_text_inline(self) -> bool:
+        return self.metadata if self.inline is None else self.inline
+
+    def matches(self, record: dict) -> bool:
+        return (
+            record.get('behaviour') in self.behaviours
+            or record.get('element') in self.elements
+            or record.get('model') in self.models
+        )
+
+
 @dataclass
 class IndexOptions:
     """Tuning for the rollup. Defaults suit prose in a general-purpose embedder."""
@@ -53,6 +92,8 @@ class IndexOptions:
     min_chars: int = 40
     overlap: int = 1
     """Trailing split-boundary records carried into the next part, for context."""
+    fields: tuple[FieldSpec, ...] = ()
+    """``[[index.fields]]`` — material extracted as a facet or as its own record."""
 
 
 @dataclass
@@ -67,6 +108,12 @@ class _Unit:
     """Last ``xml:id`` seen before this unit opened — the page it starts on."""
     parts: list[tuple[str, str | None, str | None]] = field(default_factory=list)
     """``(text, xml_id, xpath)`` per contributing record, so a split keeps its anchor."""
+    kind: str | None = None
+    """Name of the :class:`FieldSpec` this unit was extracted by, if any."""
+    parent: '_Unit | None' = None
+    """The passage an extracted unit was taken out of."""
+    fields: dict[str, list[str]] = field(default_factory=dict)
+    """Extracted values destined for this unit's metadata, in document order."""
 
     @property
     def text(self) -> str:
@@ -126,8 +173,11 @@ class _Walker:
     collided their ids.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, fields: tuple[FieldSpec, ...] = ()) -> None:
+        self.fields = fields
         self.units: list[_Unit] = []
+        self.extracted: list[_Unit] = []
+        """Units lifted out by a ``metadata=False`` field, parents first at emit time."""
         self.current: _Unit | None = None
         self.last_anchor: str | None = None
         """Most recent ``xml:id`` seen in document order.
@@ -151,6 +201,14 @@ class _Walker:
         if record.get('id'):
             self.last_anchor = record['id']
 
+        spec = next((f for f in self.fields if f.matches(record)), None)
+        if spec is not None:
+            self.extract(record, spec, breadcrumb)
+            if not spec.keeps_text_inline:
+                # The text belongs to the facet or the extracted record only;
+                # walking on would embed it in the containing passage as well.
+                return
+
         heading = _first_heading(record)
         # A named behaviour is not enough on its own: ODDs differ on whether an
         # act or a chapter gets `section` or plain `block`, but a division that
@@ -168,6 +226,29 @@ class _Walker:
                 entry_anchor=self.last_anchor,
             )
         self.descend(record, breadcrumb)
+
+    def extract(self, record: dict, spec: FieldSpec, breadcrumb: list[str]) -> None:
+        """Take a record's text out as a facet value or as a unit of its own."""
+        text = _record_text(record)
+        if not text:
+            return
+        if spec.metadata:
+            if self.current is not None:
+                values = self.current.fields.setdefault(spec.name, [])
+                if text not in values:  # a name repeated in one passage is one facet
+                    values.append(text)
+            return
+        unit = _Unit(
+            xml_id=record.get('id'),
+            xpath=record.get('xpath'),
+            heading=None,
+            breadcrumb=list(breadcrumb),
+            entry_anchor=self.last_anchor,
+            kind=spec.name,
+            parent=self.current,
+        )
+        unit.parts.append((text, record.get('id'), record.get('xpath')))
+        self.extracted.append(unit)
 
     def open(self, record: dict, breadcrumb: list[str], heading: str | None) -> None:
         if self.current is not None and self.current.parts:
@@ -200,12 +281,17 @@ class _Walker:
             )
 
 
-def _iter_units(record: dict, options: IndexOptions) -> list[_Unit]:
-    """Walk the record tree, returning one unit per titled division."""
-    _ = options
-    walker = _Walker()
-    walker.collect(record, [])
-    return walker.finish()
+def _iter_units(document: list, options: IndexOptions) -> tuple[list[_Unit], list[_Unit]]:
+    """Walk one document's record roots into ``(units, extracted units)``.
+
+    One walker spans every root so an open unit and the running anchor survive
+    the boundary between them.
+    """
+    walker = _Walker(options.fields)
+    for root in document:
+        if isinstance(root, dict):
+            walker.collect(root, [])
+    return walker.finish(), walker.extracted
 
 
 def _first_heading(record: dict) -> str | None:
@@ -296,14 +382,15 @@ def build_records(
     options = options or IndexOptions()
     anchors = anchors or {}
 
-    units: list[_Unit] = []
-    for root in document:
-        if isinstance(root, dict):
-            units.extend(_iter_units(root, options))
+    units, extracted = _iter_units(document, options)
+    separators = {spec.name: spec.separator for spec in options.fields}
 
     records: list[dict] = []
     seen: dict[str, int] = {}
-    for unit in units:
+    ids: dict[int, str] = {}
+    # Extracted units come last so the passage they were taken from already has
+    # an id to point at.
+    for unit in units + extracted:
         pieces = _split(unit, options)
         kept = [p for p in pieces if len(p[0]) >= options.min_chars]
         if not kept:
@@ -320,6 +407,7 @@ def build_records(
                 record_id = f'{record_id}~{seen[record_id]}'
             else:
                 seen[record_id] = 0
+            ids.setdefault(id(unit), record_id)
             metadata: dict[str, Any] = {
                 'source': source,
                 'doc': doc_stem,
@@ -344,6 +432,13 @@ def build_records(
             href = _href(anchor, unit.entry_anchor, anchors, chunk_file)
             if href:
                 metadata['href'] = href
+            if unit.kind:
+                metadata['kind'] = unit.kind
+                parent_id = ids.get(id(unit.parent)) if unit.parent else None
+                if parent_id:
+                    metadata['parent'] = parent_id
+            for name, values in unit.fields.items():
+                metadata[name] = separators.get(name, '; ').join(values)
             records.append({
                 'id': record_id,
                 'document': text,
@@ -431,6 +526,14 @@ def index_document(
     from opm.transform import load_transform_module
 
     project_root = project_root or Path.cwd()
+    # The config already carries the rollup tuning and the field declarations;
+    # a caller that passes cfg but no options means "use what the project says".
+    options = options or IndexOptions(
+        max_chars=cfg.index_max_chars,
+        min_chars=cfg.index_min_chars,
+        overlap=cfg.index_overlap,
+        fields=cfg.index_fields,
+    )
     resolved_odd = odd if odd is not None else cfg.odd_for_type('json')
     resolved = resolve_transform_module(
         odd=resolved_odd,

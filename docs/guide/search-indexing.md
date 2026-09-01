@@ -56,6 +56,11 @@ the reading text and nothing else. Changing the ODD changes the index with it.
 ChromaDB's constraint, and the strictest of the common ones; Elasticsearch and
 others accept the same shape.
 
+Two more keys appear where the project declares
+[fields](#fields-notes-names-dates): `kind` and `parent` on a record extracted
+from a passage, plus one key per metadata field (`persons`, `dates`, whatever
+you name them).
+
 ### Stable ids
 
 Re-indexing has to upsert in place. A positional counter would mean that adding
@@ -99,36 +104,141 @@ min_chars = 60
 overlap = 1
 ```
 
+## Fields: notes, names, dates
+
+By default a passage is indexed as one block of text, and everything inside it —
+a footnote, a person name, a date — is part of that block. Often that is not
+what you want. A long footnote in the middle of a paragraph blurs what the
+paragraph is *about*, and it is frequently the thing a reader is searching for
+in its own right. A person name, by contrast, should stay in the sentence, but
+you would also like to filter a search by it.
+
+`[[index.fields]]` covers both. A field names the records to pick out — by
+`elements`, `behaviours` or `models`, the three handles a JSON record carries —
+and says where their text goes:
+
+```toml
+[[index.fields]]
+name = "note"
+elements = ["note"]
+metadata = false        # its own record
+
+[[index.fields]]
+name = "persons"
+elements = ["persName"]
+metadata = true         # a facet on the passage (the default)
+```
+
+With `metadata = true` the text is joined onto the passage that contains it,
+under the field's name, and stays in the prose:
+
+```json
+"metadata": {
+  "persons": "Aldo Manuzio; Serafino",
+  ...
+}
+```
+
+Repeated values are reported once, and the joining string is `separator`
+(default `"; "`). Metadata is scalars only — ChromaDB's rule — which is why
+several values become one string; if you need them apart, make it a record
+instead.
+
+With `metadata = false` each match becomes a record of its own, tagged
+`kind` and carrying the id of the passage it was taken from:
+
+```json
+{
+  "id": "letters01#n7",
+  "document": "Serafino writes from Kraków, where he had been since March.",
+  "metadata": { "kind": "note", "parent": "letters01#pi-1450-03", ... }
+}
+```
+
+Nothing is decided for you there: whether notes are embedded alongside the prose
+is a filter on `kind` in your load script, or a `where` clause at query time. The
+same file serves both choices.
+
+### What `inline` decides
+
+One thing cannot be deferred: whether the text stays inside the passage's
+`document` string, because that string is what gets embedded. `inline` controls
+it, and defaults to whatever `metadata` is — a name reads as part of the
+sentence, an extracted note does not:
+
+```toml
+[[index.fields]]
+name = "note"
+elements = ["note"]
+metadata = false
+inline = true           # keep it in the paragraph as well as extracting it
+```
+
+Two more things worth knowing. Fields never see content the ODD suppressed —
+`omit`ted apparatus stays out of the index whatever you declare. And an
+extracted record is a unit like any other, so `min_chars` applies: a two-word
+note is dropped as noise. Lower `[index] min_chars` if short notes matter to
+you.
+
+An extracted record takes its own `xml:id` and `xpath` where the fragment has
+them, and otherwise inherits the page link of the passage around it — a note
+sits on the same page as the text it annotates, so the link is never wrong, only
+less precise.
+
 ## Links back to the page
 
-Where the project has a `[chunking]` section, each chunk is transformed on its
-own and tagged with the file it will be published as, so `href` points at the
-real page. That matters because a chunk selector may rebuild its region as a
-detached tree whose ids never existed in the source document — an href that
-depended on matching `xml:id` would resolve for nothing, while the chunk file is
-known either way.
+A search hit is only useful if the reader can open the passage it came from.
+That is the job of `href`: it names the published page, and where possible the
+exact spot on it.
 
-Without a `[chunking]` section the whole document is indexed as one unit tree
-and records carry no `href`.
+If the project chunks its documents (a `[chunking]` section in `opm.toml`),
+`opm index` splits each document into the very same pages `opm chunk` publishes
+and indexes them one page at a time. Every record then knows which page it came
+from, and `href` is that page's filename, followed by `#` and the passage's
+`xml:id` where it has one:
 
-`href` is relative to the document, not to the site root. A directory run
-publishes each document into a subdirectory named after the source *file* —
-`data/doc/quickstart.xml` becomes `quickstart.xml/` — so a link rendered from a
-collection-wide index has to join the two:
+```json
+"chunk": "002.html",
+"href": "002.html#pi-first-steps"
+```
+
+`opm index` also notes which page each `xml:id` in the document ended up on, and
+prefers that page when it builds the link. So a passage whose id lives on a
+different page than the one being indexed still links where a reader will
+actually find it.
+
+Without a `[chunking]` section there are no pages to point at: the document is
+indexed as a whole and records carry no `href` at all. The `xml_id` and `xpath`
+fields are still there, so you can build your own links to wherever you publish.
+
+### Turning `href` into a URL
+
+`href` is relative to the document's own pages, not to the site root, because
+each document is chunked into a directory of its own. Chunking a whole
+directory, `opm chunk` names that directory after the source *file*, extension
+included — `data/doc/quickstart.xml` becomes `chunks/quickstart.xml/001.html`.
+A search interface covering several documents therefore has to put the two
+halves together:
 
 ```python
+# 'data/doc/quickstart.xml' and '002.html#pi-first-steps'
+# give 'quickstart.xml/002.html#pi-first-steps'
 url = metadata['source'].split('/')[-1] + '/' + metadata['href']
 ```
 
-Use `source`, not `doc`: `doc` is the filename stem and lacks the extension the
-directory carries.
+Take the prefix from `source`, not from `doc`: `doc` is the bare filename stem
+(`quickstart`), while the published directory keeps the extension
+(`quickstart.xml`).
 
-The fragment resolves only if the anchor survives into the published HTML.
-`opm index` appends `#{xml:id}` whenever the passage has one, but a behaviour
-emits an `id` attribute only where the ODD asks for it — so a processing model
-that renders no ids produces links that reach the right page and stop there. If
-deep links matter, confirm the chunk HTML actually contains the ids before
-blaming the index.
+### When the fragment does not jump
+
+`#pi-first-steps` only lands on the passage if the published HTML really
+contains an element carrying that id. `opm index` appends the fragment whenever
+the source passage has an `xml:id`, but the HTML only gets an `id` attribute
+where the ODD's behaviour writes one. An ODD that renders no ids gives you
+links that open the right page and leave the reader at the top of it. If deep
+links matter to you, search a chunk's HTML for the id before suspecting the
+index.
 
 ## Loading into ChromaDB
 
