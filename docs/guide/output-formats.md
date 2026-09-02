@@ -228,6 +228,14 @@ fallback is `default_document.typ.j2`.
 uv run opm transform examples/tei-test.xml -t typst -o out.typ
 ```
 
+The resulting `.typ` file you can then process with
+
+```bash
+typst compile out.typ --open`
+```
+
+Refer to the [Typst documentation](https://typst.app/docs/) for more information about running the command.
+
 ## JSON
 
 `-t json` does not render the document. It records **what the processing model
