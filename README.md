@@ -91,29 +91,13 @@ uv run --group docs zensical build                   # static site into ./site
 
 Development of `opm` is supported by:
 
-<table>
-  <tr>
-    <td align="center" colspan="2">
-      <a href="https://www.ernst-goehner-stiftung.ch/"><img src="docs/assets/EGS_Logo_Standard_RGB.svg#gh-light-mode-only" alt="Ernst Göhner Stiftung" height="44"><img src="docs/assets/EGS_Logo_Standard_RGB_white.svg#gh-dark-mode-only" alt="Ernst Göhner Stiftung" height="44"></a>
-    </td>
-    <td align="center" colspan="2">
-      <a href="https://www.sagw.ch/"><img src="docs/assets/SAGW_Logo_addition_supported_pos.svg#gh-light-mode-only" alt="Swiss Academy of Humanities and Social Sciences" height="64"><img src="docs/assets/SAGW_Logo_addition_supported_pos_white.svg#gh-dark-mode-only" alt="Swiss Academy of Humanities and Social Sciences" height="64"></a>
-    </td>
-    <td align="center" colspan="2">
-      <a href="https://www.zb.uzh.ch/"><img src="docs/assets/ZB_Logo_RGB_1024px.png" alt="Zentralbibliothek Zürich" height="62"></a>
-    </td>
-  </tr>
-  <tr>
-    <td></td>
-    <td align="center" colspan="2">
-      <a href="https://www.zde.uzh.ch/"><img src="docs/assets/uzh-logo-black.png#gh-light-mode-only" alt="Universität Zürich" height="44"><img src="docs/assets/uzh-logo-white.png#gh-dark-mode-only" alt="Universität Zürich" height="44"></a><br><sub>Zentrum Digitale Editionen &amp; Editionsanalytik</sub>
-    </td>
-    <td align="center" colspan="2">
-      <a href="https://theologie.unibas.ch/de/karl-barth-zentrum/"><img src="docs/assets/karl-barth.png#gh-light-mode-only" alt="Karl Barth-Stiftung" height="44"><img src="docs/assets/karl-barth-white.png#gh-dark-mode-only" alt="Karl Barth-Stiftung" height="44"></a><br><sub>Karl Barth-Stiftung</sub>
-    </td>
-    <td></td>
-  </tr>
-</table>
+<p align="center" style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 1.5rem 2.5rem;">
+  <a href="https://www.ernst-goehner-stiftung.ch/"><img src="docs/assets/EGS_Logo_Standard_RGB.svg#gh-light-mode-only" alt="Ernst Göhner Stiftung" height="44"><img src="docs/assets/EGS_Logo_Standard_RGB_white.svg#gh-dark-mode-only" alt="Ernst Göhner Stiftung" height="44"></a>
+  <a href="https://www.sagw.ch/"><img src="docs/assets/SAGW_Logo_addition_supported_pos.svg#gh-light-mode-only" alt="Swiss Academy of Humanities and Social Sciences" height="64"><img src="docs/assets/SAGW_Logo_addition_supported_pos_white.svg#gh-dark-mode-only" alt="Swiss Academy of Humanities and Social Sciences" height="64"></a>
+  <a href="https://www.zb.uzh.ch/"><img src="docs/assets/ZB_Logo_RGB_1024px.png" alt="Zentralbibliothek Zürich" height="62"></a>
+  <a href="https://www.zde.uzh.ch/" style="display: inline-flex; flex-direction: column; align-items: center; gap: 0.75rem; text-align: center; text-decoration: none; color: inherit;"><span><img src="docs/assets/uzh-logo-black.png#gh-light-mode-only" alt="Universität Zürich" height="44"><img src="docs/assets/uzh-logo-white.png#gh-dark-mode-only" alt="Universität Zürich" height="44"></span><sub>Zentrum Digitale Editionen &amp; Editionsanalytik</sub></a>
+  <a href="https://theologie.unibas.ch/de/karl-barth-zentrum/" style="display: inline-flex; flex-direction: column; align-items: center; gap: 0.75rem; text-align: center; text-decoration: none; color: inherit;"><span><img src="docs/assets/karl-barth.png#gh-light-mode-only" alt="Karl Barth-Stiftung" height="44"><img src="docs/assets/karl-barth-white.png#gh-dark-mode-only" alt="Karl Barth-Stiftung" height="44"></span><sub>Karl Barth-Stiftung</sub></a>
+</p>
 
 ### An initiative of
 
