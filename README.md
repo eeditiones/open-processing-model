@@ -91,22 +91,23 @@ uv run --group docs zensical build                   # static site into ./site
 Development of `opm` is supported by:
 
 <p align="center">
-  <a href="https://www.ernst-goehner-stiftung.ch/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/EGS_Logo_Standard_RGB_white.svg"><img src="docs/assets/EGS_Logo_Standard_RGB.svg" alt="Ernst Göhner Stiftung" height="40"></picture></a>
-  &nbsp;&nbsp;&nbsp;
-  <a href="https://www.sagw.ch/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/SAGW_Logo_addition_supported_pos_white.svg"><img src="docs/assets/SAGW_Logo_addition_supported_pos.svg" alt="Swiss Academy of Humanities and Social Sciences" height="54"></picture></a>
-  &nbsp;&nbsp;&nbsp;
-  <a href="https://www.zb.uzh.ch/"><img src="docs/assets/ZB_Logo_RGB_1024px.png" alt="Zentralbibliothek Zürich" height="50"></a>
-  &nbsp;&nbsp;&nbsp;
-  <a href="https://theologie.unibas.ch/de/karl-barth-zentrum/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/karl-barth-white.png"><img src="docs/assets/karl-barth.png" alt="Karl Barth-Stiftung" height="40"></picture></a>
-  &nbsp;&nbsp;&nbsp;
-  <a href="https://www.zde.uzh.ch/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/uzh-logo-white.png"><img src="docs/assets/uzh-logo-black.png" alt="Universität Zürich" height="40"></picture></a>
+  <a href="https://www.ernst-goehner-stiftung.ch/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/EGS_Logo_Standard_RGB_white.svg"><img src="docs/assets/EGS_Logo_Standard_RGB.svg" alt="Ernst Göhner Stiftung" height="44"></picture></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.sagw.ch/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/SAGW_Logo_addition_supported_pos_white.svg"><img src="docs/assets/SAGW_Logo_addition_supported_pos.svg" alt="Swiss Academy of Humanities and Social Sciences" height="58"></picture></a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://www.zb.uzh.ch/"><img src="docs/assets/ZB_Logo_RGB_1024px.png" alt="Zentralbibliothek Zürich" height="54"></a>
 </p>
 
 <p align="center">
-  <sub>
-    Ernst Göhner Stiftung &nbsp;·&nbsp; SAGW &nbsp;·&nbsp; Zentralbibliothek Zürich &nbsp;·&nbsp;
-    Karl Barth-Stiftung &nbsp;·&nbsp; UZH, Zentrum Digitale Editionen &amp; Editionsanalytik
-  </sub>
+  <a href="https://theologie.unibas.ch/de/karl-barth-zentrum/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/karl-barth-white.png"><img src="docs/assets/karl-barth.png" alt="Karl Barth-Stiftung" height="44"></picture></a>
+  <br>
+  <sub>Karl Barth-Stiftung, Universität Basel</sub>
+</p>
+
+<p align="center">
+  <a href="https://www.zde.uzh.ch/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/uzh-logo-white.png"><img src="docs/assets/uzh-logo-black.png" alt="Universität Zürich" height="44"></picture></a>
+  <br>
+  <sub>Zentrum Digitale Editionen &amp; Editionsanalytik, Universität Zürich</sub>
 </p>
 
 ### An initiative of
