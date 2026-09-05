@@ -33,3 +33,6 @@ chunks/
 
 # MkDocs build output
 site/
+
+# Example output
+output/

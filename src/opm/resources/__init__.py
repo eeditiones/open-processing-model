@@ -90,11 +90,20 @@ def examples_root() -> Path | None:
 
 
 def example_names() -> list[str]:
-    """Return the names of the bundled example projects, sorted."""
+    """Return the names of the bundled example projects, sorted.
+
+    A real bundled example always ships an ``opm.toml`` at its root; that's
+    what distinguishes one from an incidental sibling directory under
+    ``examples/`` — such as ``output/``, where ad hoc build scripts write
+    generated files that were never meant to join the picker's catalogue.
+    """
     root = examples_root()
     if root is None:
         return []
-    return sorted(p.name for p in root.iterdir() if p.is_dir() and not p.name.startswith('.'))
+    return sorted(
+        p.name for p in root.iterdir()
+        if p.is_dir() and not p.name.startswith('.') and (p / 'opm.toml').is_file()
+    )
 
 
 def example_dir(name: str) -> Path:
