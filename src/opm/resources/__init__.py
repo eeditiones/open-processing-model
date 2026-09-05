@@ -123,6 +123,11 @@ def packaged_epub_css() -> Path | None:
     return _mirror_packaged_file(('styles', 'epub.css'))
 
 
+def packaged_print_css() -> Path | None:
+    """Return the packaged print base stylesheet, or ``None`` if absent."""
+    return _mirror_packaged_file(('styles', 'print.css'))
+
+
 def _mirror_packaged_file(parts: tuple[str, ...]) -> Path | None:
     """Copy a packaged resource into the user cache and return that path."""
     packaged = _packaged_root().joinpath(*parts)

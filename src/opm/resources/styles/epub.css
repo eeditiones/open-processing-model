@@ -86,12 +86,17 @@ h3 { margin: 1.4em 0 0.5em; font-size: 1.15em; }
 h4, h5, h6 { margin: 1.2em 0 0.4em; font-size: 1em; }
 
 /* A chapter opens on a fresh page — no leading whitespace above its title,
-   however deeply the ODD wrapped it. */
+   however deeply the ODD wrapped it. Also cancel the common reader default
+   ``break-before: page`` on h1: each spine item is already a new chapter, so
+   that default inserts a blank page before the heading (e.g. between
+   transcription and translation when both start with an h1). */
 body > h1:first-child,
 body > h2:first-child,
 body > :first-child h1:first-child,
 body > :first-child h2:first-child {
     margin-top: 0;
+    page-break-before: auto;
+    break-before: auto;
 }
 
 .doc-title { font-size: 1.9em; }
@@ -112,7 +117,9 @@ body > :first-child h2:first-child {
 }
 
 #title .tei-author,
-#title .author {
+#title .author,
+#title .tei-editor,
+#title .editor {
     display: block;
     margin-top: 1.5em;
     font-family: var(--opm-heading-font);
@@ -261,7 +268,77 @@ th, .table-head {
 }
 
 /* Footnotes are hoisted into a section at the end of each chapter file;
-   reading systems with popup support show them inline instead. */
+   reading systems with popup support (Apple Books, Thorium, …) lift each
+   aside into a floating panel. Prefer class selectors here: several readers
+   drop or ignore ``aside[epub|type=…]`` rules inside that chrome, which left
+   register entries looking like chapter titles. The runtime wraps the body in
+   ``.fn-body`` and demotes headings to ``.fn-title``. */
+aside.note,
+aside.altcontent {
+    margin: 0 0 0.85em;
+}
+
+.fn-body {
+    margin: 0;
+    padding: 0.85em 1em 0.95em;
+    font-family: var(--opm-body-font);
+    font-size: 0.95em !important;
+    font-weight: 400;
+    font-style: normal;
+    line-height: 1.6 !important;
+    text-align: left;
+    text-indent: 0;
+}
+
+.fn-body > :first-child {
+    margin-top: 0;
+}
+
+.fn-body > :last-child {
+    margin-bottom: 0;
+}
+
+/* Register entry name, rendered as a paragraph rather than a heading (see
+   teipublisher.odd's person/place ``output="epub"`` models) — kept modest in
+   size so it reads as a footnote label, not a section title. ``!important``
+   throughout this block: Apple Books renders footnote/alternate asides in its
+   own native popover chrome, which applies its own font-size/line-height on
+   top of the page stylesheet — normal-specificity rules lose that fight even
+   though the class selector matches. */
+.fn-body .fn-title {
+    display: block;
+    margin: 0 0 0.55em;
+    padding: 0;
+    border: none;
+    font-family: var(--opm-body-font);
+    font-size: 0.9em !important;
+    font-weight: 600;
+    font-style: normal;
+    line-height: 1.35 !important;
+    text-indent: 0;
+}
+
+.fn-body p {
+    margin: 0.45em 0 0;
+    text-indent: 0;
+    line-height: 1.6 !important;
+}
+
+.fn-body .fn-title + p {
+    margin-top: 0;
+}
+
+.fn-body ul,
+.fn-body ol {
+    margin: 0.55em 0 0;
+    padding-left: 1.2em;
+}
+
+.fn-body ul:empty,
+.fn-body p:empty {
+    display: none;
+}
+
 section[epub|type="footnotes"] {
     margin-top: 2em;
     padding-top: 0.6em;
@@ -269,8 +346,9 @@ section[epub|type="footnotes"] {
     font-size: 0.85em;
 }
 
-section[epub|type="footnotes"] aside {
-    margin-bottom: 0.5em;
+section[epub|type="footnotes"] .fn-body {
+    padding-left: 0;
+    padding-right: 0;
 }
 
 /*********************** Milestones ***********************/

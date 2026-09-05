@@ -253,6 +253,35 @@ def test_print_transform_note_is_inline_span(tmp_path: Path) -> None:
     assert 'fnref_' not in out
 
 
+def test_print_transform_injects_footnote_float_baseline(tmp_path: Path) -> None:
+    """-t print prepends the packaged baseline ahead of the ODD's own CSS.
+
+    PrintOutputFunctions.note()/alternate() emit footnotes as inline spans —
+    without ``float: footnote`` somewhere in the stylesheet, a paged-media
+    renderer (Prince, Paged.js) leaves them sitting in the running text
+    instead of moving them to the page-bottom footnote area. teipublisher.odd
+    (unlike e.g. the docbook example) does not declare that rule itself, so
+    the packaged baseline is what has to supply it.
+    """
+    from opm.odd_cache import ensure_compiled_module
+    from opm.resources import packaged_odd
+    from opm.transform import load_transform_module, run_transform
+
+    odd_path, _ = ensure_compiled_module(packaged_odd('teipublisher'), output_mode='print')
+    mod = load_transform_module(odd_path)
+    xml = etree.fromstring(
+        b'<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body>'
+        b'<p>Text <note>A note</note> here.</p>'
+        b'</body></text></TEI>'
+    )
+    html = run_transform(mod, xml, apply_template=True)
+    assert 'float: footnote' in html
+    assert '::footnote-call' in html
+    assert 'class="tei-note1 footnote"' in html or 'footnote' in html
+    # Baseline precedes the ODD's own (generated) rules.
+    assert html.index('float: footnote') < html.index('/* Generated stylesheet')
+
+
 def test_docbook_print_uses_print_template_not_handbook(tmp_path: Path, monkeypatch) -> None:
     """DocBook example: -t print wraps with print.html.j2, not handbook chrome."""
     from opm.cli import main

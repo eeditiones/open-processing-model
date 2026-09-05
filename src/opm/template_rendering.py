@@ -66,6 +66,7 @@ def render_document_template(
     odd_css: str | None,
     parameters: dict[str, str],
     context: dict | None = None,
+    base_css: str | None = None,
 ) -> str:
     """Render a full HTML document through the selected Jinja2 template.
 
@@ -73,6 +74,13 @@ def render_document_template(
     :meth:`~opm.config.ProjectConfig.context_for`), exposed to the template
     under the single name ``context`` so a project key can never shadow a
     built-in like ``content_html``.
+
+    *base_css* is a packaged baseline stylesheet (e.g. the print channel's
+    paged-media rules) rendered via its own ``{{ base_css }}`` template slot,
+    kept separate from *odd_css* rather than concatenated into it — so the
+    de-dup check below (which compares *odd_css* against what
+    ``HtmlOutputFunctions.document()`` already embedded in the document's own
+    ``<head>``) still recognises an exact match.
     """
     html_root = _first_html_root(serialized_html)
     if html_root is None:
@@ -100,6 +108,7 @@ def render_document_template(
         head_html=head_content,
         content_html=_inner_html(body),
         odd_css=effective_odd_css,
+        base_css=base_css or '',
         parameters=parameters or {},
         lang=html_root.get('lang', ''),
         context=context or {},

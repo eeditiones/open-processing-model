@@ -39,6 +39,21 @@ def _epub_safe_id(node, config: dict) -> str:
     return f'n{counter}'
 
 
+def _footnote_body(config: dict, node, content) -> etree._Element:
+    """Wrap footnote content so popover styling can target a plain class.
+
+    Register entries (person, place, …) get their own ``output="epub"`` models
+    in the ODD (see ``teipublisher.odd``): a ``<p class="fn-title">`` instead
+    of the register page's own ``<h1>``, which would otherwise read as a
+    spurious chapter opening to a reading system's heading-based navigation.
+    """
+    body = etree.Element('div')
+    body.set('class', 'fn-body')
+    if content is not None:
+        config['apply_children'](config, node, content, body)
+    return body
+
+
 class EpubOutputFunctions(HtmlOutputFunctions):
     """Serialise to HTML with EPUB 3 structural semantics.
 
@@ -99,7 +114,7 @@ class EpubOutputFunctions(HtmlOutputFunctions):
         aside.set('id', f'fn{fn_id}')
         aside.set('class', classes('note', *cls))
         add_lang_attrs(aside, node)
-        config['apply_children'](config, node, content, aside)
+        aside.append(_footnote_body(config, node, content))
         return [ref, aside]
 
     def alternate(self, config, node, cls, content, default, alternate, optional=None) -> PMResult:
@@ -117,8 +132,7 @@ class EpubOutputFunctions(HtmlOutputFunctions):
         aside.set(EPUB_TYPE, 'footnote')
         aside.set('id', f'fn{fn_id}')
         aside.set('class', classes('altcontent', *cls))
-        if alternate is not None:
-            config['apply_children'](config, node, alternate, aside)
+        aside.append(_footnote_body(config, node, alternate))
         return [ref, aside]
 
     def webcomponent(self, config, node, cls, content, name, optional=None) -> PMResult:

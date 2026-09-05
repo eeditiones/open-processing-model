@@ -3,6 +3,11 @@
 <head>
   <meta charset="utf-8">
   <!-- opm-default-print-template: minimal shell for paged-media CSS -->
+  {% if base_css %}
+  <style type="text/css">
+{{ base_css }}
+  </style>
+  {% endif %}
   {{ head_html | safe }}
   {% if odd_css %}
   <style type="text/css">

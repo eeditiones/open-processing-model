@@ -1,0 +1,96 @@
+/* Baseline paged-media CSS for the print channel (Prince, Paged.js).
+ *
+ * Loaded first, before the ODD stylesheet and any project CSS, so a project
+ * can override anything here. `PrintOutputFunctions.note`/`alternate`
+ * (print_output_functions.py) deliberately emit footnotes as inline
+ * `<span class="footnote">` — CSS `float: footnote` is what actually pulls
+ * that span out to the page-bottom footnote area, wherever in the DOM it
+ * sits. Without this stylesheet, a project's own CSS has to declare
+ * `float: footnote` itself or footnotes render in place, inline in the
+ * running text.
+ */
+
+:root {
+    --opm-body-font: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --opm-heading-font: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --opm-footnote-font-size: 0.85em;
+
+    /* Fallbacks for variables that web-oriented ODD stylesheets reference, so
+       rules carried over from the reading view degrade instead of dropping. */
+    --jinks-content-font-family: var(--opm-body-font);
+    --jinks-content-font-weight: 400;
+    --jinks-heading-font-family: var(--opm-heading-font);
+    --jinks-heading-font-weight: 600;
+    --jinks-heading-line-height: 1.2;
+    --jinks-footnote-font-size: var(--opm-footnote-font-size);
+    --jinks-footnote-color: inherit;
+    --jinks-footnote-padding: 0;
+    --jinks-base-line-height: 1.5;
+    --pb-base-font-family: var(--opm-body-font);
+    --pb-base-font-size: 1em;
+    --pb-heading-font-family: var(--opm-heading-font);
+    --pb-heading-font-weight: var(--jinks-heading-font-weight);
+    --pb-footnote-font-size: var(--opm-footnote-font-size);
+}
+
+@media print {
+
+    @page {
+        @footnote {
+            float: bottom;
+            margin-top: 1em;
+            font-family: var(--opm-body-font);
+            font-size: var(--opm-footnote-font-size);
+        }
+    }
+
+    body {
+        font-family: var(--opm-body-font);
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        break-after: avoid;
+        font-family: var(--opm-heading-font);
+    }
+
+    /* The footnote span itself: `float: footnote` moves it out of the
+       running text to the page-bottom footnote area; `::footnote-call` /
+       `::footnote-marker` are the reference number in the text and the
+       matching number in the footnote area, both auto-numbered via the
+       `footnote` counter. */
+    .footnote {
+        float: footnote;
+        counter-increment: footnote;
+        font-size: var(--opm-footnote-font-size);
+    }
+
+    ::footnote-call {
+        content: counter(footnote, decimal);
+        font-size: var(--opm-footnote-font-size);
+        vertical-align: super;
+        line-height: 1;
+    }
+
+    ::footnote-marker {
+        /* Not `counter(footnote-marker, …)`: that's the UA-auto-incremented
+           counter CSS Generated Content for Paged Media specifies for this
+           pseudo-element, but Prince 16.2 never advances it past 0 — every
+           marker rendered "0." regardless of position. `footnote` is the
+           counter we increment ourselves on `.footnote` above (already
+           proven correct: it's what `::footnote-call` uses for the in-text
+           reference number), so reusing it here keeps call and marker
+           numbers in step. */
+        content: counter(footnote, decimal) ". ";
+        font-size: var(--opm-footnote-font-size);
+        vertical-align: super;
+    }
+
+    /* Margin notes (behaviour="note" place="margin") are not footnotes —
+       they stay put rather than floating to the page bottom. */
+    .margin-note {
+        float: right;
+        clear: right;
+        width: 30%;
+        font-size: var(--opm-footnote-font-size);
+    }
+}

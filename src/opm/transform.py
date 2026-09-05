@@ -211,6 +211,27 @@ def load_xpath_collections(
     return result, merged_documents
 
 
+def _print_base_css() -> str:
+    """Packaged paged-media baseline for the print channel, or ``''`` if absent.
+
+    ``PrintOutputFunctions.note``/``alternate`` emit footnotes as inline spans
+    for CSS ``float: footnote`` to pull out to the page-bottom footnote area —
+    the packaged baseline is what actually declares that rule (plus
+    ``::footnote-call``/``::footnote-marker``). Kept separate from the ODD's
+    own generated CSS (rather than concatenated into it) so
+    :func:`~opm.template_rendering.render_document_template`'s de-dup check —
+    which drops ``odd_css`` when it is already embedded in the document's own
+    ``<head>`` — still recognises an exact match instead of seeing a combined
+    string it has never encountered before and emitting the ODD CSS twice.
+    """
+    from opm.resources import packaged_print_css
+
+    base_path = packaged_print_css()
+    if base_path is None or not base_path.is_file():
+        return ''
+    return base_path.read_text(encoding='utf-8').rstrip()
+
+
 def run_transform(
     mod: ModuleType,
     root: etree._Element,
@@ -333,6 +354,7 @@ def run_transform(
             serialized_html=out,
             template_path=tpl,
             odd_css=getattr(mod, 'ODD_GENERATED_CSS', ''),
+            base_css=_print_base_css(),
             parameters=parameters or {},
             context=template_context,
         )

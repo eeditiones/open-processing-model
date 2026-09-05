@@ -83,6 +83,9 @@ def test_epub_alternate_yields_linked_aside() -> None:
     assert aside.tag == 'aside'
     assert 'altcontent' in aside.get('class', '').split()
     assert a.get('href', '').lstrip('#') == aside.get('id')
+    body = aside[0]
+    assert body.tag == 'div'
+    assert body.get('class') == 'fn-body'
 
 
 def test_epub_note_noteref_and_aside() -> None:
@@ -96,7 +99,56 @@ def test_epub_note_noteref_and_aside() -> None:
     assert aside.tag == 'aside'
     assert aside.get(EPUB_TYPE) == 'footnote'
     assert ref.get('href', '').lstrip('#') == aside.get('id')
+    assert aside[0].get('class') == 'fn-body'
 
+
+def test_epub_register_entries_use_a_paragraph_title_not_a_heading() -> None:
+    """teipublisher.odd: person/place get an ``output="epub"`` override.
+
+    A register entry is always footnote content in EPUB (resolved via
+    persName/placeName's ``alternate`` model), never a standalone page, so its
+    name must not render as the register page's own ``<h1>`` — that would read
+    as a spurious chapter opening to a reading system's heading-based
+    navigation. The web channel keeps the real heading.
+    """
+    tei_ns = 'http://www.tei-c.org/ns/1.0'
+    root = etree.fromstring(
+        f'''<TEI xmlns="{tei_ns}"><teiHeader/><standOff>
+      <listPerson>
+        <person xml:id="x1">
+          <persName type="main">Someone Notable</persName>
+          <note type="bio"><p>A bio note.</p></note>
+          <ptr target="https://example.org/x1"/>
+        </person>
+      </listPerson>
+      <listPlace>
+        <place xml:id="p1">
+          <placeName type="main">Krakow</placeName>
+          <country>Poland</country>
+          <note><p>A place note.</p></note>
+          <ptr target="https://example.org/p1"/>
+        </place>
+      </listPlace>
+    </standOff></TEI>'''.encode('utf-8')
+    )
+    person = root.find(f'.//{{{tei_ns}}}person')
+    place = root.find(f'.//{{{tei_ns}}}place')
+
+    def render(node, mode: str) -> str:
+        odd_path, _ = ensure_compiled_module(packaged_odd('teipublisher'), output_mode=mode)
+        mod = load_transform_module(odd_path)
+        return serialize(mod.transform(node, {'parameters': {}}))
+
+    for node in (person, place):
+        epub_out = render(node, 'epub')
+        assert '<h1' not in epub_out
+        assert 'class="tei-' in epub_out and 'fn-title' in epub_out
+        text = ''.join(etree.fromstring(f'<r>{epub_out}</r>').itertext())
+        assert 'example.org' in epub_out  # ptr links still render
+        assert ('bio note' in text) or ('place note' in text)
+
+        web_out = render(node, 'web')
+        assert '<h1' in web_out
 
 def test_epub_webcomponent_degrades_to_block_wrapper() -> None:
     """Custom elements are not EPUB 3 vocabulary; block content becomes a div."""
@@ -251,6 +303,9 @@ def test_build_epub_package_roundtrip(tmp_path: Path) -> None:
 
         css = zf.read('OEBPS/stylesheet.css').decode('utf-8')
         assert '@namespace epub' in css
+        # Footnote popovers: class-based body/title, not chapter h1 rules.
+        assert '.fn-body' in css
+        assert '.fn-body .fn-title' in css
 
 
 def test_epub_project_css_is_appended_last(tmp_path: Path) -> None:
@@ -295,6 +350,34 @@ def test_strip_footnotes_leaves_the_tail_behind() -> None:
     body = ''.join(cleaned[0].itertext())
     assert body.count('after the note') == 1
     assert 'the note' not in body.replace('after the note', '')
+
+
+def test_register_entry_models_stay_flat_in_epub() -> None:
+    """A register entry becomes one footnote: no aside or paragraph nested inside it."""
+    tei_ns = 'http://www.tei-c.org/ns/1.0'
+    root = etree.fromstring(
+        f'''<TEI xmlns="{tei_ns}"><teiHeader/><standOff><listPlace>
+      <place xml:id="p1">
+        <placeName type="main">Krakow</placeName>
+        <note><p>Seat of <persName key="x1">Someone</persName>.</p></note>
+      </place>
+    </listPlace></standOff></TEI>'''.encode('utf-8')
+    )
+    place = root.find(f'.//{{{tei_ns}}}place')
+
+    def render(mode: str) -> str:
+        odd_path, _ = ensure_compiled_module(packaged_odd('teipublisher'), output_mode=mode)
+        mod = load_transform_module(odd_path)
+        return serialize(mod.transform(place, {'parameters': {}}))
+
+    epub_out = render('epub')
+    assert '<p class="tei-note' not in epub_out  # a div: the note holds a paragraph
+    assert 'alternate' not in epub_out  # the inner persName would be a second aside
+    assert 'Seat of Someone.' in ''.join(
+        etree.fromstring(f'<r>{epub_out}</r>').itertext()
+    )
+    # The web channel keeps resolving the reference into a popover alternate.
+    assert 'alternate' in render('web')
 
 
 def test_epub_falls_back_from_page_chunking_to_divisions() -> None:
