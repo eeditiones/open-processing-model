@@ -134,6 +134,7 @@ RENDER_MODES: tuple[str, ...] = (
 OUTPUT_MODE_ALIASES: dict[str, tuple[str, ...]] = {
     'print': ('print', 'web'),
     'epub': ('epub', 'web'),
+    'markdown': ('markdown', 'plain'),
     # JSON has no models of its own in practice: it records what some *other*
     # channel decided. Plain `json` inspects the reading view; `json-<channel>`
     # inspects that channel, so a typst or docx ODD can be debugged too.
@@ -174,7 +175,8 @@ def _model_matches_output_mode(el, output_mode: str) -> bool:
 
     Some modes build upon other modes (see
     :data:`OUTPUT_MODE_ALIASES`): e.g. ``print`` matches ``@output="print"`` and
-    ``@output="web"``.
+    ``@output="web"``; ``markdown`` matches ``@output="markdown"`` and
+    ``@output="plain"``.
 
     Values prefixed with ``opm-`` (e.g. ``opm-web``) are recognised only by this
     Python compiler; tei-publisher-lib ignores them.
