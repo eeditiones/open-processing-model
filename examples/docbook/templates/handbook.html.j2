@@ -39,6 +39,11 @@
       </label>
       {% endif %}
       <span class="hb-brand">{{ work_title or 'Handbook' }}</span>
+      {% if index_url %}
+      <nav class="hb-menu" aria-label="Site">
+        <a class="hb-menu__home" href="{{ index_url }}">Home</a>
+      </nav>
+      {% endif %}
     </div>
   </header>
 

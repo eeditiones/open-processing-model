@@ -101,6 +101,7 @@ body.handbook {
 
 .hb-brand {
   min-width: 0;
+  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -109,6 +110,24 @@ body.handbook {
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--hb-ink);
+}
+
+.hb-menu {
+  flex: 0 0 auto;
+}
+
+.hb-menu__home {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--hb-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.hb-menu__home:hover,
+.hb-menu__home:focus-visible {
+  color: var(--hb-accent);
+  text-decoration: underline;
 }
 
 /* ── Shell / sidebar ──────────────────────────────────────── */

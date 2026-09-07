@@ -223,14 +223,19 @@ class ChunkProcessor:
         ``odd_css_url`` pointing at it, alongside the ``odd_css`` string, which
         stays available so a template that inlines it keeps working. Stylesheets
         among ``config.assets`` are listed in ``asset_styles``, in declared
-        order.
+        order. ``index_url`` points back at the collection index a directory
+        run writes at :meth:`shared_root` (see ``build_index``) — empty for a
+        single-document run, which has no such page to link to.
 
         Safe to call once per document in a directory run — the writes are
         idempotent.
         """
         root = self.shared_root()
         prefix = self.url_prefix()
-        urls: dict[str, Any] = {'odd_css_url': '', 'assets': '', 'asset_styles': []}
+        urls: dict[str, Any] = {
+            'odd_css_url': '', 'assets': '', 'asset_styles': [],
+            'index_url': f'{prefix}index.html' if self.config.link_doc else '',
+        }
 
         if self.odd_css:
             css_dir = root / 'css'
