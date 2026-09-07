@@ -34,6 +34,10 @@ class OddLicence:
     publisher: str | None = None
     licence: str | None = None
     target: str | None = None
+    #: The prose of ``availability`` — copyright holders, and the provenance of
+    #: anything the ODD was built on. Reproduced rather than summarised: naming
+    #: who is owed credit is the whole point of carrying the statement along.
+    notes: tuple[str, ...] = ()
 
 
 @dataclass
@@ -186,9 +190,21 @@ def read_licence(odd_path: str | Path) -> OddLicence | None:
     pub = root.find(f'{{{TEI_NS}}}teiHeader/{{{TEI_NS}}}fileDesc/{{{TEI_NS}}}publicationStmt')
     if pub is None:
         return None
-    licence_el = pub.find(f'{{{TEI_NS}}}availability/{{{TEI_NS}}}licence')
+    availability = pub.find(f'{{{TEI_NS}}}availability')
+    licence_el = None if availability is None else availability.find(f'{{{TEI_NS}}}licence')
     publisher = _normalized_text(pub.find(f'{{{TEI_NS}}}publisher'))
     licence = _normalized_text(licence_el)
+    notes = (
+        ()
+        if availability is None
+        else tuple(
+            note
+            for note in (
+                _normalized_text(p) for p in availability.findall(f'{{{TEI_NS}}}p')
+            )
+            if note
+        )
+    )
     if not (licence or publisher):
         return None
     return OddLicence(
@@ -197,6 +213,7 @@ def read_licence(odd_path: str | Path) -> OddLicence | None:
         publisher=publisher,
         licence=licence,
         target=licence_el.get('target') if licence_el is not None else None,
+        notes=notes,
     )
 
 

@@ -577,9 +577,13 @@ def test_generated_module_reproduces_odd_rights_statement() -> None:
     src = compile_odd(str(ODD))
     docstring = src.split('"""')[1]
     assert 'teipublisher.odd — TEI Publisher ODD' in docstring
-    assert 'eXistSolutions GmbH' in docstring
+    assert 'e-editiones' in docstring
     assert 'Creative Commons Attribution 4.0 International License' in docstring
     assert 'https://creativecommons.org/licenses/by/4.0/' in docstring
+    # The prose of <availability> names who is owed credit — copyright holders and
+    # the provenance of what the models were built on. Both have to survive.
+    assert 'Copyright 2017–2026 e-editiones and individual contributors.' in docstring
+    assert 'TEI Consortium' in docstring
 
 
 def test_rights_statement_covers_inherited_odds_parents_first(tmp_path: Path) -> None:
@@ -590,7 +594,7 @@ def test_rights_statement_covers_inherited_odds_parents_first(tmp_path: Path) ->
         tmp_path / 'child.odd',
         title='Project ODD',
         availability=(
-            '<publisher>e-editiones</publisher>'
+            '<publisher>Some Project</publisher>'
             '<availability><licence '
             'target="https://creativecommons.org/publicdomain/zero/1.0/">'
             'CC0 1.0 Universal</licence></availability>'
@@ -599,7 +603,9 @@ def test_rights_statement_covers_inherited_odds_parents_first(tmp_path: Path) ->
     )
     docstring = compile_odd(str(child)).split('"""')[1]
     assert docstring.index('teipublisher.odd') < docstring.index('child.odd — Project ODD')
-    assert 'eXistSolutions GmbH' in docstring
+    # The inherited models keep asking for their credit, whatever the local ODD says.
+    assert 'Creative Commons Attribution 4.0 International License' in docstring
+    assert 'Some Project' in docstring
     assert 'CC0 1.0 Universal' in docstring
 
 

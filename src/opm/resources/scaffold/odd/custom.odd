@@ -14,10 +14,11 @@
                         all copyright in it, so edit and license it as you see fit.</p>
                     <p>Note that it inherits from <code>teipublisher.odd</code>
                         (<att>source</att> on <gi>schemaSpec</gi>), which is distributed under a
-                        Creative Commons Attribution 4.0 International License, copyright
-                        eXistSolutions GmbH. A transform module compiled from this ODD therefore
-                        incorporates CC BY-licensed processing models, which asks for attribution
-                        and imposes no further condition.</p>
+                        Creative Commons Attribution 4.0 International License, copyright 2017–2026
+                        e-editiones and individual contributors, and built on TEI Consortium
+                        material. A transform module compiled from this ODD therefore incorporates
+                        CC BY-licensed processing models, which asks for attribution and imposes no
+                        further condition.</p>
                 </availability>
             </publicationStmt>
             <sourceDesc>

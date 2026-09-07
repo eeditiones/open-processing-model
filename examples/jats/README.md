@@ -134,9 +134,10 @@ scripts — is released by e-editiones under
 it into your own project with no strings attached.
 
 The ODD under `odd/` is the exception: it comes from TEI Publisher and is
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), copyright eXistSolutions GmbH,
-as its own `teiHeader` states. Reuse it as you like; CC BY asks only that you keep that
-statement in the file and credit eXistSolutions GmbH.
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), copyright 2017–2026
+e-editiones and individual contributors, building on TEI Consortium material that is itself
+CC BY 3.0 / BSD-2-Clause, as its own `teiHeader` states. Reuse it as you like; CC BY asks
+only that you keep that statement in the file and credit those it names.
 
 The documents under `data/` are not covered by that dedication. They are source texts with
 their own provenance and rights, noted above.

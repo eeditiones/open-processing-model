@@ -8,7 +8,7 @@ version = 1
 #   AGPL-3.0-or-later  opm itself — see LICENSE
 #   CC-BY-4.0          the stock ODDs and stylesheets taken from TEI Publisher
 #   CC0-1.0            scaffolding `opm init` writes into a user's project,
-#                      per section 4 of LICENSE-EXCEPTIONS.md
+#                      per LICENSING.md, Part A §4
 
 # ---------------------------------------------------------------------------
 # opm itself. Every module under src/opm/ also carries the header in-file, which
@@ -46,16 +46,21 @@ SPDX-FileCopyrightText = "2026 e-editiones"
 SPDX-License-Identifier = "CC0-1.0"
 
 # ---------------------------------------------------------------------------
-# From TEI Publisher, and not ours to relicense. Each of these ODDs states CC BY 4.0 in its
-# own teiHeader/publicationStmt/availability — that declaration is authoritative, and these
-# annotations only repeat it in machine-readable form, which is why the files carry no SPDX
-# comment. They override the CC0 blocks above because a later annotation wins.
+# The processing models, maintained upstream in TEI Publisher / jinks. Each of these ODDs
+# states CC BY 4.0 in its own teiHeader/publicationStmt/availability — that declaration is
+# authoritative, and these annotations only repeat it in machine-readable form, which is why
+# the files carry no SPDX comment. They override the CC0 blocks above because a later
+# annotation wins.
 #
-# CC BY imposes no copyleft, so distributing them alongside opm is unproblematic and a
-# transform module compiled from them carries no copyleft either. What it does require is
-# attribution to eXistSolutions GmbH. The CC0 dedication in section 4 of
-# LICENSE-EXCEPTIONS.md does not reach them, and neither does the LGPL in
-# LICENSE-MEMBER-GRANT.md — e-editiones does not hold these rights.
+# CC BY rather than the CC0 of LICENSING.md, Part A §4, even though e-editiones
+# is among the copyright holders: the models are the work of many hands over years, and they
+# build on TEI Consortium material that is itself CC BY 3.0 / BSD-2-Clause — attribution has
+# to survive, so a public-domain dedication of the whole file would misdescribe it.
+#
+# The identifier below is the licence the ODDs are distributed under, not a compound
+# expression for the TEI material underneath: that provenance is recorded in the copyright
+# lines and in each teiHeader. CC BY imposes no copyleft, so distributing them alongside opm
+# is unproblematic and a transform module compiled from them carries none either.
 # ---------------------------------------------------------------------------
 
 [[annotations]]
@@ -73,7 +78,10 @@ path = [
   "examples/jats/odd/jats.odd",
   "examples/jats/odd/jats.css",
 ]
-SPDX-FileCopyrightText = "2017 eXistSolutions GmbH"
+SPDX-FileCopyrightText = [
+  "2017-2026 e-editiones and individual contributors",
+  "TEI Consortium",
+]
 SPDX-License-Identifier = "CC-BY-4.0"
 
 # ---------------------------------------------------------------------------
@@ -105,6 +113,7 @@ path = [
   "*.lock",
   "*.sh",
   "hatch_build.py",
+  ".github/**",
   ".gitignore",
   ".python-version",
 ]
@@ -113,7 +122,7 @@ SPDX-License-Identifier = "AGPL-3.0-or-later"
 
 # The licence documents themselves, which are not code and are meant to be copied verbatim.
 [[annotations]]
-path = ["LICENSE", "LICENSE-EXCEPTIONS.md", "LICENSE-MEMBER-GRANT.md", "CLA.md", "CLA-ENTITY.md"]
+path = ["LICENSE", "LICENSING.md", ".github/CLA.md", ".github/CLA-ENTITY.md"]
 SPDX-FileCopyrightText = "2026 e-editiones"
 SPDX-License-Identifier = "CC0-1.0"
 

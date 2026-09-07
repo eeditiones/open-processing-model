@@ -8,6 +8,7 @@ from __future__ import annotations
 import inspect
 import keyword
 import re
+import textwrap
 from pathlib import Path
 
 from . import (
@@ -109,7 +110,7 @@ class PythonGenerator(CodeGenerator):
             'Rights in the processing models, as the ODDs they came from declare them.',
             'Reproduced so the attribution they ask for travels with the compiled code;',
             'it says nothing about the ODD you wrote or about opm itself, which grants',
-            'generated modules separately (LICENSE-EXCEPTIONS.md, section 2).',
+            'generated modules separately (LICENSING.md, Part A §2).',
             '',
         ]
         for licence in licences:
@@ -120,6 +121,10 @@ class PythonGenerator(CodeGenerator):
             for detail in (licence.publisher, licence.licence, licence.target):
                 if detail:
                     lines.append(f'      {detail}')
+            for note in licence.notes:
+                # Wrapped, not truncated: a rights statement is not ours to shorten.
+                lines.append(textwrap.fill(note, width=88, initial_indent='      ',
+                                           subsequent_indent='        '))
         return cls._docstring_safe('\n'.join(lines) + '\n')
 
     def _generate_python_module(

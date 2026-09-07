@@ -440,7 +440,7 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         skipped,
         _write_text(
             dest_dir / 'extensions' / '__init__.py',
-            # Scaffolded files are CC0 (LICENSE-EXCEPTIONS.md §4), so they say so
+            # Scaffolded files are CC0 (LICENSING.md, Part A §4), so they say so
             # in the reader's own tree rather than only in ours. Fenced off because
             # this file is AGPL and REUSE would otherwise read the literal below as
             # a second licence declaration for scaffold.py itself.
