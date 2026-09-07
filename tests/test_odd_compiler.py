@@ -549,3 +549,117 @@ def test_docbook_toc_prefers_opm_web_over_tei_publisher_lib_models(tmp_path: Pat
     assert 'node-id="b"' in out
     # The tei-publisher-lib leaf model would emit a bare <li> with no pb-link.
     assert '<li><span' not in out
+
+
+def _odd_with_availability(path: Path, *, title: str, availability: str, source: str = '') -> Path:
+    """A minimal compilable ODD carrying a rights statement of its own."""
+    src_attr = f' source="{source}"' if source else ''
+    path.write_text(
+        '<?xml version="1.0"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0">'
+        f'<teiHeader><fileDesc><titleStmt><title>{title}<desc>ignored</desc></title></titleStmt>'
+        f'<publicationStmt>{availability}</publicationStmt>'
+        '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
+        '<text><body>'
+        f'<schemaSpec ident="x" ns="http://www.tei-c.org/ns/1.0"{src_attr}>'
+        '<elementSpec ident="p" mode="change"><model behaviour="paragraph"/></elementSpec>'
+        '</schemaSpec>'
+        '</body></text></TEI>',
+        encoding='utf-8',
+    )
+    return path
+
+
+def test_generated_module_reproduces_odd_rights_statement() -> None:
+    """CC BY asks for attribution; a compiled module has to carry it to give it."""
+    from opm.odd_compiler import compile_odd
+
+    src = compile_odd(str(ODD))
+    docstring = src.split('"""')[1]
+    assert 'teipublisher.odd — TEI Publisher ODD' in docstring
+    assert 'eXistSolutions GmbH' in docstring
+    assert 'Creative Commons Attribution 4.0 International License' in docstring
+    assert 'https://creativecommons.org/licenses/by/4.0/' in docstring
+
+
+def test_rights_statement_covers_inherited_odds_parents_first(tmp_path: Path) -> None:
+    """The ODD you compile may say CC0 while the models it inherits say otherwise."""
+    from opm.odd_compiler import compile_odd
+
+    child = _odd_with_availability(
+        tmp_path / 'child.odd',
+        title='Project ODD',
+        availability=(
+            '<publisher>e-editiones</publisher>'
+            '<availability><licence '
+            'target="https://creativecommons.org/publicdomain/zero/1.0/">'
+            'CC0 1.0 Universal</licence></availability>'
+        ),
+        source=str(ODD),
+    )
+    docstring = compile_odd(str(child)).split('"""')[1]
+    assert docstring.index('teipublisher.odd') < docstring.index('child.odd — Project ODD')
+    assert 'eXistSolutions GmbH' in docstring
+    assert 'CC0 1.0 Universal' in docstring
+
+
+def test_no_rights_statement_when_the_odd_declares_none(tmp_path: Path) -> None:
+    """Silence is not a licence to invent one."""
+    from opm.odd_compiler import compile_odd
+
+    odd = _odd_with_availability(
+        tmp_path / 'bare.odd', title='Bare', availability='<p>p</p>'
+    )
+    assert 'Rights in the processing models' not in compile_odd(str(odd))
+
+
+def test_rights_statement_cannot_break_out_of_the_docstring(tmp_path: Path) -> None:
+    """ODD text is arbitrary; a stray quote run must not end the module docstring."""
+    from opm.odd_compiler import compile_odd
+
+    odd = _odd_with_availability(
+        tmp_path / 'quoted.odd',
+        title='Quoted """ ODD',
+        availability=(
+            '<publisher>Ends with a backslash \\</publisher>'
+            '<availability><licence target="https://example.org/l">'
+            'The """so-called""" licence</licence></availability>'
+        ),
+    )
+    src = compile_odd(str(odd))
+    out = tmp_path / 'quoted_gen.py'
+    out.write_text(src, encoding='utf-8')
+    py_compile.compile(str(out), doraise=True)
+    assert "The '''so-called''' licence" in src.split('"""')[1]
+
+
+def test_read_licence_ignores_a_teiheader_quoted_inside_the_odd_body(tmp_path: Path) -> None:
+    """An example header in the body documents TEI; it claims nothing about this file."""
+    from opm.odd_compiler.parse_odd import read_licence
+
+    odd = tmp_path / 'example_header.odd'
+    odd.write_text(
+        '<?xml version="1.0"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0">'
+        '<teiHeader><fileDesc><titleStmt><title>Real</title></titleStmt>'
+        '<publicationStmt><publisher>Real Publisher</publisher>'
+        '<availability><licence target="https://example.org/real">Real licence</licence>'
+        '</availability></publicationStmt>'
+        '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
+        '<text><body>'
+        '<p><egXML xmlns="http://www.tei-c.org/ns/Examples">'
+        '<teiHeader><fileDesc><titleStmt><title>Quoted</title></titleStmt>'
+        '<publicationStmt><publisher>Quoted Publisher</publisher></publicationStmt>'
+        '</fileDesc></teiHeader></egXML></p>'
+        '<schemaSpec ident="x" ns="http://www.tei-c.org/ns/1.0">'
+        '<elementSpec ident="p" mode="change"><model behaviour="paragraph"/></elementSpec>'
+        '</schemaSpec>'
+        '</body></text></TEI>',
+        encoding='utf-8',
+    )
+    licence = read_licence(odd)
+    assert licence is not None
+    assert licence.publisher == 'Real Publisher'
+    assert licence.title == 'Real'
+    assert licence.licence == 'Real licence'
+    assert licence.target == 'https://example.org/real'

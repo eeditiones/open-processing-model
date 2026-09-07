@@ -86,19 +86,20 @@ scripts of the example projects under `examples/`.
 *The stock processing models.* Every ODD `opm` ships — `teipublisher.odd`,
 `docbook.odd` and `jats.odd` under `src/opm/resources/odd/` — together with their
 stylesheets and the example ODDs derived from them, comes from TEI Publisher. They are
-licensed **GPL-3.0-or-later**, copyright eXistSolutions GmbH, as each states in its own
+licensed **CC-BY-4.0**, copyright eXistSolutions GmbH, as each states in its own
 `teiHeader/publicationStmt/availability`. e-editiones does not hold those rights and
 cannot dedicate them to the public domain; nothing in this document or in
-[LICENSE-MEMBER-GRANT.md](LICENSE-MEMBER-GRANT.md) purports to. AGPLv3 section 13 permits
-distributing them together with `opm`.
+[LICENSE-MEMBER-GRANT.md](LICENSE-MEMBER-GRANT.md) purports to. What CC BY asks in return
+is attribution: keep the copyright and licence statement in the `teiHeader`, and credit
+eXistSolutions GmbH where You redistribute the ODD or a modified version of it.
 
 This reaches further than the files themselves. An ODD that names one of them in
 `schemaSpec/@source` inherits its processing models, so a Generated Module compiled from
-such an ODD incorporates GPL-licensed material — including the `custom.odd` that
-`opm init` writes by default. The permission in section 2 above is e-editiones' to give
-and it gives it; it cannot and does not waive eXistSolutions' copyright. A Generated
-Module reaches You free of the GPL only if it was compiled from an ODD written
-independently of the TEI Publisher models.
+such an ODD incorporates CC BY-licensed material — including the `custom.odd` that
+`opm init` writes by default. CC BY carries no copyleft, so this places no licensing
+condition on Your own work: the permission in section 2 above is e-editiones' to give and
+it gives it, and the attribution CC BY asks for is all that eXistSolutions' copyright
+adds.
 
 *The source documents.* The texts under `examples/*/data/` carry their own provenance and
 rights, described in each example's README and in

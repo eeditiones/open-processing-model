@@ -6,7 +6,7 @@ version = 1
 #
 # The three licences in play:
 #   AGPL-3.0-or-later  opm itself — see LICENSE
-#   GPL-3.0-or-later   the stock ODDs and stylesheets taken from TEI Publisher
+#   CC-BY-4.0          the stock ODDs and stylesheets taken from TEI Publisher
 #   CC0-1.0            scaffolding `opm init` writes into a user's project,
 #                      per section 4 of LICENSE-EXCEPTIONS.md
 
@@ -46,14 +46,16 @@ SPDX-FileCopyrightText = "2026 e-editiones"
 SPDX-License-Identifier = "CC0-1.0"
 
 # ---------------------------------------------------------------------------
-# From TEI Publisher, and not ours to relicense. Each of these ODDs states the GPL in its
+# From TEI Publisher, and not ours to relicense. Each of these ODDs states CC BY 4.0 in its
 # own teiHeader/publicationStmt/availability — that declaration is authoritative, and these
 # annotations only repeat it in machine-readable form, which is why the files carry no SPDX
 # comment. They override the CC0 blocks above because a later annotation wins.
 #
-# AGPLv3 section 13 permits distributing them alongside opm, but the CC0 dedication in
-# section 4 of LICENSE-EXCEPTIONS.md does not reach them, and neither does the LGPL in
-# LICENSE-MEMBER-GRANT.md.
+# CC BY imposes no copyleft, so distributing them alongside opm is unproblematic and a
+# transform module compiled from them carries no copyleft either. What it does require is
+# attribution to eXistSolutions GmbH. The CC0 dedication in section 4 of
+# LICENSE-EXCEPTIONS.md does not reach them, and neither does the LGPL in
+# LICENSE-MEMBER-GRANT.md — e-editiones does not hold these rights.
 # ---------------------------------------------------------------------------
 
 [[annotations]]
@@ -71,8 +73,8 @@ path = [
   "examples/jats/odd/jats.odd",
   "examples/jats/odd/jats.css",
 ]
-SPDX-FileCopyrightText = "eXistSolutions GmbH"
-SPDX-License-Identifier = "GPL-3.0-or-later"
+SPDX-FileCopyrightText = "2017 eXistSolutions GmbH"
+SPDX-License-Identifier = "CC-BY-4.0"
 
 # ---------------------------------------------------------------------------
 # Scholarly source documents. Not covered by the CC0 dedication: each carries its own

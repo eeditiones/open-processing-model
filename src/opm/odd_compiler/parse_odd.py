@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
@@ -19,6 +19,23 @@ TEI_NS = 'http://www.tei-c.org/ns/1.0'
 _PARSER = etree.XMLParser(collect_ids=False)
 
 
+@dataclass(frozen=True)
+class OddLicence:
+    """The rights statement an ODD declares in its own ``teiHeader``.
+
+    A compiled module incorporates the processing models of every ODD in the
+    inheritance chain, and the stock ones are CC BY — which asks for attribution
+    wherever the material goes. Carrying the statement into the generated code is
+    how that attribution survives a compile step nobody watches.
+    """
+
+    odd: str  # file name, not path: the generated module is not about this machine
+    title: str | None = None
+    publisher: str | None = None
+    licence: str | None = None
+    target: str | None = None
+
+
 @dataclass
 class ParsedOdd:
     tree: etree._ElementTree
@@ -27,6 +44,9 @@ class ParsedOdd:
     element_specs: list
     odd_chain: list[str]
     nsmap: dict[str, str]  # prefix -> namespace URI from ODD root
+    #: Rights statements along ``odd_chain``, parents first. ODDs that declare
+    #: none are left out, so this is empty when nothing claims anything.
+    licences: list[OddLicence] = field(default_factory=list)
 
 
 def spec_origin(spec_el) -> Path | None:
@@ -135,6 +155,60 @@ def _collect_odd_chain(odd_path: Path, seen: set[Path]) -> list[Path]:
     return chain
 
 
+def _normalized_text(el) -> str | None:
+    """All text under *el* as one whitespace-collapsed line, or ``None`` if empty."""
+    if el is None:
+        return None
+    return ' '.join(''.join(el.itertext()).split()) or None
+
+
+def _odd_title(root) -> str | None:
+    title = root.find(
+        f'{{{TEI_NS}}}teiHeader/{{{TEI_NS}}}fileDesc/{{{TEI_NS}}}titleStmt/{{{TEI_NS}}}title'
+    )
+    if title is None:
+        return None
+    # A title usually wraps a <desc>; its own direct text is the name on its own.
+    return ' '.join((title.text or '').split()) or _normalized_text(title)
+
+
+def read_licence(odd_path: str | Path) -> OddLicence | None:
+    """The rights statement *odd_path* declares, or ``None`` if it declares none.
+
+    Read from ``teiHeader/fileDesc/publicationStmt`` by an explicit path rather
+    than a descendant search: an ODD's body may quote a whole TEI header inside
+    an example, and that header is documentation, not a claim about this file.
+    """
+    try:
+        root = etree.parse(str(odd_path), _PARSER).getroot()
+    except (OSError, etree.XMLSyntaxError):
+        return None
+    pub = root.find(f'{{{TEI_NS}}}teiHeader/{{{TEI_NS}}}fileDesc/{{{TEI_NS}}}publicationStmt')
+    if pub is None:
+        return None
+    licence_el = pub.find(f'{{{TEI_NS}}}availability/{{{TEI_NS}}}licence')
+    publisher = _normalized_text(pub.find(f'{{{TEI_NS}}}publisher'))
+    licence = _normalized_text(licence_el)
+    if not (licence or publisher):
+        return None
+    return OddLicence(
+        odd=Path(odd_path).name,
+        title=_odd_title(root),
+        publisher=publisher,
+        licence=licence,
+        target=licence_el.get('target') if licence_el is not None else None,
+    )
+
+
+def _collect_licences(odd_chain: list[Path]) -> list[OddLicence]:
+    licences: list[OddLicence] = []
+    for odd_path in odd_chain:
+        licence = read_licence(odd_path)
+        if licence is not None and licence not in licences:
+            licences.append(licence)
+    return licences
+
+
 def load_odd(path: str | Path) -> ParsedOdd:
     p = Path(path).resolve()
     # collect_ids=False avoids rejecting real-world ODDs that carry duplicate
@@ -157,6 +231,7 @@ def load_odd(path: str | Path) -> ParsedOdd:
         element_specs=element_specs,
         odd_chain=[str(x) for x in odd_chain],
         nsmap=nsmap,
+        licences=_collect_licences(odd_chain),
     )
 
 

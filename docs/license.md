@@ -38,7 +38,7 @@ a numbered permission in `LICENSE-EXCEPTIONS.md`.
 | Executing a transform module compiled from your ODD | **No.** Permission 2 releases generated modules, and the runtime combination they form with `opm.runtime`, for you to license as you wish. |
 | Python XPath extension modules you register in `opm.toml` | **No.** Permission 3 covers them, even though they load in-process. |
 | Templates, CSS and configuration `opm init` writes into your project | **No.** Permission 4 releases them under CC0. |
-| The stock ODDs `opm init` copies, and modules compiled from them | **Not the AGPL — the GPL.** They come from TEI Publisher and are GPL-3.0-or-later; see below. |
+| The stock ODDs `opm init` copies, and modules compiled from them | **Not the AGPL — CC BY.** They come from TEI Publisher and are CC-BY-4.0, which asks for attribution and nothing else; see below. |
 | Vendoring a copy of `opm` into your own tree | **Yes.** Incorporating `opm`'s source is the case the permissions explicitly do not cover. |
 | The HTML, DOCX, Typst or Markdown that `opm` produces | **No.** Transformation output is your content. The licence does not reach it, and e-editiones asserts no rights in it. |
 | Your TEI sources, ODDs you wrote, your templates and CSS | **No.** These are your work. |
@@ -58,6 +58,12 @@ program under the AGPL.
 The limit is incorporation. Copy substantial parts of `opm`'s own source into a generated
 module and the permission stops applying; the AGPL governs `opm` as it always did.
 
+What the module does carry is the rights statement of every ODD it was compiled from,
+reproduced in its docstring from each `teiHeader` — the ODD you wrote, and each one it
+inherits from. Modules normally live in the cache and are rebuilt on demand, but they get
+committed, copied and baked into images, and when one does travel the attribution CC BY
+asks for travels with it rather than staying behind in a README.
+
 ## XPath extension modules
 
 Python extension modules you register through `opm.toml` are loaded into the same
@@ -76,22 +82,23 @@ them has no effect on the licensing of your project.
 **The stock ODDs are different, and this is the one place where `opm`'s licensing is not
 simply e-editiones' to decide.** All three processing models `opm` ships —
 `teipublisher.odd`, `docbook.odd`, `jats.odd` — and their stylesheets come from TEI
-Publisher. They are GPL-3.0-or-later, copyright eXistSolutions GmbH; each says so in its
-own `teiHeader`, which is where a TEI file's licence belongs and where `opm` leaves it.
+Publisher. They are CC-BY-4.0, copyright eXistSolutions GmbH; each says so in its own
+`teiHeader`, which is where a TEI file's licence belongs and where `opm` leaves it.
 e-editiones does not hold those rights and cannot release them under CC0, under the LGPL
 to members, or under a commercial licence.
 
 That reaches past the files. ODD inheritance means an ODD naming one of them in
 `schemaSpec/@source` pulls in its processing models — including the `custom.odd` that
 `opm init` writes for you by default — so a transform module compiled from it incorporates
-GPL-licensed material. Permission 2 is e-editiones' to give and it gives it, but it cannot
-waive someone else's copyright.
+CC BY-licensed material. Permission 2 is e-editiones' to give and it gives it, but it
+cannot waive someone else's copyright.
 
-For an edition published as free software, which is the usual case, this changes nothing:
-the GPL and the AGPL are compatible and the obligations are ones you were meeting anyway.
-It matters if you were counting on compiling a proprietary transform module — for that you
-would need an ODD written independently of the TEI Publisher models, since all three
-stock vocabularies carry the GPL.
+In practice that leaves you one obligation, and it is a light one: attribution. Keep the
+copyright and licence statement in the ODD's `teiHeader` when you pass the file on, and
+credit eXistSolutions GmbH for the processing models where you say what your edition is
+built from. CC BY carries no copyleft, so nothing here constrains how you license your own
+ODD, your transform modules or your application — a proprietary transform module compiled
+from the stock vocabularies is fine.
 
 The scholarly source documents under `examples/*/data/` are a third category again: they
 have their own provenance, and each example's README says where its texts come from.
