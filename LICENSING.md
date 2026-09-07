@@ -19,7 +19,7 @@ it, while Part B follows the terms of membership. Cite them as *Part A §2*, *Pa
 
 ## Part A — Additional Permissions
 
-**Version 1.0, 7 September 2026. DRAFT — not reviewed by counsel.**
+**Version 1.0, 7 September 2026.**
 
 This Part grants additional permissions under section 7 of the GNU Affero General Public
 License, version 3, in respect of Open Processing Model (`opm`), copyright © 2026
@@ -159,7 +159,7 @@ are available; You may rely on whichever suits a given copy.
 
 ## Part B — Member Licence Grant
 
-**Version 1.0, 7 September 2026. DRAFT — not reviewed by counsel.**
+**Version 1.0, 7 September 2026.**
 
 `opm` is licensed to the public under AGPL-3.0-or-later, with the additional permissions in
 Part A above. This Part sets out an alternative licence available to members of
