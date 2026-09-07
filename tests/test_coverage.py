@@ -397,7 +397,7 @@ def test_cli_reports_a_missing_corpus(tmp_path: Path, monkeypatch, capsys) -> No
     monkeypatch.chdir(tmp_path)
 
     assert main(['coverage']) == 1
-    assert 'input XML file is required' in capsys.readouterr().err
+    assert 'input XML file or directory is required' in capsys.readouterr().err
 
 
 def test_cli_rejects_an_unknown_channel(tmp_path: Path, monkeypatch, capsys) -> None:

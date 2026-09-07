@@ -636,7 +636,7 @@ def _corpus_files(input_path: Path | None) -> list[Path]:
     """
     source = input_path if input_path is not None else Path('data')
     if input_path is None and not source.is_dir():
-        _die('input XML file is required (no ./data directory to fall back on).')
+        _die('input XML file or directory is required (no ./data directory to fall back on).')
     if not source.exists():
         _die(f'no such file or directory: {source}')
     if not source.is_dir():
@@ -1121,7 +1121,7 @@ def chunk(
                 sys.path.insert(0, entry)
 
         if input_xml is None:
-            _die('input XML file is required.')
+            _die('input XML file or directory is required.')
 
         if not cfg.chunking:
             _die('no [chunking] section found in config.')

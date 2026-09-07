@@ -629,4 +629,4 @@ def test_cli_reports_a_missing_corpus(tmp_path: Path, monkeypatch, capsys) -> No
     monkeypatch.chdir(tmp_path)
 
     assert main(['index']) == 1
-    assert 'input XML file is required' in capsys.readouterr().err
+    assert 'input XML file or directory is required' in capsys.readouterr().err

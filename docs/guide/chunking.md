@@ -4,9 +4,40 @@ Large documents are awkward to serve as one giant HTML page. `opm chunk` splits 
 document into smaller pieces, transforms each one, and writes the results plus a
 manifest — ideal for static site generators and web components.
 
+Three different types of output are supported (use `--format` to switch between them):
+
+- **`html`** (default) — renders each chunk through a template
+  (`chunking.template`), generating in a series of HTML files. Use this for quick previews
+  or to create a simple static edition which does not need a complex framework.
+- **`json`** — one JSON file per chunk, including the rendered content and optional fragments. Ideal for integration into 
+static site generators like Eleventy, Hugo, and others that consume data files.
+- **`pb-view`** — an index table plus part files to be consumed by TEI Publisher's
+  viewer web component. Use this to pre-render content for fast display in an existing
+  TEI Publisher based website (see [Integration with TEI Publisher](tei-publisher.md)) for
+  uploading those files into an app and switching the webcomponent to static mode.
+
+Example use for the Shakespeare sample:
+
 ```bash
-uv run opm chunk examples/tei-test.xml -o chunks/ --force
-uv run opm chunk examples/tei-test.xml --depth 1 --force   # override chunking.depth
+opm init --example shakespeare shakespeare-demo
+cd shakespeare-demo
+
+opm chunk data/F-ado.xml --force --preview    # chunk and preview in browser
+opm chunk data/F-ado.xml -o pages/ --force    # override chunking.output_dir
+# provide pre-rendered data to a TEI Publisher instance
+# requests will call demo/F-ado.xml, so we need to specify this path prefix
+opm chunk data --doc-path demo --format pb-view --force
+```
+
+Serafin example:
+
+```bash
+opm init --example serafin serafin-demo
+cd serafin-demo
+
+opm chunk data/letters -o chunks/ --force
+opm chunk data/letters --format json -o _data/chunks
+opm chunk data/letters --format pb-view --doc-path letters -o public
 ```
 
 Most settings come from the `[chunking]` section of `opm.toml`; CLI options
@@ -38,49 +69,11 @@ selector = "opm.navigation.tei_pb_chunks"
 view = "page"
 ```
 
-`examples/shakespeare` is a worked page-chunked project: a First Folio play
-split at every `<pb/>`, where speeches spanning a page break stay intact on
-both pages. `examples/jats` is the JATS counterpart: a real journal article
-where `front` and `back` become chunks alongside the body sections.
-
-## Output formats
-
-`--format` chooses what is written per chunk:
-
-- **`html`** (default) — each chunk rendered through a Jinja2 template
-  (`chunking.template`), as standalone pages.
-- **`json`** — one JSON file per chunk with `content`, `head`, `odd_css`, and
-  `fragments` keys. Convenient for Eleventy, Hugo, and other static site
-  generators that consume data files.
-- **`pb-view`** — an index table plus part files for the tei-publisher
-  `pb-view` web component. Use `--doc-path` to place parts under a document
-  subdirectory. See [Integration with TEI Publisher](tei-publisher.md) for
-  uploading those files into an app and switching `pb-view` to static mode.
-
-Chunk roots are almost always inner elements (`div`, `section`, a reconstructed
-page), not the document element. The transform therefore emits an HTML
-**fragment**, not `<html>…</html>`. In the template (and in JSON as `head`),
-`head_html` is empty; ODD styles arrive as `odd_css`. See
-[Templates & CSS](templates-and-css.md#document-vs-fragment-output) for how to
-write a `<head>` that works for both `opm chunk` and `opm transform`.
-
-```bash
-uv run opm chunk examples/tei-test.xml --format json -o _data/chunks
-uv run opm chunk examples/tei-test.xml --format pb-view --doc-path my-doc -o public
-```
-
-Pass a directory of XML files to chunk every document. HTML and JSON write each
-document into its own subdirectory (`<output-dir>/<file>.xml/`); `pb-view`
-appends the filename to `--doc-path`.
-
-```bash
-uv run opm chunk examples/serafin/data/letters -c examples/serafin/opm.toml \
-  -o chunks/ --force
-uv run opm chunk examples/serafin/data/letters -c examples/serafin/opm.toml \
-  --format json -o _data/chunks
-uv run opm chunk examples/serafin/data/letters -c examples/serafin/opm.toml \
-  --format pb-view --doc-path letters -o public
-```
+The bundled `shakespeare` example (`opm init --example shakespeare`) is a
+page-chunked project: a First Folio play split at every `<pb/>`, where
+speeches spanning a page break stay intact on both pages. The `jats` example is
+the counterpart: a real journal article where `front` and `back` become chunks
+alongside the body sections.
 
 ## Fragments
 
@@ -236,7 +229,7 @@ All these URLs are relative to the page that uses them: bare from the index at
 the output root, `../`-prefixed from a chunk page in a per-document
 subdirectory.
 
-`examples/serafin` does exactly this. Its pages dropped from 168 KB to 96 KB
+The `serafin` example does exactly this. Its pages dropped from 168 KB to 96 KB
 and its index from 91 KB to 19 KB, with 42 KB of shared CSS and imagery fetched
 once and cached.
 
@@ -303,7 +296,7 @@ same stylesheets and share its page shell:
   <nav class="app-menubar">…</nav>
 ```
 
-`examples/serafin/templates/index.html.j2` does this: it includes the same
+`templates/index.html.j2` in the `serafin` example does this: it includes the same
 `letter.css` as the chunk template and reuses its menubar, toolbar and page
 shell, so the landing page cannot drift from the letters it links to. The
 list's own rules live in that stylesheet too, under `.letter-list`, rather than
@@ -317,13 +310,13 @@ for a single document, which writes no index. Only HTML output is opened;
 `--format json` / `pb-view` is served for another tool to fetch.
 
 ```bash
-uv run opm chunk examples/tei-test.xml -o chunks/ --force --preview
+opm chunk data/F-ado.xml -o chunks/ --force --preview
 ```
 
 Or serve an existing chunk directory:
 
 ```bash
-uv run opm serve -d chunks/
+opm serve -d chunks/
 ```
 
 ## From Python
