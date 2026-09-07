@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Code generator abstraction for ODD compilation.
 
 Provides an abstract base class for target-language code generators

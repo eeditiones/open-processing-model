@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Compile-on-demand cache for ODD → Python transform modules."""
 
 from __future__ import annotations

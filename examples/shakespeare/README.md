@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2026 e-editiones
+SPDX-License-Identifier: CC0-1.0
+-->
+
 # Much Adoe about Nothing (First Folio)
 
 A worked `opm` project for a Shakespeare First Folio text, chunked **by page**
@@ -185,3 +190,19 @@ uv run opm transform data/F-ado.xml -t epub -o folio.epub
 - `iiif/F-ado.xml/manifest.json` — IIIF manifest, copied to `chunks/assets/`
 - `scripts/build_manifest.py` — regenerates that manifest from `pb/@facs`
 - `data/F-ado.xml` — the Folio text
+
+## Licence
+
+The project furniture here — stylesheets, templates, `opm.toml`, extension and helper
+scripts — is released by e-editiones under
+[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/); `opm init --example` copies
+it into your own project with no strings attached.
+
+The ODD under `odd/` is the exception: it comes from TEI Publisher and is
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), copyright 2017–2026
+e-editiones and individual contributors, building on TEI Consortium material that is itself
+CC BY 3.0 / BSD-2-Clause, as its own `teiHeader` states. Reuse it as you like; CC BY asks
+only that you keep that statement in the file and credit those it names.
+
+The documents under `data/` are not covered by that dedication. They are source texts with
+their own provenance and rights, noted above.

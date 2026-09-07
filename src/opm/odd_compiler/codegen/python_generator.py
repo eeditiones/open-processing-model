@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Python code generator for ODD compilation."""
 
 from __future__ import annotations
@@ -5,6 +8,7 @@ from __future__ import annotations
 import inspect
 import keyword
 import re
+import textwrap
 from pathlib import Path
 
 from . import (
@@ -78,6 +82,50 @@ class PythonGenerator(CodeGenerator):
         base_css: str | None = None,
     ) -> str:
         return self._generate_python_module(parsed, module_name, output_mode, base_css)
+
+    @staticmethod
+    def _docstring_safe(text: str) -> str:
+        """Neutralise anything in ODD-supplied text that could break out of the docstring.
+
+        A quote run would close it and a trailing backslash would escape the
+        closing quotes; neither loses anything that matters in a licence line.
+        """
+        return text.replace('\\', '/').replace('"', "'")
+
+    @classmethod
+    def _rights_block(cls, parsed: ParsedOdd) -> str:
+        """The rights statements of the compiled ODDs, for the module docstring.
+
+        A generated module outlives the reading of any README: it gets committed,
+        baked into images, copied between projects. The stock processing models
+        are CC BY, so the credit they ask for has to travel with the code rather
+        than sit in a file the next person never opens. Empty when no ODD in the
+        chain declares anything — silence is not a licence to invent one.
+        """
+        licences = getattr(parsed, 'licences', None)
+        if not licences:
+            return ''
+        lines = [
+            '',
+            'Rights in the processing models, as the ODDs they came from declare them.',
+            'Reproduced so the attribution they ask for travels with the compiled code;',
+            'it says nothing about the ODD you wrote or about opm itself, which grants',
+            'generated modules separately (LICENSING.md, Part A §2).',
+            '',
+        ]
+        for licence in licences:
+            head = licence.odd
+            if licence.title:
+                head += f' — {licence.title}'
+            lines.append(f'  {head}')
+            for detail in (licence.publisher, licence.licence, licence.target):
+                if detail:
+                    lines.append(f'      {detail}')
+            for note in licence.notes:
+                # Wrapped, not truncated: a rights statement is not ours to shorten.
+                lines.append(textwrap.fill(note, width=88, initial_indent='      ',
+                                           subsequent_indent='        '))
+        return cls._docstring_safe('\n'.join(lines) + '\n')
 
     def _generate_python_module(
         self,
@@ -257,7 +305,7 @@ class PythonGenerator(CodeGenerator):
 
 Source ODD: {odd_path}
 schema namespace: {schema_ns}
-"""
+{self._rights_block(parsed)}"""
 
 from lxml import etree
 

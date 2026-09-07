@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Load Python callables as XPath 3.1 extension functions (``tp:`` prefix)."""
 
 from __future__ import annotations

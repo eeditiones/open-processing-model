@@ -66,6 +66,9 @@ with and fails on the new import.
 Note that `.venv/bin/opm` shadows the tool whenever the project venv is on
 `PATH`; `which -a opm` shows which one you are about to run.
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request — contributions
+require a one-click [contributor license agreement](.github/CLA.md).
+
 ## Tests
 
 ```bash
@@ -117,3 +120,24 @@ Development of `opm` is supported by:
     <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/e-editiones-logo-white.svg"><img src="docs/assets/e-editiones-logo-color.svg" alt="e-editiones" height="40"></picture>
   </a>
 </p>
+
+## License
+
+Copyright © 2026 e-editiones. Licensed under the [GNU Affero General Public License,
+version 3 or later](LICENSE), with [additional permissions](LICENSING.md).
+
+The AGPL means that if you build on `opm` and offer it to others — including as a hosted
+service — your users are entitled to the source. Members of
+[e-editiones](https://www.e-editiones.org/) may instead use `opm` under the **LGPL**,
+which lifts that obligation: see [LICENSING.md, Part B](LICENSING.md#part-b--member-licence-grant).
+Membership funds the long-term maintenance of TEI Publisher and its tooling.
+
+[LICENSING.md, Part A](LICENSING.md#part-a--additional-permissions) grants everyone additional permissions
+under AGPL §7: invoking `opm` as a separate process leaves your program alone, transform
+modules compiled from your ODDs are yours to license and to execute, so are XPath
+extension modules, and the files `opm init` writes into your project are released under
+CC0. Vendoring `opm`'s own source into your tree is the case those permissions do not
+cover.
+
+Documents you transform with `opm` are your own; the licence does not reach the output.
+See [the licensing guide](docs/license.md) for where the line falls in practice.

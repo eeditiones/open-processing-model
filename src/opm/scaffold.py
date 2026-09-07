@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Scaffold a local opm project from packaged resources."""
 
 from __future__ import annotations
@@ -437,6 +440,14 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         skipped,
         _write_text(
             dest_dir / 'extensions' / '__init__.py',
+            # Scaffolded files are CC0 (LICENSING.md, Part A §4), so they say so
+            # in the reader's own tree rather than only in ours. Fenced off because
+            # this file is AGPL and REUSE would otherwise read the literal below as
+            # a second licence declaration for scaffold.py itself.
+            # REUSE-IgnoreStart
+            '# SPDX-FileCopyrightText: 2026 e-editiones\n'
+            '# SPDX-License-Identifier: CC0-1.0\n\n'
+            # REUSE-IgnoreEnd
             '"""Project-local XPath extension modules (imported via [project] pythonpath)."""\n',
             force=force,
         ),

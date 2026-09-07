@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Core transform API — import this to drive transforms from your own Python scripts.
 
 Three entry points at increasing levels of abstraction:

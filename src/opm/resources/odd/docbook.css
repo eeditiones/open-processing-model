@@ -1,3 +1,8 @@
+/* SPDX-FileCopyrightText: 2017-2026 e-editiones and individual contributors
+   SPDX-License-Identifier: CC-BY-4.0
+
+   From TEI Publisher: the stylesheet its ODD names in tagsDecl/@source. */
+
 body {
     --pb-heading-font-family: var(--jinks-base-font-family);
     --pb-heading-font-weight: var(--jinks-heading-font-weight);

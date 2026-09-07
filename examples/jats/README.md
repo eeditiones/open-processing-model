@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2026 e-editiones
+SPDX-License-Identifier: CC0-1.0
+-->
+
 # JATS journal article
 
 A worked `opm` project for a JATS (Journal Article Tag Suite) article, the
@@ -120,3 +125,19 @@ author dict. `authors` stays a plain name so the book shells keep working.
 - `templates/article.typ.j2` — arkheion journal shell for `-t typst`
 - `opm.toml` — `jats_sec_chunks`, title/journal/toc fragments
 - `data/article/` — the source article
+
+## Licence
+
+The project furniture here — stylesheets, templates, `opm.toml`, extension and helper
+scripts — is released by e-editiones under
+[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/); `opm init --example` copies
+it into your own project with no strings attached.
+
+The ODD under `odd/` is the exception: it comes from TEI Publisher and is
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), copyright 2017–2026
+e-editiones and individual contributors, building on TEI Consortium material that is itself
+CC BY 3.0 / BSD-2-Clause, as its own `teiHeader` states. Reuse it as you like; CC BY asks
+only that you keep that statement in the file and credit those it names.
+
+The documents under `data/` are not covered by that dedication. They are source texts with
+their own provenance and rights, noted above.

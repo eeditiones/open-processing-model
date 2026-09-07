@@ -1,3 +1,6 @@
+/* SPDX-FileCopyrightText: 2026 e-editiones
+   SPDX-License-Identifier: CC0-1.0 */
+
 /* @rend tokens reach the output as bare class names, and the processing model
    defines none of them: it covers speakers and stage directions by element,
    with outputRendition. So the tokens it does not reach — a line, a letter, a
