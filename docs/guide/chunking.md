@@ -10,7 +10,8 @@ Three different types of output are supported (use `--format` to switch between 
   (`chunking.template`), generating in a series of HTML files. Use this for quick previews
   or to create a simple static edition which does not need a complex framework.
 - **`json`** — one JSON file per chunk, including the rendered content and optional fragments. Ideal for integration into 
-static site generators like Eleventy, Hugo, and others that consume data files.
+static site generators like [Eleventy](https://www.11ty.dev/), [Hugo](https://gohugo.io/), [Astro](https://astro.build/) and others 
+that consume data files.
 - **`pb-view`** — an index table plus part files to be consumed by TEI Publisher's
   viewer web component. Use this to pre-render content for fast display in an existing
   TEI Publisher based website (see [Integration with TEI Publisher](tei-publisher.md)) for
