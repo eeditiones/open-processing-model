@@ -26,13 +26,13 @@ ignores those models. Among models that match the compile mode, the usual ODD
 rule applies: the first whose conditions apply wins.
 
 ```bash
-uv run opm transform examples/tei-test.xml -t web --preview
-uv run opm transform examples/tei-test.xml -t print --preview
-uv run opm transform examples/tei-test.xml -t epub -o book.epub
-uv run opm transform examples/tei-test.xml -t markdown --preview
-uv run opm transform examples/tei-test.xml -t docx -o out.docx
-uv run opm transform examples/tei-test.xml -t typst -o out.typ
-uv run opm transform examples/tei-test.xml -t json -o out.json
+opm transform examples/tei-test.xml -t web --preview
+opm transform examples/tei-test.xml -t print --preview
+opm transform examples/tei-test.xml -t epub -o book.epub
+opm transform examples/tei-test.xml -t markdown --preview
+opm transform examples/tei-test.xml -t docx -o out.docx
+opm transform examples/tei-test.xml -t typst -o out.typ
+opm transform examples/tei-test.xml -t json -o out.json
 ```
 
 Each compile writes (or reuses) a cached module under the user cache directory;
@@ -55,13 +55,13 @@ Pass an ODD with `--odd`/`-d`, or select from your TOML config with `--type`/`-t
 
 ```bash
 # Explicit ODD (compiled on demand)
-uv run opm transform examples/tei-test.xml --preview
+opm transform examples/tei-test.xml --preview
 
 # Looked up from config (see Configuration)
-uv run opm transform examples/tei-test.xml -t web --preview
-uv run opm transform examples/tei-test.xml -t print --preview
-uv run opm transform examples/tei-test.xml -t typst -o out.typ
-uv run opm transform examples/tei-test.xml -t docx -o out.docx
+opm transform examples/tei-test.xml -t web --preview
+opm transform examples/tei-test.xml -t print --preview
+opm transform examples/tei-test.xml -t typst -o out.typ
+opm transform examples/tei-test.xml -t docx -o out.docx
 ```
 
 `--odd`/`-d` overrides config lookup. Omitting both falls back to
@@ -76,7 +76,7 @@ ODD-generated CSS, a user stylesheet, and optional tei-publisher web components.
 See [Templates & CSS](templates-and-css.md).
 
 ```bash
-uv run opm transform data/sample.xml \
+opm transform data/sample.xml \
   --preview --template templates/tufte.html.j2
 ```
 
@@ -98,15 +98,15 @@ Paged layout itself comes from the ODD’s CSS (often `@page` / `@media print` i
 a tagsDecl stylesheet). OPM only produces the markup; PDF rendering is external.
 
 ```bash
-uv run opm transform examples/tei-test.xml -t print --preview
-uv run opm transform examples/tei-test.xml -t print -o print.html
+opm transform examples/tei-test.xml -t print --preview
+opm transform examples/tei-test.xml -t print -o print.html
 ```
 
 The DocBook example wires a dedicated shell:
 
 ```bash
 cd examples/docbook
-uv run opm transform data/doc/quickstart.xml -t print --preview
+opm transform data/doc/quickstart.xml -t print --preview
 ```
 
 See `examples/docbook/templates/print.html.j2` and `[transform.print]` in that
@@ -130,7 +130,7 @@ selector (`tei_pb_chunks`) is always replaced by divisions, since a reading
 system repaginates anyway.
 
 ```bash
-uv run opm transform examples/tei-test.xml -t epub -o book.epub
+opm transform examples/tei-test.xml -t epub -o book.epub
 ```
 
 Optional config:
@@ -196,7 +196,7 @@ manifest, since an OPF entry without a file makes the package invalid.
 ## Markdown
 
 ```bash
-uv run opm transform examples/tei-test.xml -t markdown --preview
+opm transform examples/tei-test.xml -t markdown --preview
 ```
 
 `--preview` renders the Markdown in the terminal with
@@ -212,7 +212,7 @@ the output. If none is given, the packaged `default.docx` is used (the same file
 `footnote text`, `footnote reference`) are injected automatically.
 
 ```bash
-uv run opm transform examples/tei-test.xml -t docx -o report.docx \
+opm transform examples/tei-test.xml -t docx -o report.docx \
   --template templates/corporate.docx
 # Or: -t docx -o report.docx
 ```
@@ -225,7 +225,7 @@ Project templates include `templates/book.typ.j2` (TEI) and
 fallback is `default_document.typ.j2`.
 
 ```bash
-uv run opm transform examples/tei-test.xml -t typst -o out.typ
+opm transform examples/tei-test.xml -t typst -o out.typ
 ```
 
 The resulting `.typ` file you can then process with
@@ -243,7 +243,7 @@ did to it**: which behaviour ran for each element, which model won, where the
 element came from, and what text it contributed.
 
 ```bash
-uv run opm transform examples/tei-test.xml -t json -o out.json
+opm transform examples/tei-test.xml -t json -o out.json
 ```
 
 !!! note "Not the same as `opm chunk --format json`"
@@ -292,7 +292,7 @@ the document's default namespace, these paths run directly against the same
 document:
 
 ```bash
-uv run opm transform doc.xml -x '/TEI/text[1]/body[1]/div[2]' --preview
+opm transform doc.xml -x '/TEI/text[1]/body[1]/div[2]' --preview
 ```
 
 Elements outside that default namespace — MathML inside TEI, say — keep the
@@ -303,7 +303,7 @@ step would not match them.
 opened directly:
 
 ```bash
-uv run opm transform doc.xml -t json -o out.json
+opm transform doc.xml -t json -o out.json
 # then, for any record:  $EDITOR +84 doc.xml   /   code -g doc.xml:84:7
 ```
 
@@ -348,7 +348,7 @@ behaviour at all — its text just surfaces in some ancestor. In JSON it appears
 with `"behaviour": null`, so everything an ODD does not cover is findable:
 
 ```bash
-uv run opm coverage doc.xml     # counts them, with a file:line for each
+opm coverage doc.xml     # counts them, with a file:line for each
 ```
 
 [`opm coverage`](coverage.md) rolls these records up across a corpus: unmatched
@@ -363,8 +363,8 @@ models in particular are the hardest to eyeball, since there is no browser to
 open. `--channel` picks the channel whose models participate:
 
 ```bash
-uv run opm transform doc.xml -t json --channel typst -o typst-decisions.json
-uv run opm transform doc.xml -t json --channel docx  -o docx-decisions.json
+opm transform doc.xml -t json --channel typst -o typst-decisions.json
+opm transform doc.xml -t json --channel docx  -o docx-decisions.json
 ```
 
 Accepted channels are `web` (default), `print`, `epub`, `markdown`, `docx` and
@@ -384,8 +384,8 @@ records `title` and `author` under typst-only models. Diffing two channels is a
 quick way to see what a channel actually changes:
 
 ```bash
-uv run opm transform doc.xml -t json               -o web.json
-uv run opm transform doc.xml -t json --channel typst -o typst.json
+opm transform doc.xml -t json               -o web.json
+opm transform doc.xml -t json --channel typst -o typst.json
 ```
 
 `--channel` follows the same fallback rules as the channel itself: `json-print`

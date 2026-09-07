@@ -17,8 +17,11 @@ corpus lives in the Jinks docs profile (`../jinks/profiles/docs/data/doc`).
 Screenshots referenced from those files are not included.
 
 <!-- opm:repo-only -->
-From a clone, `uv run` finds the repo project even from this directory.
-`opm` then loads this `opm.toml` automatically.
+The commands below call `opm` directly, as an installed copy would. From a clone
+it lives in the project venv, so either prefix them with `uv run`, activate the
+venv (`source .venv/bin/activate`), or put the working tree on your `PATH` once
+with `uv tool install --editable .`. Either way `opm` loads this `opm.toml`
+automatically.
 
 ```bash
 cd examples/docbook
@@ -28,9 +31,9 @@ cd examples/docbook
 ## Transform
 
 ```bash
-uv run opm transform data/doc/quickstart.xml --preview
-uv run opm transform data/doc/quickstart.xml -t print --preview
-uv run opm transform data/doc/quickstart.xml -t typst -o /tmp/quickstart.typ
+opm transform data/doc/quickstart.xml --preview
+opm transform data/doc/quickstart.xml -t print --preview
+opm transform data/doc/quickstart.xml -t typst -o /tmp/quickstart.typ
 ```
 
 `-t print` uses `templates/print.html.j2` (no handbook chrome / web components).
@@ -42,13 +45,13 @@ Sections are split at depth 2 (same as the `<?teipublisher … depth="2"?>`
 processing instruction). The handbook shell fills title, TOC, and breadcrumbs:
 
 ```bash
-uv run opm chunk data/doc/quickstart.xml --force --preview
+opm chunk data/doc/quickstart.xml --force --preview
 ```
 
 Or chunk both sample articles (writes `chunks/<file>/`):
 
 ```bash
-uv run opm chunk data/doc --force --preview
+opm chunk data/doc --force --preview
 ```
 
 ## Layout

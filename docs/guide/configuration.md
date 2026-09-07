@@ -139,7 +139,7 @@ treated as the shared default when `[transform].odd` is omitted. Legacy
 top-level `[docx]` / `[typst]` sections are still accepted as a fallback.
 
 ```bash
-uv run opm transform examples/tei-test.xml -t web --preview
-uv run opm transform examples/tei-test.xml -t typst -o out.typ
-uv run opm transform examples/tei-test.xml -t docx -o out.docx
+opm transform examples/tei-test.xml -t web --preview
+opm transform examples/tei-test.xml -t typst -o out.typ
+opm transform examples/tei-test.xml -t docx -o out.docx
 ```

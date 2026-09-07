@@ -38,7 +38,7 @@ From this repository, with the jinks sources checked out next to it, chunk every
 documentation file in one go:
 
 ```bash
-uv run opm chunk ../jinks/profiles/docs/data/doc \
+opm chunk ../jinks/profiles/docs/data/doc \
   -c examples/docbook/opm.toml --format pb-view
 ```
 

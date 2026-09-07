@@ -5,9 +5,9 @@ a full-text index — one line per retrievable passage, with flat metadata and a
 link back to the published page.
 
 ```bash
-uv run opm index examples/tei-test.xml -o records.jsonl
-uv run opm index data/ -o corpus.jsonl          # a directory, subdirectories included
-uv run opm index -o corpus.jsonl                # no path: defaults to ./data
+opm index examples/tei-test.xml -o records.jsonl
+opm index data/ -o corpus.jsonl          # a directory, subdirectories included
+opm index -o corpus.jsonl                # no path: defaults to ./data
 ```
 
 ## Why index the processing model
@@ -247,7 +247,7 @@ script ships as `examples/index_chroma.py`:
 
 ```bash
 pip install chromadb
-uv run opm index examples/tei-test.xml -o records.jsonl
+opm index examples/tei-test.xml -o records.jsonl
 python examples/index_chroma.py records.jsonl
 ```
 

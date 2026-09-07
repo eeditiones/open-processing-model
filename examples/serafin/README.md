@@ -14,8 +14,11 @@ the full registers ship here; the rest of the corpus lives in the TEI Publisher
 jinks profile.
 
 <!-- opm:repo-only -->
-From a clone, `uv run` finds the repo project even from this directory.
-`opm` then loads this `opm.toml` automatically.
+The commands below call `opm` directly, as an installed copy would. From a clone
+it lives in the project venv, so either prefix them with `uv run`, activate the
+venv (`source .venv/bin/activate`), or put the working tree on your `PATH` once
+with `uv tool install --editable .`. Either way `opm` loads this `opm.toml`
+automatically.
 
 ```bash
 cd examples/serafin
@@ -25,8 +28,8 @@ cd examples/serafin
 ## Transform
 
 ```bash
-uv run opm transform data/letters/serafin01.xml --preview
-uv run opm transform data/letters/serafin01.xml -t epub -o letter.epub
+opm transform data/letters/serafin01.xml --preview
+opm transform data/letters/serafin01.xml -t epub -o letter.epub
 ```
 
 ## Chunk and preview
@@ -35,13 +38,13 @@ Each letter is one TEI document. Chunking splits the source text, then fills
 translation, letter head, breadcrumbs, and register fragments:
 
 ```bash
-uv run opm chunk data/letters/serafin01.xml --force --preview
+opm chunk data/letters/serafin01.xml --force --preview
 ```
 
 Or chunk both sample letters (writes `chunks/<file>/`):
 
 ```bash
-uv run opm chunk data/letters --force --preview
+opm chunk data/letters --force --preview
 ```
 
 ## Parallel text in print
@@ -50,7 +53,7 @@ uv run opm chunk data/letters --force --preview
 side by side, aligned segment by segment:
 
 ```bash
-uv run opm transform data/letters/serafin01.xml -t typst -o letter.typ && typst compile letter.typ
+opm transform data/letters/serafin01.xml -t typst -o letter.typ && typst compile letter.typ
 ```
 
 The alignment is the encoding's: every translation `<seg>` carries
@@ -64,7 +67,7 @@ Nothing can stand beside anything in a reflowing book, so the EPUB sets the two
 texts one after the other, a chapter each.
 
 ```bash
-uv run opm transform data/letters/serafin01.xml -t epub -o letter.epub
+opm transform data/letters/serafin01.xml -t epub -o letter.epub
 ```
 
 `[chunking]` selects only the source: the reading view fills the translation

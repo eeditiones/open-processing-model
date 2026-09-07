@@ -15,8 +15,11 @@ breaks, catchwords, signatures and running heads left in the markup.
 speeches, stage directions, decorated capitals, and `pb`.
 
 <!-- opm:repo-only -->
-From a clone, `uv run` finds the repo project even from this directory. `opm`
-then loads this `opm.toml` automatically.
+The commands below call `opm` directly, as an installed copy would. From a clone
+it lives in the project venv, so either prefix them with `uv run`, activate the
+venv (`source .venv/bin/activate`), or put the working tree on your `PATH` once
+with `uv tool install --editable .`. Either way `opm` loads this `opm.toml`
+automatically.
 
 ```bash
 cd examples/shakespeare
@@ -26,18 +29,18 @@ cd examples/shakespeare
 ## Transform
 
 ```bash
-uv run opm transform data/F-ado.xml --preview
-uv run opm transform data/F-ado.xml -t markdown --preview
-uv run opm transform data/F-ado.xml -t typst -o folio.typ
-uv run opm transform data/F-ado.xml -t docx -o folio.docx
-uv run opm transform data/F-ado.xml -t epub -o folio.epub
+opm transform data/F-ado.xml --preview
+opm transform data/F-ado.xml -t markdown --preview
+opm transform data/F-ado.xml -t typst -o folio.typ
+opm transform data/F-ado.xml -t docx -o folio.docx
+opm transform data/F-ado.xml -t epub -o folio.epub
 ```
 
 ## Chunk and preview
 
 ```bash
-uv run opm chunk data/F-ado.xml --force --preview
-uv run opm serve
+opm chunk data/F-ado.xml --force --preview
+opm serve
 ```
 
 This writes 21 pages to `chunks/`, one per `<pb/>`. Serve them rather than
@@ -125,7 +128,7 @@ straight from `opm serve`, with no ODD override anywhere.
 `scripts/build_manifest.py` from the 21 `pb/@facs` values:
 
 ```bash
-uv run python scripts/build_manifest.py
+python scripts/build_manifest.py
 ```
 
 The script reads each image's IIIF `info.json` for its true dimensions — the
@@ -145,7 +148,7 @@ prefixes, centred act and scene headings, and a running head carrying the act
 and scene.
 
 ```bash
-uv run opm transform data/F-ado.xml -t typst -o folio.typ && typst compile folio.typ
+opm transform data/F-ado.xml -t typst -o folio.typ && typst compile folio.typ
 ```
 
 The line numbers are Typst's own `par.line`, which numbers *typeset* lines — so
@@ -177,7 +180,7 @@ with `output="typst"` so the web models are untouched, or in the template:
 scene, speeches hanging under small-caps prefixes, verse a line to a line.
 
 ```bash
-uv run opm transform data/F-ado.xml -t epub -o folio.epub
+opm transform data/F-ado.xml -t epub -o folio.epub
 ```
 
 ## Layout

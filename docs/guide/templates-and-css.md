@@ -17,7 +17,7 @@ whichever suits the vocabulary — `journal` for JATS, `chapbook` otherwise — 
 swapping is a one-line edit. Edit them in place: they are yours once copied.
 
 ```bash
-uv run opm transform data/sample.xml \
+opm transform data/sample.xml \
   --template templates/tufte.html.j2 --css styles/main.css -o out.html
 ```
 

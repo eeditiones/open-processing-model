@@ -79,7 +79,7 @@ recorded and both are identity.
 Per transform on the command line (repeatable):
 
 ```bash
-uv run opm transform examples/tei-test.xml \
+opm transform examples/tei-test.xml \
   --xpath-extensions extensions.my_functions
 ```
 

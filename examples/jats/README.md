@@ -17,8 +17,11 @@ front-matter apparatus (affiliations, ORCID, DOI, licence), a static table of
 contents, and a chunked reading surface.
 
 <!-- opm:repo-only -->
-From a clone, `uv run` finds the repo project even from this directory.
-`opm` then loads this `opm.toml` automatically.
+The commands below call `opm` directly, as an installed copy would. From a clone
+it lives in the project venv, so either prefix them with `uv run`, activate the
+venv (`source .venv/bin/activate`), or put the working tree on your `PATH` once
+with `uv tool install --editable .`. Either way `opm` loads this `opm.toml`
+automatically.
 
 ```bash
 cd examples/jats
@@ -28,10 +31,10 @@ cd examples/jats
 ## Transform
 
 ```bash
-uv run opm transform data/article/hertziana-digital-editions.xml --preview
-uv run opm transform data/article/hertziana-digital-editions.xml -t print --preview
-uv run opm transform data/article/hertziana-digital-editions.xml -t typst -o /tmp/article.typ
-uv run opm transform data/article/hertziana-digital-editions.xml -t epub -o /tmp/article.epub
+opm transform data/article/hertziana-digital-editions.xml --preview
+opm transform data/article/hertziana-digital-editions.xml -t print --preview
+opm transform data/article/hertziana-digital-editions.xml -t typst -o /tmp/article.typ
+opm transform data/article/hertziana-digital-editions.xml -t epub -o /tmp/article.epub
 ```
 
 EPUB needs no configuration here: `jats_sec_chunks` supplies the chapters, so
@@ -69,7 +72,7 @@ article holds its apparatus outside `body`, so without that the title, authors,
 abstract and reference list would simply be dropped.
 
 ```bash
-uv run opm chunk data/article/hertziana-digital-editions.xml --force --preview
+opm chunk data/article/hertziana-digital-editions.xml --force --preview
 ```
 
 Three pages: front matter, `Content`, references.

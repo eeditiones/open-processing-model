@@ -151,7 +151,7 @@ def main() -> None:
         '\n'
         'The `opm` command is a [Typer](https://typer.tiangolo.com/) application. '
         'This page is generated from `opm.cli` by `scripts/gen_cli_docs.py`. '
-        'Run `uv run opm --help` (or `opm <command> --help`) for the same '
+        'Run `opm --help` (or `opm <command> --help`) for the same '
         'information in your terminal.\n'
         '\n'
         f'{body}',

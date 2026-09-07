@@ -5,10 +5,10 @@ on the documents: what you wrote that never runs, and what your sources contain
 that you never handled.
 
 ```bash
-uv run opm coverage examples/tei-test.xml
-uv run opm coverage data/                    # a corpus, subdirectories included
-uv run opm coverage                          # no path: defaults to ./data
-uv run opm coverage --json > coverage.json   # the full report, nothing elided
+opm coverage examples/tei-test.xml
+opm coverage data/                    # a corpus, subdirectories included
+opm coverage                          # no path: defaults to ./data
+opm coverage --json > coverage.json   # the full report, nothing elided
 ```
 
 It is the [`json` output mode](output-formats.md#json) rolled up across a corpus
@@ -105,7 +105,7 @@ Coverage reports on one output channel, because that is what decides which
 `@output`-tagged models participate:
 
 ```bash
-uv run opm coverage data/ --channel typst
+opm coverage data/ --channel typst
 ```
 
 The channels are the same as for [`-t json`](output-formats.md#choosing-which-channel-to-inspect):
@@ -118,7 +118,7 @@ reading view, so models for `toc`, `breadcrumb` or `metadata` modes show up as
 unused. Check those views with the same `--param` flag `opm transform` takes:
 
 ```bash
-uv run opm coverage data/ -p mode=toc
+opm coverage data/ -p mode=toc
 ```
 
 ## The JSON report
