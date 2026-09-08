@@ -10,7 +10,13 @@ from pathlib import Path
 
 from lxml import etree
 
-from opm.chunking import ChunkProcessor, build_index, chunk_document, collect_index_entries
+from opm.chunking import (
+    ChunkProcessor,
+    build_index,
+    build_index_json,
+    chunk_document,
+    collect_index_entries,
+)
 from opm.config import ChunkingConfig, FragmentConfig, ProjectConfig
 from opm.resources import packaged_odd
 
@@ -1405,3 +1411,110 @@ def test_chunk_pages_and_index_receive_the_project_context(tmp_path: Path) -> No
         project_config=project_config,
     ).read_text(encoding='utf-8')
     assert '<h1>My Edition</h1>' in index_html
+
+
+def test_link_pattern_doc_stem_drops_the_xml_suffix(tmp_path: Path) -> None:
+    """``{doc_stem}`` is the document name a framework route wants — no ``.xml``."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    config = _chunking_config('lp-doc-stem', link_pattern='/letters/{doc_stem}/{stem}/')
+    config = replace(config, link_doc='quickstart.xml')
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=config,
+        project_root=tmp_path,
+        output_format='json',
+    )
+
+    chunk_one = json.loads((tmp_path / 'lp-doc-stem' / '001.json').read_text(encoding='utf-8'))
+    assert 'href="/letters/quickstart/002/"' in chunk_one['content']
+    assert '.xml' not in chunk_one['content']
+
+
+def test_expand_document_params_supports_doc_stem(tmp_path: Path) -> None:
+    """The browse link a stock ODD builds from ``$parameters?doc`` can be extensionless."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    proc = ChunkProcessor(
+        module_path=module_path,
+        xml_root=etree.parse(str(xml_path)).getroot(),
+        config=ChunkingConfig(xpath="//body/div[@type='chunk']", link_doc='fixture.xml'),
+        project_root=tmp_path,
+    )
+
+    expanded = proc._expand_document_params({'doc': '/letters/{doc_stem}/'})
+    assert expanded['doc'] == '/letters/fixture/'
+
+
+def test_chunk_metadata_records_the_chunk_root_xml_id(tmp_path: Path) -> None:
+    """A consumer keys a page on the entry it renders, which the anchor map cannot say."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=_chunking_config('xml-id-chunks'),
+        project_root=tmp_path,
+        output_format='json',
+    )
+
+    out = tmp_path / 'xml-id-chunks'
+    assert json.loads((out / '001.json').read_text(encoding='utf-8'))['xml_id'] == 'a'
+    assert json.loads((out / '002.json').read_text(encoding='utf-8'))['xml_id'] == 'b'
+
+    manifest = json.loads((out / 'manifest.json').read_text(encoding='utf-8'))
+    assert [c['xml_id'] for c in manifest['chunks']] == ['a', 'b']
+
+
+def test_chunk_metadata_xml_id_is_none_without_one(tmp_path: Path) -> None:
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'no_ids.xml'
+    _write_chunking_fixture_module(module_path)
+    xml_path.write_text(
+        '<doc><body><div type="chunk"><p>one</p></div></body></doc>', encoding='utf-8'
+    )
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=ChunkingConfig(xpath="//body/div[@type='chunk']", output_dir='no-id-chunks'),
+        project_root=tmp_path,
+        output_format='json',
+    )
+
+    chunk = json.loads((tmp_path / 'no-id-chunks' / '001.json').read_text(encoding='utf-8'))
+    assert chunk['xml_id'] is None
+
+
+def test_build_index_json_lists_documents(tmp_path: Path) -> None:
+    """The JSON counterpart of build_index, for a consumer that renders its own index."""
+    out = tmp_path / 'chunks'
+    _write_manifest(out, 'b.xml', chunks=3, fragments={'browse': '<h5>B</h5>'})
+    _write_manifest(out, 'a.xml', chunks=1)
+
+    written = build_index_json(out, title='Listy')
+
+    assert written == out / 'index.json'
+    data = json.loads(written.read_text(encoding='utf-8'))
+    assert data['title'] == 'Listy'
+    assert [d['name'] for d in data['documents']] == ['a.xml', 'b.xml']
+    assert [d['stem'] for d in data['documents']] == ['a', 'b']
+    assert [d['chunks'] for d in data['documents']] == [1, 3]
+    assert data['documents'][1]['fragments']['browse'] == '<h5>B</h5>'
+
+
+def test_build_index_json_returns_none_without_documents(tmp_path: Path) -> None:
+    empty = tmp_path / 'empty'
+    empty.mkdir()
+    assert build_index_json(empty) is None
+    assert not (empty / 'index.json').exists()

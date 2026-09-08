@@ -201,10 +201,13 @@ class _Walker:
         if record.get('id'):
             self.last_anchor = record['id']
 
-        spec = next((f for f in self.fields if f.matches(record)), None)
-        if spec is not None:
-            self.extract(record, spec, breadcrumb)
-            if not spec.keeps_text_inline:
+        specs = [f for f in self.fields if f.matches(record)]
+        if specs:
+            keep_inline = False
+            for spec in specs:
+                self.extract(record, spec, breadcrumb)
+                keep_inline = keep_inline or spec.keeps_text_inline
+            if not keep_inline:
                 # The text belongs to the facet or the extracted record only;
                 # walking on would embed it in the containing passage as well.
                 return
@@ -523,7 +526,12 @@ def index_document(
     whose ids never existed in the source document.
     """
     from opm.odd_cache import resolve_transform_module
-    from opm.transform import load_transform_module
+    from opm.runtime.pm_runtime import xpath_runtime_context
+    from opm.transform import (
+        load_transform_module,
+        load_xpath_collections,
+        load_xpath_documents,
+    )
 
     project_root = project_root or Path.cwd()
     # The config already carries the rollup tuning and the field declarations;
@@ -546,8 +554,28 @@ def index_document(
     title = document_title(root)
     parameters = dict(cfg.parameters)
 
+    # Register lookups (e.g. collection($global:register-root)) need the same
+    # XPath runtime context as `opm transform`; without collections, ODD models
+    # fall back to the TEI surface form instead of the register main name.
+    xpath_documents = load_xpath_documents(cfg.xpath_documents)
+    xpath_collections, xpath_documents = load_xpath_collections(
+        cfg.xpath_collections, xpath_documents,
+    )
+    transform_opts: dict[str, Any] = dict(parameters)
+    transform_opts.update(
+        xpath_runtime_context(
+            base_uri=xml_path.resolve().as_uri(),
+            documents=xpath_documents,
+            collections=xpath_collections,
+            variables=dict(cfg.xpath_variables),
+            namespaces=dict(cfg.xpath_namespaces),
+        ),
+    )
+    if cfg.xpath_extensions:
+        transform_opts['xpath_extensions'] = list(cfg.xpath_extensions)
+
     def transform(node) -> list:
-        return json.loads(module.transform(node, dict(parameters))[0]).get('document', [])
+        return json.loads(module.transform(node, dict(transform_opts))[0]).get('document', [])
 
     processor = _chunk_processor(root, resolved.module_path, cfg, project_root)
     if processor is None or not processor.chunks:
