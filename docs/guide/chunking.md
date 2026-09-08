@@ -156,13 +156,16 @@ so `root($parameters?root)//…` still reaches the header.
 
 Chunking writes a manifest JSON describing every chunk: its file, anchors,
 fragment locations, and `prev`/`next` navigation links. Cross-chunk links follow
-`chunking.link_pattern` (placeholders `{file}`, `{stem}`, `{anchor}`, `{doc}`),
-so you can match your site's URL scheme. `{doc}` is the per-document
-subdirectory when chunking a directory of XML files (empty otherwise):
+`chunking.link_pattern` (placeholders `{file}`, `{stem}`, `{anchor}`, `{doc}`,
+`{doc_stem}`), so you can match your site's URL scheme. `{doc}` is the
+per-document subdirectory when chunking a directory of XML files (empty
+otherwise), and `{doc_stem}` is that name without the `.xml` suffix — which is
+what a framework route usually wants:
 
 ```toml
 [chunking]
-link_pattern = "/{doc}/{file}"
+link_pattern = "/{doc}/{file}"          # /serafin01.xml/001.html
+link_pattern = "/letters/{doc_stem}/{stem}/#{anchor}"   # /letters/serafin01/001/
 ```
 
 ## Stylesheets and static assets
@@ -257,8 +260,8 @@ parameters = { display = "browse" }
 Those models emit the whole browse record — heading, author, description — and
 build their own link from `$parameters?doc`. That parameter is supplied
 automatically, per document, so no further wiring is needed. To use a different
-URL scheme, set it explicitly; `{doc}`, `{file}` and `{stem}` expand exactly as
-in `link_pattern`:
+URL scheme, set it explicitly; `{doc}`, `{doc_stem}`, `{file}` and `{stem}`
+expand exactly as in `link_pattern`:
 
 ```toml
 parameters = { display = "browse", doc = "/exist/apps/edition/{doc}/{stem}" }

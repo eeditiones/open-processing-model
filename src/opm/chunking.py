@@ -50,6 +50,12 @@ class ChunkMetadata:
     xpath: str
     prev: str | None = None
     next: str | None = None
+    #: The chunk root's own ``xml:id``, when it has one. The anchor index maps
+    #: every id in a chunk to its file, which cannot say which one *is* the
+    #: chunk — the distinction a consumer needs to key a page on the entry it
+    #: renders (a register person, a numbered letter). ``None`` when the chunk
+    #: root carries no id.
+    xml_id: str | None = None
 
 
 @dataclass
@@ -295,8 +301,8 @@ class ChunkProcessor:
           ``display='browse'`` models in the stock ODDs build their link as
           ``<param name="uri" value="$parameters?doc"/>``, so declaring the
           fragment is enough to get a working href.
-        * ``{doc}``, ``{file}`` and ``{stem}`` placeholders are expanded in
-          string values, using the same vocabulary as
+        * ``{doc}``, ``{doc_stem}``, ``{file}`` and ``{stem}`` placeholders are
+          expanded in string values, using the same vocabulary as
           :attr:`ChunkingConfig.link_pattern`. This is how an absolute or
           TEI-Publisher-style scheme is configured, e.g.
           ``parameters = { display = "browse", doc = "/exist/apps/x/{doc}/{stem}" }``.
@@ -310,7 +316,12 @@ class ChunkProcessor:
         for key, value in params.items():
             if isinstance(value, str) and '{' in value:
                 try:
-                    value = value.format(doc=doc, file=entry, stem=Path(entry).stem)
+                    value = value.format(
+                        doc=doc,
+                        doc_stem=Path(doc).stem,
+                        file=entry,
+                        stem=Path(entry).stem,
+                    )
                 except (KeyError, IndexError, ValueError):
                     pass
             expanded[key] = value
@@ -332,7 +343,8 @@ class ChunkProcessor:
             file=chunk_file,
             xpath=(self.config.xpath + f"[{index + 1}]") if self.config.xpath else '',
             prev=prev_id,
-            next=next_id
+            next=next_id,
+            xml_id=chunk.get(XML_ID) or chunk.get('id'),
         )
 
     def build_anchor_index(self) -> dict[str, str]:
@@ -368,7 +380,8 @@ class ChunkProcessor:
         """Rewrite ``#id`` links to the owning chunk file when needed.
 
         When ``config.link_pattern`` is set the cross-chunk URL is built by
-        substituting ``{file}``, ``{stem}``, and ``{anchor}`` into the pattern.
+        substituting ``{file}``, ``{stem}``, ``{anchor}``, ``{doc}`` and
+        ``{doc_stem}`` into the pattern.
         Otherwise the default relative form ``{file}#{anchor}`` is used.
         """
         if not target or not target.startswith('#') or target == '#':
@@ -385,7 +398,13 @@ class ChunkProcessor:
         if pattern:
             stem = Path(target_file).stem
             doc = (self.config.link_doc or '').strip('/')
-            url = pattern.format(file=target_file, stem=stem, anchor=anchor, doc=doc)
+            url = pattern.format(
+                file=target_file,
+                stem=stem,
+                anchor=anchor,
+                doc=doc,
+                doc_stem=Path(doc).stem,
+            )
             # Drop empty {doc} path segments without touching "http://" / "https://".
             if not doc:
                 if '://' in url:
@@ -1365,4 +1384,35 @@ def build_index(
     )
     index_file = output_dir / 'index.html'
     index_file.write_text(rendered, encoding='utf-8')
+    return index_file
+
+
+def build_index_json(output_dir: Path, *, title: str | None = None) -> Path | None:
+    """Write ``<output_dir>/index.json`` listing every chunked document.
+
+    The JSON counterpart of :func:`build_index`. A directory run splits its
+    documents into one subdirectory each, and nothing at the root says what they
+    are or what order they belong in — a static site generator would have to
+    rediscover that by scanning. This writes it once, from the same
+    :func:`collect_index_entries` the HTML index is built from, so both agree.
+
+    Returns the path written, or *None* when *output_dir* holds no chunked
+    documents.
+    """
+    entries = collect_index_entries(output_dir)
+    if not entries:
+        return None
+
+    index_file = output_dir / 'index.json'
+    index_file.write_text(
+        json.dumps(
+            {
+                'title': title or output_dir.name,
+                'documents': [asdict(entry) for entry in entries],
+            },
+            indent=2,
+            ensure_ascii=False,
+        ),
+        encoding='utf-8',
+    )
     return index_file
