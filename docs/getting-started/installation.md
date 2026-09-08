@@ -2,6 +2,14 @@
 
 The minimum supported Python version is **3.12**.
 
+To install Python, go to [python.org](https://www.python.org/)’s Download page, select the pertinent installer for your operating system, download it and run it. If during installation, make sure to check the box that says *Add Python to PATH* so you can run Python from the command line. 
+
+To verify the installation:
+
+* open your command line interface (type `cmd` in the Windows search bar or open terminal on macOS/Linux)
+* type `python --version` and press Enter
+* if you see the version number, you have successfully installed Python!
+
 ## Users
 
 Install the published package, then scaffold a project:
