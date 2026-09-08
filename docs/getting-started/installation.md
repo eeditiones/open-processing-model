@@ -7,25 +7,32 @@ If you need help installing Python or are unsure of your Python version, go to [
 
 ## Users
 
-Install the published package, then scaffold a project:
+Install the published package:
 
 ```bash
 pip install open-processing-model
 # or: uv add open-processing-model
+```
+
+Then you can start by either scaffolding a project or running a one-off transformation. To scaffold a project run:
+
+```bash
 opm init
 ```
 
-`opm init` writes `opm.toml`, templates, a stub ODD, agent guidance
-(`AGENTS.md`, `CLAUDE.md`), and a sample document into the current directory
-(or a path you pass). Existing `AGENTS.md` / `CLAUDE.md` files are never
-overwritten. Use `--vocabulary docbook` for a DocBook project.
+and in the terminal select what to start from: an empty project, or a copy of
+one of the worked examples that ship with the package. 
 
-On a terminal it first asks what to start from — an empty project, or a copy of
-one of the worked examples that ship with the package (`opm init --list-examples`,
-then `opm init --example jats`). See the [Quickstart](quickstart.md).
+A one-off transformation does not need project files. You can try it out with:
 
-A one-off transform needs no project files: `opm transform my.xml --preview`
-uses the packaged stock ODD, HTML/Typst templates, CSS, and Word style template.
+```bash
+opm transform my.xml --preview
+```
+
+which uses the packaged stock ODD, HTML/Typst templates, CSS, and Word style template.
+
+See the [Quickstart](quickstart.md) for more details.
+
 
 ### Troubleshooting
 
