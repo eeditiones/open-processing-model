@@ -40,7 +40,7 @@ from opm.config import (
     resolve_base_css,
 )
 from opm.odd_cache import ResolvedTransform, resolve_transform_module
-from opm.resources import packaged_default_css, packaged_default_docx
+from opm.resources import opm_version, packaged_default_css, packaged_default_docx
 from opm.scaffold import (
     EXAMPLE_NAMES,
     EXAMPLES,
@@ -68,6 +68,29 @@ app = typer.Typer(
     no_args_is_help=True,
     context_settings={'help_option_names': ['-h', '--help']},
 )
+
+
+def _version_callback(value: bool) -> None:
+    if value:
+        typer.echo(f'opm {opm_version()}')
+        raise typer.Exit()
+
+
+@app.callback()
+def _root(
+    version: Annotated[
+        bool,
+        typer.Option(
+            '--version',
+            '-V',
+            help='Show the installed version and exit.',
+            callback=_version_callback,
+            is_eager=True,
+        ),
+    ] = False,
+) -> None:
+    # No docstring: Typer would use it as the group help, replacing ``app.help``.
+    pass
 
 
 @app.command('init')

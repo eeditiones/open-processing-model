@@ -1,5 +1,5 @@
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-wordmark-dark.svg"><img src="docs/assets/logo-wordmark.svg" alt="opm — Open Processing Model" width="380"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/eeditiones/open-processing-model/main/docs/assets/logo-wordmark-dark.svg"><img src="https://raw.githubusercontent.com/eeditiones/open-processing-model/main/docs/assets/logo-wordmark.svg" alt="opm — Open Processing Model" width="380"></picture>
 </p>
 
 # Open Processing Model
@@ -28,7 +28,7 @@ opm serve
 A one-off transform needs no project files (`opm transform my.xml --preview`
 uses the packaged stock ODD and templates). `opm init` writes editable
 `opm.toml`, templates, CSS, and an ODD — or, with `--example`, copies one of the
-worked projects under [`examples/`](examples) (`--list-examples` shows them).
+worked projects under [`examples/`](https://github.com/eeditiones/open-processing-model/tree/main/examples) (`--list-examples` shows them).
 
 ## Development
 
@@ -66,8 +66,8 @@ with and fails on the new import.
 Note that `.venv/bin/opm` shadows the tool whenever the project venv is on
 `PATH`; `which -a opm` shows which one you are about to run.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request — contributions
-require a one-click [contributor license agreement](.github/CLA.md).
+See [CONTRIBUTING.md](https://github.com/eeditiones/open-processing-model/blob/main/CONTRIBUTING.md) before opening a pull request — contributions
+require a one-click [contributor license agreement](https://github.com/eeditiones/open-processing-model/blob/main/.github/CLA.md).
 
 ## Tests
 
@@ -94,21 +94,21 @@ uv run --group docs zensical build                   # static site into ./site
 Development of `opm` is supported by:
 
 <p align="center">
-  <a href="https://www.ernst-goehner-stiftung.ch/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/EGS_Logo_Standard_RGB_white.svg"><img src="docs/assets/EGS_Logo_Standard_RGB.svg" alt="Ernst Göhner Stiftung" height="44"></picture></a>
+  <a href="https://www.ernst-goehner-stiftung.ch/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/eeditiones/open-processing-model/main/docs/assets/EGS_Logo_Standard_RGB_white.svg"><img src="https://raw.githubusercontent.com/eeditiones/open-processing-model/main/docs/assets/EGS_Logo_Standard_RGB.svg" alt="Ernst Göhner Stiftung" height="44"></picture></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://www.sagw.ch/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/SAGW_Logo_addition_supported_pos_white.svg"><img src="docs/assets/SAGW_Logo_addition_supported_pos.svg" alt="Swiss Academy of Humanities and Social Sciences" height="58"></picture></a>
+  <a href="https://www.sagw.ch/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/eeditiones/open-processing-model/main/docs/assets/SAGW_Logo_addition_supported_pos_white.svg"><img src="https://raw.githubusercontent.com/eeditiones/open-processing-model/main/docs/assets/SAGW_Logo_addition_supported_pos.svg" alt="Swiss Academy of Humanities and Social Sciences" height="58"></picture></a>
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://www.zb.uzh.ch/"><img src="docs/assets/ZB_Logo_RGB_1024px.png" alt="Zentralbibliothek Zürich" height="54"></a>
+  <a href="https://www.zb.uzh.ch/"><img src="https://raw.githubusercontent.com/eeditiones/open-processing-model/main/docs/assets/ZB_Logo_RGB_1024px.png" alt="Zentralbibliothek Zürich" height="54"></a>
 </p>
 
 <p align="center">
-  <a href="https://theologie.unibas.ch/de/karl-barth-zentrum/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/karl-barth-white.png"><img src="docs/assets/karl-barth.png" alt="Karl Barth-Stiftung" height="44"></picture></a>
+  <a href="https://theologie.unibas.ch/de/karl-barth-zentrum/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/eeditiones/open-processing-model/main/docs/assets/karl-barth-white.png"><img src="https://raw.githubusercontent.com/eeditiones/open-processing-model/main/docs/assets/karl-barth.png" alt="Karl Barth-Stiftung" height="44"></picture></a>
   <br>
   <sub>Karl Barth-Stiftung, Universität Basel</sub>
 </p>
 
 <p align="center">
-  <a href="https://www.zde.uzh.ch/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/uzh-logo-white.png"><img src="docs/assets/uzh-logo-black.png" alt="Universität Zürich" height="44"></picture></a>
+  <a href="https://www.zde.uzh.ch/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/eeditiones/open-processing-model/main/docs/assets/uzh-logo-white.png"><img src="https://raw.githubusercontent.com/eeditiones/open-processing-model/main/docs/assets/uzh-logo-black.png" alt="Universität Zürich" height="44"></picture></a>
   <br>
   <sub>Zentrum Digitale Editionen &amp; Editionsanalytik, Universität Zürich</sub>
 </p>
@@ -117,22 +117,22 @@ Development of `opm` is supported by:
 
 <p>
   <a href="https://e-editiones.org/">
-    <picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/e-editiones-logo-white.svg"><img src="docs/assets/e-editiones-logo-color.svg" alt="e-editiones" height="40"></picture>
+    <picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/eeditiones/open-processing-model/main/docs/assets/e-editiones-logo-white.svg"><img src="https://raw.githubusercontent.com/eeditiones/open-processing-model/main/docs/assets/e-editiones-logo-color.svg" alt="e-editiones" height="40"></picture>
   </a>
 </p>
 
 ## License
 
 Copyright © 2026 e-editiones. Licensed under the [GNU Affero General Public License,
-version 3 or later](LICENSE), with [additional permissions](LICENSING.md).
+version 3 or later](https://github.com/eeditiones/open-processing-model/blob/main/LICENSE), with [additional permissions](https://github.com/eeditiones/open-processing-model/blob/main/LICENSING.md).
 
 The AGPL means that if you build on `opm` and offer it to others — including as a hosted
 service — your users are entitled to the source. Members of
 [e-editiones](https://www.e-editiones.org/) may instead use `opm` under the **LGPL**,
-which lifts that obligation: see [LICENSING.md, Part B](LICENSING.md#part-b--member-licence-grant).
+which lifts that obligation: see [LICENSING.md, Part B](https://github.com/eeditiones/open-processing-model/blob/main/LICENSING.md#part-b--member-licence-grant).
 Membership funds the long-term maintenance of TEI Publisher and its tooling.
 
-[LICENSING.md, Part A](LICENSING.md#part-a--additional-permissions) grants everyone additional permissions
+[LICENSING.md, Part A](https://github.com/eeditiones/open-processing-model/blob/main/LICENSING.md#part-a--additional-permissions) grants everyone additional permissions
 under AGPL §7: invoking `opm` as a separate process leaves your program alone, transform
 modules compiled from your ODDs are yours to license and to execute, so are XPath
 extension modules, and the files `opm init` writes into your project are released under
@@ -140,4 +140,4 @@ CC0. Vendoring `opm`'s own source into your tree is the case those permissions d
 cover.
 
 Documents you transform with `opm` are your own; the licence does not reach the output.
-See [the licensing guide](docs/license.md) for where the line falls in practice.
+See [the licensing guide](https://github.com/eeditiones/open-processing-model/blob/main/docs/license.md) for where the line falls in practice.
