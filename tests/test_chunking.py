@@ -89,6 +89,10 @@ def _render(node):
             el.set('href', target)
         _append_children(node, el)
         return [el]
+    if tag == 'graphic':
+        el = etree.Element('img')
+        el.set('src', node.get('url') or '')
+        return [el]
     if tag == 'marker':
         el = etree.Element('span')
         target = node.get('target')
@@ -1570,3 +1574,47 @@ def test_wellformed_fragment_xml_output_parses_as_xml() -> None:
         '',
     ):
         etree.fromstring(_wellformed_fragment_xml(fragment, 'f').encode('utf-8'))
+
+
+def test_chunk_document_copies_referenced_images(tmp_path: Path) -> None:
+    module_path = tmp_path / 'chunk_fixture.py'
+    _write_chunking_fixture_module(module_path)
+    src_dir = tmp_path / 'data'
+    (src_dir / 'images').mkdir(parents=True)
+    (src_dir / 'figs').mkdir()
+    (src_dir / 'beside.png').write_bytes(b'beside')
+    (src_dir / 'figs' / 'nested.png').write_bytes(b'nested')
+    (src_dir / 'images' / 'fallback.png').write_bytes(b'fallback')
+    (tmp_path / 'outside.png').write_bytes(b'outside')
+    xml_path = src_dir / 'fixture.xml'
+    xml_path.write_text(
+        """<doc>
+  <body>
+    <div type="chunk" xml:id="a">
+      <graphic url="beside.png"/>
+      <graphic url="figs/nested.png"/>
+      <graphic url="fallback.png"/>
+      <graphic url="missing.png"/>
+      <graphic url="https://example.com/remote.png"/>
+      <graphic url="../outside.png"/>
+    </div>
+  </body>
+</doc>
+""",
+        encoding='utf-8',
+    )
+
+    chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=ChunkingConfig(xpath="//body/div[@type='chunk']", output_dir='out'),
+        project_root=tmp_path,
+    )
+
+    out = tmp_path / 'out'
+    assert (out / '001.html').is_file()
+    assert (out / 'beside.png').read_bytes() == b'beside'
+    assert (out / 'figs' / 'nested.png').read_bytes() == b'nested'
+    assert (out / 'fallback.png').read_bytes() == b'fallback'
+    assert not (out / 'missing.png').exists()
+    assert sorted(p.name for p in out.rglob('*.png')) == ['beside.png', 'fallback.png', 'nested.png']

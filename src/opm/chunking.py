@@ -14,11 +14,13 @@ import shutil
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import unquote, urlsplit
 
 from lxml import etree
 from lxml import html as lxml_html
 
 from opm.config import ChunkingConfig, FragmentConfig, ProjectConfig
+from opm.epub import _resolve_image_sources
 from opm.runtime import source_map
 from opm.transform import (
     load_transform_module,
@@ -89,6 +91,7 @@ class ChunkProcessor:
         xpath_collections: dict[str, list] | None = None,
         xpath_variables: dict[str, Any] | None = None,
         xpath_namespaces: dict[str, str] | None = None,
+        source_dir: Path | None = None,
     ):
         self.module = load_transform_module(module_path)
         self._fragment_modules: dict[str, Any] = {}
@@ -114,6 +117,8 @@ class ChunkProcessor:
         )
         self.parameters: dict[str, str] = dict(cfg.parameters)
         self.xpath_base_uri = xpath_base_uri
+        self.source_dir = source_dir
+        self._copied_images: set[str] = set()
         self.xpath_documents = xpath_documents or {}
         self.xpath_collections = xpath_collections or {}
         self.xpath_variables = dict(
@@ -275,6 +280,41 @@ class ChunkProcessor:
             ]
 
         return urls
+
+    def copy_referenced_images(self, html: str) -> None:
+        """Copy the local images *html* references into :attr:`output_dir`.
+
+        An ``img/@src`` is written relative to the source document, and the
+        chunk pages sit flat in the output directory, so each image goes to the
+        same relative path there.  Files are looked up the way EPUB output does:
+        next to the source document, then in a sibling ``images/`` directory.
+        Remote and root-relative URLs are left alone, as are paths that would
+        land outside the output directory and images that cannot be found.
+        """
+        if self.source_dir is None or not html or '<img' not in html:
+            return
+        try:
+            root = lxml_html.fromstring(f'<div>{html}</div>')
+        except (etree.ParserError, ValueError):
+            return
+        out_root = self.output_dir.resolve()
+        for img in root.iter('img'):
+            src = img.get('src') or ''
+            parts = urlsplit(src)
+            if not parts.path or parts.scheme or parts.netloc or src.startswith('/'):
+                continue
+            href = unquote(parts.path)
+            if href in self._copied_images:
+                continue
+            self._copied_images.add(href)
+            source = _resolve_image_sources([href], self.source_dir).get(href)
+            if source is None:
+                continue
+            target = (self.output_dir / href).resolve()
+            if not target.is_relative_to(out_root) or target == source.resolve():
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
 
     def entry_file(self) -> str:
         """Return the filename of this document's first chunk (its entry point)."""
@@ -906,6 +946,7 @@ class ChunkProcessor:
                 )
                 chunk_file = self.output_dir / chunk_result.metadata.file
                 chunk_file.write_text(rendered_html, encoding='utf-8')
+                self.copy_referenced_images(chunk_result.content_html)
             
             if on_progress is not None:
                 on_progress(index + 1, total)
@@ -1342,6 +1383,7 @@ def chunk_document(
         xpath_collections=xpath_collections,
         xpath_variables=dict(cfg.xpath_variables),
         xpath_namespaces=dict(cfg.xpath_namespaces),
+        source_dir=xml_path.parent,
     )
     if output_format == 'pb-view':
         processor.export_pb_view(doc_path=doc_path, on_progress=on_progress)

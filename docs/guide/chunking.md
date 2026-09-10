@@ -233,6 +233,12 @@ All these URLs are relative to the page that uses them: bare from the index at
 the output root, `../`-prefixed from a chunk page in a per-document
 subdirectory.
 
+Images the document itself references need no entry. When a chunk page contains
+an `<img>` whose `src` is a relative path, the file is looked up next to the
+source XML, then in a sibling `images/` directory — the same rule EPUB output
+follows — and copied to that path beside the chunk pages. Remote URLs, root-relative paths, and paths leading out of
+the output directory are left alone; images that cannot be found are skipped.
+
 The `serafin` example does exactly this. Its pages dropped from 168 KB to 96 KB
 and its index from 91 KB to 19 KB, with 42 KB of shared CSS and imagery fetched
 once and cached.
