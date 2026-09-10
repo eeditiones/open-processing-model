@@ -30,6 +30,7 @@ def compile_odd(
     module_name: str = 'generated_odd',
     output_mode: str = 'web',
     base_css: str | None = None,
+    diagnostics: list | None = None,
 ) -> str:
     """Compile an ODD file to target language source code.
 
@@ -40,6 +41,10 @@ def compile_odd(
         output_mode: Output channel (web, markdown, print, etc.)
         base_css: Rules prepended to the generated stylesheet, replacing the
             packaged default. ``None`` keeps the packaged default.
+        diagnostics: When given, receives one
+            :class:`~opm.odd_compiler.expression_check.UnsupportedExpression`
+            per expression the generator compiled out because opm can never
+            evaluate it.
 
     Returns:
         Generated source code as a string
@@ -53,6 +58,9 @@ def compile_odd(
 
     parsed = load_odd(odd_path)
     generator = _GENERATORS[target]()
-    return generator.generate_module(
+    source = generator.generate_module(
         parsed, module_name, output_mode=output_mode, base_css=base_css
     )
+    if diagnostics is not None:
+        diagnostics.extend(getattr(generator, 'unsupported', ()))
+    return source

@@ -11,6 +11,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- XPath errors are no longer silent. The compiler recognises ODD expressions
+  opm can never evaluate (eXist functions such as `util:document-name`,
+  XQuery-only syntax), compiles them to the result a failing evaluation always
+  gave, and says how many it skipped on the first compile; `opm coverage` lists
+  them. Errors raised at run time are summarised at the end of `opm transform`,
+  `opm chunk`, `opm index` and `opm coverage`, once per expression with a count
+  and source location; missing configuration is named in a note.
+- `--strict` on `opm transform`, `opm chunk` and `opm index` exits with an
+  error when an XPath expression fails at run time.
+- `opm.runtime.collect_xpath_errors()` collects the same information from Python.
+
+### Fixed
+
+- A `param` that reads project configuration (`$global:…`, `collection()`) and
+  also calls a `tp:` extension function is now evaluated. The compile-time check
+  did not know the extension and fell back to the context node.
+
 ## [0.9.0] - 2026-09-09
 
 First public release. Feature-complete and in use; the 0.x version

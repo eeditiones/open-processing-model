@@ -40,6 +40,7 @@ from .markdown_output_functions import MarkdownOutputFunctions
 from .print_output_functions import PrintOutputFunctions
 from .epub_output_functions import EpubOutputFunctions
 from .typst_output_functions import TypstOutputFunctions
+from .xpath_diagnostics import XPathErrorLog, XPathFailure, collect_xpath_errors
 
 __all__ = [
     # pm_runtime
@@ -68,4 +69,8 @@ __all__ = [
     'PrintOutputFunctions',
     'EpubOutputFunctions',
     'TypstOutputFunctions',
+    # xpath_diagnostics
+    'XPathErrorLog',
+    'XPathFailure',
+    'collect_xpath_errors',
 ]

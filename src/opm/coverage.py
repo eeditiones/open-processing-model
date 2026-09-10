@@ -145,6 +145,9 @@ class CoverageReport:
     unused_specs: list[dict] = field(default_factory=list)
     #: Local specs that declare no model at all (attribute-only ODD changes).
     attribute_only_specs: list[str] = field(default_factory=list)
+    #: ODD expressions opm can never evaluate, as the compiler recorded them in
+    #: ``ODD_UNSUPPORTED`` (see :mod:`opm.odd_compiler.expression_check`).
+    unsupported: list[dict] = field(default_factory=list)
 
     # ── slices the CLI and callers ask for ────────────────────────────────────
 
@@ -204,6 +207,7 @@ class CoverageReport:
                 'unmatched_elements': len(self.unmatched),
                 'dropped_elements': len(self.dropped),
                 'unreachable_models': len(self.unreachable_models()),
+                'unsupported_expressions': len(self.unsupported),
             },
             'models': [m.to_dict() for m in self.models.values()],
             # A record with no behaviour is an unmatched element; ``null`` would
@@ -217,6 +221,7 @@ class CoverageReport:
             'dropped': [o.to_dict() for o in _by_count(self.dropped)],
             'unused_specs': self.unused_specs,
             'attribute_only_specs': self.attribute_only_specs,
+            'unsupported': self.unsupported,
         }
 
 
@@ -472,6 +477,7 @@ def analyze(
             )
             for key, entry in getattr(module, 'ODD_MODELS', {}).items()
         },
+        unsupported=list(getattr(module, 'ODD_UNSUPPORTED', [])),
     )
 
     parsed = load_odd(odd_path) if resolved.source_odd else None

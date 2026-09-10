@@ -26,6 +26,9 @@ class ResolvedTransform:
     module_path: Path
     source_odd: Path | None = None
     freshly_compiled: bool = False
+    #: Expressions the compiler skipped (see :mod:`opm.odd_compiler.expression_check`).
+    #: Only filled in on a fresh compile, so the CLI mentions them once.
+    unsupported: tuple = ()
 
 
 def modules_cache_dir() -> Path:
@@ -78,10 +81,12 @@ def cache_key(odd_path: Path, output_mode: str, base_css: str | None = None) -> 
     # to invalidate the cache. The version alone does not cover that: it stays
     # put across a working checkout, and a stale module would keep being loaded
     # after a codegen change.
+    from opm.odd_compiler import expression_check
     from opm.odd_compiler.codegen import python_generator
 
-    h.update(Path(python_generator.__file__).read_bytes())
-    h.update(b'\0')
+    for generator_module in (python_generator, expression_check):
+        h.update(Path(generator_module.__file__).read_bytes())
+        h.update(b'\0')
 
     # The base rules are compiled into ODD_GENERATED_CSS, so a project that
     # overrides them via [document] css needs its own cached module — and
@@ -119,11 +124,15 @@ def ensure_compiled_module(
     output_mode: str = 'web',
     module_name: str | None = None,
     base_css: str | None = None,
+    diagnostics: list | None = None,
 ) -> tuple[Path, bool]:
     """Return ``(module_path, freshly_compiled)`` for *odd_path*.
 
     On a cache miss, compiles the ODD into the user cache directory and returns
     the new path. On a hit, returns the existing cached module unchanged.
+
+    *diagnostics*, when given, receives the expressions a fresh compile skipped
+    (see :func:`~opm.odd_compiler.compile_odd`); a cache hit leaves it empty.
     """
     odd_path = Path(odd_path).resolve()
     if not odd_path.is_file():
@@ -138,7 +147,8 @@ def ensure_compiled_module(
     dest.parent.mkdir(parents=True, exist_ok=True)
     name = module_name or odd_path.stem
     src = compile_odd(
-        str(odd_path), module_name=name, output_mode=mode, base_css=base_css
+        str(odd_path), module_name=name, output_mode=mode, base_css=base_css,
+        diagnostics=diagnostics,
     )
     dest.write_text(src, encoding='utf-8')
     return dest, True
@@ -177,7 +187,13 @@ def resolve_transform_module(
             'or install the package with stock ODDs.',
         )
 
+    unsupported: list = []
     path, fresh = ensure_compiled_module(
-        odd_path, output_mode=output_mode, base_css=base_css
+        odd_path, output_mode=output_mode, base_css=base_css, diagnostics=unsupported,
     )
-    return ResolvedTransform(module_path=path, source_odd=odd_path, freshly_compiled=fresh)
+    return ResolvedTransform(
+        module_path=path,
+        source_odd=odd_path,
+        freshly_compiled=fresh,
+        unsupported=tuple(unsupported),
+    )

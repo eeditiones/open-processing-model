@@ -393,9 +393,7 @@ def test_get_compiles_to_source_node() -> None:
     """The ODD's ``$get(x)`` reaches the runtime as ``tp:source-node(x)``."""
     from opm.odd_compiler.codegen.python_generator import PythonGenerator
 
-    expr = PythonGenerator._param_to_expr(
-        PythonGenerator.__new__(PythonGenerator), 'count($get(.)/preceding::pb) + 1',
-    )
+    expr = PythonGenerator()._param_to_expr('count($get(.)/preceding::pb) + 1')
     assert 'tp:source-node(.)' in expr
     assert '$get' not in expr
 

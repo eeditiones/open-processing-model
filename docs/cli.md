@@ -16,6 +16,7 @@ opm [OPTIONS] COMMAND [ARGS]...
 
 | Option | Description |
 | --- | --- |
+| `--version, -V` | Show the installed version and exit. |
 | `--install-completion` | Install completion for the current shell. |
 | `--show-completion` | Show completion for the current shell, to copy it or customize the installation. |
 | `--help` | Show this message and exit. |
@@ -91,6 +92,7 @@ opm transform [OPTIONS] [INPUT_XML]
 | `--xpath, -x EXPR` | XPath 3.1 expression evaluated with the document root as the context item; the single selected element becomes the transform root. Unprefixed names use the same default element namespace as the document root. $parameters is bound from --param. |
 | `--xpath-extensions TEXT` | Dotted import path(s) of Python module(s) whose public callables become XPath functions in the tp: namespace (repeat option to add modules; e.g. --xpath-extensions extensions.common --xpath-extensions extensions.dates). Importing these modules runs top-level code: only use trusted code. |
 | `--webcomponents, --no-webcomponents` | Enable/disable tei-publisher web components mode: alternate behaviours emit <pb-alternate> and the document template loads tei-publisher-components. Falls back to transform.web.webcomponents.enabled in the project config. |
+| `--strict` | Exit with an error when an XPath expression fails at run time, instead of treating it as false or empty. Expressions opm cannot run at all (eXist functions, XQuery syntax) are reported when the ODD is compiled and do not count. |
 | `--config, -c PATH` | Path to a TOML configuration file (default: opm.toml in the current directory). |
 | `--help` | Show this message and exit. |
 
@@ -126,6 +128,7 @@ opm chunk [OPTIONS] [INPUT_XML]
 | `--doc-path TEXT` | For --format pb-view: document path subdirectory. Data is written to <output-dir>/<doc-path>/ and must match the pb-document @path; CSS stays shared at <output-dir>/css/. Falls back to chunking.doc_path in config. |
 | `--preview, -v` | After chunking, start a local HTTP server rooted at the output directory and open the first page in a browser (HTML output only). |
 | `--port, -p INTEGER` | Port for --preview (default: 8080). |
+| `--strict` | Exit with an error when an XPath expression fails at run time, instead of treating it as false or empty. Expressions opm cannot run at all (eXist functions, XQuery syntax) are reported when the ODD is compiled and do not count. |
 | `--config, -c PATH` | Path to a TOML configuration file (default: opm.toml in the current directory). |
 | `--help` | Show this message and exit. |
 
@@ -159,6 +162,7 @@ opm index [OPTIONS] [INPUT_XML]
 | `--max-chars INTEGER` | Split a section longer than this at record boundaries. Falls back to index.max_chars in opm.toml (default: 1500). |
 | `--min-chars INTEGER` | Drop units shorter than this — bare headings are retrieval noise. Falls back to index.min_chars in opm.toml (default: 40). |
 | `--overlap INTEGER` | Records of context carried into the next part when a unit splits. Falls back to index.overlap in opm.toml (default: 1). |
+| `--strict` | Exit with an error when an XPath expression fails at run time, instead of treating it as false or empty. Expressions opm cannot run at all (eXist functions, XQuery syntax) are reported when the ODD is compiled and do not count. |
 | `--config, -c PATH` | Path to a TOML configuration file (default: opm.toml in the current directory). |
 | `--help` | Show this message and exit. |
 

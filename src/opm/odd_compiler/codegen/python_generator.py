@@ -29,6 +29,7 @@ from . import (
 )
 from ..behaviour_map import BEHAVIOUR_METHOD, method_for_behaviour
 from ..css_generator import collect_odd_generated_css
+from ..expression_check import UnsupportedExpression, static_problem
 from ..typst_generator import collect_odd_generated_typst
 from ..parse_odd import ParsedOdd, iter_element_specs, spec_origin
 
@@ -41,8 +42,6 @@ _RESERVED_PARAM_ALIASES: dict[str, str] = {}
 # A prefixed variable reference ($ns:name) — its value comes from project config,
 # never from the document.
 _EXTERNAL_VAR_RE = re.compile(r'\$[A-Za-z_][\w.-]*:')
-# Any prefixed name in an expression, for the compile-time syntax check.
-_PREFIX_RE = re.compile(r'(?<![\w.-])([A-Za-z_][\w.-]*):[A-Za-z_]')
 
 
 def _inherited_source(spec_el, primary: Path) -> str | None:
@@ -62,8 +61,25 @@ def _inherited_source(spec_el, primary: Path) -> str | None:
 class PythonGenerator(CodeGenerator):
     """Generate Python source from a parsed ODD."""
 
-    #: Set per :meth:`generate_module` call from the ODD root's namespace map.
-    _odd_nsmap: dict[str, str] = {}
+    def __init__(self) -> None:
+        #: Set per :meth:`generate_module` call from the ODD root's namespace map.
+        self._odd_nsmap: dict[str, str] = {}
+        #: The schemaSpec namespace, i.e. the default element namespace at run time.
+        self._schema_ns = ''
+        #: Expressions compiled out, keyed so each is recorded once.
+        self._unsupported: dict[tuple, UnsupportedExpression] = {}
+        self._problems: dict[str, str | None] = {}
+
+    @property
+    def unsupported(self) -> list[UnsupportedExpression]:
+        """Expressions the last :meth:`generate_module` call compiled out.
+
+        Each is one opm can never evaluate (see
+        :mod:`~opm.odd_compiler.expression_check`). It was replaced by what a
+        failing evaluation returns, so the output is unchanged; the difference
+        is that it is now known and reported instead of failing on every node.
+        """
+        return list(self._unsupported.values())
 
     @property
     def target_name(self) -> str:
@@ -164,6 +180,9 @@ class PythonGenerator(CodeGenerator):
         # Generate NSMAP from ODD namespace declarations for XPath expressions
         nsmap_literal = self._python_nsmap_literal(parsed.nsmap)
         self._odd_nsmap = dict(parsed.nsmap or {})
+        self._schema_ns = schema_ns or ''
+        self._unsupported = {}
+        self._problems = {}
 
         helpers = self._TemplateHelperRegistry()
         cases = []
@@ -299,6 +318,7 @@ class PythonGenerator(CodeGenerator):
             )
 
         template_helpers_block = helpers.functions_block
+        unsupported_literal = self._python_unsupported_literal()
 
         return f'''#!/usr/bin/env python3
 """Auto-generated TEI processing model ({output_mode} output).
@@ -357,6 +377,11 @@ def xpath_content(node, expr, params=None, xpath_extensions=None):
 
 # Name of the ODD this module was generated from (stem, no extension).
 ODD_NAME = {odd_name!r}
+
+# ODD expressions opm can never evaluate (eXist functions, XQuery syntax). Each
+# was compiled to the result a failing evaluation returns; see
+# opm.odd_compiler.expression_check. `opm coverage` lists them.
+ODD_UNSUPPORTED = {unsupported_literal}
 
 
 def transform_output_channels():
@@ -432,6 +457,13 @@ def transform(root, options=None):
         items = ', '.join(f'{k!r}: {v!r}' for k, v in sorted(nsmap.items()))
         return '{' + items + '}'
 
+    def _python_unsupported_literal(self) -> str:
+        """``ODD_UNSUPPORTED`` as a Python list literal, one record per line."""
+        if not self._unsupported:
+            return '[]'
+        rows = ''.join(f'    {entry.to_dict()!r},\n' for entry in self._unsupported.values())
+        return f'[\n{rows}]'
+
     @staticmethod
     def _python_ident_fragment_for_helpers(ident: str) -> str:
         """Sanitize elementSpec @ident for generated ``def _odd_template_*`` names.
@@ -483,27 +515,68 @@ def transform(root, options=None):
         return 'collection(' in expr or _EXTERNAL_VAR_RE.search(expr) is not None
 
     def _parses_as_xpath(self, expr: str) -> bool:
-        """True if *expr* is XPath 3.1 syntax rather than XQuery.
+        """True if *expr* is XPath 3.1 opm can evaluate, rather than XQuery.
 
-        Prefix bindings are irrelevant to the question being asked, and are not
-        known at compile time anyway (``[transform.namespaces]`` is project
-        config, and compiled modules are cached per ODD). So every prefix the
-        expression mentions is bound to a placeholder URI first; what remains is
-        a pure syntax check. It catches the common eXist idiom of chained
-        ``let $a := ... let $b := ...`` clauses, legal XQuery but XPST0003 here.
+        See :func:`~opm.odd_compiler.expression_check.static_problem`: prefixes
+        the ODD does not declare are bound to placeholders and ``tp:`` calls are
+        stubbed, since both are project config the cached module cannot know.
+        It catches the common eXist idiom of chained ``let $a := ... let $b :=
+        ...`` clauses, legal XQuery but XPST0003 here.
         """
-        from elementpath.xpath31.xpath31_parser import XPath31Parser  # noqa: PLC0415
+        return self._static_problem(expr) is None
 
-        namespaces = dict(self._odd_nsmap)
-        for prefix in set(_PREFIX_RE.findall(expr)):
-            namespaces.setdefault(prefix, f'urn:opm:placeholder:{prefix}')
-        try:
-            XPath31Parser(namespaces=namespaces).parse(expr)
-        except Exception:
-            return False
-        return True
+    def _static_problem(self, expr: str) -> str | None:
+        """Why opm can never evaluate *expr*, or ``None``; parsed once per expression."""
+        if expr not in self._problems:
+            self._problems[expr] = static_problem(expr, self._odd_nsmap, self._schema_ns)
+        return self._problems[expr]
 
-    def _param_to_expr(self, value: str) -> str:
+    def _record_unsupported(self, site, where: str, expr: str, reason: str) -> None:
+        """Remember an expression compiled out, for ``ODD_UNSUPPORTED`` and the CLI.
+
+        *site* is ``(ident, spec_el, el)``: *el* carries the predicate or, for a
+        param, is the model that owns it. ``None`` records nothing.
+        """
+        if site is None:
+            return
+        ident, spec_el, el = site
+        located = el
+        if where.startswith('param '):
+            name = where.removeprefix('param ')
+            located = next(
+                (p for p in el.findall(f'{{{self._TEI_NS}}}param') if p.get('name') == name),
+                el,
+            )
+        origin = spec_origin(spec_el)
+        entry = UnsupportedExpression(
+            element=ident,
+            where=where,
+            expression=' '.join(expr.split()),
+            reason=reason,
+            model=model_key(ident, spec_el, el) if _local(el.tag) == 'model' else None,
+            odd=origin.name if origin is not None else None,
+            line=located.sourceline,
+        )
+        self._unsupported.setdefault(
+            (entry.odd, entry.line, entry.where, entry.expression), entry,
+        )
+
+    def _predicate_test(self, pred: str, el, ident: str, spec_el) -> str:
+        """The Python condition for ``@predicate`` *pred* on *el*.
+
+        A predicate opm can never evaluate compiles to ``False``, which is what
+        ``xpath_test`` returned for it on every node, and is recorded instead.
+        """
+        problem = self._static_problem(pred)
+        if problem is not None:
+            self._record_unsupported((ident, spec_el, el), 'predicate', pred, problem)
+            return 'False'
+        return (
+            f'xpath_test(node, {pred!r}, params, '
+            'xpath_extensions=config.get("xpath_extensions"), namespaces=NSMAP)'
+        )
+
+    def _param_to_expr(self, value: str, *, site=None, name: str = 'content') -> str:
         v = (value or '').strip()
         # $get(x) is tei-publisher-lib's "same node in the stored document". On a whole
         # document that is identity, but a chunk is a detached rebuild of one
@@ -514,6 +587,10 @@ def transform(root, options=None):
         if not v or v == '.':
             return 'node'
         if not self._param_tier_ok(v):
+            self._record_unsupported(
+                site, f'param {name}', value,
+                self._static_problem(v) or 'util: functions are eXist-specific',
+            )
             return 'node'
         if v.startswith('@'):
             attr = v[1:]
@@ -531,6 +608,11 @@ def transform(root, options=None):
         m = re.match(r'^"([^"]*)"$', v)
         if m:
             return repr(m.group(1))
+        problem = self._static_problem(v)
+        if problem is not None:
+            # Fails on every node, where xpath_content returned an empty sequence.
+            self._record_unsupported(site, f'param {name}', value, problem)
+            return '[]'
         fn = 'xpath_content_or_node' if self._needs_external_context(v) else 'xpath_content'
         return (
             f'{fn}(node, '
@@ -700,10 +782,11 @@ def transform(root, options=None):
     ) -> str:
         method = method_for_behaviour(behaviour)
         cls_e = self._classes_expr(ident, model_el, spec_el)
+        site = (ident, spec_el, model_el)
         if content_expr is not None:
             c = content_expr
         else:
-            c = self._param_to_expr(pm.get('content', '.'))
+            c = self._param_to_expr(pm.get('content', '.'), site=site)
 
         allowed, allows_var_kw = self._accepted_method_kwargs(output_mode, method)
         emitted: set[str] = set()
@@ -720,9 +803,9 @@ def transform(root, options=None):
             py_name = self._normalize_param_name(name)
             if not allows_var_kw and py_name not in allowed:
                 if method == 'webcomponent':
-                    attribute_params[name] = self._param_to_expr(value)
+                    attribute_params[name] = self._param_to_expr(value, site=site, name=name)
                 continue
-            kw_parts.append(f'{py_name}={self._param_to_expr(value)}')
+            kw_parts.append(f'{py_name}={self._param_to_expr(value, site=site, name=name)}')
             emitted.add(py_name)
         if attribute_params and 'optional' not in emitted:
             items = ', '.join(f'{k!r}: {v}' for k, v in attribute_params.items())
@@ -738,11 +821,13 @@ def transform(root, options=None):
         kwargs_src = ', ' + ', '.join(kw_parts) if kw_parts else ''
         return f'pmf.{method}({config_expr}, node, {cls_e}, {c}{kwargs_src})'
 
-    def _emit_template_params_dict_expr(self, pm: dict[str, str], *, pretty: bool = False) -> str:
+    def _emit_template_params_dict_expr(
+        self, pm: dict[str, str], *, pretty: bool = False, site=None,
+    ) -> str:
         """Build the Python dict expression for ``pb:template`` ``[[param]]`` substitution."""
         param_items = []
         for name, val in pm.items():
-            expr = self._param_to_expr(val)
+            expr = self._param_to_expr(val, site=site, name=name)
             if expr == 'node':
                 # Literal context node (``param value="."``): never pass raw TEI into
                 # templates — same as XPath selecting ``.`` (see apply_template_param_value).
@@ -822,7 +907,9 @@ def transform(root, options=None):
             # them keeps the model attributable, which the JSON view needs to
             # say which model a template came from.
             cls_e = self._classes_expr(ident, model_el, spec_el)
-            params_line = self._emit_template_params_dict_expr(pm, pretty=True)
+            params_line = self._emit_template_params_dict_expr(
+                pm, pretty=True, site=(ident, spec_el, model_el),
+            )
             tmpl_lit = self._python_triple_quoted(template_str)
             sig = f'def {name}(config, node, pmf, params, xpath_extensions, r)'
             return (
@@ -973,10 +1060,7 @@ def transform(root, options=None):
                 if pred:
                     # In modelSequence, each nested model can be guarded by its own predicate.
                     # False predicate means: contribute no output for this sequence slot.
-                    part = (
-                        f'(({part}) if xpath_test(node, {repr(pred)}, params, '
-                        'xpath_extensions=config.get("xpath_extensions"), namespaces=NSMAP) else [])'
-                    )
+                    part = f'(({part}) if {self._predicate_test(pred, child, ident, spec_el)} else [])'
                 parts.append(f'({part})')
             if not parts:
                 return f'{indent}apply(config, child_nodes(node))'
@@ -1024,10 +1108,7 @@ def transform(root, options=None):
                 ident, m, spec_el, indent + '    ', output_mode, helpers,
             )
             kw = 'if' if i == 0 else 'elif'
-            lines.append(
-                f'{indent}{kw} xpath_test(node, {repr(pred)}, params, '
-                'xpath_extensions=config.get("xpath_extensions"), namespaces=NSMAP):'
-            )
+            lines.append(f'{indent}{kw} {self._predicate_test(pred, m, ident, spec_el)}:')
             lines.extend(self._desc_comment_lines(m, indent + '    '))
             if '\n' in inner:
                 lines.append(inner)

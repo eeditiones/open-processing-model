@@ -57,6 +57,7 @@ from opm.transform import (
     run_transform,
 )
 from opm.runtime.pm_runtime import xpath_runtime_context
+from opm.runtime.xpath_diagnostics import XPathErrorLog, collect_xpath_errors
 from opm.chunking import build_index, chunk_document
 
 app = typer.Typer(
@@ -557,6 +558,73 @@ def _report_resolved_module(resolved: ResolvedTransform) -> None:
         else Text.assemble('Cached module: ', module)
     )
     Console(stderr=True).print(line, soft_wrap=True, highlight=False)
+    if resolved.freshly_compiled and resolved.unsupported:
+        count = len(resolved.unsupported)
+        plural = count != 1
+        _note(
+            f'{count} ODD expression{"s" if plural else ""} use{"" if plural else "s"} '
+            'features opm does not support (eXist functions or XQuery syntax) and '
+            f'{"are" if plural else "is"} skipped; opm coverage lists them.'
+        )
+
+
+#: Run-time failures listed in full; the rest are only counted.
+_XPATH_FAILURES_SHOWN = 10
+
+_STRICT_HELP = (
+    'Exit with an error when an XPath expression fails at run time, instead of '
+    'treating it as false or empty. Expressions opm cannot run at all (eXist '
+    'functions, XQuery syntax) are reported when the ODD is compiled and do not count.'
+)
+
+
+def _report_xpath_errors(log: XPathErrorLog, *, strict: bool = False) -> None:
+    """Report the run's XPath errors on stderr; with *strict*, fail on them.
+
+    Hints name configuration the project is missing and never fail a run.
+    Failures are listed once per expression, the most frequent first: each one
+    counted as false (a predicate) or empty (a param), so the output is complete
+    but lacks whatever those expressions would have contributed.
+    """
+    for hint in log.hints.values():
+        _note(hint)
+    failures = log.ordered_failures()
+    if not failures:
+        return
+    from rich.console import Console
+    from rich.text import Text
+
+    count = len(failures)
+    plural = count != 1
+    _stderr_message(
+        'warning', 'bold yellow',
+        f'{count} XPath expression{"s" if plural else ""} failed at run time and '
+        f'{"were" if plural else "was"} treated as false or empty:',
+    )
+    console = Console(stderr=True)
+    for failure in failures[:_XPATH_FAILURES_SHOWN]:
+        where = [f'{failure.count}×']
+        if failure.element:
+            first = f'first at <{failure.element}>'
+            if failure.document:
+                first += f' {_relative_path(Path(failure.document))}'
+                if failure.line:
+                    first += f':{failure.line}'
+            where.append(first)
+        error = f'{failure.code}: {failure.message}' if failure.code else failure.message
+        for text in (
+            Text.assemble('  ', (' '.join(failure.expression.split()), 'bold')),
+            Text(f'    {error}'),
+            Text(f'    {", ".join(where)}', style='dim'),
+        ):
+            console.print(text, soft_wrap=True, highlight=False)
+    if count > _XPATH_FAILURES_SHOWN:
+        console.print(
+            Text(f'  … and {count - _XPATH_FAILURES_SHOWN} more', style='dim'),
+            soft_wrap=True, highlight=False,
+        )
+    if strict:
+        _die(f'--strict: {count} XPath expression{"s" if plural else ""} failed at run time.')
 
 
 def _apply_json_channel(transform_type: str | None, channel: str | None) -> str | None:
@@ -852,6 +920,10 @@ def transform_cmd(
             ),
         ),
     ] = None,
+    strict: Annotated[
+        bool,
+        typer.Option('--strict', help=_STRICT_HELP),
+    ] = False,
     config: Annotated[
         Optional[Path],
         typer.Option(
@@ -945,37 +1017,37 @@ def transform_cmd(
 
         tree = etree.parse(str(input_xml))
         doc_root = tree.getroot()
-        root = (
-            resolve_context_element(
-                doc_root,
-                xpath,
-                parameters or None,
-                xpath_extensions=effective_extensions,
-            )
-            if xpath
-            else doc_root
-        )
-
         template_context = cfg.context_for(
             primary, webcomponents=effective_webcomponents,
         )
 
-        out = run_transform(
-            mod,
-            root,
-            parameters=parameters,
-            xpath_extensions=effective_extensions,
-            webcomponents=effective_webcomponents,
-            template_path=effective_template,
-            template_context=template_context,
-            docx_template=effective_docx_template,
-            typst_template_path=effective_template if primary == 'typst' else None,
-            xpath_base_uri=xpath_base_uri,
-            xpath_documents=xpath_documents,
-            epub_chunking=cfg.epub_chunking,
-            epub_css=cfg.epub_css,
-            epub_skip_title=cfg.epub_skip_title,
-        )
+        with collect_xpath_errors() as xpath_log:
+            root = (
+                resolve_context_element(
+                    doc_root,
+                    xpath,
+                    parameters or None,
+                    xpath_extensions=effective_extensions,
+                )
+                if xpath
+                else doc_root
+            )
+            out = run_transform(
+                mod,
+                root,
+                parameters=parameters,
+                xpath_extensions=effective_extensions,
+                webcomponents=effective_webcomponents,
+                template_path=effective_template,
+                template_context=template_context,
+                docx_template=effective_docx_template,
+                typst_template_path=effective_template if primary == 'typst' else None,
+                xpath_base_uri=xpath_base_uri,
+                xpath_documents=xpath_documents,
+                epub_chunking=cfg.epub_chunking,
+                epub_css=cfg.epub_css,
+                epub_skip_title=cfg.epub_skip_title,
+            )
 
         if isinstance(out, bytes):
             if output:
@@ -1009,6 +1081,7 @@ def transform_cmd(
                     _preview_plain_terminal(out)
             else:
                 print(out)
+        _report_xpath_errors(xpath_log, strict=strict)
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
         _die(str(e), cause=e)
 
@@ -1126,6 +1199,10 @@ def chunk(
             help='Port for --preview (default: 8080).',
         ),
     ] = 8080,
+    strict: Annotated[
+        bool,
+        typer.Option('--strict', help=_STRICT_HELP),
+    ] = False,
     config: Annotated[
         Optional[Path],
         typer.Option(
@@ -1205,7 +1282,7 @@ def chunk(
         # gets a second task counting files — one bar per unit, rather than
         # trading chunk-level detail for a file count.
         per_file = len(input_files) > 1
-        with _chunk_progress() as progress:
+        with _chunk_progress() as progress, collect_xpath_errors() as xpath_log:
             file_task = (
                 progress.add_task('Files', total=len(input_files)) if per_file else None
             )
@@ -1300,6 +1377,8 @@ def chunk(
             else:
                 typer.echo('  - manifest.json: metadata for page navigation and linking')
                 typer.echo(f'  - *.{ext}: chunk files')
+
+        _report_xpath_errors(xpath_log, strict=strict)
 
         if preview:
             # Only HTML has a page to land on; json/pb-view output is served for
@@ -1462,6 +1541,10 @@ def index_cmd(
             ),
         ),
     ] = None,
+    strict: Annotated[
+        bool,
+        typer.Option('--strict', help=_STRICT_HELP),
+    ] = False,
     config: Annotated[
         Optional[Path],
         typer.Option(
@@ -1497,12 +1580,13 @@ def index_cmd(
             fields=cfg.index_fields,
         )
         records: list[dict] = []
-        for path in input_files:
-            records.extend(
-                index_document(
-                    path, cfg=cfg, odd=odd, project_root=Path.cwd(), options=options,
-                ),
-            )
+        with collect_xpath_errors() as xpath_log:
+            for path in input_files:
+                records.extend(
+                    index_document(
+                        path, cfg=cfg, odd=odd, project_root=Path.cwd(), options=options,
+                    ),
+                )
 
         if output:
             from rich.console import Console
@@ -1516,6 +1600,7 @@ def index_cmd(
         else:
             for record in records:
                 print(json.dumps(record, ensure_ascii=False))
+        _report_xpath_errors(xpath_log, strict=strict)
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
         _die(str(e), cause=e)
 
@@ -1546,11 +1631,13 @@ def _coverage_table(
     for index, column in enumerate(columns):
         # Identifier columns get a floor so the long free-text ones (a
         # predicate, a description) cannot squeeze them down to an ellipsis.
+        # The first column is what a reader looks up, so it is never cut.
         content = max((len(row[index]) for row in shown), default=0)
+        floor = max(len(column), content)
         table.add_column(
             column,
             style='bold' if index == 0 else None,
-            min_width=min(max(len(column), content), 18),
+            min_width=floor if index == 0 else min(floor, 18),
             no_wrap=True,
             overflow='ellipsis',
         )
@@ -1634,6 +1721,23 @@ def _render_coverage(report, *, limit: int | None = 20) -> None:
         [[m.key, m.element, _truncate(m.unreachable, 70)]
          for m in report.unreachable_models()],
         note='can never fire, whatever the document',
+        limit=limit,
+    )
+    _coverage_table(
+        console, 'Expressions opm cannot run',
+        # The expression itself is in --json; the reason and the ODD line are
+        # what a reader scanning the table acts on.
+        ['location', 'where', 'why'],
+        [
+            [
+                f"{entry.get('odd') or ''}:{entry['line']}"
+                if entry.get('line') else (entry.get('odd') or ''),
+                _truncate(f"{entry.get('element') or ''} {entry.get('where') or ''}", 40),
+                _truncate(entry.get('reason'), 60),
+            ]
+            for entry in report.unsupported
+        ],
+        note='skipped: a predicate counts as false, a param falls back',
         limit=limit,
     )
     _coverage_table(
@@ -1758,18 +1862,22 @@ def coverage_cmd(
         resolved = _resolve_cli_transform(cfg=cfg, odd=odd, transform_type=mode)
         _report_resolved_module(resolved)
 
-        report = analyze(
-            input_files,
-            cfg=cfg,
-            odd=resolved.source_odd,
-            output_mode=mode,
-            parameters=_parameters_from_cli(param),
-        )
+        # A predicate that raises counts as false, which can make a model look
+        # unused; the errors are listed after the report so that shows.
+        with collect_xpath_errors() as xpath_log:
+            report = analyze(
+                input_files,
+                cfg=cfg,
+                odd=resolved.source_odd,
+                output_mode=mode,
+                parameters=_parameters_from_cli(param),
+            )
 
         if as_json:
             print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
         else:
             _render_coverage(report, limit=None if show_all else 20)
+        _report_xpath_errors(xpath_log)
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
         _die(str(e), cause=e)
 

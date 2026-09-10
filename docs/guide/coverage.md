@@ -66,6 +66,18 @@ order, with the first model that has **no** `@predicate` as the `else`. So:
 
 `<modelSequence>` is exempt: its children all contribute, none replaces another.
 
+### Expressions opm cannot run
+
+Also static: predicates and params that use what only TEI Publisher's eXist
+runtime has, such as `util:document-name()` or XQuery's `try`/`catch`. The
+compiler skips them — a predicate counts as false, a param falls back — and
+this table lists each with the reason and its line in the ODD. See
+[ODD files](odd-files.md#expressions-opm-cannot-run).
+
+Errors raised while the documents were transformed are listed after the report,
+as for `opm transform`: a predicate that fails counts as false, which can make
+its model look unused.
+
 ### Models that emit nothing
 
 A model with neither `@behaviour` nor `pb:template` compiles to a bare recursion
@@ -125,8 +137,8 @@ opm coverage data/ -p mode=toc
 
 `--json` prints one object: `summary`, every model with its `hits`, `source`
 and `unreachable` verdict, the `unmatched` and `dropped` tables with an example
-location each, `behaviours`, `elements_seen`, `unused_specs` and
-`attribute_only_specs`.
+location each, `behaviours`, `elements_seen`, `unused_specs`,
+`attribute_only_specs` and `unsupported`, the expressions opm cannot run.
 
 For the record shape the report is built from, see
 [Output formats](output-formats.md#json).

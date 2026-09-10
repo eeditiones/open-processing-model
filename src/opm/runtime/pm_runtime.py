@@ -32,6 +32,7 @@ from lxml import etree
 
 from . import source_map
 from .output_functions import TemplateOutput, child_nodes, maybe_normalize_text, normalize
+from .xpath_diagnostics import record_xpath_error
 from .xpath_extensions import (
     build_extension_parser,
     fingerprint_for_module,
@@ -476,7 +477,8 @@ def xpath_test(
         if len(result) == 1 and isinstance(result[0], bool):
             return result[0]
         return True
-    except elementpath.ElementPathError:
+    except elementpath.ElementPathError as exc:
+        record_xpath_error(expr, exc, node, _xpath_base_uri(params))
         return False
 
 
@@ -502,7 +504,8 @@ def xpath_count(
             base_uri,
         )
         return len(list(token.select(make_context(node, params))))
-    except elementpath.ElementPathError:
+    except elementpath.ElementPathError as exc:
+        record_xpath_error(expr, exc, node, _xpath_base_uri(params))
         return 0
 
 
@@ -558,7 +561,8 @@ def xpath_select_nodes(
         raw = list(token.select(make_context(node, params)))
         raw = _xpath_raw_to_pipeline_values(raw)
         return _unwrap_singleton_xpath_result(raw)
-    except elementpath.ElementPathError:
+    except elementpath.ElementPathError as exc:
+        record_xpath_error(expr, exc, node, _xpath_base_uri(params))
         return []
 
 
@@ -598,6 +602,12 @@ def xpath_select_nodes_or_node(
         raw = _xpath_raw_to_pipeline_values(list(token.select(make_context(node, params))))
         return _unwrap_singleton_xpath_result(raw)
     except elementpath.ElementPathError as exc:
+        if 'XPST0081' not in str(exc):
+            # An undeclared prefix means the ODD never opted in to project
+            # variables (see PythonGenerator._param_tier_ok), and falling back
+            # is then the intended behaviour, not something to report. A
+            # declared prefix with no value or collection behind it is.
+            record_xpath_error(expr, exc, node, _xpath_base_uri(params))
         # XPST0081 unbound prefix / XPST0008 unbound variable / FODC0002 unknown
         # collection all mean "this project did not configure it".
         if any(code in str(exc) for code in ('XPST0081', 'XPST0008', 'FODC0002')):
