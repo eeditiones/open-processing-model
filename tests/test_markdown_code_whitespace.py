@@ -33,7 +33,7 @@ def test_markdown_code_preserves_line_breaks() -> None:
     )
     assert len(result) == 1
     assert isinstance(result[0], TemplateOutput)
-    assert result[0] == '```python\ndef foo():\n    return 1\n\n```'
+    assert result[0] == '\n```python\ndef foo():\n    return 1\n\n```\n\n'
 
 
 def test_markdown_code_preserves_xml_markup_literally() -> None:

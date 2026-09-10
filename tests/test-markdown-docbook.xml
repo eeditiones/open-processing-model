@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article xmlns="http://docbook.org/ns/docbook"
+         xmlns:xlink="http://www.w3.org/1999/xlink"
+         version="5.0">
+  <info>
+    <title>Testing</title>
+  </info>
+  <section>
+    <para>Intro text:</para>
+    <orderedlist>
+      <listitem>
+        <para>first item</para>
+      </listitem>
+      <listitem>
+        <para>second item</para>
+        <para>still the second item</para>
+      </listitem>
+    </orderedlist>
+    <variablelist>
+      <varlistentry>
+        <term>Alpha</term>
+        <listitem>
+          <para>the first letter</para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>Beta</term>
+        <listitem>
+          <para>the second letter, which has nested terms:</para>
+          <variablelist>
+            <varlistentry>
+              <term>Gamma</term>
+              <listitem>
+                <para>the third letter</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </section>
+</article>

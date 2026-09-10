@@ -141,6 +141,60 @@ def _join_buf(buf: list) -> str:
     return ''.join(x if isinstance(x, str) else '' for x in buf)
 
 
+_HTML_VOID_ELEMENTS = frozenset({
+    'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta',
+    'source', 'track', 'wbr',
+})
+
+_XML_NS = 'http://www.w3.org/XML/1998/namespace'
+
+
+def _html_attr_name(key: str) -> str:
+    q = etree.QName(key)
+    return f'xml:{q.localname}' if q.namespace == _XML_NS else q.localname
+
+
+def _serialize_html(el: etree._Element) -> str:
+    """Serialise an element produced by a pass-through template as HTML.
+
+    Definition lists, anchors, embeds etc. survive into the markdown for the renderer.
+    Text is emitted as is, since it is already markdown.  ``<dd>``/``<li>``
+    content is padded with blank lines so CommonMark still parses markdown
+    inside the HTML block.
+    """
+    name = etree.QName(el).localname
+    attrs = ''.join(
+        f' {_html_attr_name(k)}="'
+        + v.replace('&', '&amp;').replace('"', '&quot;').replace('<', '&lt;')
+        + '"'
+        for k, v in el.attrib.items()
+    )
+    parts: list[str] = [el.text or '']
+    for child in el:
+        if not callable(child.tag):
+            parts.append(_serialize_html(child))
+        parts.append(child.tail or '')
+    inner = ''.join(parts)
+    if name in _HTML_VOID_ELEMENTS and not inner:
+        return f'<{name}{attrs}>'
+    if name in ('dd', 'li') and inner.strip():
+        inner = f'\n\n{inner}\n'
+    return f'<{name}{attrs}>{inner}</{name}>'
+
+
+def _strip_template_indentation(template_str: str) -> str:
+    """Drop the pretty-print whitespace of a ``pb:template`` literal.
+
+    Remove leading spaces inside HTML produced by pass-through templates (e.g. ``dl/dt/dd``); indented
+    template markup would otherwise reach the markdown and CommonMark would read
+    it as an indented code block.  Cleaning the literal before substitution
+    leaves the indentation of the rendered content (list items) intact.
+    """
+    s = re.sub(r'>\s*\n\s*<', '><', template_str)
+    s = re.sub(r'^\s*\n\s*|\s*\n\s*$', '', s)
+    return re.sub(r'\n[ \t]+', '\n', s)
+
+
 def _serialize_pm_result(nodes: list) -> str:
     """Concatenate transform fragments the same way ``pmf:finish`` string-joins input."""
     parts: list[str] = []
@@ -148,7 +202,7 @@ def _serialize_pm_result(nodes: list) -> str:
         if isinstance(item, str):
             parts.append(item)
         elif isinstance(item, etree._Element):
-            parts.append(etree.tostring(item, encoding='unicode', method='html'))
+            parts.append(_serialize_html(item))
     return ''.join(parts)
 
 
@@ -157,6 +211,8 @@ def apply_markdown_finish_regexes(text: str) -> str:
     text = re.sub(r'\n{3,}', '\n\n', text)
     text = re.sub(r'_\s*(\S.*?)\s*_', r'_\1_', text, flags=re.MULTILINE)
     text = re.sub(r'\*\*\s*(\S.*?)\s*\*\*', r'**\1**', text, flags=re.MULTILINE)
+    # CommonMark requires a blank line between an HTML block and an ATX heading.
+    text = re.sub(r'(</[^>]+>)\n(#{1,6}\s)', r'\1\n\n\2', text, flags=re.MULTILINE)
     return text
 
 
@@ -206,11 +262,14 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
 
     def paragraph(self, config, node, cls, content) -> PMResult:
         out: list = []
+        # No indent for the first child: inside a list item the marker already
+        # sits on this line, and the extra indent would push the text into an
+        # indented code block (same rule as pmf:paragraph).
         if node.getprevious() is not None:
             out.append('\n')
-        ind = config.get('indent', '')
-        if ind:
-            out.append(ind)
+            ind = config.get('indent', '')
+            if ind:
+                out.append(ind)
         config['apply_children'](config, node, content, out)
         out.append('\n\n')
         return out
@@ -423,12 +482,23 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         return out
 
     def template(self, config, node, cls, template_str: str, params: dict) -> PMResult:
-        return apply_pb_template(template_str, params, config)
+        nodes = apply_pb_template(_strip_template_indentation(template_str), params, config)
+        # Serialise HTML here rather than in finish: the runtime stringifies
+        # elements as soon as they are appended to a list buffer, which would
+        # skip the <dd>/<li> padding.  A nested template (varlistentry inside
+        # variablelist) thus arrives as finished text in its parent's markup.
+        return [
+            TemplateOutput(_serialize_html(n)) if isinstance(n, etree._Element) else n
+            for n in nodes
+        ]
 
     def code(self, config, node, cls, content, language=None) -> PMResult:
         lang = language or ''
         body = literal_code_body(node, content)
-        return [TemplateOutput(f'```{lang}\n{body}\n```')]
+        # The fences must sit on lines of their own: without the breaks a
+        # closing fence runs into the next opening one (``````xml) or into the
+        # following text.  The trailing blank line matches pmf:code's <lb2/>.
+        return [TemplateOutput(f'\n```{lang}\n{body}\n```\n\n')]
 
     def code_inline(self, config, node, cls, content) -> PMResult:
         body = literal_code_body(node, content)
