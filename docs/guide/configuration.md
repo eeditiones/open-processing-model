@@ -22,6 +22,13 @@ odd = "odd/my-customisation.odd"
 xpath_extensions = ["extensions.my_functions"]
 # XML documents available to XPath doc(); paths are relative to this config file
 documents = ["data/authority.xml", "data/lookup.xml"]
+# Base rules compiled into the ODD stylesheet for every output mode, replacing
+# the packaged defaults (overridable with --css)
+css = "styles/default-styles.css"
+
+[transform.web]
+# Default Jinja2 template for full-document HTML output (overridable with --template)
+template = "templates/default.html.j2"
 
 [transform.docx]
 # Optional per-mode ODD override; omit to use [transform].odd
@@ -45,12 +52,6 @@ enabled = false
 site_name = "The Serafin Letters"
 show_downloads = true
 nav = [{ label = "Home", url = "/" }]
-
-[document]
-# Default Jinja2 template for full-document HTML output
-template = "templates/default.html.j2"
-# Base rules compiled into the ODD stylesheet, replacing the packaged defaults
-css = "styles/default-styles.css"
 
 [chunking]
 # ODD used for chunking (falls back to [transform].odd / packaged default)
@@ -81,8 +82,8 @@ assets = ["templates/edition.css", "templates/parchment.jpg"]
 | Section | Purpose | Related guide |
 | --- | --- | --- |
 | `[project]` | `pythonpath` additions so local extension modules import | [XPath extensions](xpath-extensions.md) |
-| `[transform]` | Shared settings (`odd`, `xpath_extensions`, `documents`, `parameters`) | [Output formats](output-formats.md), [ODD `$parameters`](odd-files.md#parameters) |
-| `[transform.web]` | Optional web-only `odd` override | [Output formats](output-formats.md) |
+| `[transform]` | Shared settings (`odd`, `xpath_extensions`, `documents`, `parameters`, base `css`) | [Output formats](output-formats.md), [ODD `$parameters`](odd-files.md#parameters), [Templates & CSS](templates-and-css.md#two-kinds-of-css) |
+| `[transform.web]` | Optional web-only `odd` override and HTML `template` | [Templates & CSS](templates-and-css.md) |
 | `[transform.print]` | Optional print `odd` and HTML `template` | [Output formats](output-formats.md#print-paged-media) |
 | `[transform.epub]` | Optional EPUB `odd`, `css` and `skip_title` | [Output formats](output-formats.md#epub) |
 | `[transform.docx]` | Optional DOCX `odd` override and Word style `template` | [Output formats](output-formats.md#docx) |
@@ -92,7 +93,6 @@ assets = ["templates/edition.css", "templates/parchment.jpg"]
 | `[transform.web.webcomponents]` | Web-only `enabled` flag and `cdn` URL for pb-components | [Templates & CSS](templates-and-css.md#web-components) |
 | `[context]` | Free-form values exposed to every template as `context` | [Templates & CSS](templates-and-css.md#template-context) |
 | `[transform.<type>.context]` | Per-output-type overlay on `[context]` | [Templates & CSS](templates-and-css.md#template-context) |
-| `[document]` | HTML `template` and `css` | [Templates & CSS](templates-and-css.md) |
 | `[chunking]` | Splitting rules, output, templates, fragments | [Chunking](chunking.md) |
 | `[index]` | `max_chars`, `min_chars`, `overlap` and `[[index.fields]]` for `opm index` | [Search indexing](search-indexing.md) |
 

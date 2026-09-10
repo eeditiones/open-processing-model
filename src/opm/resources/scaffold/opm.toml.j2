@@ -37,6 +37,14 @@ register-root = "urn:registers"
 #     "data/registers/places.xml",
 # ]
 
+# Replaces the base rules compiled into the ODD stylesheet (popovers, column
+# breaks, margin notes) for every output type. Design CSS for your pages
+# belongs under [chunking] assets instead.
+# css = "styles/base.css"
+
+[transform.web]
+template = "templates/{{ html_template }}.html.j2"
+
 [transform.web.webcomponents]
 enabled = {{ 'true' if webcomponents else 'false' }}
 
@@ -63,13 +71,6 @@ template = "{{ typst_template }}"
 [transform.markdown]
 # Optional per-type ODD override: odd = "{{ odd_path }}"
 {% endif %}
-[document]
-template = "templates/{{ html_template }}.html.j2"
-# Your own stylesheet, layered over the ODD's. The rules every ODD-rendered
-# document needs are already part of the ODD stylesheet, so this is for
-# project-specific overrides only.
-# css = "styles/custom.css"
-
 {% if chunk_selector -%}
 [chunking]
 selector = "{{ chunk_selector }}"

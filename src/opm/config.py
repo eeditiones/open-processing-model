@@ -41,7 +41,7 @@ def _section_table(value: Any) -> dict[str, Any]:
 def resolve_base_css(css_path: Path | None, project_root: Path) -> str:
     """Return the base stylesheet compiled into the ODD's generated CSS.
 
-    ``[document] css`` / ``--css`` replaces the packaged default wholesale — it
+    ``[transform] css`` / ``--css`` replaces the packaged default wholesale — it
     is an override for the rules the runtime's markup needs, not an extra layer.
     Project design CSS belongs in ``[chunking] assets`` instead, where it can
     sit beside the images and fonts it references.
@@ -262,7 +262,12 @@ class ProjectConfig:
     web template needs never leaks into the Typst one.
     """
     document_template: Path | None = None
+    """Jinja2 HTML shell for web output from ``[transform.web] template``."""
     document_css: Path | None = None
+    """Base rules compiled into the ODD stylesheet, from ``[transform] css``.
+
+    Replaces the packaged defaults for every output type.
+    """
     document_docx_template: Path | None = None
     typst_template: Path | None = None
     print_template: Path | None = None
@@ -392,7 +397,6 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     with config_path.open('rb') as f:
         data = tomllib.load(f)
 
-    doc = _section_table(data.get('document'))
     transform = _section_table(data.get('transform'))
     chunking_data = _section_table(data.get('chunking'))
     index_data = _section_table(data.get('index'))
@@ -426,8 +430,13 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     version = wc.get('version', DEFAULT_VERSION)
     resolved_cdn = cdn_template.replace('{version}', version)
 
-    template = doc.get('template')
-    css_file = doc.get('css')
+    # The HTML shell only wraps web output, so it lives with the other per-type
+    # templates; the base CSS is compiled into every type's ODD stylesheet, so
+    # it is shared.
+    template = web_data.get('template')
+    css_file = transform.get('css')
+    if css_file is not None and not isinstance(css_file, str):
+        raise ValueError('opm.toml: transform.css must be a path string')
     docx_template_file = docx_data.get('template')
     typst_template_file = typst_data.get('template')
     print_template_file = print_data.get('template')

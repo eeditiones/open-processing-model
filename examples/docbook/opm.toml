@@ -10,6 +10,9 @@ xpath_extensions = [
     "opm.runtime.common_xpath_functions"
 ]
 
+[transform.web]
+template = "templates/handbook.html.j2"
+
 [transform.web.webcomponents]
 enabled = true
 
@@ -21,9 +24,6 @@ css = "templates/epub.css"
 
 [transform.typst]
 template = "templates/docbook.typ.j2"
-
-[document]
-template = "templates/handbook.html.j2"
 
 [chunking]
 selector = "opm.navigation.dbk_section_chunks"

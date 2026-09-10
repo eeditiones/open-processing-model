@@ -873,7 +873,10 @@ def transform_cmd(
         Optional[Path],
         typer.Option(
             '--css',
-            help='Optional external CSS file injected into <head> for full-document HTML output.',
+            help=(
+                'CSS file replacing the packaged base rules compiled into the ODD stylesheet. '
+                'Falls back to transform.css in the project config.'
+            ),
         ),
     ] = None,
     template: Annotated[
@@ -944,7 +947,7 @@ def transform_cmd(
         if input_xml is None:
             _die('input XML file is required.')
 
-        # --css / [document] css replaces the packaged base rules, which are
+        # --css / [transform] css replaces the packaged base rules, which are
         # compiled into the ODD stylesheet — so it has to be known before the
         # ODD is compiled, and it is part of the cache key.
         # NB: cwd is the root only for the bare styles/default-styles.css

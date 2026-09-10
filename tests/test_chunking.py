@@ -1116,7 +1116,7 @@ def _template_echoing_urls(path: Path) -> None:
 def test_no_stylesheets_written_when_there_are_none(tmp_path: Path) -> None:
     """No ODD CSS and no project CSS means no css/ directory and empty URLs.
 
-    A project that sets no ``[document] css`` has no second stylesheet at all —
+    A project that sets no ``[transform] css`` has no second stylesheet at all —
     the rules every document needs live in the ODD stylesheet instead.
     """
     module_path = tmp_path / 'chunk_fixture.py'
@@ -1290,7 +1290,7 @@ def test_odd_stylesheet_carries_the_base_rules(tmp_path: Path) -> None:
 
 
 def test_document_css_overrides_the_base_rules(tmp_path: Path) -> None:
-    """``[document] css`` replaces the packaged base inside the ODD stylesheet.
+    """``[transform] css`` replaces the packaged base inside the ODD stylesheet.
 
     It is an override for the runtime's own rules, not an extra layer, so it
     lands ahead of the ODD's renditions and no second stylesheet is written.
@@ -1331,7 +1331,7 @@ def test_base_css_override_gets_its_own_cached_module(tmp_path: Path) -> None:
 
 
 def test_missing_document_css_is_reported(tmp_path: Path) -> None:
-    """A typo in [document] css fails loudly rather than dropping every base rule."""
+    """A typo in [transform] css fails loudly rather than dropping every base rule."""
     import pytest
 
     from opm.config import resolve_base_css
@@ -1341,7 +1341,7 @@ def test_missing_document_css_is_reported(tmp_path: Path) -> None:
 
 
 def test_chunk_document_applies_the_configured_base_override(tmp_path: Path) -> None:
-    """Calling chunk_document as a library honours [document] css, like the CLI does.
+    """Calling chunk_document as a library honours [transform] css, like the CLI does.
 
     The CLI pre-compiles via _materialize_chunking_modules; this covers the
     fallback path where chunk_document compiles config.odd itself.

@@ -89,7 +89,7 @@ def cache_key(odd_path: Path, output_mode: str, base_css: str | None = None) -> 
         h.update(b'\0')
 
     # The base rules are compiled into ODD_GENERATED_CSS, so a project that
-    # overrides them via [document] css needs its own cached module — and
+    # overrides them via [transform] css needs its own cached module — and
     # editing the packaged default in a checkout has to invalidate too.
     from opm.odd_compiler.css_generator import default_base_css
 

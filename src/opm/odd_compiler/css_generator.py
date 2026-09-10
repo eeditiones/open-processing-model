@@ -79,7 +79,7 @@ def default_base_css() -> str:
     the ODD stylesheet and travel wherever it goes, including
     ``--format pb-view`` output loaded by a TEI Publisher app.
 
-    A project replaces them wholesale with ``[document] css`` / ``--css``; see
+    A project replaces them wholesale with ``[transform] css`` / ``--css``; see
     :func:`collect_odd_generated_css`.
     """
     from opm.resources import packaged_default_css
@@ -97,7 +97,7 @@ def collect_odd_generated_css(
 ) -> str:
     """Build CSS from the ODD, matching ``css:generate-css`` in ``css.xql`` (web).
 
-    Starts with *base_css* — the project's ``[document] css`` when set,
+    Starts with *base_css* — the project's ``[transform] css`` when set,
     otherwise :func:`default_base_css` — then emits ``.simple_{xml:id}`` rules
     from ``tagsDecl/tei:rendition`` and ``.tei-{ident}{n}`` /
     ``.tei-{ident}{n}:{scope}`` from model ``outputRendition``.

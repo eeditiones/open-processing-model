@@ -30,6 +30,9 @@ global = "http://teipublisher.com/global"
 [transform.variables.global]
 register-root = "/db/apps/serafin/data/registers"
 
+[transform.web]
+template = "templates/letter.html.j2"
+
 [transform.web.webcomponents]
 enabled = true
 
@@ -47,9 +50,6 @@ template = "templates/letter.typ.j2"
 [transform.typst.context]
 source_label = "Transcriptio (lat.)"
 translation_label = "Przekład (pol.)"
-
-[document]
-template = "templates/letter.html.j2"
 
 [chunking]
 odd = "odd/serafin.odd"

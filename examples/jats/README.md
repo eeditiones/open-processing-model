@@ -121,7 +121,7 @@ author dict. `authors` stays a plain name so the book shells keep working.
 - `templates/journal.html.j2` + `journal.css` — journal reading surface:
   sticky masthead, sticky TOC rail, one measure, footnote apparatus. Both are
   byte-identical to what `opm init --vocabulary jats` now writes, which wires
-  this shell as the project's `[document] template`; the masthead and rail
+  this shell as the project's `[transform.web] template`; the masthead and rail
   appear here because this project declares the `journal` and `toc` fragments
 - `templates/print.html.j2` + `print.css` — paged shell for `-t print`: the
   same article surface, margin notes instead of a masthead and rail

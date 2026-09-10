@@ -69,15 +69,15 @@ source_note = "Bodleian First Folio, Arch. G c.7"
 # Print a line number every nth typeset line.
 line_number_every = 5
 
+[transform.web]
+template = "templates/chapbook.html.j2"
+
 [transform.web.webcomponents]
 # The <pb> model emits <pb-facs-link>, which stays inert markup showing the
 # folio number until the pb-components bundle is loaded. With it on, each folio
 # announces its manifest and page index on the "transcription" channel and the
 # <pb-tify> viewer in the template turns to that page.
 enabled = true
-
-[document]
-template = "templates/chapbook.html.j2"
 
 # One chunk per <pb/> milestone rather than per division: `tei_pb_chunks`
 # reconstructs the page as a synthetic tree, carrying the intervening <div>,

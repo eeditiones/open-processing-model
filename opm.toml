@@ -63,8 +63,15 @@ xpath_extensions = [
 #     "data/registers/places.xml",
 # ]
 
+# Base rules compiled into the ODD stylesheet for every output type, replacing
+# the packaged defaults (popovers, column breaks, margin notes). Not the place
+# for design CSS — list that under [chunking] assets.
+# css = "styles/default-styles.css"
+
 [transform.web]
 # Optional override: odd = "odd/web-only.odd"
+# Jinja2 template used to wrap full-document HTML output.
+# template = "templates/default.html.j2"
 
 [transform.web.webcomponents]
 # Enable TEI Publisher web-component output mode by default.
@@ -98,13 +105,6 @@ enabled = false
 # Typst document-shell template used for Typst output.
 # template = "templates/book.typ.j2"      # TEI (ilm)
 # template = "templates/docbook.typ.j2"   # DocBook (ilm + UI/callout classes)
-
-[document]
-# Jinja2 template used to wrap full-document HTML output.
-# template = "templates/default.html.j2"
-
-# CSS file injected into full-document HTML output.
-# css = "templates/default.css"
 
 [chunking]
 # ODD compiled on demand. Falls back to [transform].odd / packaged default when omitted.

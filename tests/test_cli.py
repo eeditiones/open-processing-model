@@ -214,7 +214,7 @@ odd = "shared.odd"
 [transform.print]
 template = "templates/print.html.j2"
 
-[document]
+[transform.web]
 template = "templates/web.html.j2"
 """,
         encoding='utf-8',
@@ -256,9 +256,11 @@ def test_load_project_config_resolves_document_and_chunking_paths(tmp_path: Path
     from opm.config import load_project_config
 
     (tmp_path / 'opm.toml').write_text(
-        """[document]
-template = "templates/page.html.j2"
+        """[transform]
 css = "styles/site.css"
+
+[transform.web]
+template = "templates/page.html.j2"
 
 [chunking]
 template = "templates/chunk.html.j2"
@@ -277,7 +279,7 @@ def test_transform_config_paths_resolve_relative_to_config_file(tmp_path: Path, 
     project = tmp_path / 'project'
     (project / 'templates').mkdir(parents=True)
     _write_tiny_odd(project / 'tiny.odd')
-    # [document] css is the base override, so it arrives compiled into odd_css.
+    # [transform] css is the base override, so it arrives compiled into odd_css.
     (project / 'templates' / 'custom.j2').write_text(
         '<html><head><!-- config-relative-template -->{{ head_html|safe }}'
         '<style>{{ odd_css }}</style></head>'
@@ -286,12 +288,12 @@ def test_transform_config_paths_resolve_relative_to_config_file(tmp_path: Path, 
     )
     (project / 'site.css').write_text('.site { color: green; }', encoding='utf-8')
     (project / 'opm.toml').write_text(
-        """[transform.web]
-odd = "tiny.odd"
-
-[document]
-template = "templates/custom.j2"
+        """[transform]
 css = "site.css"
+
+[transform.web]
+odd = "tiny.odd"
+template = "templates/custom.j2"
 """,
         encoding='utf-8',
     )

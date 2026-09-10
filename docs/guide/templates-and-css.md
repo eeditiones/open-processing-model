@@ -7,8 +7,8 @@ section — is **not** a complete HTML document; the template supplies the shell
 
 ## HTML templates
 
-Pass a template with `--template`, or set a default under `[document]` in
-`opm.toml`. Chunk pages use `chunking.template` instead. If none is given, a
+Pass a template with `--template`, or set a default with `[transform.web]
+template` in `opm.toml`. Chunk pages use `chunking.template` instead. If none is given, a
 packaged default template is used. `opm init` copies editable shells into
 `templates/`: the `chapbook` (reading), `journal` (scholarly article: masthead,
 TOC rail, one measure) and `handbook` (docs) HTML shells, the `tufte` and
@@ -28,7 +28,7 @@ out of paged output:
 
 1. `--template`
 2. `[transform.print] template`
-3. Packaged `default_print.html.j2` (not `[document] template`)
+3. Packaged `default_print.html.j2` (not `[transform.web] template`)
 
 ```toml
 [transform.print]
@@ -198,11 +198,13 @@ paper = "a5"
     ODD's own `outputRendition` overrides them, and they travel with the ODD
     stylesheet everywhere it is used.
 
-- **Base override** (`--css` / `[document] css`) — replaces those packaged base
-  rules. It is compiled into the ODD stylesheet rather than layered after it,
-  and forms part of the ODD cache key. Use it to restyle what the runtime
-  emits; for a project's own design CSS use `[chunking] assets`, which can also
-  carry the images and fonts that stylesheet references.
+- **Base override** (`--css` / `[transform] css`) — replaces those packaged base
+  rules for every output mode. It is compiled into the ODD stylesheet rather
+  than layered after it, and forms part of the ODD cache key. Use it to restyle
+  what the runtime emits; for a project's own design CSS use `[chunking]
+  assets`, which can also carry the images and fonts that stylesheet
+  references. Note that `[transform.epub] css` is not a per-mode version of
+  this key: it adds a stylesheet to the EPUB package on top of everything else.
 
 ## Web components
 

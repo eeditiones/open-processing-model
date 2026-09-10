@@ -183,7 +183,7 @@ markup the runtime emits rather than anything a project chose, so they travel
 with the ODD stylesheet wherever it goes, `--format pb-view` included, and an
 ODD's `outputRendition` can still override them.
 
-`[document] css` does not add a second stylesheet — it *replaces* those base
+`[transform] css` does not add a second stylesheet — it *replaces* those base
 rules, so a project can restyle what the runtime emits without losing the ODD's
 own renditions. Because it changes the compiled stylesheet it is part of the ODD
 cache key, so a project overriding it gets its own compiled module.
@@ -227,7 +227,7 @@ A stylesheet in `assets/` references a sibling by plain filename
 (`url("parchment.jpg")`), since CSS URLs resolve against the stylesheet's own
 location rather than the page's — so one texture file serves the whole edition
 instead of a base64 copy per page. That is why project design CSS belongs here
-rather than in `[document] css`: only assets can carry the files it depends on.
+rather than in `[transform] css`: only assets can carry the files it depends on.
 
 All these URLs are relative to the page that uses them: bare from the index at
 the output root, `../`-prefixed from a chunk page in a per-document

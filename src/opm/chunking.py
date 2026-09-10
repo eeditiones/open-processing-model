@@ -127,7 +127,7 @@ class ChunkProcessor:
         self.xpath_namespaces = dict(
             xpath_namespaces if xpath_namespaces is not None else cfg.xpath_namespaces,
         )
-        # Includes the project's base override ([document] css), compiled in.
+        # Includes the project's base override ([transform] css), compiled in.
         # Design CSS is not part of this — it travels through chunking.assets.
         self.odd_css: str = getattr(self.module, 'ODD_GENERATED_CSS', '') or ''
         self.chunks: list[etree._Element] = []

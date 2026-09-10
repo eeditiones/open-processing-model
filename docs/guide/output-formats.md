@@ -92,7 +92,7 @@ The Jinja shell is separate from the web reading view. Resolution:
 
 1. `--template` / `-t` override
 2. `[transform.print] template`
-3. Packaged `default_print.html.j2` (minimal; **not** the web `[document] template`)
+3. Packaged `default_print.html.j2` (minimal; **not** the `[transform.web] template`)
 
 Paged layout itself comes from the ODD’s CSS (often `@page` / `@media print` in
 a tagsDecl stylesheet). OPM only produces the markup; PDF rendering is external.
