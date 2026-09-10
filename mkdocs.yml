@@ -37,6 +37,9 @@ theme:
 extra_css:
   - stylesheets/brand.css
 
+extra_javascript:
+  - javascripts/slideshow.js
+
 markdown_extensions:
   - admonition
   - tables
