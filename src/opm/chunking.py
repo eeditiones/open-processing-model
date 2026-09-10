@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from lxml import etree
+from lxml import html as lxml_html
 
 from opm.config import ChunkingConfig, FragmentConfig, ProjectConfig
 from opm.runtime import source_map
@@ -1032,7 +1033,9 @@ class ChunkProcessor:
           the response of TEI Publisher's ``/api/parts/<doc>/json`` endpoint
         - ``<output_dir>/<doc_path>/<name>.json`` — one part per global fragment
           (e.g. ``toc.json``), keyed by the fragment xpath and ``user.*`` params;
-          a sibling ``<name>.html`` is written with the same HTML content
+          a sibling ``<name>.html`` carries the same content as well-formed XML,
+          for consumers that store it in an XML database (see
+          :func:`_wellformed_fragment_xml`)
         - ``<output_dir>/<doc_path>/<name>-<xml:id>.json`` — per-chunk fragments
         - ``<output_dir>/css/<odd>.css`` — stylesheet, shared by every document
           under the same static root
@@ -1101,7 +1104,13 @@ class ChunkProcessor:
                 json.dumps({'content': frag_html}, indent=2, ensure_ascii=False),
                 encoding='utf-8',
             )
-            (data_dir / f'{frag.name}.html').write_text(frag_html, encoding='utf-8')
+            # The JSON keeps the HTML verbatim — pb-view injects it as HTML —
+            # while the .html sibling is written as well-formed XML, since that
+            # is the copy that gets uploaded into an XML database.
+            (data_dir / f'{frag.name}.html').write_text(
+                _wellformed_fragment_xml(frag_html, frag.name),
+                encoding='utf-8',
+            )
 
             frag_params = self._pb_view_fragment_params(frag)
             frag_key_xpath = frag.xpath_dynamic or frag.xpath
@@ -1199,6 +1208,77 @@ class ChunkProcessor:
         css_dir = self.output_dir / 'css'
         css_dir.mkdir(parents=True, exist_ok=True)
         (css_dir / f'{self.odd_name}.css').write_text(odd_css, encoding='utf-8')
+
+
+#: HTML elements that carry no end tag; ``<br/>`` is well-formed XML *and* valid
+#: HTML5, so these are the only ones that may be serialised self-closed.
+_VOID_HTML_ELEMENTS = frozenset({
+    'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+    'link', 'meta', 'param', 'source', 'track', 'wbr',
+})
+
+
+def _explicit_end_tags(root: etree._Element) -> None:
+    """Force an end tag on every empty non-void element.
+
+    The XML serialiser writes ``<span class="x"/>`` for an empty element, which
+    an HTML parser reads as an *unclosed* ``<span>`` — the rest of the fragment
+    would then nest inside it. Giving the element an empty text node makes lxml
+    emit ``<span class="x"></span>``, which both parsers agree on.
+    """
+    for el in root.iter():
+        if not isinstance(el.tag, str):  # comments, PIs
+            continue
+        if len(el) == 0 and not el.text and el.tag.lower() not in _VOID_HTML_ELEMENTS:
+            el.text = ''
+
+
+def _wellformed_fragment_xml(html: str, name: str) -> str:
+    """Return *html* as a well-formed XML fragment with a single root element.
+
+    ``<name>.html`` is written for consumers that store the fragment as XML —
+    eXist-db maps ``.html`` to an XML resource, so anything it cannot parse is
+    rejected on upload. Two things in the HTML serialisation stop it parsing:
+    void elements are written open (``<br>``, ``<img …>``), and a model may emit
+    several sibling elements, as ``display='browse'`` does with title, author and
+    abstract — leaving the fragment without a single root.
+
+    A fragment that already has exactly one root element keeps it, so existing
+    output does not gain a wrapper it never had; anything else (several roots,
+    bare text alongside an element, or nothing at all) is wrapped in
+    ``<div class="fragment fragment-<name>">``.
+    """
+    items = lxml_html.fragments_fromstring(html or '')
+    # Leading text is returned as a bare string; only non-whitespace text has to
+    # survive into the output, so whitespace between elements can be dropped.
+    elements = [i for i in items if not isinstance(i, str)]
+    stray_text = any(isinstance(i, str) and i.strip() for i in items)
+    single_root = len(elements) == 1 and not stray_text and not (elements[0].tail or '').strip()
+
+    if single_root:
+        root = elements[0]
+        root.tail = None
+    else:
+        root = lxml_html.Element('div')
+        root.set('class', f'fragment fragment-{name}')
+        for i in items:
+            if isinstance(i, str):
+                if i.strip():
+                    _append_text(root, i)
+            else:
+                root.append(i)
+
+    _explicit_end_tags(root)
+    return etree.tostring(root, encoding='unicode', method='xml', with_tail=False)
+
+
+def _append_text(parent: etree._Element, text: str) -> None:
+    """Append *text* to *parent*'s content, after any children it already has."""
+    if len(parent) == 0:
+        parent.text = (parent.text or '') + text
+    else:
+        last = parent[-1]
+        last.tail = (last.tail or '') + text
 
 
 def _compute_part_key(params: dict[str, str]) -> str:

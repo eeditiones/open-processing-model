@@ -12,6 +12,7 @@ from lxml import etree
 
 from opm.chunking import (
     ChunkProcessor,
+    _wellformed_fragment_xml,
     build_index,
     build_index_json,
     chunk_document,
@@ -558,9 +559,18 @@ def test_pb_view_export_global_fragments(tmp_path: Path) -> None:
     assert 'class="toc"' in toc['content']
     assert 'href="#a"' in toc['content']
     assert 'href="#b"' in toc['content']
+    # A single-root fragment keeps its shape: the .html sibling is the JSON
+    # content verbatim.
     assert toc_html == toc['content']
     assert title['content'].strip() == 'A'
-    assert title_html == title['content']
+    # A text-only fragment has no root element of its own, so the XML copy is
+    # wrapped; the JSON pb-view consumes stays bare text.
+    assert title_html == '<div class="fragment fragment-title">A</div>'
+
+    # Every .html export has to parse as XML — eXist-db stores them as XML
+    # resources and rejects anything it cannot parse.
+    for exported in sorted(out.glob('*.html')):
+        etree.fromstring(exported.read_bytes())
 
     index = json.loads((out / 'index.json').read_text(encoding='utf-8'))
     toc_xpath = "//body/div[@type='toc']"
@@ -1518,3 +1528,45 @@ def test_build_index_json_returns_none_without_documents(tmp_path: Path) -> None
     empty.mkdir()
     assert build_index_json(empty) is None
     assert not (empty / 'index.json').exists()
+
+
+def test_wellformed_fragment_xml_wraps_only_what_needs_it() -> None:
+    """A lone root element is left alone; anything else gains a wrapper."""
+    single = '<div class="toc"><a href="#a">A</a></div>'
+    assert _wellformed_fragment_xml(single, 'toc') == single
+    # Surrounding whitespace does not count as a second root.
+    assert _wellformed_fragment_xml(f'\n  {single}\n', 'toc') == single
+
+    # ``display='browse'`` emits title, author and abstract as siblings.
+    multi = _wellformed_fragment_xml('<h5>T</h5><div>A</div>', 'browse')
+    assert multi == '<div class="fragment fragment-browse"><h5>T</h5><div>A</div></div>'
+
+    # Text-only (a ``string()`` fragment xpath) and empty fragments have no root.
+    assert _wellformed_fragment_xml('A', 'title') == '<div class="fragment fragment-title">A</div>'
+    assert _wellformed_fragment_xml('', 'title') == '<div class="fragment fragment-title"></div>'
+
+
+def test_wellformed_fragment_xml_closes_html_only_serialisations() -> None:
+    """Void elements are closed and empty elements keep an explicit end tag."""
+    # ``method='html'`` writes these open, which no XML parser accepts.
+    assert _wellformed_fragment_xml('<p>a<br>b<img src="x.png">c</p>', 'f') == (
+        '<p>a<br/>b<img src="x.png"/>c</p>'
+    )
+    # ``<span/>`` would read as an unclosed span to an HTML parser, swallowing
+    # everything after it, so empty non-void elements keep both tags.
+    assert _wellformed_fragment_xml('<div><span class="a"></span>t</div>', 'f') == (
+        '<div><span class="a"></span>t</div>'
+    )
+
+
+def test_wellformed_fragment_xml_output_parses_as_xml() -> None:
+    """Whatever the input shape, the result is parseable by an XML parser."""
+    for fragment in (
+        '<h5>T</h5><div>A</div>',
+        'bare text <b>bold</b>',
+        '<p>line<br>break</p>',
+        '<p>Tom &amp; Jerry</p>',
+        '<input type="checkbox" checked>',
+        '',
+    ):
+        etree.fromstring(_wellformed_fragment_xml(fragment, 'f').encode('utf-8'))
