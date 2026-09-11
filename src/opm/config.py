@@ -150,12 +150,14 @@ class ChunkingConfig:
                      ``quickstart.xml`` (empty for a single-file output)
 
     When *None* (default) the rewriter falls back to the relative form
-    ``{file}#{anchor}``.  Example values::
+    ``{file}#{anchor}``.  Example values:
 
-        link_pattern = "/{doc}/{file}"              # per-document absolute paths
-        link_pattern = "/{doc}/{stem}/"             # clean URLs under the doc dir
-        link_pattern = "/{stem}#{anchor}"           # site-root absolute (single doc)
-        link_pattern = "http://localhost:8080/{stem}#{anchor}"
+    ```toml
+    link_pattern = "/{doc}/{file}"              # per-document absolute paths
+    link_pattern = "/{doc}/{stem}/"             # clean URLs under the doc dir
+    link_pattern = "/{stem}#{anchor}"           # site-root absolute (single doc)
+    link_pattern = "http://localhost:8080/{stem}#{anchor}"
+    ```
     """
     link_doc: str | None = None
     """Document path segment for ``{doc}`` in ``link_pattern`` (not from TOML).

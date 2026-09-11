@@ -3,11 +3,13 @@
 
 """Open Processing Model: transform XML with the processing models in an ODD.
 
-Start with [`Project`][opm.project.Project]::
+Start with [`Project`][opm.project.Project]:
 
-    from opm import Project
+```python
+from opm import Project
 
-    html = Project.load().transform('data/doc.xml')
+html = Project.load().transform('data/doc.xml')
+```
 """
 
 from __future__ import annotations

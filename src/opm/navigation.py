@@ -5,18 +5,22 @@
 large XML document is split into smaller sections to be viewed on one page.
 
 Functions here can be referenced in ``opm.toml`` via the
-``chunking.selector`` key, e.g.::
+``chunking.selector`` key, e.g.:
 
-    [chunking]
-    selector = "opm.navigation.tei_div_chunks"
-    depth = 2
+```toml
+[chunking]
+selector = "opm.navigation.tei_div_chunks"
+depth = 2
 
-    # Or page-break milestones (Shakespeare plays, facsimiles, …):
-    # selector = "opm.navigation.tei_pb_chunks"
+# Or page-break milestones (Shakespeare plays, facsimiles, …):
+# selector = "opm.navigation.tei_pb_chunks"
+```
 
-Each selector callable has the signature::
+Each selector callable has the signature:
 
-    def my_selector(root: etree._Element, config: ChunkingConfig) -> list[etree._Element]
+```python
+def my_selector(root: etree._Element, config: ChunkingConfig) -> list[etree._Element]
+```
 """
 
 from __future__ import annotations

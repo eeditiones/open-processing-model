@@ -5,15 +5,17 @@
 
 A specific project configuration and associated methods. Each method does
 what the command of the same name does, taking the same settings from the
-config::
+config:
 
-    from opm import Project
+```python
+from opm import Project
 
-    project = Project.load()                       # ./opm.toml
-    html = project.transform('data/doc.xml')       # -t web
-    docx = project.transform('data/doc.xml', mode='docx')
-    run = project.chunk('data/letters', format='json', overwrite=True)
-    records = project.index('data')
+project = Project.load()                       # ./opm.toml
+html = project.transform('data/doc.xml')       # -t web
+docx = project.transform('data/doc.xml', mode='docx')
+run = project.chunk('data/letters', format='json', overwrite=True)
+records = project.index('data')
+```
 
 The lower-level functions in [`opm.transform`][opm.transform], [`opm.chunking`][opm.chunking] and
 [`opm.indexing`][opm.indexing] stay available for callers that need finer control.
@@ -159,15 +161,17 @@ class Project:
 
     An XPath expression that fails at run time counts as false or empty, as
     it does in the CLI. To see which ones failed, wrap the calls in
-    [`collect_xpath_errors`][opm.runtime.xpath_diagnostics.collect_xpath_errors]::
+    [`collect_xpath_errors`][opm.runtime.xpath_diagnostics.collect_xpath_errors]:
 
-        from opm import Project, collect_xpath_errors
+    ```python
+    from opm import Project, collect_xpath_errors
 
-        project = Project.load('edition/opm.toml')
-        with collect_xpath_errors() as log:
-            html = project.transform('edition/data/doc.xml')
-        for failure in log.ordered_failures():
-            print(failure.expression, failure.message)
+    project = Project.load('edition/opm.toml')
+    with collect_xpath_errors() as log:
+        html = project.transform('edition/data/doc.xml')
+    for failure in log.ordered_failures():
+        print(failure.expression, failure.message)
+    ```
 
     Relative paths given to the methods are relative to the current
     directory, as usual in Python. Paths inside ``opm.toml`` are relative to

@@ -5,60 +5,67 @@
 
 Most callers want [`opm.Project.transform`][opm.project.Project.transform], which also compiles the
 ODD and keeps the loaded module and registers between calls. The functions
-here are the layer below it, at increasing levels of abstraction:
+here are the layer below it, at increasing levels of abstraction.
 
-``run_transform(mod, element, ...)``
-    Lowest level. Caller supplies an already-loaded module and an already-selected
-    lxml element; the function serializes and optionally wraps the result in the
-    Jinja2 document template::
+[`run_transform(mod, element, ...)`][opm.transform.run_transform] is the lowest
+level. The caller supplies an already-loaded module and an already-selected
+lxml element; the function serializes and optionally wraps the result in the
+Jinja2 document template:
 
-        from opm.odd_cache import ensure_compiled_module
-        from opm.resources import packaged_odd
-        from opm.transform import load_transform_module, run_transform
-        from lxml import etree
+```python
+from opm.odd_cache import ensure_compiled_module
+from opm.resources import packaged_odd
+from opm.transform import load_transform_module, run_transform
+from lxml import etree
 
-        path, _ = ensure_compiled_module(packaged_odd('teipublisher'))
-        mod = load_transform_module(path)
-        root = etree.parse('document.xml').getroot()
+path, _ = ensure_compiled_module(packaged_odd('teipublisher'))
+mod = load_transform_module(path)
+root = etree.parse('document.xml').getroot()
 
-        html     = run_transform(mod, root)                 # full document
-        fragment = run_transform(mod, root.find('.//{*}div'))  # single element
+html     = run_transform(mod, root)                 # full document
+fragment = run_transform(mod, root.find('.//{*}div'))  # single element
+```
 
-``transform_node(script_path, root, *, xpath=None, ...)``
-    Mid level. Loads the module from *script_path* and, if *xpath* is given,
-    selects the target element before transforming::
+[`transform_node(script_path, root, *, xpath=None, ...)`][opm.transform.transform_node]
+is the mid level. It loads the module from *script_path* and, if *xpath* is
+given, selects the target element before transforming:
 
-        from opm.odd_cache import ensure_compiled_module
-        from opm.resources import packaged_odd
-        from opm.transform import transform_node
-        from lxml import etree
+```python
+from opm.odd_cache import ensure_compiled_module
+from opm.resources import packaged_odd
+from opm.transform import transform_node
+from lxml import etree
 
-        path, _ = ensure_compiled_module(packaged_odd('teipublisher'))
-        root = etree.parse('document.xml').getroot()
-        html = transform_node(path, root, xpath='//body/div[1]')
+path, _ = ensure_compiled_module(packaged_odd('teipublisher'))
+root = etree.parse('document.xml').getroot()
+html = transform_node(path, root, xpath='//body/div[1]')
+```
 
-``transform_file(module, xml_path, *, xpath=None, ...)``
-    Highest level, and what ``opm transform`` runs. Also parses the XML file
-    and takes everything else from ``opm.toml``: parameters, registers,
-    extensions, web components, template::
+[`transform_file(module, xml_path, *, xpath=None, ...)`][opm.transform.transform_file]
+is the highest level, and what ``opm transform`` runs. It also parses the XML
+file and takes everything else from ``opm.toml``: parameters, registers,
+extensions, web components, template:
 
-        from opm.odd_cache import ensure_compiled_module
-        from opm.resources import packaged_odd
-        from opm.transform import transform_file
+```python
+from opm.odd_cache import ensure_compiled_module
+from opm.resources import packaged_odd
+from opm.transform import transform_file
 
-        path, _ = ensure_compiled_module(packaged_odd('teipublisher'))
-        html = transform_file(path, Path('document.xml'), xpath='//body/div[1]')
+path, _ = ensure_compiled_module(packaged_odd('teipublisher'))
+html = transform_file(path, Path('document.xml'), xpath='//body/div[1]')
+```
 
-``xpath_select(root, expr, ...)``
-    Utility for evaluating XPath against a parsed document without any
-    namespace bookkeeping — unprefixed names automatically match the
-    document's namespace::
+[`xpath_select(root, expr, ...)`][opm.transform.xpath_select] evaluates XPath
+against a parsed document without any namespace bookkeeping: unprefixed names
+automatically match the document's namespace:
 
-        from opm.transform import xpath_select
-        from lxml import etree
+```python
+from opm.transform import xpath_select
+from lxml import etree
 
-        root = etree.parse('document.xml').getroot()
-        chapters = xpath_select(root, '//body/div')
+root = etree.parse('document.xml').getroot()
+chapters = xpath_select(root, '//body/div')
+```
 """
 
 from __future__ import annotations
@@ -161,10 +168,12 @@ def xpath_select(
 
     The document's default namespace URI (taken from *root*'s ``nsmap``) is set
     as the XPath default element namespace, so unprefixed element names match
-    without any prefix mapping::
+    without any prefix mapping:
 
-        chapters = xpath_select(root, '//body/div')          # TEI, DocBook, …
-        titles   = xpath_select(root, '//div/head/string()')  # atomic results
+    ```python
+    chapters = xpath_select(root, '//body/div')          # TEI, DocBook, …
+    titles   = xpath_select(root, '//div/head/string()')  # atomic results
+    ```
 
     Element results are returned as lxml `_Element` objects.
     Atomic expressions (``count(…)``, ``string(…)``) return the corresponding
