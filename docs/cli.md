@@ -84,8 +84,8 @@ opm transform [OPTIONS] [INPUT_XML]
 | `--odd, -d PATH` | ODD file to compile on demand into the user cache. Overrides transform.<type>.odd in config. |
 | `--type, -t TYPE` | Transform type / ODD output channel (web, print, epub, markdown, docx, typst, json). Selects transform.<type>.odd from config when --odd is omitted; also sets the compile mode for --odd. |
 | `--channel CHANNEL` | With -t json only: which ODD output channel to record decisions for (web, print, epub, markdown, docx, typst). Default: web. |
-| `--output, -o PATH` | Write transform output to this file (default: stdout unless --preview) |
-| `--preview, -v` | Preview output: channel web/print → browser, markdown → Rich (paged in a TTY so bold/italic survive), docx/epub → the platform default application; other channels (e.g. typst) → plain text in the terminal. |
+| `--output, -o PATH` | Write transform output to this file (default: stdout unless --preview). With -t typst, a .pdf file name compiles the output with the typst command. |
+| `--preview, -v` | Preview output: channel web/print → browser, markdown → Rich (paged in a TTY so bold/italic survive), docx/epub → the platform default application, typst → the compiled PDF, opened by typst (typst compile --open) when the typst command is installed; other channels → plain text in the terminal. |
 | `--param, -p KEY=VALUE` | Runtime parameter for XPath $parameters (repeatable), e.g. -p mode=toc -p display=browse |
 | `--css PATH` | CSS file replacing the packaged base rules compiled into the ODD stylesheet. Falls back to transform.css in the project config. |
 | `--template PATH` | Template path: Jinja2 for HTML/print/Typst output, or .docx for DOCX output. |

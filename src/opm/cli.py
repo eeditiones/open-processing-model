@@ -40,6 +40,7 @@ from opm.config import (
 )
 from opm.odd_cache import ResolvedTransform, resolve_transform_module
 from opm.output_modes import CONFIG_SECTIONS, RENDER_MODES, OutputMode, module_mode, output_mode
+from opm.typst_compile import compile_pdf, typst_available, typst_executable
 from opm.resources import opm_version
 from opm.scaffold import (
     EXAMPLE_NAMES,
@@ -446,6 +447,26 @@ def _preview_output(out: str | bytes, mode: OutputMode) -> None:
         _preview_plain_terminal(text)
 
 
+def _pdf_request(mode: OutputMode, output: Path | None, preview: bool) -> tuple[bool, bool]:
+    """``(pdf, view)``: whether to compile the output to PDF, and whether to open it.
+
+    Typst output becomes a PDF when ``--output`` names a ``.pdf`` file, or for
+    ``--preview`` when the typst command is installed; the compiler then opens
+    it. Otherwise it stays Typst source. ``--output`` wins over ``--preview``,
+    as for every other type.
+    """
+    if mode.compiler is None:
+        return False, False
+    if output is not None:
+        return output.suffix.lower() == '.pdf', False
+    if not preview:
+        return False, False
+    if typst_available():
+        return True, True
+    _note('the typst command is not on PATH; showing the Typst source instead of the PDF.')
+    return False, False
+
+
 def _preview_html_in_browser(html: str) -> None:
     with tempfile.NamedTemporaryFile(
         mode='w',
@@ -848,7 +869,10 @@ def transform_cmd(
         typer.Option(
             '--output',
             '-o',
-            help='Write transform output to this file (default: stdout unless --preview)',
+            help=(
+                'Write transform output to this file (default: stdout unless --preview). '
+                'With -t typst, a .pdf file name compiles the output with the typst command.'
+            ),
         ),
     ] = None,
     preview: Annotated[
@@ -858,8 +882,9 @@ def transform_cmd(
             '-v',
             help=(
                 'Preview output: channel web/print → browser, markdown → Rich (paged in a TTY so '
-                'bold/italic survive), docx/epub → the platform default application; other '
-                'channels (e.g. typst) → plain text in the terminal.'
+                'bold/italic survive), docx/epub → the platform default application, typst → '
+                'the compiled PDF, opened by typst (typst compile --open) when the typst command '
+                'is installed; other channels → plain text in the terminal.'
             ),
         ),
     ] = False,
@@ -964,6 +989,10 @@ def transform_cmd(
 
         mod = load_transform_module(effective_script)
         mode = module_mode(mod)
+        pdf, view = _pdf_request(mode, output, preview)
+        if pdf:
+            # Fail before transforming rather than after.
+            typst_executable()
         with collect_xpath_errors() as xpath_log:
             out = transform_file(
                 mod,
@@ -977,13 +1006,17 @@ def transform_cmd(
                 template=template,
                 config=cfg,
             )
+        if pdf:
+            # Image paths in the output are the XML's own, relative to its directory.
+            out = compile_pdf(str(out), root=input_xml.resolve().parent, open_viewer=view)
 
         if output:
             if isinstance(out, bytes):
                 output.write_bytes(out)
             else:
                 output.write_text(out, encoding='utf-8')
-        elif preview:
+        elif preview and not view:
+            # With view, typst has already opened the PDF.
             _preview_output(out, mode)
         elif isinstance(out, bytes):
             sys.stdout.buffer.write(out)

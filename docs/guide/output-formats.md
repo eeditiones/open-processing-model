@@ -231,8 +231,27 @@ opm transform examples/tei-test.xml -t typst -o out.typ
 The resulting `.typ` file you can then process with
 
 ```bash
-typst compile out.typ --open`
+typst compile out.typ --open
 ```
+
+### PDF
+
+With the [`typst`](https://typst.app/open-source/) command on your `PATH`,
+`opm` runs `typst compile` for you. Name a `.pdf` output file, or preview:
+
+```bash
+opm transform examples/tei-test.xml -t typst -o out.pdf
+opm transform examples/tei-test.xml -t typst --preview   # Typst opens the PDF
+```
+
+`--preview` passes `--open` to Typst, which opens the PDF in your default
+viewer; without `typst` installed it shows the Typst source in the terminal
+instead. `-o out.typ`, or no `-o`, still gives the source.
+
+Image paths in the output are taken from the XML as they are and resolve
+against the document's directory; Typst refuses a path that leaves it (`../`).
+From Python, `transform_file()` returns the Typst source; pass it to
+`opm.typst_compile.compile_pdf()` for the PDF.
 
 Refer to the [Typst documentation](https://typst.app/docs/) for more information about running the command.
 

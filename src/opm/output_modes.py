@@ -73,11 +73,17 @@ class OutputMode:
     extension: str = ''
     #: How ``--preview`` shows the output: ``'browser'``, ``'markdown'``,
     #: ``'json'``, ``'app'`` (the platform's default application) or ``'text'``.
+    #: A mode with a :attr:`compiler` previews the compiled PDF instead, when
+    #: the compiler is installed.
     preview: str = 'text'
     #: Configured by ``opm init`` unless the user picks otherwise.
     scaffold: bool = False
     #: For a JSON mode, the rendering channel it records.
     channel: str | None = None
+    #: A program that can compile the output to PDF: ``'typst'`` runs
+    #: ``typst compile`` (see :mod:`opm.typst_compile`). ``opm transform``
+    #: compiles for a ``.pdf`` output file and for ``--preview``.
+    compiler: str | None = None
 
     @property
     def section(self) -> str:
@@ -181,6 +187,7 @@ RENDER_MODES: dict[str, OutputMode] = {
             collects_metadata=True,
             extension='.typ',
             scaffold=True,
+            compiler='typst',
         ),
     )
 }
@@ -219,7 +226,7 @@ def output_mode(name: str | None) -> OutputMode:
     try:
         return MODES[key]
     except KeyError:
-        known = ', '.join((*RENDER_MODES, JSON))
+        known = ', '.join(CONFIG_SECTIONS)
         raise ValueError(f'Unknown output mode {name!r}; expected one of {known}.') from None
 
 

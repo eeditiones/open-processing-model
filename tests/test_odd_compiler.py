@@ -104,8 +104,8 @@ def test_compile_web_mode_emits_output_mode() -> None:
 def test_compile_unknown_mode_is_an_error() -> None:
     from opm.odd_compiler import compile_odd
 
-    with pytest.raises(ValueError, match="Unknown output mode 'pdf'"):
-        compile_odd(str(ODD), output_mode='pdf')
+    with pytest.raises(ValueError, match="Unknown output mode 'latex'"):
+        compile_odd(str(ODD), output_mode='latex')
 
 
 def test_opm_output_prefix_matches_web_mode_in_document_order(tmp_path: Path) -> None:

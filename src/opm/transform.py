@@ -64,7 +64,7 @@ from __future__ import annotations
 import importlib.util
 from types import ModuleType
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Sequence, TypedDict
 
 from elementpath.tree_builders import get_node_tree
 from lxml import etree
@@ -79,24 +79,26 @@ from opm.output_modes import OutputMode, module_mode
 from opm.runtime.pm_runtime import serialize as _default_serialize
 from opm.runtime.xpath_env import XPathEnvironment
 from opm.template_rendering import (
+    DEFAULT_TEMPLATE_NAME,
+    DEFAULT_TYPST_TEMPLATE_NAME,
     render_document_template,
     render_typst_document_template,
     resolve_template_path,
 )
 
-# The run_transform() argument each kind of template goes to.
-_TEMPLATE_ARGUMENT = {
-    'html': 'template_path',
-    'typst': 'typst_template_path',
-    'docx': 'docx_template',
-}
+class TemplateArguments(TypedDict, total=False):
+    """The :func:`run_transform` argument each kind of template goes to."""
+
+    template_path: Path | None
+    typst_template_path: Path | None
+    docx_template: Path | None
 
 
 def template_arguments(
     mode: OutputMode,
     config: ProjectConfig,
     override: Path | None = None,
-) -> dict[str, Path | None]:
+) -> TemplateArguments:
     """The template argument :func:`run_transform` takes for a run in *mode*.
 
     *override* (``--template``) wins over the project's
@@ -104,14 +106,18 @@ def template_arguments(
     falls back to its packaged default inside :func:`run_transform`, and DOCX
     to the packaged Word style template. Modes that take no template get none.
     """
-    if mode.template is None:
+    if mode.template is None or mode.template_setting is None:
         return {}
     chosen = override if override is not None else getattr(config, mode.template_setting)
     if chosen is None and mode.template == 'docx':
         from opm.resources import packaged_default_docx
 
         chosen = packaged_default_docx()
-    return {_TEMPLATE_ARGUMENT[mode.template]: chosen}
+    if mode.template == 'typst':
+        return {'typst_template_path': chosen}
+    if mode.template == 'docx':
+        return {'docx_template': chosen}
+    return {'template_path': chosen}
 
 
 def load_transform_module(script_path: Path) -> ModuleType:
@@ -396,7 +402,8 @@ def run_transform(
 
     if apply_template and mode.template == 'typst':
         tpl = resolve_template_path(
-            typst_template_path, default_name=mode.default_template
+            typst_template_path,
+            default_name=mode.default_template or DEFAULT_TYPST_TEMPLATE_NAME,
         )
         out = render_typst_document_template(
             content_typst=out,
@@ -408,7 +415,7 @@ def run_transform(
         )
     elif apply_template and is_document and mode.template == 'html':
         tpl = resolve_template_path(
-            template_path, default_name=mode.default_template
+            template_path, default_name=mode.default_template or DEFAULT_TEMPLATE_NAME,
         )
         out = render_document_template(
             serialized_html=out,
@@ -526,8 +533,9 @@ def transform_file(
         config: Pre-loaded :class:`~opm.config.ProjectConfig`.
             When ``None``, ``opm.toml`` is loaded from the CWD.
 
-    Returns ``str`` for text output modes (HTML, Markdown) and ``bytes`` for
-    binary modes (DOCX, EPUB).
+    Returns ``str`` for text output modes (HTML, Markdown, Typst) and ``bytes``
+    for binary ones (DOCX, EPUB). To get a PDF, pass Typst output to
+    :func:`opm.typst_compile.compile_pdf`.
     """
     cfg = config if config is not None else load_project_config()
     mod = module if isinstance(module, ModuleType) else load_transform_module(module)
