@@ -14,7 +14,6 @@ import shutil
 import sys
 import tempfile
 import webbrowser
-from dataclasses import replace
 from pathlib import Path
 from typing import Annotated, Any, NoReturn, Optional, TYPE_CHECKING
 
@@ -31,14 +30,8 @@ except ImportError:  # typer < 0.27 still depends on the click package
     from click.exceptions import NoArgsIsHelpError, UsageError
 
 
-from opm.config import (
-    ChunkingConfig,
-    FragmentConfig,
-    ProjectConfig,
-    load_project_config,
-    resolve_base_css,
-)
-from opm.odd_cache import ResolvedTransform, resolve_transform_module
+from opm.config import load_project_config
+from opm.odd_cache import ResolvedTransform
 from opm.output_modes import CONFIG_SECTIONS, RENDER_MODES, OutputMode, module_mode, output_mode
 from opm.typst_compile import compile_pdf, typst_available, typst_executable
 from opm.resources import opm_version
@@ -50,12 +43,9 @@ from opm.scaffold import (
     VOCABULARIES,
     scaffold,
 )
-from opm.transform import (
-    load_transform_module,
-    transform_file,
-)
+from opm.project import CHUNK_FORMATS, Project, chunk_input_files
+from opm.transform import load_transform_module
 from opm.runtime.xpath_diagnostics import XPathErrorLog, collect_xpath_errors
-from opm.chunking import build_index, chunk_document
 
 app = typer.Typer(
     name='opm',
@@ -440,11 +430,13 @@ def _note(message: str) -> None:
     _stderr_message('note', 'bold yellow', message)
 
 
-def _load_config(path: Path | None) -> ProjectConfig:
-    """Load ``opm.toml`` and make its ``[project] pythonpath`` importable."""
-    cfg = load_project_config(path)
-    cfg.extend_sys_path()
-    return cfg
+def _load_project(path: Path | None) -> Project:
+    """Load the project in ``opm.toml``, rooted at the working directory.
+
+    The chunk output directory and ``styles/default-styles.css`` are found
+    from where opm runs, not from where the config file is.
+    """
+    return Project.load(path, root=Path.cwd())
 
 
 def _preview_output(out: str | bytes, mode: OutputMode) -> None:
@@ -695,70 +687,6 @@ def _apply_json_channel(transform_type: str | None, channel: str | None) -> str 
     return f'json-{picked}'
 
 
-def _resolve_cli_transform(
-    *,
-    cfg: ProjectConfig,
-    odd: Path | None,
-    transform_type: str | None,
-    base_css: str | None = None,
-) -> ResolvedTransform:
-    """Resolve ``--odd`` / config odd / packaged default for transform."""
-    mode = output_mode(transform_type).name
-
-    if odd is not None:
-        return resolve_transform_module(odd=odd, output_mode=mode, base_css=base_css)
-
-    cfg_odd = cfg.odd_for_type(mode)
-    if cfg_odd is not None:
-        return resolve_transform_module(odd=cfg_odd, output_mode=mode, base_css=base_css)
-
-    return resolve_transform_module(output_mode=mode, base_css=base_css)
-
-
-def _materialize_chunking_modules(
-    config: ChunkingConfig,
-    base_css: str | None = None,
-) -> tuple[ChunkingConfig, list[ResolvedTransform]]:
-    """Compile ``odd`` entries on *config* into runtime ``module`` paths."""
-    reported: list[ResolvedTransform] = []
-
-    main = resolve_transform_module(
-        odd=config.odd,
-        output_mode='web',
-        use_packaged_default=config.odd is None,
-        base_css=base_css,
-    )
-    reported.append(main)
-
-    new_fragments: list[FragmentConfig] | None = None
-    if config.fragments:
-        new_fragments = []
-        for frag in config.fragments:
-            if frag.odd is None:
-                new_fragments.append(replace(frag, module=None))
-                continue
-            resolved = resolve_transform_module(
-                odd=frag.odd,
-                output_mode=frag.mode,
-                use_packaged_default=False,
-                base_css=base_css,
-            )
-            reported.append(resolved)
-            new_fragments.append(replace(frag, module=resolved.module_path))
-
-    return (
-        replace(config, module=main.module_path, odd=config.odd, fragments=new_fragments),
-        reported,
-    )
-
-
-def _chunk_input_files(input_path: Path) -> list[Path]:
-    """Return XML files to process for ``opm chunk``."""
-    if input_path.is_dir():
-        return sorted(path for path in input_path.iterdir() if path.is_file() and path.suffix.lower() == '.xml')
-    return [input_path]
-
-
 def _corpus_files(input_path: Path | None) -> list[Path]:
     """XML files for a corpus-wide command (``opm index``, ``opm coverage``).
 
@@ -783,13 +711,6 @@ def _corpus_files(input_path: Path | None) -> list[Path]:
     if not files:
         _die(f'no XML files found in directory {source}.')
     return files
-
-
-def _append_doc_path(base_doc_path: str | None, xml_path: Path) -> str:
-    """Append the XML filename to a configured pb-view document path."""
-    if not base_doc_path:
-        return xml_path.name
-    return f'{base_doc_path.rstrip("/")}/{xml_path.name}'
 
 
 def _chunk_progress() -> Progress:
@@ -817,11 +738,6 @@ def _chunk_progress() -> Progress:
         console=console,
         disable=not console.is_terminal,
     )
-
-
-def _append_output_dir(base_output_dir: str, xml_path: Path) -> str:
-    """Append the XML filename to the chunk output directory."""
-    return f'{base_output_dir.rstrip("/")}/{xml_path.name}'
 
 
 def _prepare_chunk_output_dir(out_dir: Path, *, force: bool) -> None:
@@ -989,7 +905,7 @@ def transform_cmd(
 ) -> None:
     """Transform an XML document via an ODD with processing instructions and return the result (HTML, markdown, …)."""
     try:
-        cfg = _load_config(config)
+        project = _load_project(config)
 
         if input_xml is None:
             _die('input XML file is required.')
@@ -997,29 +913,21 @@ def transform_cmd(
         # --css / [transform] css replaces the packaged base rules, which are
         # compiled into the ODD stylesheet — so it has to be known before the
         # ODD is compiled, and it is part of the cache key.
-        # NB: cwd is the root only for the bare styles/default-styles.css
-        # fallback; a configured path is already absolute by this point.
-        effective_css = css if css is not None else cfg.document_css
+        if css is not None:
+            project = project.with_config(document_css=css)
         effective_type = _apply_json_channel(transform_type, channel)
-        resolved = _resolve_cli_transform(
-            cfg=cfg,
-            odd=odd,
-            transform_type=effective_type,
-            base_css=resolve_base_css(effective_css, Path.cwd()),
-        )
-        _report_resolved_module(resolved)
-        effective_script = resolved.module_path
+        _report_resolved_module(project.compile(effective_type, odd))
 
-        mod = load_transform_module(effective_script)
-        mode = module_mode(mod)
+        mode = module_mode(project.module(effective_type, odd))
         pdf, view = _pdf_request(mode, output, preview)
         if pdf:
             # Fail before transforming rather than after.
             typst_executable()
         with collect_xpath_errors() as xpath_log:
-            out = transform_file(
-                mod,
+            out = project.transform(
                 input_xml,
+                mode=effective_type,
+                odd=odd,
                 xpath=xpath,
                 # -p overrides [transform.parameters].
                 parameters=_parameters_from_cli(param or None),
@@ -1027,7 +935,6 @@ def transform_cmd(
                 xpath_extensions=xpath_extensions or None,
                 webcomponents=webcomponents,
                 template=template,
-                config=cfg,
             )
         if pdf:
             # Image paths in the output are the XML's own, relative to its directory.
@@ -1180,66 +1087,43 @@ def chunk(
 ) -> None:
     """Chunk a large XML document into smaller HTML pages or JSON data files."""
     try:
-        cfg = _load_config(config)
+        project = _load_project(config)
 
         if input_xml is None:
             _die('input XML file or directory is required.')
 
-        if not cfg.chunking:
+        chunking = project.config.chunking
+        if not chunking:
             _die('no [chunking] section found in config.')
         
-        # Override config with CLI options
-        chunking_config = cfg.chunking
-        if output_dir:
-            chunking_config.output_dir = str(output_dir)
-        if template:
-            chunking_config.template = template
-        if depth is not None:
-            chunking_config = replace(chunking_config, depth=depth)
-        if odd is not None:
-            chunking_config = replace(chunking_config, module=None, odd=odd)
-
-        chunking_config, resolved_list = _materialize_chunking_modules(
-            chunking_config, base_css=resolve_base_css(cfg.document_css, Path.cwd())
-        )
-        for resolved in resolved_list:
-            _report_resolved_module(resolved)
-
-        if output_format not in ('html', 'json', 'pb-view'):
+        if output_format not in CHUNK_FORMATS:
             _die(
                 '--format must be "html", "json" or "pb-view", '
                 f'got {output_format!r}'
             )
 
-        input_files = _chunk_input_files(input_xml)
+        modules = project.chunk_modules(odd)
+        for resolved in modules:
+            _report_resolved_module(resolved)
+
+        input_files = chunk_input_files(input_xml)
         if input_xml.is_dir():
             if not input_files:
                 _die(f'no XML files found in directory {input_xml}.')
 
-        out_dir = Path.cwd() / chunking_config.output_dir
+        # Asked here rather than left to Project.chunk, so the prompt comes
+        # before the progress display starts.
+        out_dir = project.chunk_output_dir(output_dir)
         _prepare_chunk_output_dir(out_dir, force=force)
-        
-        # Config templates are already resolved relative to the config file;
-        # a --template CLI path is relative to the current working directory.
-        effective_template = chunking_config.template
-        
-        effective_webcomponents = (
-            True if output_format in ('json', 'pb-view')
-            else (webcomponents if webcomponents is not None else (cfg.webcomponents_enabled or False))
-        )
-        effective_extensions: tuple[str, ...] | None = (
-            tuple(xpath_extensions) if xpath_extensions else None
-        )
 
-        # Chunk the document(s)
-        effective_chunk_script = chunking_config.module
+        module_path = modules[0].module_path
         if input_xml.is_dir():
             typer.echo(
                 f'Chunking {len(input_files)} XML files from {input_xml} '
-                f'using {effective_chunk_script or "module from config"}...'
+                f'using {module_path}...'
             )
         else:
-            typer.echo(f'Chunking {input_xml} using {effective_chunk_script or "module from config"}...')
+            typer.echo(f'Chunking {input_xml} using {module_path}...')
         # ``on_progress`` counts chunks *within one document*, so a directory run
         # gets a second task counting files — one bar per unit, rather than
         # trading chunk-level detail for a file count.
@@ -1252,92 +1136,57 @@ def chunk(
             # many chunks a document splits into. Until then the bar pulses.
             chunk_task = progress.add_task('Processing chunks', total=None)
 
+            def _on_document(position: int, xml_file: Path) -> None:
+                if file_task is None:
+                    return
+                progress.update(file_task, completed=position)
+                # `update` cannot clear a total, so the next document's first
+                # callback replaces it; zero the count so the bar restarts.
+                progress.update(
+                    chunk_task, completed=0, description=f'Chunking {xml_file.name}'
+                )
+
             def _on_progress(current: int, total: int) -> None:
                 progress.update(chunk_task, completed=current, total=total)
 
-            base_doc_path = doc_path or chunking_config.doc_path
-            # Built once and shared: templates test links against it.
-            run_documents = frozenset(path.name for path in input_files)
-
-            for xml_file in input_files:
-                if per_file:
-                    # `update` cannot clear a total, so the next document's first
-                    # callback replaces it; zero the count so the bar restarts.
-                    progress.update(
-                        chunk_task, completed=0, description=f'Chunking {xml_file.name}'
-                    )
-                if input_xml.is_dir() and output_format != 'pb-view':
-                    effective_chunking_config = replace(
-                        chunking_config,
-                        output_dir=_append_output_dir(chunking_config.output_dir, xml_file),
-                        link_doc=xml_file.name,
-                    )
-                else:
-                    # Single-file output into …/<name>.xml/ should still expand {doc}.
-                    out = Path(chunking_config.output_dir)
-                    effective_chunking_config = (
-                        replace(chunking_config, link_doc=xml_file.name)
-                        if out.name == xml_file.name
-                        else chunking_config
-                    )
-                effective_doc_path = (
-                    _append_doc_path(base_doc_path, xml_file)
-                    if input_xml.is_dir() and output_format == 'pb-view'
-                    else base_doc_path
-                )
-
-                chunk_document(
-                    module_path=chunking_config.module,
-                    xml_path=xml_file,
-                    config=effective_chunking_config,
-                    project_root=Path.cwd(),
-                    template_path=effective_template,
-                    on_progress=_on_progress,
-                    project_config=cfg,
-                    webcomponents=effective_webcomponents,
-                    xpath_extensions=effective_extensions,
-                    output_format=output_format,
-                    doc_path=effective_doc_path,
-                    documents=run_documents,
-                )
-                if file_task is not None:
-                    progress.advance(file_task)
-
-        # A directory run leaves one subdirectory per document, which the dev
-        # server would otherwise show as a bare listing. Writing index.html is
-        # enough: http.server prefers it over list_directory().
-        index_file: Path | None = None
-        if input_xml.is_dir() and output_format == 'html':
-            index_file = build_index(
-                out_dir,
-                template_path=chunking_config.index_template,
-                title=chunking_config.index_title or input_xml.name,
-                module_path=chunking_config.module,
-                project_config=cfg,
-                project_root=Path.cwd(),
-                chunking_config=chunking_config,
+            run = project.chunk(
+                input_xml,
+                format=output_format,
+                output_dir=output_dir,
+                # Unlike the configured one, a --template path is relative to
+                # the working directory.
+                template=template,
+                depth=depth,
+                odd=odd,
+                doc_path=doc_path,
+                webcomponents=webcomponents,
+                xpath_extensions=xpath_extensions,
+                overwrite=True,
+                on_document=_on_document,
+                on_progress=_on_progress,
             )
+            if file_task is not None:
+                progress.update(file_task, completed=len(input_files))
 
         typer.echo(f'Chunks written to {out_dir}/')
+        chunk_doc_path = doc_path or chunking.doc_path
         if output_format == 'pb-view':
             if input_xml.is_dir():
-                data_subdir = f'{(doc_path or chunking_config.doc_path or "").rstrip("/")}/<document>.xml/'
+                data_subdir = f'{(chunk_doc_path or "").rstrip("/")}/<document>.xml/'
                 if data_subdir.startswith('/'):
                     data_subdir = data_subdir[1:]
             else:
-                effective_doc_path = doc_path or chunking_config.doc_path
-                data_subdir = f'{effective_doc_path}/' if effective_doc_path else ''
+                data_subdir = f'{chunk_doc_path}/' if chunk_doc_path else ''
             typer.echo(f'  - {data_subdir}index.json: pb-view lookup table')
             typer.echo(f'  - {data_subdir}<xml:id>.json: part files')
-            resolved_module = chunking_config.module
-            odd_name = getattr(load_transform_module(resolved_module), 'ODD_NAME', '') if resolved_module else ''
+            odd_name = getattr(load_transform_module(module_path), 'ODD_NAME', '')
             typer.echo(f'  - css/{odd_name}.css: ODD stylesheet')
         else:
             ext = 'json' if output_format == 'json' else 'html'
             if input_xml.is_dir():
                 typer.echo('  - <document>.xml/manifest.json: metadata for page navigation and linking')
                 typer.echo(f'  - <document>.xml/*.{ext}: chunk files')
-                if index_file is not None:
+                if run.index_file is not None:
                     typer.echo('  - index.html: collection index served at the site root')
             else:
                 typer.echo('  - manifest.json: metadata for page navigation and linking')
@@ -1527,10 +1376,11 @@ def index_cmd(
     """
     import json
 
-    from opm.indexing import IndexOptions, index_document, write_jsonl
+    from opm.indexing import IndexOptions, write_jsonl
 
     try:
-        cfg = _load_config(config)
+        project = _load_project(config)
+        cfg = project.config
 
         input_files = _corpus_files(input_xml)
 
@@ -1540,14 +1390,8 @@ def index_cmd(
             overlap=overlap if overlap is not None else cfg.index_overlap,
             fields=cfg.index_fields,
         )
-        records: list[dict] = []
         with collect_xpath_errors() as xpath_log:
-            for path in input_files:
-                records.extend(
-                    index_document(
-                        path, cfg=cfg, odd=odd, project_root=Path.cwd(), options=options,
-                    ),
-                )
+            records = project.index(input_files, odd=odd, options=options)
 
         if output:
             from rich.console import Console
@@ -1808,26 +1652,19 @@ def coverage_cmd(
     """
     import json
 
-    from opm.coverage import analyze
-
     try:
-        cfg = _load_config(config)
+        project = _load_project(config)
 
         mode = _apply_json_channel('json', channel) or 'json'
         input_files = _corpus_files(input_xml)
 
-        resolved = _resolve_cli_transform(cfg=cfg, odd=odd, transform_type=mode)
-        _report_resolved_module(resolved)
+        _report_resolved_module(project.compile(mode, odd))
 
         # A predicate that raises counts as false, which can make a model look
         # unused; the errors are listed after the report so that shows.
         with collect_xpath_errors() as xpath_log:
-            report = analyze(
-                input_files,
-                cfg=cfg,
-                odd=resolved.source_odd,
-                output_mode=mode,
-                parameters=_parameters_from_cli(param),
+            report = project.coverage(
+                input_files, mode=mode, odd=odd, parameters=_parameters_from_cli(param),
             )
 
         if as_json:

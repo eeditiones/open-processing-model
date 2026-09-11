@@ -78,6 +78,27 @@ class ManifestData:
 
 
 class ChunkProcessor:
+    """Splits one document into chunks and writes them in one output format.
+
+    Most callers want :meth:`opm.project.Project.chunk` or
+    :func:`chunk_document`, which build one of these. Use it directly to
+    select chunks (:meth:`select_chunks`) or read their metadata without
+    writing anything.
+
+    Args:
+        module_path: The compiled transform module for chunk content.
+        xml_root: Root element of the parsed document.
+        config: The ``[chunking]`` settings, with fragment modules compiled.
+        project_root: The directory ``config.output_dir`` is relative to.
+        project_config: The project settings (parameters, template context).
+        webcomponents: Enable web-component mode.
+        xpath_env: The XPath environment to evaluate in; see
+            :func:`opm.transform.project_xpath_env`.
+        source_dir: Directory of the source file, for copying images.
+        documents: Names of every document in the run, for the templates.
+        document: Name of this document's source file.
+    """
+
     def __init__(
         self,
         module_path: Path,
@@ -1291,21 +1312,34 @@ def chunk_document(
     names every document of the run (``serafin01.xml``, …) and reaches the
     template as ``documents``; pass the same set for each document of a
     directory run. It defaults to just *xml_path*.
+
+    ODDs in *config* (the main one and the fragments') that have no compiled
+    module yet are compiled here. :meth:`opm.project.Project.chunk` handles
+    a whole directory the way ``opm chunk`` does.
     """
+    from dataclasses import replace
+
+    from opm.config import resolve_base_css
+    from opm.odd_cache import ensure_compiled_module
+
+    # Same base override the CLI applies, so calling this directly as a
+    # library gives the same stylesheet as `opm chunk`.
+    base_css = resolve_base_css((project_config or ProjectConfig()).document_css, project_root)
     resolved_module = module_path or config.module
     if resolved_module is None and config.odd is not None:
-        from opm.config import resolve_base_css
-        from opm.odd_cache import ensure_compiled_module
-
-        # Same base override the CLI applies, so calling this directly as a
-        # library gives the same stylesheet as `opm chunk`.
         resolved_module, _ = ensure_compiled_module(
-            config.odd,
-            output_mode='web',
-            base_css=resolve_base_css(
-                (project_config or ProjectConfig()).document_css, project_root
-            ),
+            config.odd, output_mode='web', base_css=base_css,
         )
+    if config.fragments and any(f.odd and f.module is None for f in config.fragments):
+        config = replace(config, fragments=[
+            replace(
+                fragment,
+                module=ensure_compiled_module(
+                    fragment.odd, output_mode=fragment.mode, base_css=base_css,
+                )[0],
+            ) if fragment.odd and fragment.module is None else fragment
+            for fragment in config.fragments
+        ])
     if resolved_module is None:
         raise ValueError(
             'No transform module specified. Pass a module path, set chunking.odd '

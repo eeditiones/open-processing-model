@@ -26,9 +26,12 @@ import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from lxml import etree
+
+if TYPE_CHECKING:
+    from opm.config import ProjectConfig
 
 # Behaviours that open a new retrievable unit.
 _UNIT_BOUNDARIES = frozenset({'section', 'body', 'document'})
@@ -514,12 +517,17 @@ def _chunk_processor(root, module_path: Path, cfg, project_root: Path):
 def index_document(
     xml_path: Path,
     *,
-    cfg,
+    cfg: ProjectConfig,
     odd: Path | None = None,
     project_root: Path | None = None,
     options: IndexOptions | None = None,
+    base_css: str | None = None,
 ) -> list[dict]:
     """Transform *xml_path* in ``json`` mode and roll the records up for indexing.
+
+    :meth:`opm.project.Project.index` runs this over a corpus. *odd* replaces
+    ``[transform.json] odd``, *options* the ``[index]`` settings, and
+    *base_css* is passed on to the compiler.
 
     Where the project chunks its output, each chunk is transformed on its own
     and tagged with the file it will be published as. That is what makes a
@@ -547,6 +555,7 @@ def index_document(
         odd=resolved_odd,
         output_mode='json',
         use_packaged_default=resolved_odd is None,
+        base_css=base_css,
     )
     module = load_transform_module(resolved.module_path)
 
@@ -594,6 +603,7 @@ def index_document(
 
 
 def write_jsonl(records: list[dict], path: Path) -> None:
+    """Write *records* to *path*, one JSON object per line (UTF-8)."""
     with path.open('w', encoding='utf-8') as handle:
         for record in records:
             handle.write(json.dumps(record, ensure_ascii=False))

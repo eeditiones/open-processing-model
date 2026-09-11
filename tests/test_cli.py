@@ -873,7 +873,7 @@ output_dir = "chunks"
         out.mkdir(parents=True, exist_ok=True)
         (out / 'manifest.json').write_text('{"chunks":[]}', encoding='utf-8')
 
-    monkeypatch.setattr('opm.cli.chunk_document', _fake_chunk_document)
+    monkeypatch.setattr('opm.project.chunk_document', _fake_chunk_document)
 
     rc = main(['chunk', 'doc.xml', '--depth', '1', '-c', 'opm.toml'])
 

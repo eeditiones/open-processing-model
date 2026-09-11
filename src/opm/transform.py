@@ -3,7 +3,9 @@
 
 """Core transform API — import this to drive transforms from your own Python scripts.
 
-Three entry points at increasing levels of abstraction:
+Most callers want :meth:`opm.Project.transform`, which also compiles the
+ODD and keeps the loaded module and registers between calls. The functions
+here are the layer below it, at increasing levels of abstraction:
 
 ``run_transform(mod, element, ...)``
     Lowest level. Caller supplies an already-loaded module and an already-selected
@@ -509,6 +511,7 @@ def transform_file(
     webcomponents: bool | None = None,
     template: Path | None = None,
     config: ProjectConfig | None = None,
+    documents: tuple[dict[str, Any], dict[str, list]] | None = None,
 ) -> str | bytes:
     """Transform *xml_path* (or an XPath-selected element within it) with the project's settings.
 
@@ -532,31 +535,68 @@ def transform_file(
         template: Template override (see :func:`template_arguments`).
         config: Pre-loaded :class:`~opm.config.ProjectConfig`.
             When ``None``, ``opm.toml`` is loaded from the CWD.
+        documents: A :func:`load_project_documents` result to reuse instead
+            of parsing the registers again.
 
     Returns ``str`` for text output modes (HTML, Markdown, Typst) and ``bytes``
     for binary ones (DOCX, EPUB). To get a PDF, pass Typst output to
     :func:`opm.typst_compile.compile_pdf`.
     """
-    cfg = config if config is not None else load_project_config()
-    mod = module if isinstance(module, ModuleType) else load_transform_module(module)
+    return transform_with_config(
+        module if isinstance(module, ModuleType) else load_transform_module(module),
+        etree.parse(str(xml_path)).getroot(),
+        xml_path,
+        config if config is not None else load_project_config(),
+        xpath=xpath,
+        parameters=parameters,
+        xpath_extensions=xpath_extensions,
+        webcomponents=webcomponents,
+        template=template,
+        documents=documents,
+    )
+
+
+def transform_with_config(
+    mod: ModuleType,
+    root: etree._Element,
+    xml_path: Path | None,
+    config: ProjectConfig,
+    *,
+    xpath: str | None = None,
+    parameters: dict[str, str] | None = None,
+    xpath_extensions: Sequence[str] | None = None,
+    webcomponents: bool | None = None,
+    template: Path | None = None,
+    documents: tuple[dict[str, Any], dict[str, list]] | None = None,
+) -> str | bytes:
+    """Transform the already parsed *root* with *config*'s settings.
+
+    The part of :func:`transform_file` after parsing, shared with
+    :meth:`opm.project.Project.transform`. *xml_path* is the file *root* was
+    read from, if any: ``doc()`` resolves against it and it becomes
+    ``$parameters?input_path``.
+    """
     mode = module_mode(mod)
 
-    enabled = webcomponents if webcomponents is not None else bool(cfg.webcomponents_enabled)
+    enabled = webcomponents if webcomponents is not None else bool(config.webcomponents_enabled)
     effective_webcomponents = enabled and mode.webcomponents
-    merged_parameters = dict(cfg.parameters)
+    merged_parameters = dict(config.parameters)
     merged_parameters.update(parameters or {})
-    merged_parameters.setdefault('input_path', str(xml_path))
+    if xml_path is not None:
+        merged_parameters.setdefault('input_path', str(xml_path))
 
     return transform_node(
         mod,
-        etree.parse(str(xml_path)).getroot(),
+        root,
         xpath=xpath,
         parameters=merged_parameters,
         webcomponents=effective_webcomponents,
-        template_context=cfg.context_for(mode.name, webcomponents=effective_webcomponents),
-        **template_arguments(mode, cfg, template),
-        xpath_env=project_xpath_env(cfg, xml_path, extensions=xpath_extensions),
-        epub_chunking=cfg.epub_chunking,
-        epub_css=cfg.epub_css,
-        epub_skip_title=cfg.epub_skip_title,
+        template_context=config.context_for(mode.name, webcomponents=effective_webcomponents),
+        **template_arguments(mode, config, template),
+        xpath_env=project_xpath_env(
+            config, xml_path, extensions=xpath_extensions, documents=documents,
+        ),
+        epub_chunking=config.epub_chunking,
+        epub_css=config.epub_css,
+        epub_skip_title=config.epub_skip_title,
     )

@@ -95,6 +95,12 @@ class FragmentConfig:
 
 @dataclass
 class ChunkingConfig:
+    """The ``[chunking]`` section: how ``opm chunk`` splits a document into pages.
+
+    Relative paths are resolved against the config file's directory, except
+    ``output_dir``, which is relative to the project root.
+    """
+
     xpath: str | None = None
     xpath_dynamic: str | None = None
     """The ``xpath`` the consuming ``pb-view`` sends, when it differs from *xpath*.
@@ -254,6 +260,14 @@ def _string_list(value, label: str) -> list[str]:
 
 @dataclass
 class ProjectConfig:
+    """The settings in ``opm.toml``, as :func:`load_project_config` reads them.
+
+    Every field has a default, so ``ProjectConfig()`` is a project with no
+    config file. Paths are already resolved against the config file's
+    directory. To run anything with these settings, pass them to
+    :class:`opm.project.Project`.
+    """
+
     webcomponents_enabled: bool | None = None
     webcomponents_cdn: str | None = None
     template_context: dict[str, Any] = field(default_factory=dict)

@@ -437,12 +437,14 @@ def analyze(
     odd: Path | None = None,
     output_mode: str = 'json',
     parameters: dict | None = None,
+    base_css: str | None = None,
 ) -> CoverageReport:
     """Run *paths* through the ODD in JSON mode and report on the outcome.
 
     *output_mode* is a JSON mode (``json``, ``json-typst``, …); the channel it
     inspects decides which ``@output``-tagged models participate, so a coverage
-    run is always about one channel.
+    run is always about one channel. *base_css* is passed on to the compiler
+    (see :func:`~opm.odd_cache.resolve_transform_module`).
     """
     from opm.config import ProjectConfig
     from opm.odd_cache import resolve_transform_module
@@ -458,6 +460,7 @@ def analyze(
         odd=resolved_odd,
         output_mode=output_mode,
         use_packaged_default=resolved_odd is None,
+        base_css=base_css,
     )
     module = load_transform_module(resolved.module_path)
     odd_path = Path(resolved.source_odd) if resolved.source_odd else Path('(module)')
