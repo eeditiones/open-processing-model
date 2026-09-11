@@ -857,9 +857,9 @@ class DocxOutputFunctions(ProcessingModelFunctions):
     def metadata(self, config, node, cls, content, key=None) -> PMResult:
         """Collect a header value under *key* instead of emitting body content.
 
-        Mirrors :meth:`TypstOutputFunctions.metadata`: the ODD names the field,
+        Mirrors `TypstOutputFunctions.metadata`: the ODD names the field,
         the collected text lands in ``config.state.metadata`` and is
-        mapped onto the ``.docx`` core properties by :meth:`finish`.
+        mapped onto the ``.docx`` core properties by [`finish`][opm.runtime.docx_output_functions.DocxOutputFunctions.finish].
         """
         if key:
             self._ensure_styles(config)
@@ -1048,7 +1048,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
     _CORE_PROPERTY_MAX = 255
 
     def _apply_core_properties(self, config: dict, doc) -> None:
-        """Map values collected by :meth:`metadata` onto the document properties."""
+        """Map values collected by [`metadata`][opm.runtime.docx_output_functions.DocxOutputFunctions.metadata] onto the document properties."""
         collected = config.state.metadata
         for key, values in collected.items():
             prop = self._CORE_PROPERTY_KEYS.get(str(key).lower())
@@ -1261,7 +1261,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
 
         The part is also related from ``document.xml`` so python-docx serializes it
         into the package; the footnote's own relationship is written separately by
-        :meth:`_inject_footnotes_rels`.
+        `_inject_footnotes_rels`.
         """
         import os  # noqa: PLC0415
 
@@ -1300,11 +1300,11 @@ class DocxOutputFunctions(ProcessingModelFunctions):
     ) -> list[tuple[str, str, bool]]:
         """Resolve hyperlink and image sentinels inside footnote content.
 
-        Body sentinels are handled by :meth:`_replace_hyperlink_sentinels` /
-        :meth:`_replace_image_sentinels`, which register targets on ``document.xml``'s
+        Body sentinels are handled by `_replace_hyperlink_sentinels` /
+        `_replace_image_sentinels`, which register targets on ``document.xml``'s
         relationship part.  A ``w:hyperlink`` or ``w:drawing`` inside ``footnotes.xml``
         must instead reference ``word/_rels/footnotes.xml.rels``, so ids are allocated
-        here and returned for :meth:`_inject_footnotes_rels` to write out.  Left in
+        here and returned for `_inject_footnotes_rels` to write out.  Left in
         place, a sentinel is an element outside the OOXML namespaces and Word offers
         to repair the file.
 

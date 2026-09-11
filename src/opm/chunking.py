@@ -80,9 +80,9 @@ class ManifestData:
 class ChunkProcessor:
     """Splits one document into chunks and writes them in one output format.
 
-    Most callers want :meth:`opm.project.Project.chunk` or
-    :func:`chunk_document`, which build one of these. Use it directly to
-    select chunks (:meth:`select_chunks`) or read their metadata without
+    Most callers want [`opm.project.Project.chunk`][opm.project.Project.chunk] or
+    [`chunk_document`][opm.chunking.chunk_document], which build one of these. Use it directly to
+    select chunks ([`select_chunks`][opm.chunking.ChunkProcessor.select_chunks]) or read their metadata without
     writing anything.
 
     Args:
@@ -93,7 +93,7 @@ class ChunkProcessor:
         project_config: The project settings (parameters, template context).
         webcomponents: Enable web-component mode.
         xpath_env: The XPath environment to evaluate in; see
-            :func:`opm.transform.project_xpath_env`.
+            [`opm.transform.project_xpath_env`][opm.transform.project_xpath_env].
         source_dir: Directory of the source file, for copying images.
         documents: Names of every document in the run, for the templates.
         document: Name of this document's source file.
@@ -183,7 +183,7 @@ class ChunkProcessor:
         """Original document node that *node* was copied from, else *node*.
 
         tei-publisher-lib binds this as ``$parameters?root``. Intro copies from
-        :func:`opm.navigation.dbk_section_chunks` keep the source ``xml:id``.
+        [`opm.navigation.dbk_section_chunks`][opm.navigation.dbk_section_chunks] keep the source ``xml:id``.
         """
         if node.getroottree().getroot() is self.xml_root:
             return node
@@ -207,7 +207,7 @@ class ChunkProcessor:
         expression from the chunking config is evaluated.
 
         Selectors that rebuild a region as a detached tree record copy → source
-        in :mod:`opm.runtime.source_map` while they build, which is what lets
+        in `opm.runtime.source_map` while they build, which is what lets
         ``$get()`` in an ODD step back to the stored document. The map holds
         both trees alive, so it is reset here — once per document, before the
         selector runs.
@@ -251,11 +251,11 @@ class ChunkProcessor:
         return self.output_dir.parent if self.config.link_doc else self.output_dir
 
     def url_prefix(self) -> str:
-        """Return the relative path from a chunk page back to :meth:`shared_root`."""
+        """Return the relative path from a chunk page back to [`shared_root`][opm.chunking.ChunkProcessor.shared_root]."""
         return '../' if self.config.link_doc else ''
 
     def write_shared_files(self) -> dict[str, str]:
-        """Write stylesheets and copy assets into :meth:`shared_root`.
+        """Write stylesheets and copy assets into [`shared_root`][opm.chunking.ChunkProcessor.shared_root].
 
         Chunking always produces several pages sharing one stylesheet, so the
         stylesheets are always written as files — the same thing
@@ -264,7 +264,7 @@ class ChunkProcessor:
         stays available so a template that inlines it keeps working. Stylesheets
         among ``config.assets`` are listed in ``asset_styles``, in declared
         order. ``index_url`` points back at the collection index a directory
-        run writes at :meth:`shared_root` (see ``build_index``) — empty for a
+        run writes at [`shared_root`][opm.chunking.ChunkProcessor.shared_root] (see ``build_index``) — empty for a
         single-document run, which has no such page to link to.
 
         Safe to call once per document in a directory run — the writes are
@@ -307,7 +307,7 @@ class ChunkProcessor:
         return urls
 
     def copy_referenced_images(self, html: str) -> None:
-        """Copy the local images *html* references into :attr:`output_dir`.
+        """Copy the local images *html* references into `output_dir`.
 
         An ``img/@src`` is written relative to the source document, and the
         chunk pages sit flat in the output directory, so each image goes to the
@@ -363,13 +363,13 @@ class ChunkProcessor:
         document in a directory run, but browse/index models need to know which
         document they are describing. Two things happen here:
 
-        * ``doc`` defaults to :meth:`entry_href` when not set explicitly. The
+        * ``doc`` defaults to [`entry_href`][opm.chunking.ChunkProcessor.entry_href] when not set explicitly. The
           ``display='browse'`` models in the stock ODDs build their link as
           ``<param name="uri" value="$parameters?doc"/>``, so declaring the
           fragment is enough to get a working href.
         * ``{doc}``, ``{doc_stem}``, ``{file}`` and ``{stem}`` placeholders are
           expanded in string values, using the same vocabulary as
-          :attr:`ChunkingConfig.link_pattern`. This is how an absolute or
+          [`ChunkingConfig.link_pattern`][opm.config.ChunkingConfig.link_pattern]. This is how an absolute or
           TEI-Publisher-style scheme is configured, e.g.
           ``parameters = { display = "browse", doc = "/exist/apps/x/{doc}/{stem}" }``.
 
@@ -950,7 +950,7 @@ class ChunkProcessor:
 
         Used for per-chunk fragments such as breadcrumbs (``xpath="."``): the
         expression is evaluated against each chunk, matching
-        :meth:`process_fragment`, rather than pre-selected once from the
+        [`process_fragment`][opm.chunking.ChunkProcessor.process_fragment], rather than pre-selected once from the
         document root (which would yield a single node and skip later chunks).
         """
         return xpath.strip() in ('.', './', 'self::node()', 'self::*')
@@ -1037,7 +1037,7 @@ class ChunkProcessor:
           (e.g. ``toc.json``), keyed by the fragment xpath and ``user.*`` params;
           a sibling ``<name>.html`` carries the same content as well-formed XML,
           for consumers that store it in an XML database (see
-          :func:`_wellformed_fragment_xml`)
+          `_wellformed_fragment_xml`)
         - ``<output_dir>/<doc_path>/<name>-<xml:id>.json`` — per-chunk fragments
         - ``<output_dir>/css/<odd>.css`` — stylesheet, shared by every document
           under the same static root
@@ -1314,7 +1314,7 @@ def chunk_document(
     directory run. It defaults to just *xml_path*.
 
     ODDs in *config* (the main one and the fragments') that have no compiled
-    module yet are compiled here. :meth:`opm.project.Project.chunk` handles
+    module yet are compiled here. [`opm.project.Project.chunk`][opm.project.Project.chunk] handles
     a whole directory the way ``opm chunk`` does.
     """
     from dataclasses import replace
@@ -1390,7 +1390,7 @@ def _humanise(stem: str) -> str:
 
 
 def collect_index_entries(output_dir: Path) -> list[IndexEntry]:
-    """Collect one :class:`IndexEntry` per chunked document under *output_dir*.
+    """Collect one [`IndexEntry`][opm.chunking.IndexEntry] per chunked document under *output_dir*.
 
     Reads the ``manifest.json`` each document run writes, so this works on any
     existing output directory without re-chunking. Directories without a
@@ -1486,11 +1486,11 @@ def build_index(
 def build_index_json(output_dir: Path, *, title: str | None = None) -> Path | None:
     """Write ``<output_dir>/index.json`` listing every chunked document.
 
-    The JSON counterpart of :func:`build_index`. A directory run splits its
+    The JSON counterpart of [`build_index`][opm.chunking.build_index]. A directory run splits its
     documents into one subdirectory each, and nothing at the root says what they
     are or what order they belong in — a static site generator would have to
     rediscover that by scanning. This writes it once, from the same
-    :func:`collect_index_entries` the HTML index is built from, so both agree.
+    [`collect_index_entries`][opm.chunking.collect_index_entries] the HTML index is built from, so both agree.
 
     Returns the path written, or *None* when *output_dir* holds no chunked
     documents.

@@ -23,7 +23,7 @@ class PrintOutputFunctions(HtmlOutputFunctions):
     def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
         """Emit note as an inline span for CSS ``float: footnote`` / margin notes.
 
-        Unlike :meth:`HtmlOutputFunctions.note`, does not build callout links or
+        Unlike [`HtmlOutputFunctions.note`][opm.runtime.html_output_functions.HtmlOutputFunctions.note], does not build callout links or
         append bodies to ``config.state.footnotes``.
         """
         _ = label

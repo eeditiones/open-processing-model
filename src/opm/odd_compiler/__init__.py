@@ -42,7 +42,7 @@ def compile_odd(
         base_css: Rules prepended to the generated stylesheet, replacing the
             packaged default. ``None`` keeps the packaged default.
         diagnostics: When given, receives one
-            :class:`~opm.odd_compiler.expression_check.UnsupportedExpression`
+            `UnsupportedExpression`
             per expression the generator compiled out because opm can never
             evaluate it.
 

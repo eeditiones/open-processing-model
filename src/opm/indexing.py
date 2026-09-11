@@ -115,7 +115,7 @@ class _Unit:
     parts: list[tuple[str, str | None, str | None]] = field(default_factory=list)
     """``(text, xml_id, xpath)`` per contributing record, so a split keeps its anchor."""
     kind: str | None = None
-    """Name of the :class:`FieldSpec` this unit was extracted by, if any."""
+    """Name of the [`FieldSpec`][opm.indexing.FieldSpec] this unit was extracted by, if any."""
     parent: '_Unit | None' = None
     """The passage an extracted unit was taken out of."""
     fields: dict[str, list[str]] = field(default_factory=dict)
@@ -525,7 +525,7 @@ def index_document(
 ) -> list[dict]:
     """Transform *xml_path* in ``json`` mode and roll the records up for indexing.
 
-    :meth:`opm.project.Project.index` runs this over a corpus. *odd* replaces
+    [`opm.project.Project.index`][opm.project.Project.index] runs this over a corpus. *odd* replaces
     ``[transform.json] odd``, *options* the ``[index]`` settings, and
     *base_css* is passed on to the compiler.
 

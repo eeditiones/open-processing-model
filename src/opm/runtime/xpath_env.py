@@ -3,7 +3,7 @@
 
 """Evaluate ODD XPath against a document, with everything it depends on bound once.
 
-An :class:`XPathEnvironment` holds what an expression may reach beyond the node
+An [`XPathEnvironment`][opm.runtime.xpath_env.XPathEnvironment] holds what an expression may reach beyond the node
 it is evaluated on: the source document's URI, the documents and collections
 ``doc()`` and ``collection()`` can open, project variables and namespace
 prefixes, the ``tp:`` extension modules, the ``$parameters`` map, and the node
@@ -15,12 +15,12 @@ the parameters cache key are now computed when the environment is made.
 The environment also owns the per-document caches — the elementpath node tree
 wrapped around each lxml document, the ``$parameters`` maps, the index
 ``fn:id()`` answers from — so they are freed with the run instead of accumulating in
-module globals for the life of the process. :meth:`XPathEnvironment.with_root`
-and :meth:`XPathEnvironment.with_parameters` return cheap views sharing those
+module globals for the life of the process. [`XPathEnvironment.with_root`][opm.runtime.xpath_env.XPathEnvironment.with_root]
+and [`XPathEnvironment.with_parameters`][opm.runtime.xpath_env.XPathEnvironment.with_parameters] return cheap views sharing those
 caches, which is how a chunked document binds each chunk's source node without
 rebuilding anything.
 
-Parsed expressions stay in a bounded module-level cache (:func:`compiled_xpath`):
+Parsed expressions stay in a bounded module-level cache ([`compiled_xpath`][opm.runtime.xpath_env.compiled_xpath]):
 they depend on strings only, never on a document.
 """
 
@@ -47,7 +47,7 @@ from .xpath_extensions import (
 from .xpath_parser import IdIndex, build_id_index
 
 #: Errors that mean "this project did not configure it": an unbound prefix, an
-#: unbound variable, an unknown collection. See :meth:`XPathEnvironment.select_or_node`.
+#: unbound variable, an unknown collection. See [`XPathEnvironment.select_or_node`][opm.runtime.xpath_env.XPathEnvironment.select_or_node].
 UNCONFIGURED_CODES = ('XPST0081', 'XPST0008', 'FODC0002')
 
 # Minimal tree used only to parse ``map{...}`` into an XPathMap for ``$parameters``.
@@ -230,7 +230,7 @@ class DocumentCache:
     """Wrapped node trees, ``$parameters`` maps and xml:id indexes for one run.
 
     Keyed by the lxml element object, never by ``id()``: lxml recycles proxy
-    objects, so ids collide across nodes (see :mod:`opm.runtime.source_map`).
+    objects, so ids collide across nodes (see `opm.runtime.source_map`).
     A wrapped tree keeps its document alive, so an entry stays valid for as
     long as the cache — and with it the run's environment — exists.
     """
@@ -262,11 +262,11 @@ class XPathEnvironment:
         base_uri: URI of the source document; ``document-uri()`` and relative
             ``doc()`` arguments resolve against it.
         documents: ``doc()`` targets by absolute URI, already wrapped (see
-            :func:`opm.transform.load_xpath_documents`).
+            [`opm.transform.load_xpath_documents`][opm.transform.load_xpath_documents]).
         collections: ``collection()`` members by URI.
         variables: XPath variables, keys in Clark notation (``{ns}local``).
         namespaces: Project prefixes (``[transform.namespaces]``); they win
-            over the ODD's own declarations, see :meth:`for_odd`.
+            over the ODD's own declarations, see [`for_odd`][opm.runtime.xpath_env.XPathEnvironment.for_odd].
         extensions: Dotted module paths whose public callables become ``tp:``
             functions.
         parameters: Bound as ``$parameters``.
@@ -366,7 +366,7 @@ class XPathEnvironment:
     def id_index(self, root: XPathNode) -> IdIndex:
         """``fn:id()``'s index of the node tree under *root*, built once per run.
 
-        See :func:`~opm.runtime.xpath_parser.build_id_index`.
+        See `build_id_index`.
         """
         hit = self._cache.id_indexes.get(id(root))
         if hit is None:
@@ -442,7 +442,7 @@ class XPathEnvironment:
         )
 
     def evaluate(self, node: etree._Element, expr: str) -> list:
-        """Raw elementpath results; raises :class:`elementpath.ElementPathError`."""
+        """Raw elementpath results; raises `elementpath.ElementPathError`."""
         token = self.compile(expr, node)
         context = self.context(node)
         reset = _CURRENT.set(self)
@@ -485,7 +485,7 @@ class XPathEnvironment:
             return []
 
     def select_all(self, node: etree._Element, expr: str) -> list:
-        """Like :meth:`select`, but always a list."""
+        """Like [`select`][opm.runtime.xpath_env.XPathEnvironment.select], but always a list."""
         try:
             return _pipeline_values(self.evaluate(node, expr))
         except elementpath.ElementPathError as exc:
@@ -493,12 +493,12 @@ class XPathEnvironment:
             return []
 
     def select_or_node(self, node: etree._Element, expr: str):
-        """Like :meth:`select`, but *node* itself when *expr* is unconfigured.
+        """Like [`select`][opm.runtime.xpath_env.XPathEnvironment.select], but *node* itself when *expr* is unconfigured.
 
         Used for ODD params that read ``collection()`` or an external variable
         (``$global:register-root`` and friends), which resolve only once the
         project configures them. Without that configuration the expression
-        raises one of :data:`UNCONFIGURED_CODES`, and the fallback to the
+        raises one of `UNCONFIGURED_CODES`, and the fallback to the
         context node is what the bundled teipublisher.odd relies on for its
         in-document listPerson register. Any other error gives the empty
         sequence, so a broken expression is not replaced by the whole element.

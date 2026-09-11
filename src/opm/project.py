@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 e-editiones
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""The supported way to drive opm from Python: :class:`Project`.
+"""The supported way to drive opm from Python: [`Project`][opm.project.Project].
 
 A specific project configuration and associated methods. Each method does
 what the command of the same name does, taking the same settings from the
@@ -15,8 +15,8 @@ config::
     run = project.chunk('data/letters', format='json', overwrite=True)
     records = project.index('data')
 
-The lower-level functions in :mod:`opm.transform`, :mod:`opm.chunking` and
-:mod:`opm.indexing` stay available for callers that need finer control.
+The lower-level functions in [`opm.transform`][opm.transform], [`opm.chunking`][opm.chunking] and
+[`opm.indexing`][opm.indexing] stay available for callers that need finer control.
 """
 
 from __future__ import annotations
@@ -56,13 +56,13 @@ if TYPE_CHECKING:
 #: An XML input: a file, or a tree or element parsed with lxml.
 Source = Union[Path, str, etree._Element, etree._ElementTree]
 
-#: The ``format`` values :meth:`Project.chunk` accepts.
+#: The ``format`` values [`Project.chunk`][opm.project.Project.chunk] accepts.
 CHUNK_FORMATS = ('html', 'json', 'pb-view')
 
 
 @dataclass(frozen=True)
 class ChunkRun:
-    """What :meth:`Project.chunk` wrote."""
+    """What [`Project.chunk`][opm.project.Project.chunk] wrote."""
 
     output_dir: Path
     """Root of the output. A directory run writes one subdirectory per document."""
@@ -92,7 +92,7 @@ def chunk_input_files(source: Path) -> list[Path]:
 
 
 def _corpus_files(sources: Path | str | Iterable[Path | str]) -> list[Path]:
-    """Files for :meth:`Project.index` and :meth:`Project.coverage`.
+    """Files for [`Project.index`][opm.project.Project.index] and [`Project.coverage`][opm.project.Project.coverage].
 
     A directory stands for every ``*.xml`` file below it, subdirectories
     included, since corpora are often filed in them.
@@ -159,7 +159,7 @@ class Project:
 
     An XPath expression that fails at run time counts as false or empty, as
     it does in the CLI. To see which ones failed, wrap the calls in
-    :func:`~opm.runtime.xpath_diagnostics.collect_xpath_errors`::
+    [`collect_xpath_errors`][opm.runtime.xpath_diagnostics.collect_xpath_errors]::
 
         from opm import Project, collect_xpath_errors
 
@@ -171,7 +171,7 @@ class Project:
 
     Relative paths given to the methods are relative to the current
     directory, as usual in Python. Paths inside ``opm.toml`` are relative to
-    the file's directory, and the chunk ``output_dir`` to :attr:`root`.
+    the file's directory, and the chunk ``output_dir`` to [`root`][opm.project.Project.root].
 
     Args:
         config: The project settings. Defaults to an empty config, which
@@ -216,7 +216,7 @@ class Project:
         return cls(config, root=root if root is not None else config_path.absolute().parent)
 
     def with_config(self, **changes: Any) -> Project:
-        """A new project with some :class:`~opm.config.ProjectConfig` fields replaced.
+        """A new project with some [`ProjectConfig`][opm.config.ProjectConfig] fields replaced.
 
         For example, ``project.with_config(document_css=Path('print.css'))``.
         """
@@ -232,7 +232,7 @@ class Project:
 
         Args:
             mode: An output mode such as ``web``, ``markdown``, ``docx``,
-                ``typst`` or ``json`` (see :mod:`opm.output_modes`).
+                ``typst`` or ``json`` (see [`opm.output_modes`][opm.output_modes]).
                 Defaults to ``web``.
             odd: The ODD to use instead of the configured one.
 
@@ -244,7 +244,7 @@ class Project:
         return self._resolve(name, chosen)
 
     def module(self, mode: str | None = None, odd: Path | str | None = None) -> ModuleType:
-        """The loaded transform module for *mode*; see :meth:`compile`."""
+        """The loaded transform module for *mode*; see [`compile`][opm.project.Project.compile]."""
         return self._load(self.compile(mode, odd).module_path)
 
     def _resolve(
@@ -301,7 +301,7 @@ class Project:
             source: An XML file, or a tree or element parsed with lxml. When
                 an element comes from a parsed file, ``doc()`` resolves
                 against that file and ``$parameters?input_path`` names it.
-            mode: The output mode (``web`` by default); see :meth:`compile`.
+            mode: The output mode (``web`` by default); see [`compile`][opm.project.Project.compile].
             odd: The ODD to use instead of the configured one.
             xpath: XPath 3.1 expression selecting the element to transform.
                 Unprefixed names use the document's default namespace.
@@ -336,7 +336,7 @@ class Project:
         return self.config.chunking
 
     def chunk_output_dir(self, output_dir: Path | str | None = None) -> Path:
-        """Where :meth:`chunk` writes: *output_dir*, else ``[chunking] output_dir``, below :attr:`root`."""
+        """Where [`chunk`][opm.project.Project.chunk] writes: *output_dir*, else ``[chunking] output_dir``, below [`root`][opm.project.Project.root]."""
         return self.root / (output_dir if output_dir is not None else self._chunking().output_dir)
 
     def chunk_modules(self, odd: Path | str | None = None) -> tuple[ResolvedTransform, ...]:
@@ -390,7 +390,7 @@ class Project:
                 ``json`` (one JSON file per chunk, for static site
                 generators) or ``pb-view`` (data for the ``pb-view`` web
                 component in static mode).
-            output_dir: Output directory, relative to :attr:`root`.
+            output_dir: Output directory, relative to [`root`][opm.project.Project.root].
             template: Page template for HTML output.
             depth: Maximum section depth to split at.
             odd: The ODD to use instead of ``[chunking] odd``.
@@ -401,7 +401,7 @@ class Project:
             xpath_extensions: Extension modules to use instead of the
                 configured ones.
             overwrite: Replace the output directory if it exists. Without
-                it, an existing directory raises :class:`FileExistsError`.
+                it, an existing directory raises `FileExistsError`.
             on_document: Called with the position and path of each document
                 before it is chunked.
             on_progress: Called with ``(done, total)`` chunks as each
@@ -528,7 +528,7 @@ class Project:
             odd: The ODD to use instead of ``[transform.json] odd``.
             options: Rollup settings. ``None`` uses ``[index]`` from the config.
 
-        Write the result with :func:`opm.indexing.write_jsonl`.
+        Write the result with [`opm.indexing.write_jsonl`][opm.indexing.write_jsonl].
         """
         from opm.indexing import index_document
 

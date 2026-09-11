@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 e-editiones
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Map ODD @behaviour names to :class:`~opm.output_functions.ProcessingModelFunctions` method names."""
+"""Map ODD @behaviour names to [`ProcessingModelFunctions`][opm.runtime.output_functions.ProcessingModelFunctions] method names."""
 
 from __future__ import annotations
 

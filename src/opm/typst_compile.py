@@ -5,7 +5,7 @@
 
 ``opm transform -t typst`` compiles for a ``.pdf`` output file or ``--preview``.
 From Python, pass the Typst output of ``transform_file()`` to
-:func:`compile_pdf`.
+[`compile_pdf`][opm.typst_compile.compile_pdf].
 
 The source goes to ``typst compile`` on stdin, with the project root set to
 the source document's directory. Image paths in the output are copied from the

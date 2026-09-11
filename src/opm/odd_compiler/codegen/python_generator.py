@@ -62,7 +62,7 @@ class PythonGenerator(CodeGenerator):
     """Generate Python source from a parsed ODD."""
 
     def __init__(self) -> None:
-        #: Set per :meth:`generate_module` call from the ODD root's namespace map.
+        #: Set per `generate_module` call from the ODD root's namespace map.
         self._odd_nsmap: dict[str, str] = {}
         #: The schemaSpec namespace, i.e. the default element namespace at run time.
         self._schema_ns = ''
@@ -72,10 +72,10 @@ class PythonGenerator(CodeGenerator):
 
     @property
     def unsupported(self) -> list[UnsupportedExpression]:
-        """Expressions the last :meth:`generate_module` call compiled out.
+        """Expressions the last `generate_module` call compiled out.
 
         Each is one opm can never evaluate (see
-        :mod:`~opm.odd_compiler.expression_check`). It was replaced by what a
+        `expression_check`). It was replaced by what a
         failing evaluation returns, so the output is unchanged; the difference
         is that it is now known and reported instead of failing on every node.
         """
@@ -350,7 +350,7 @@ def transform(root, options=None, *, xpath_env=None):
         """Sanitize elementSpec @ident for generated ``def _odd_template_*`` names.
 
         TEI idents may contain ``-`` (e.g. ``ref-cell``); Python identifiers may not.
-        CSS classes still use :func:`_sanitize_ident` only, so ``tei-ref-cell`` is unchanged.
+        CSS classes still use `_sanitize_ident` only, so ``tei-ref-cell`` is unchanged.
         """
         s = ident.replace(':', '_').replace('-', '_')
         s = re.sub(r'[^0-9a-zA-Z_]+', '_', s)
@@ -398,7 +398,7 @@ def transform(root, options=None, *, xpath_env=None):
     def _parses_as_xpath(self, expr: str) -> bool:
         """True if *expr* is XPath 3.1 opm can evaluate, rather than XQuery.
 
-        See :func:`~opm.odd_compiler.expression_check.static_problem`: prefixes
+        See [`static_problem`][opm.odd_compiler.expression_check.static_problem]: prefixes
         the ODD does not declare are bound to placeholders and ``tp:`` calls are
         stubbed, since both are project config the cached module cannot know.
         It catches the common eXist idiom of chained ``let $a := ... let $b :=

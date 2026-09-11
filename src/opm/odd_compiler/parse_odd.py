@@ -56,7 +56,7 @@ class ParsedOdd:
 def spec_origin(spec_el) -> Path | None:
     """The ODD file an ``elementSpec`` was parsed from.
 
-    :func:`_collect_element_specs` merges inherited specs *by reference*, so a
+    `_collect_element_specs` merges inherited specs *by reference*, so a
     spec taken from a parent ODD still belongs to that file's tree and
     ``docinfo.URL`` names it. That is what separates "I wrote this" from "I
     inherited this" — the only question that tells an ODD author whether editing

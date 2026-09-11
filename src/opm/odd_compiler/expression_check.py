@@ -10,7 +10,7 @@ before any document is read. The code generator asks here once per expression,
 emits the result a failing evaluation would have produced anyway (``False`` for
 a predicate, an empty or context-node fallback for a param), and records why.
 That keeps these expected failures out of the run-time error log
-(:mod:`opm.runtime.xpath_diagnostics`), which is left with the errors that
+([`opm.runtime.xpath_diagnostics`][opm.runtime.xpath_diagnostics]), which is left with the errors that
 depend on the document or on the project configuration.
 
 The check is deliberately generous with what only a project can supply: any

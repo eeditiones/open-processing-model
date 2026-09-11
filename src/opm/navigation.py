@@ -341,7 +341,7 @@ def jats_sec_chunks(root: etree._Element, config: ChunkingConfig) -> list[etree.
     """Return chunk elements for a JATS article: ``front``, then ``sec``, then ``back``.
 
     ``sec`` nests exactly like DocBook ``section``, so the same depth walk and
-    intro-carving applies (see :func:`dbk_section_chunks`).  A journal article
+    intro-carving applies (see [`dbk_section_chunks`][opm.navigation.dbk_section_chunks]).  A journal article
     keeps its scholarly apparatus outside ``body``, so the front matter (title,
     contributors, abstract) becomes the landing chunk and ``back`` (reference
     list, appendices) the closing one — otherwise chunking would drop both.

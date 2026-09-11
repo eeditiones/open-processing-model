@@ -136,7 +136,7 @@ def _model_matches_output_mode(el, output_mode: str) -> bool:
     models override them via the predicate/ordering rules in ``_top_level_models``.
 
     Some modes build upon other modes (see ``accepts`` in
-    :mod:`opm.output_modes`): e.g. ``print`` matches ``@output="print"`` and
+    [`opm.output_modes`][opm.output_modes]): e.g. ``print`` matches ``@output="print"`` and
     ``@output="web"``; ``markdown`` matches ``@output="markdown"`` and
     ``@output="plain"``.
 

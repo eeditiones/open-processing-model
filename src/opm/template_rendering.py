@@ -76,7 +76,7 @@ def render_document_template(
     """Render a full HTML document through the selected Jinja2 template.
 
     *context* is the project's ``[context]`` table (see
-    :meth:`~opm.config.ProjectConfig.context_for`), exposed to the template
+    [`context_for`][opm.config.ProjectConfig.context_for]), exposed to the template
     under the single name ``context`` so a project key can never shadow a
     built-in like ``content_html``.
 
@@ -134,7 +134,7 @@ def render_index_template(
     """Render a collection index listing chunked documents.
 
     The template receives ``documents`` (a list of
-    :class:`~opm.chunking.IndexEntry`), ``title``, the ``odd_css`` string, the
+    [`IndexEntry`][opm.chunking.IndexEntry]), ``title``, the ``odd_css`` string, the
     ``odd_css_url`` file chunking writes, and — when
     ``chunking.assets`` is configured — an ``assets`` URL prefix plus
     ``asset_styles``, the stylesheets among those assets in declared order. The

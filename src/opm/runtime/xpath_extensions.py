@@ -29,7 +29,7 @@ def expect_element(value: Any, *, arg_name: str = 'argument') -> ET._Element:
     """Unwrap an XPath item and require an lxml element.
 
     Extension functions receive XPath values; node items can arrive as
-    :class:`~elementpath.xpath_nodes.XPathNode` wrappers.
+    `XPathNode` wrappers.
     """
     if isinstance(value, XPathNode):
         value = value.value
@@ -64,7 +64,7 @@ def expect_string(value: Any, *, arg_name: str = 'argument') -> str:
 
 
 def expect_text(value: Any, *, arg_name: str = 'argument', strip: bool = True) -> str:
-    """Like :func:`expect_string` but intended for human-facing text."""
+    """Like [`expect_string`][opm.runtime.xpath_extensions.expect_string] but intended for human-facing text."""
     text = expect_string(value, arg_name=arg_name)
     return text.strip() if strip else text
 
@@ -110,7 +110,7 @@ def build_extension_parser(
     namespaces: dict[str, str] | None = None,
     base_uri: str | None = None,
 ) -> OpmXPathParser:
-    """Create an :class:`~opm.runtime.xpath_parser.OpmXPathParser` with ``tp:`` external functions."""
+    """Create an `OpmXPathParser` with ``tp:`` external functions."""
     ns = extension_namespace_map()
     if namespaces:
         ns = {**namespaces, **ns}  # ODD namespaces take precedence over tp: prefix

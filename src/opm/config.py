@@ -82,7 +82,7 @@ class FragmentConfig:
     """The ``xpath`` the consuming ``pb-view`` sends, when it differs from *xpath*.
 
     Used only to build ``--format pb-view`` index keys. See
-    :attr:`ChunkingConfig.xpath_dynamic`.
+    [`ChunkingConfig.xpath_dynamic`][opm.config.ChunkingConfig.xpath_dynamic].
     """
     parameters: dict[str, Any] | None = None
     module: Path | None = None
@@ -204,11 +204,11 @@ class CollectionConfig:
 
 
 def _index_fields(index_data: dict) -> tuple:
-    """Parse ``[[index.fields]]`` into :class:`opm.indexing.FieldSpec`s.
+    """Parse ``[[index.fields]]`` into [`opm.indexing.FieldSpec`][opm.indexing.FieldSpec]s.
 
     A field names records by behaviour, element or model — the three handles a
     JSON record carries — and says where their text goes; see
-    :class:`opm.indexing.FieldSpec`.
+    [`opm.indexing.FieldSpec`][opm.indexing.FieldSpec].
     """
     from opm.indexing import FieldSpec
 
@@ -260,12 +260,12 @@ def _string_list(value, label: str) -> list[str]:
 
 @dataclass
 class ProjectConfig:
-    """The settings in ``opm.toml``, as :func:`load_project_config` reads them.
+    """The settings in ``opm.toml``, as [`load_project_config`][opm.config.load_project_config] reads them.
 
     Every field has a default, so ``ProjectConfig()`` is a project with no
     config file. Paths are already resolved against the config file's
     directory. To run anything with these settings, pass them to
-    :class:`opm.project.Project`.
+    [`opm.project.Project`][opm.project.Project].
     """
 
     webcomponents_enabled: bool | None = None
@@ -273,7 +273,7 @@ class ProjectConfig:
     template_context: dict[str, Any] = field(default_factory=dict)
     """Arbitrary values exposed to every Jinja2 template as ``context`` (``[context]``).
 
-    Unlike :attr:`parameters`, which is bound to XPath ``$parameters`` and so
+    Unlike [`parameters`][opm.config.ProjectConfig.parameters], which is bound to XPath ``$parameters`` and so
     must be a flat map of strings, this keeps TOML types intact — booleans,
     numbers, arrays and nested tables all survive — because nothing but the
     template ever reads it. It is how a project drives its own template
@@ -282,7 +282,7 @@ class ProjectConfig:
     template_context_by_type: dict[str, dict[str, Any]] = field(default_factory=dict)
     """Per-output-type context overlays from ``[transform.<type>.context]``.
 
-    Merged over :attr:`template_context` by :meth:`context_for`, so a value the
+    Merged over [`template_context`][opm.config.ProjectConfig.template_context] by [`context_for`][opm.config.ProjectConfig.context_for], so a value the
     web template needs never leaks into the Typst one.
     """
     document_template: Path | None = None
@@ -297,7 +297,7 @@ class ProjectConfig:
     print_template: Path | None = None
     """Jinja2 HTML shell for ``-t print`` from ``[transform.print] template``.
 
-    Print does not fall back to :attr:`document_template` — web shells usually
+    Print does not fall back to [`document_template`][opm.config.ProjectConfig.document_template] — web shells usually
     include nav and web components that do not belong on a paged-media page.
     When unset, the packaged ``default_print.html.j2`` is used.
     """
@@ -345,7 +345,7 @@ class ProjectConfig:
     index_overlap: int = 1
     """``[index] overlap`` — records of context carried into the next part on a split."""
     index_fields: tuple = ()
-    """``[[index.fields]]`` — :class:`opm.indexing.FieldSpec`s pulled out of a passage."""
+    """``[[index.fields]]`` — [`opm.indexing.FieldSpec`][opm.indexing.FieldSpec]s pulled out of a passage."""
     pythonpath: tuple[Path, ...] = ()
     transform_odd: Path | None = None
     """Default transform ODD from ``[transform].odd`` or ``[transform.web].odd``."""

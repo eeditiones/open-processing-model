@@ -5,9 +5,9 @@
 Processing-model runtime: apply / apply-children and the node helpers.
 
 Used by ODD-generated modules and runtime helpers. A run's settings and state
-travel in a :class:`~opm.runtime.context.RenderContext` (``config``), and its
+travel in a [`RenderContext`][opm.runtime.context.RenderContext] (``config``), and its
 XPath is evaluated by the context's
-:class:`~opm.runtime.xpath_env.XPathEnvironment`.
+[`XPathEnvironment`][opm.runtime.xpath_env.XPathEnvironment].
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ def tag(node: etree._Element) -> str:
     """Local name for *node*.
 
     lxml comments, PIs, and entities use a Cython factory object as ``.tag``, not a
-    string, so :func:`etree.QName` cannot be used on them directly.
+    string, so `etree.QName` cannot be used on them directly.
     """
     if isinstance(node, etree._Comment):
         return 'comment'
@@ -74,7 +74,7 @@ def _join_text(existing: str | None, item: str) -> str:
 
     A soft hyphen left at the seam is a word the source broke across lines, so
     the indentation opening the next run is not a word separator — see
-    :func:`~opm.runtime.output_functions.join_eol_hyphen`, which handles the
+    [`join_eol_hyphen`][opm.runtime.output_functions.join_eol_hyphen], which handles the
     common case where both halves sit in one text node. Here the runs are
     separated by an omitted element (``daugh­<lb/>\n(ter``).
     """
@@ -91,7 +91,7 @@ def template_config(config):
     """*config* as seen inside a ``pb:template``.
 
     A behaviour combined with a ``pb:template`` receives the already-rendered
-    template nodes as its content, so :func:`apply` and :func:`apply_children`
+    template nodes as its content, so [`apply`][opm.runtime.pm_runtime.apply] and `apply_children`
     must hand them straight on instead of dispatching them again. Mirrors
     ``map:entry("template", true())`` in ``model.xql``, which is what stops
     tei-publisher-lib from reprocessing template output.
@@ -107,7 +107,7 @@ def template_config(config):
 
 def apply_children(config, source_node, content, parent_el) -> None:
     if config.template:
-        # Template output is finished markup — see :func:`template_config`.
+        # Template output is finished markup — see [`template_config`][opm.runtime.pm_runtime.template_config].
         for item in normalize(content):
             append_to(parent_el, item)
         return
@@ -133,7 +133,7 @@ def apply_children(config, source_node, content, parent_el) -> None:
 def apply(config, nodes, dispatch):
     """Transform nodes via *dispatch(config, node, params)*."""
     if config.template:
-        # Template output is finished markup — see :func:`template_config`.
+        # Template output is finished markup — see [`template_config`][opm.runtime.pm_runtime.template_config].
         return list(normalize(nodes))
     params = config.parameters
     norm = config.normalize_text
@@ -154,9 +154,9 @@ def apply_template_param_value(config, source_node, raw):
     """Normalize and dispatch *raw* for ``pb:template`` ``[[param]]`` substitution.
 
     XPath (or a literal ``.`` param) may yield the context element itself. Passing
-    that element through :func:`apply` would re-dispatch the same TEI node and, in
+    that element through [`apply`][opm.runtime.pm_runtime.apply] would re-dispatch the same TEI node and, in
     templates, often stringifies it. When an item **is** *source_node*, recurse on
-    ``child_nodes(source_node)`` instead (same rule as :func:`apply_children`).
+    ``child_nodes(source_node)`` instead (same rule as `apply_children`).
     """
     dispatch = config.dispatch
     norm = config.normalize_text
@@ -207,7 +207,7 @@ def _footnote_injection_target(element_roots: list[etree._Element]) -> etree._El
 def inject_cached_footnotes(nodes: list, config) -> list:
     """Append the footnote bodies collected in ``config.state`` after the main flow.
 
-    HTML: :class:`~opm.html_output_functions.HtmlOutputFunctions` stores
+    HTML: [`HtmlOutputFunctions`][opm.runtime.html_output_functions.HtmlOutputFunctions] stores
     ``dl.footnote`` elements. Markdown: stores reference-definition strings.
     """
     footnotes = config.state.footnotes

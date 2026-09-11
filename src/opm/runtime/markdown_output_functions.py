@@ -107,7 +107,7 @@ def _css_md_markers(config: dict, cls: list) -> tuple[str, str]:
     Looks up each class name against the ODD-generated CSS and converts recognised
     styling properties (bold, italic, strikethrough, underline, monospace) to the
     corresponding CommonMark markers.  Multiple properties are stacked in the order
-    defined by :data:`_CSS_TO_MD_MARKERS`.
+    defined by `_CSS_TO_MD_MARKERS`.
     """
     css_map = _get_css_map(config)
     # Collect CSS properties for the matched classes

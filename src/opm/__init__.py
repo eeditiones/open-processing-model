@@ -3,7 +3,7 @@
 
 """Open Processing Model: transform XML with the processing models in an ODD.
 
-Start with :class:`Project`::
+Start with [`Project`][opm.project.Project]::
 
     from opm import Project
 
