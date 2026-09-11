@@ -1,10 +1,10 @@
 # Output formats
 
 A single ODD drives every output format. The format is chosen at **compile**
-time via `--type` / `-t` (or the matching config table), which selects the ODD
-`@output` channel and the concrete
+time via `--type` / `-t` (or the matching configuration table, e.g `[transform.epub]`), which selects the ODD
+`@output` channel and the specific
 [`ProcessingModelFunctions`](../api/output-functions.md) implementation used to
-emit output.
+generate that output.
 
 | Mode | Output | Implementation |
 | --- | --- | --- |
@@ -35,8 +35,8 @@ opm transform examples/tei-test.xml -t typst -o out.typ
 opm transform examples/tei-test.xml -t json -o out.json
 ```
 
-Each compile writes (or reuses) a cached module under the user cache directory;
-the path is printed on stderr.
+<!--Each compile writes (or reuses) a cached module under the user cache directory;
+the path is printed on stderr. -->
 
 ## Choosing an ODD at transform time
 
@@ -64,15 +64,15 @@ opm transform examples/tei-test.xml -t typst -o out.typ
 opm transform examples/tei-test.xml -t docx -o out.docx
 ```
 
-`--odd`/`-d` overrides config lookup. Omitting both falls back to
+The CLI command `--odd`/`-d` overrides the configuration. Omitting both falls back to
 `[transform.<type>].odd`, then `[transform].odd`, then the packaged stock
-teipublisher ODD. Details are in
+TEI Publisher ODD. Details are in
 [Configuration](configuration.md#selecting-an-odd-by-type).
 
 ## HTML (`web`)
 
 Full-document output is wrapped in a Jinja2 template and can include
-ODD-generated CSS, a user stylesheet, and optional tei-publisher web components.
+ODD-generated CSS, a user stylesheet, and optional [tei-publisher web components](https://unpkg.com/@teipublisher/pb-components@latest/dist/api.html).
 See [Templates & CSS](templates-and-css.md).
 
 ```bash
@@ -83,26 +83,28 @@ opm transform data/sample.xml \
 ## Print (paged media)
 
 `print` emits HTML like `web`, but notes and alternates are inline
-`<span class="footnote">` / `margin-note` spans so CSS paged media can
+spans so that CSS paged media can apply the appropriate style
 `float: footnote` (Prince, Paged.js, browser print). Interactive callouts and
 web components are disabled. ODD models with `@output="print"` apply in addition
 to `@output="web"` and unscoped models.
 
+<!-->
 The Jinja shell is separate from the web reading view. Resolution:
 
 1. `--template` / `-t` override
 2. `[transform.print] template`
 3. Packaged `default_print.html.j2` (minimal; **not** the `[transform.web] template`)
+-->
 
-Paged layout itself comes from the ODD’s CSS (often `@page` / `@media print` in
-a tagsDecl stylesheet). OPM only produces the markup; PDF rendering is external.
+Paged layout itself comes from the ODD’s CSS. OPM only produces the markup; PDF rendering is external (which means that there might be differences depending on the browser used).
 
 ```bash
 opm transform examples/tei-test.xml -t print --preview
 opm transform examples/tei-test.xml -t print -o print.html
 ```
 
-The DocBook example wires a dedicated shell:
+
+The DocBook example launches a dedicated shell:
 
 ```bash
 cd examples/docbook
@@ -110,7 +112,7 @@ opm transform data/doc/quickstart.xml -t print --preview
 ```
 
 See `examples/docbook/templates/print.html.j2` and `[transform.print]` in that
-project’s `opm.toml`. `examples/jats` does the same the other way round: its
+project’s `opm.toml` configuration file. `examples/jats` does the same the other way round: its
 print shell includes the web view’s `journal.css`, so the paged article keeps
 the reading view’s typography and only loses the masthead and TOC rail.
 
@@ -123,11 +125,9 @@ selected with the same `[chunking]` rules used by `opm chunk` (default:
 TEI `tei_div_chunks` / DocBook `dbk_section_chunks` at depth 1).
 
 `[transform.epub]` may override that selection with its own `xpath`, `selector`
-or `depth`: what belongs in a book is not always what the reading view pages
-through — `examples/serafin` chunks only the source text and fills the
-translation into a second panel, which an EPUB has not got. A page-milestone
-selector (`tei_pb_chunks`) is always replaced by divisions, since a reading
-system repaginates anyway.
+or `depth`: the EPUB contents might be very different form the browser-based reading view. For example, `examples/serafin` chunks only the source text and fills the
+translation into a second panel in the HTML preview, but not in the EPUB. A page-milestone
+selector (`tei_pb_chunks`) is always replaced by divisions, since a EPUB readers repaginate anyway.
 
 ```bash
 opm transform examples/tei-test.xml -t epub -o book.epub
@@ -149,13 +149,13 @@ selector = "opm.navigation.tei_div_chunks"
 depth = 1
 ```
 
-Like DOCX, the result is binary — write it with `-o` (terminal preview is not
-supported). Packaging uses stdlib `zipfile` + lxml (no ebooklib).
+Just like the DOCX output, the result is binary and it needs to be written down with the `-o` flag (terminal preview is not
+supported). <!--Packaging uses stdlib `zipfile` + lxml (no ebooklib).-->
 
-A chapter is named in the table of contents by the heading it opens with once
+<!--A chapter is named in the table of contents by the heading it opens with once
 transformed, consecutive headings joined (*Act 2, Scene 1*) — so the ODD can
 name a chapter the source does not. Failing that: the chunk's own `head` /
-`title`, then the page number of a `pb` it opens on.
+`title`, then the page number of a `pb` it opens on. -->
 
 ### Styling
 
@@ -176,7 +176,7 @@ one before:
    reading view’s two-column Folio layout and its page furniture for a plain
    reading text.
 
-Rules a project wants in *every* view belong in the ODD stylesheet, not here.
+Rules a project wants in *every* view belong in the ODD stylesheet.
 `@rend` tokens in particular reach the output as bare class names that the
 processing model never defines, so they are the ODD stylesheet’s to declare —
 see `examples/shakespeare/odd/shakespeare.css`.
@@ -191,7 +191,7 @@ cross-references keep working after the document is split.
 
 Images referenced by `img/@src` are resolved next to the source document and in
 a sibling `images/` directory. Images that cannot be found are left out of the
-manifest, since an OPF entry without a file makes the package invalid.
+manifest, since an EPUB OPF entry without a file makes the package invalid.
 
 ## Markdown
 
@@ -204,11 +204,10 @@ opm transform examples/tei-test.xml -t markdown --preview
 
 ## DOCX
 
-DOCX is binary, so `-o` is required (it cannot be previewed). A custom Word
-`.docx` can be supplied as a **style template** via `--template` or the
-`[transform.docx] template` config key; its paragraph and character styles are reused in
-the output. If none is given, the packaged `default.docx` is used (the same file
-`opm init` copies into `templates/`). Missing built-in styles (`Hyperlink`,
+DOCX is binary, so it the `-o` flag is required to write the file (it cannot be previewed). A custom Word
+`.docx` can be supplied as a **style template** via the CLI `--template` flag or in the cofiguration file under
+`[transform.docx] template`. Its paragraph and character styles are reused in
+the output. If none is given, the packaged `default.docx` is used. Missing built-in styles (`Hyperlink`,
 `footnote text`, `footnote reference`) are injected automatically.
 
 ```bash
@@ -221,7 +220,7 @@ opm transform examples/tei-test.xml -t docx -o report.docx \
 
 Typst output uses a `.typ.j2` Jinja2 template configured under `[transform.typst]`.
 Project templates include `templates/book.typ.j2` (TEI) and
-`templates/docbook.typ.j2` (DocBook UI classes); both use ilm. The packaged
+`templates/docbook.typ.j2` (DocBook UI classes)<!--; both use ilm-->. The packaged
 fallback is `default_document.typ.j2`.
 
 ```bash
@@ -238,8 +237,8 @@ Refer to the [Typst documentation](https://typst.app/docs/) for more information
 
 ## JSON
 
-`-t json` does not render the document. It records **what the processing model
-did to it**: which behaviour ran for each element, which model won, where the
+The flag `-t json` does not render the document. It records **what the processing model
+did to it**: which behaviour ran for each element, which model was fired, where the
 element came from, and what text it contributed.
 
 ```bash
@@ -253,10 +252,7 @@ opm transform examples/tei-test.xml -t json -o out.json
     transformation itself. They serve different consumers.
 
 Every element that reaches a behaviour produces a record — inline and
-`pass_through` ones included. A wrong inline model is the commonest ODD bug, and
-folding its text into the enclosing block would hide which model matched;
-likewise, when the model you expected did not fire because a `pass_through` one
-matched first, emitting nothing would make the element vanish entirely:
+`pass_through` ones included, and this output is very useful for debugging.
 
 ```json
 {
@@ -285,17 +281,14 @@ matched first, emitting nothing would make the element vanish entirely:
 | `children` | Ordered mix of text runs and child records |
 | `suppressed` | Present and `true` for `omit` / `index` / `metadata` |
 
-`xpath` names its elements (`/TEI/text[1]/body[1]/div[2]`) rather than using
-lxml's `/*/*[3]/*[1]`, which is all `getpath()` can emit when a default
-namespace has no prefix bound. Because opm resolves unprefixed names against
-the document's default namespace, these paths run directly against the same
+`xpath` names its elements (`/TEI/text[1]/body[1]/div[2]`) because opm resolves unprefixed names against the document's default namespace.
 document:
 
 ```bash
 opm transform doc.xml -x '/TEI/text[1]/body[1]/div[2]' --preview
 ```
 
-Elements outside that default namespace — MathML inside TEI, say — keep the
+Elements outside that default namespace — e.g. MathML inside TEI — keep the
 positional form for those steps (`…/formula[1]/*[1]/*[1]`), since an unprefixed
 step would not match them.
 
@@ -307,7 +300,7 @@ opm transform doc.xml -t json -o out.json
 # then, for any record:  $EDITOR +84 doc.xml   /   code -g doc.xml:84:7
 ```
 
-They come from a second pass with expat rather than from lxml's `sourceline`,
+<!--They come from a second pass with expat rather than from lxml's `sourceline`,
 which reports where a start tag *ends* — an element whose attributes wrap onto
 another line is reported below its own `<`. Columns matter because dense TEI
 puts many elements on one line: 53% of the elements in `examples/tei-test.xml`
@@ -335,9 +328,9 @@ report its own runs as a sentence with a hole in it:
 with the link's words on the nested record instead. Rolling up *descendant*
 text avoids the hole but stores every passage once per tree level, which is
 worse: an embedding store would then hold the same sentences at three
-granularities.
+granularities. -->
 
-Two things this makes visible that no other output can:
+There are two things that this output format makes visible that no other output can:
 
 **Suppressed content.** `omit`, `index` and `metadata` produce no output, so a
 renderer cannot distinguish "the ODD dropped this" from "it was never in the
@@ -421,7 +414,7 @@ written in the one being compiled, and names that file:
 ```
 
 Its absence means the model is local. Because a local `elementSpec` replaces the
-inherited one wholesale, every model of an element you redeclare is local; the
+inherited one, every model of an element you redeclare is local; the
 flag tells you whether a decision you dislike can be changed here at all, or has
 to be overridden by redeclaring the element.
 
