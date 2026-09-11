@@ -1015,8 +1015,10 @@ def transform_cmd(
                 output.write_bytes(out)
             else:
                 output.write_text(out, encoding='utf-8')
-        elif preview and not view:
-            # With view, typst has already opened the PDF.
+        elif view:
+            # Typst has already opened the PDF; nothing goes to stdout.
+            pass
+        elif preview:
             _preview_output(out, mode)
         elif isinstance(out, bytes):
             sys.stdout.buffer.write(out)
