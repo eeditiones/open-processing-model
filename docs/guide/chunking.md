@@ -2,22 +2,22 @@
 
 Large documents are awkward to serve as one giant HTML page. `opm chunk` splits a
 document into smaller pieces, transforms each one, and writes the results plus a
-manifest — ideal for static site generators and web components.
+manifest — this is ideal for static site generators and web components.
 
 Three different types of output are supported (use `--format` to switch between them):
 
 - **`html`** (default) — renders each chunk through a template
-  (`chunking.template`), generating in a series of HTML files. Use this for quick previews
+  (`chunking.template`), generating a series of HTML files. Use this for quick previews
   or to create a simple static edition which does not need a complex framework.
 - **`json`** — one JSON file per chunk, including the rendered content and optional fragments. Ideal for integration into 
 static site generators like [Eleventy](https://www.11ty.dev/), [Hugo](https://gohugo.io/), [Astro](https://astro.build/) and others 
 that consume data files.
 - **`pb-view`** — an index table plus part files to be consumed by TEI Publisher's
   viewer web component. Use this to pre-render content for fast display in an existing
-  TEI Publisher based website (see [Integration with TEI Publisher](tei-publisher.md)) for
-  uploading those files into an app and switching the webcomponent to static mode.
+  TEI Publisher-based website (see [Integration with TEI Publisher](tei-publisher.md)) for
+  uploading those files into an app, and switching the webcomponent to static mode.
 
-Example use for the Shakespeare sample:
+Example using the Shakespeare sample:
 
 ```bash
 opm init --example shakespeare shakespeare-demo
@@ -37,16 +37,15 @@ opm init --example serafin serafin-demo
 cd serafin-demo
 
 opm chunk data/letters -o chunks/ --force
-opm chunk data/letters --format json -o _data/chunks
+opm chunk data/letters --format json -o output/chunks
 opm chunk data/letters --format pb-view --doc-path letters -o public
 ```
 
-Most settings come from the `[chunking]` section of `opm.toml`; CLI options
-override them. See [Configuration](configuration.md) for the full schema.
+Most settings come from the `[chunking]` section of `opm.toml`; which can be overriden by the CLI commands. See [Configuration](configuration.md) for the full schema.
 
 ## Selecting chunks
 
-Chunk roots are selected by an XPath expression (default `//text/body/div`):
+Chunk roots are selected by an XPath expression (default `//text/body/div`), configured as:
 
 ```toml
 [chunking]
@@ -54,8 +53,8 @@ xpath = "//text/body/div"
 depth = 2          # maximum heading depth at which to split
 ```
 
-For logic that XPath can't express, point `selector` at a Python callable
-(dotted path) that returns the chunk elements. Built-ins:
+For logic that XPath can't express, you can use a `selector` (dotted path) to call Python objects
+ that return the chunk elements. Built-in selectors:
 
 | Selector | Use |
 | --- | --- |
@@ -63,6 +62,8 @@ For logic that XPath can't express, point `selector` at a Python callable
 | `opm.navigation.tei_pb_chunks` | TEI by page-break (`tei:pb` milestones, `view="page"`) |
 | `opm.navigation.dbk_section_chunks` | DocBook by `section` |
 | `opm.navigation.jats_sec_chunks` | JATS by `sec`, with `front` and `back` as their own chunks |
+
+Configuration sample:
 
 ```toml
 [chunking]
