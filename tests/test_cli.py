@@ -9,50 +9,38 @@ from pathlib import Path
 
 import pytest
 
-from opm.cli import _preview_kind_from_module
+import opm.cli as cli
 from opm.cli import _prepare_chunk_output_dir
 from opm.config import resolve_base_css
 from opm.cli import main
+from opm.output_modes import output_mode
 from tests.test_chunking import _write_chunking_fixture_xml
 
 
-def test_preview_kind_from_transform_output_channels() -> None:
-    class MarkdownMod:
-        @staticmethod
-        def transform_output_channels():
-            return ['markdown']
+@pytest.mark.parametrize(('mode', 'shown_by'), [
+    ('web', '_preview_html_in_browser'),
+    ('print', '_preview_html_in_browser'),
+    ('markdown', '_preview_markdown_terminal'),
+    ('json-typst', '_preview_json_terminal'),
+    ('typst', '_preview_plain_terminal'),
+])
+def test_preview_follows_the_output_mode(monkeypatch, mode: str, shown_by: str) -> None:
+    shown: list[str] = []
+    for name in ('_preview_html_in_browser', '_preview_markdown_terminal',
+                 '_preview_json_terminal', '_preview_plain_terminal'):
+        monkeypatch.setattr(cli, name, lambda text, name=name: shown.append(name))
+    cli._preview_output('output', output_mode(mode))
+    assert shown == [shown_by]
 
-    class WebMod:
-        @staticmethod
-        def transform_output_channels():
-            return ['web']
 
-    class TupleMod:
-        @staticmethod
-        def transform_output_channels():
-            return ('markdown',)
-
-    class PrintMod:
-        @staticmethod
-        def transform_output_channels():
-            return ['print']
-
-    class TypstMod:
-        @staticmethod
-        def transform_output_channels():
-            return ['typst']
-
-    class EmptyChannels:
-        @staticmethod
-        def transform_output_channels():
-            return []
-
-    assert _preview_kind_from_module(MarkdownMod) == 'markdown'
-    assert _preview_kind_from_module(WebMod) == 'html'
-    assert _preview_kind_from_module(TupleMod) == 'markdown'
-    assert _preview_kind_from_module(PrintMod) == 'html'
-    assert _preview_kind_from_module(TypstMod) == 'typst'
-    assert _preview_kind_from_module(EmptyChannels) == 'text'
+def test_preview_opens_packages_in_the_default_app(monkeypatch) -> None:
+    opened: list[tuple] = []
+    monkeypatch.setattr(
+        cli, '_preview_file_with_default_app',
+        lambda data, suffix, label: opened.append((data, suffix, label)) or True,
+    )
+    cli._preview_output(b'PK', output_mode('epub'))
+    assert opened == [(b'PK', '.epub', 'EPUB')]
 
 
 def test_resolve_base_css_uses_local_styles_if_present(tmp_path: Path, monkeypatch) -> None:

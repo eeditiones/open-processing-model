@@ -123,32 +123,40 @@ def build_context(
     root,
     options: dict | None = None,
     *,
+    mode: str,
     xpath_env: XPathEnvironment | None = None,
     odd_namespaces: dict[str, str] | None = None,
-    webcomponents_allowed: bool = True,
     **settings,
 ) -> RenderContext:
     """The context a generated module's ``transform()`` runs with.
 
-    *options* holds the ``$parameters`` plus the run options in
-    :data:`RUN_OPTIONS`. *xpath_env* supplies everything else XPath can see; an
-    empty environment when omitted. *settings* are :class:`RenderContext`
-    fields the module fixes: output functions, dispatch, stylesheet and the like.
+    *mode* names the output mode; its entry in :mod:`opm.output_modes`
+    supplies the output functions and the text handling. *options* holds the
+    ``$parameters`` plus the run options in :data:`RUN_OPTIONS`. *xpath_env*
+    supplies everything else XPath can see; an empty environment when omitted.
+    *settings* are :class:`RenderContext` fields the module fixes: dispatch,
+    stylesheet and the like.
     """
+    from opm.output_modes import output_mode  # noqa: PLC0415
+
     from .xpath_env import XPathEnvironment  # noqa: PLC0415
 
+    entry = output_mode(mode)
     opts = dict(options or {})
     env = xpath_env if xpath_env is not None else XPathEnvironment()
     parameters = {k: v for k, v in opts.items() if k not in RUN_OPTIONS}
     metadata = opts.get('metadata')
     return RenderContext(
+        output=entry.name,
+        pmf=entry.output_functions()(),
         parameters=parameters,
         xpath=env.for_odd(odd_namespaces).with_parameters(parameters),
-        webcomponents=bool(opts.get('webcomponents')) and webcomponents_allowed,
+        webcomponents=bool(opts.get('webcomponents')) and entry.webcomponents,
         docx_template=opts.get('docx_template'),
         input_path=opts.get('input_path'),
         root=root,
         # The caller's dict, when it passes one, so it can read what was collected.
         state=RunState(metadata=metadata if isinstance(metadata, dict) else {}),
+        **entry.context_settings(),
         **settings,
     )

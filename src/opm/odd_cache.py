@@ -13,6 +13,7 @@ from lxml import etree
 
 from opm.odd_compiler import compile_odd
 from opm.odd_compiler.parse_odd import resolve_schema_source
+from opm.output_modes import output_mode as mode_named
 from opm.resources import opm_version, user_opm_cache_dir
 
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
@@ -77,14 +78,16 @@ def cache_key(odd_path: Path, output_mode: str, base_css: str | None = None) -> 
     h.update(output_mode.encode())
     h.update(b'\0')
 
-    # The generator decides what the cached module contains, so editing it has
-    # to invalidate the cache. The version alone does not cover that: it stays
-    # put across a working checkout, and a stale module would keep being loaded
-    # after a codegen change.
+    # The generator decides what the cached module contains, and the mode table
+    # which models and output functions it compiles against, so editing either
+    # has to invalidate the cache. The version alone does not cover that: it
+    # stays put across a working checkout, and a stale module would keep being
+    # loaded after a codegen change.
+    from opm import output_modes
     from opm.odd_compiler import expression_check
     from opm.odd_compiler.codegen import python_generator
 
-    for generator_module in (python_generator, expression_check):
+    for generator_module in (python_generator, expression_check, output_modes):
         h.update(Path(generator_module.__file__).read_bytes())
         h.update(b'\0')
 
@@ -138,7 +141,7 @@ def ensure_compiled_module(
     if not odd_path.is_file():
         raise FileNotFoundError(f'ODD not found: {odd_path}')
 
-    mode = (output_mode or 'web').strip().lower() or 'web'
+    mode = mode_named(output_mode).name
     digest = cache_key(odd_path, mode, base_css)
     dest = cached_module_path(odd_path, mode, digest, base_css)
     if dest.is_file():

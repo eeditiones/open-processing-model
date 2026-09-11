@@ -33,8 +33,29 @@ All notable changes to this project are documented here. The format follows
   walking the whole document on every call, which dominated runs on
   register-heavy editions. Results are unchanged. `tp:lookup()`, an opm-only
   workaround no ODD used, is gone.
+- What each output mode does — which ODD models take part, which output
+  functions render them, which template wraps the result, whether web
+  components may load, how `--preview` shows it — is defined once, in
+  `opm.output_modes`. Compiled modules declare `OUTPUT_MODE` instead of
+  `transform_output_channels()` and no longer hard-code their output functions.
+- An unknown `-t` value is an error; it used to render HTML from the generic
+  models only.
+- `opm transform` runs through `transform_file()`, so the command and the
+  Python API can no longer drift apart. `project_xpath_env()` builds the XPath
+  environment from `opm.toml` for transform, chunk, index and coverage alike.
+  `run_transform()` and `transform_node()` take that environment as `xpath_env`
+  instead of separate `xpath_*` arguments, and `ChunkProcessor` takes it the
+  same way.
 
 ### Fixed
+
+- `-t json --channel <channel>` and `opm coverage --channel` use the ODD from
+  `[transform.json]`, as plain `-t json` does, instead of falling back to
+  `[transform] odd`.
+- `transform_file()` now behaves like `opm transform`: it applies
+  `[transform.parameters]`, selects EPUB chapters with the `[transform.epub]`
+  overrides, and picks the DOCX style template the same way (the `template`
+  argument, then `[transform.docx] template`, then the packaged default).
 
 - A `param` that reads project configuration (`$global:…`, `collection()`) and
   also calls a `tp:` extension function is now evaluated. The compile-time check

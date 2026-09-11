@@ -82,7 +82,7 @@ opm transform [OPTIONS] [INPUT_XML]
 | Option | Description |
 | --- | --- |
 | `--odd, -d PATH` | ODD file to compile on demand into the user cache. Overrides transform.<type>.odd in config. |
-| `--type, -t TYPE` | Transform type / ODD output channel (web, docx, typst, markdown, …). Selects transform.<type>.odd from config when --odd is omitted; also sets the compile mode for --odd. |
+| `--type, -t TYPE` | Transform type / ODD output channel (web, print, epub, markdown, docx, typst, json). Selects transform.<type>.odd from config when --odd is omitted; also sets the compile mode for --odd. |
 | `--channel CHANNEL` | With -t json only: which ODD output channel to record decisions for (web, print, epub, markdown, docx, typst). Default: web. |
 | `--output, -o PATH` | Write transform output to this file (default: stdout unless --preview) |
 | `--preview, -v` | Preview output: channel web/print → browser, markdown → Rich (paged in a TTY so bold/italic survive), docx/epub → the platform default application; other channels (e.g. typst) → plain text in the terminal. |

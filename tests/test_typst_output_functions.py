@@ -12,6 +12,7 @@ from opm.runtime.context import RenderContext
 from opm.runtime.markdown_output_functions import normalize_markdown_xml_text
 from opm.runtime.output_functions import TemplateOutput
 from opm.runtime.pm_runtime import apply_children
+from opm.runtime.xpath_env import XPathEnvironment
 from opm.runtime.typst_output_functions import (
     TypstOutputFunctions,
     _apply_inline_styling,
@@ -697,7 +698,7 @@ def _jats_typst_metadata(tmp_path) -> dict[str, str]:
     out = run_transform(
         load_transform_module(mod_path),
         etree.fromstring(_JATS_ARTICLE.encode()),
-        xpath_extensions=['opm.runtime.common_xpath_functions'],
+        xpath_env=XPathEnvironment(extensions=['opm.runtime.common_xpath_functions']),
         typst_template_path=template,
     )
     return dict(line.split('==', 1) for line in str(out).splitlines() if '==' in line)
@@ -742,7 +743,7 @@ def test_jats_web_publication_date_is_formatted(tmp_path) -> None:
         run_transform(
             load_transform_module(mod_path),
             etree.fromstring(_JATS_ARTICLE.encode()),
-            xpath_extensions=['opm.runtime.common_xpath_functions'],
+            xpath_env=XPathEnvironment(extensions=['opm.runtime.common_xpath_functions']),
             apply_template=False,
         )
     )

@@ -30,7 +30,6 @@ try:
 except ImportError:  # typer < 0.27 still depends on the click package
     from click.exceptions import NoArgsIsHelpError, UsageError
 
-from lxml import etree
 
 from opm.config import (
     ChunkingConfig,
@@ -40,7 +39,8 @@ from opm.config import (
     resolve_base_css,
 )
 from opm.odd_cache import ResolvedTransform, resolve_transform_module
-from opm.resources import opm_version, packaged_default_css, packaged_default_docx
+from opm.output_modes import CONFIG_SECTIONS, RENDER_MODES, OutputMode, module_mode, output_mode
+from opm.resources import opm_version
 from opm.scaffold import (
     EXAMPLE_NAMES,
     EXAMPLES,
@@ -51,11 +51,8 @@ from opm.scaffold import (
 )
 from opm.transform import (
     load_transform_module,
-    load_xpath_collections,
-    load_xpath_documents,
-    run_transform,
+    transform_file,
 )
-from opm.runtime.xpath_env import XPathEnvironment
 from opm.runtime.xpath_diagnostics import XPathErrorLog, collect_xpath_errors
 from opm.chunking import build_index, chunk_document
 
@@ -419,25 +416,27 @@ def _note(message: str) -> None:
     _stderr_message('note', 'bold yellow', message)
 
 
-def _preview_kind_from_module(mod) -> str:
-    """Return ``'html'``, ``'markdown'``, ``'docx'``, ``'epub'``, or ``'text'`` based on output channels."""
-    raw = mod.transform_output_channels()
-    if not raw:
-        return 'text'
-    primary = raw[0] if isinstance(raw, (list, tuple)) else raw
-    if primary == 'markdown':
-        return 'markdown'
-    if primary in ('web', 'print'):
-        return 'html'
-    if primary == 'docx':
-        return 'docx'
-    if primary == 'epub':
-        return 'epub'
-    if primary == 'typst':
-        return 'typst'
-    if primary == 'json' or primary.startswith('json-'):
-        return 'json'
-    return 'text'
+def _preview_output(out: str | bytes, mode: OutputMode) -> None:
+    """Show *out* the way ``--preview`` does for *mode* (see ``OutputMode.preview``)."""
+    if mode.preview == 'app':
+        label = mode.name.upper()
+        data = out if isinstance(out, bytes) else out.encode('utf-8')
+        if not _preview_file_with_default_app(data, mode.extension, label):
+            typer.echo(
+                f'{label} output cannot be previewed in the terminal and no '
+                f'application is registered for {mode.extension} files. '
+                f'Use --output to write a {mode.extension} file.',
+            )
+        return
+    text = out.decode('utf-8') if isinstance(out, bytes) else out
+    if mode.preview == 'browser':
+        _preview_html_in_browser(text)
+    elif mode.preview == 'markdown':
+        _preview_markdown_terminal(text)
+    elif mode.preview == 'json':
+        _preview_json_terminal(text)
+    else:
+        _preview_plain_terminal(text)
 
 
 def _preview_html_in_browser(html: str) -> None:
@@ -633,11 +632,9 @@ def _apply_json_channel(transform_type: str | None, channel: str | None) -> str 
     inspects is part of the compile: the models that participate, and therefore
     the cached module, differ per channel.
     """
-    from opm.odd_compiler.codegen import RENDER_MODES, is_json_mode
-
     if channel is None:
         return transform_type
-    if not is_json_mode(transform_type or ''):
+    if not output_mode(transform_type).records:
         _die('--channel applies to -t json only.')
     picked = channel.strip().lower()
     if picked not in RENDER_MODES:
@@ -655,7 +652,7 @@ def _resolve_cli_transform(
     base_css: str | None = None,
 ) -> ResolvedTransform:
     """Resolve ``--odd`` / config odd / packaged default for transform."""
-    mode = (transform_type or 'web').strip().lower() or 'web'
+    mode = output_mode(transform_type).name
 
     if odd is not None:
         return resolve_transform_module(odd=odd, output_mode=mode, base_css=base_css)
@@ -822,7 +819,7 @@ def transform_cmd(
             '-t',
             metavar='TYPE',
             help=(
-                'Transform type / ODD output channel (web, docx, typst, markdown, …). '
+                f'Transform type / ODD output channel ({", ".join(CONFIG_SECTIONS)}). '
                 'Selects transform.<type>.odd from config when --odd '
                 'is omitted; also sets the compile mode for --odd.'
             ),
@@ -835,7 +832,7 @@ def transform_cmd(
             metavar='CHANNEL',
             help=(
                 'With -t json only: which ODD output channel to record decisions '
-                'for (web, print, epub, markdown, docx, typst). Default: web.'
+                f'for ({", ".join(RENDER_MODES)}). Default: web.'
             ),
         ),
     ] = None,
@@ -962,118 +959,33 @@ def transform_cmd(
         _report_resolved_module(resolved)
         effective_script = resolved.module_path
 
-        effective_webcomponents = webcomponents if webcomponents is not None else (cfg.webcomponents_enabled or False)
         mod = load_transform_module(effective_script)
-        channels = mod.transform_output_channels()
-        primary = channels[0] if channels else ''
-        if isinstance(channels, (list, tuple)) and channels:
-            primary = channels[0]
-        elif not isinstance(channels, (list, tuple)):
-            primary = channels
-
-        # Print / EPUB have no interactive UI — never load web components.
-        if primary in ('print', 'epub'):
-            effective_webcomponents = False
-
-        if primary == 'typst':
-            effective_template = template if template is not None else cfg.typst_template
-            effective_docx_template = None
-        elif primary == 'docx':
-            effective_template = None
-            effective_docx_template = template if template is not None else cfg.document_docx_template
-            if effective_docx_template is None:
-                effective_docx_template = packaged_default_docx()
-        elif primary == 'print':
-            # Do not fall back to the web/document shell (nav, web components).
-            effective_template = template if template is not None else cfg.print_template
-            effective_docx_template = None
-        elif primary == 'epub':
-            effective_template = None
-            effective_docx_template = None
-        else:
-            effective_template = template if template is not None else cfg.document_template
-            effective_docx_template = None
-        effective_extensions: tuple[str, ...] = (
-            tuple(xpath_extensions) if xpath_extensions else cfg.xpath_extensions
-        )
-
-        # Config parameters seed $parameters; CLI -p overrides them.
-        parameters = dict(cfg.parameters)
-        parameters.update(_parameters_from_cli(param if param else None))
-        # Add input_path to parameters for image processing in DOCX output
-        parameters['input_path'] = str(input_xml)
-        xpath_documents = load_xpath_documents(cfg.xpath_documents)
-        xpath_collections, xpath_documents = load_xpath_collections(
-            cfg.xpath_collections, xpath_documents,
-        )
-        xpath_env = XPathEnvironment(
-            base_uri=input_xml.resolve().as_uri(),
-            documents=xpath_documents,
-            collections=xpath_collections,
-            variables=dict(cfg.xpath_variables),
-            namespaces=dict(cfg.xpath_namespaces),
-            extensions=effective_extensions,
-        )
-
-        tree = etree.parse(str(input_xml))
-        doc_root = tree.getroot()
-        template_context = cfg.context_for(
-            primary, webcomponents=effective_webcomponents,
-        )
-
+        mode = module_mode(mod)
         with collect_xpath_errors() as xpath_log:
-            root = (
-                xpath_env.with_parameters(parameters).resolve_element(doc_root, xpath)
-                if xpath
-                else doc_root
-            )
-            out = run_transform(
+            out = transform_file(
                 mod,
-                root,
-                parameters=parameters,
-                webcomponents=effective_webcomponents,
-                template_path=effective_template,
-                template_context=template_context,
-                docx_template=effective_docx_template,
-                typst_template_path=effective_template if primary == 'typst' else None,
-                xpath_env=xpath_env,
-                epub_chunking=cfg.epub_chunking,
-                epub_css=cfg.epub_css,
-                epub_skip_title=cfg.epub_skip_title,
+                input_xml,
+                xpath=xpath,
+                # -p overrides [transform.parameters].
+                parameters=_parameters_from_cli(param or None),
+                # No --xpath-extensions means the configured ones.
+                xpath_extensions=xpath_extensions or None,
+                webcomponents=webcomponents,
+                template=template,
+                config=cfg,
             )
 
-        if isinstance(out, bytes):
-            if output:
+        if output:
+            if isinstance(out, bytes):
                 output.write_bytes(out)
-            elif preview:
-                kind = _preview_kind_from_module(mod)
-                label = 'EPUB' if kind == 'epub' else 'DOCX'
-                ext = '.epub' if kind == 'epub' else '.docx'
-                if not _preview_file_with_default_app(out, ext, label):
-                    typer.echo(
-                        f'{label} output cannot be previewed in the terminal and no '
-                        f'application is registered for {ext} files. '
-                        f'Use --output to write a {ext} file.',
-                    )
             else:
-                sys.stdout.buffer.write(out)
-        else:
-            if output:
                 output.write_text(out, encoding='utf-8')
-            elif preview:
-                kind = _preview_kind_from_module(mod)
-                if kind == 'html':
-                    _preview_html_in_browser(out)
-                elif kind == 'markdown':
-                    _preview_markdown_terminal(out)
-                elif kind == 'json':
-                    _preview_json_terminal(out)
-                elif kind == 'typst':
-                    _preview_plain_terminal(out)
-                else:
-                    _preview_plain_terminal(out)
-            else:
-                print(out)
+        elif preview:
+            _preview_output(out, mode)
+        elif isinstance(out, bytes):
+            sys.stdout.buffer.write(out)
+        else:
+            print(out)
         _report_xpath_errors(xpath_log, strict=strict)
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
         _die(str(e), cause=e)

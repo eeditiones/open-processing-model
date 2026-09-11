@@ -38,7 +38,6 @@ from opm.odd_compiler.codegen import (
     _local,
     _model_children,
     _top_level_models,
-    json_channel,
     model_key,
 )
 from opm.odd_compiler.parse_odd import (
@@ -48,6 +47,7 @@ from opm.odd_compiler.parse_odd import (
     load_odd,
     spec_origin,
 )
+from opm.output_modes import output_mode as mode_named
 from opm.runtime import source_positions
 
 # ``alternate`` is the one behaviour that deliberately leaves part of the source
@@ -444,12 +444,12 @@ def analyze(
     inspects decides which ``@output``-tagged models participate, so a coverage
     run is always about one channel.
     """
+    from opm.config import ProjectConfig
     from opm.odd_cache import resolve_transform_module
-    from opm.runtime.xpath_env import XPathEnvironment
     from opm.transform import (
+        load_project_documents,
         load_transform_module,
-        load_xpath_collections,
-        load_xpath_documents,
+        project_xpath_env,
     )
 
     documents = [Path(p) for p in paths]
@@ -461,7 +461,7 @@ def analyze(
     )
     module = load_transform_module(resolved.module_path)
     odd_path = Path(resolved.source_odd) if resolved.source_odd else Path('(module)')
-    channel = json_channel(output_mode)
+    channel = mode_named(output_mode).channel
 
     report = CoverageReport(
         odd=odd_path,
@@ -496,24 +496,13 @@ def analyze(
     # A predicate is free to call doc(), collection() or a tp: extension
     # function; without the same runtime context the transform gets, those
     # predicates would fail here and their models be reported as never fired.
-    extensions = tuple(cfg.xpath_extensions) if cfg is not None else ()
-    xpath_documents = load_xpath_documents(cfg.xpath_documents) if cfg else {}
-    xpath_collections: dict = {}
-    if cfg is not None:
-        xpath_collections, xpath_documents = load_xpath_collections(
-            cfg.xpath_collections, xpath_documents,
-        )
+    # The registers are parsed once; each document gets its own environment.
+    project = cfg if cfg is not None else ProjectConfig()
+    registers = load_project_documents(project)
 
     for document in documents:
         root = etree.parse(str(document)).getroot()
-        env = XPathEnvironment(
-            base_uri=document.resolve().as_uri(),
-            documents=xpath_documents,
-            collections=xpath_collections,
-            variables=dict(cfg.xpath_variables) if cfg else {},
-            namespaces=dict(cfg.xpath_namespaces) if cfg else {},
-            extensions=extensions,
-        )
+        env = project_xpath_env(project, document, documents=registers)
         payload = json.loads(module.transform(root, dict(merged) or None, xpath_env=env)[0])
         seen = _Seen()
         _scan_records(payload.get('document', []), report, seen)

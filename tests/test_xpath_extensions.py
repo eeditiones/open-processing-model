@@ -116,8 +116,7 @@ def test_transform_file_passes_configured_documents_to_doc_function(tmp_path) ->
     main_path.write_text('<root/>', encoding='utf-8')
     lookup_path.write_text('<lookup><label>from doc</label></lookup>', encoding='utf-8')
     module_path.write_text(
-        """def transform_output_channels():
-    return ['text']
+        """OUTPUT_MODE = 'markdown'
 
 
 def serialize(result):

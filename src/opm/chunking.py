@@ -26,8 +26,7 @@ from opm.runtime.context import RunState
 from opm.runtime.xpath_env import XPathEnvironment
 from opm.transform import (
     load_transform_module,
-    load_xpath_collections,
-    load_xpath_documents,
+    project_xpath_env,
     run_transform,
     xpath_select,
 )
@@ -86,12 +85,7 @@ class ChunkProcessor:
         project_root: Path,
         project_config: ProjectConfig | None = None,
         webcomponents: bool = False,
-        xpath_extensions: tuple[str, ...] | None = None,
-        xpath_base_uri: str | None = None,
-        xpath_documents: dict[str, Any] | None = None,
-        xpath_collections: dict[str, list] | None = None,
-        xpath_variables: dict[str, Any] | None = None,
-        xpath_namespaces: dict[str, str] | None = None,
+        xpath_env: XPathEnvironment | None = None,
         source_dir: Path | None = None,
     ):
         self.module = load_transform_module(module_path)
@@ -113,30 +107,16 @@ class ChunkProcessor:
         self.template_context: dict[str, Any] = cfg.context_for(
             'web', webcomponents=webcomponents,
         )
-        self.xpath_extensions: tuple[str, ...] = (
-            xpath_extensions if xpath_extensions is not None else cfg.xpath_extensions
-        )
         self.parameters: dict[str, str] = dict(cfg.parameters)
-        self.xpath_base_uri = xpath_base_uri
         self.source_dir = source_dir
         self._copied_images: set[str] = set()
-        self.xpath_documents = xpath_documents or {}
-        self.xpath_collections = xpath_collections or {}
-        self.xpath_variables = dict(
-            xpath_variables if xpath_variables is not None else cfg.xpath_variables,
-        )
-        self.xpath_namespaces = dict(
-            xpath_namespaces if xpath_namespaces is not None else cfg.xpath_namespaces,
-        )
         # One environment for the whole document: the selector, every chunk
-        # and every fragment share its cached node trees.
-        self.xpath_env = XPathEnvironment(
-            base_uri=self.xpath_base_uri,
-            documents=self.xpath_documents,
-            collections=self.xpath_collections,
-            variables=self.xpath_variables,
-            namespaces=self.xpath_namespaces,
-            extensions=self.xpath_extensions,
+        # and every fragment share its cached node trees. Without one, the
+        # project's variables and extensions apply but no registers load.
+        self.xpath_env = xpath_env if xpath_env is not None else XPathEnvironment(
+            variables=dict(cfg.xpath_variables),
+            namespaces=dict(cfg.xpath_namespaces),
+            extensions=cfg.xpath_extensions,
         )
         # Includes the project's base override ([transform] css), compiled in.
         # Design CSS is not part of this — it travels through chunking.assets.
@@ -199,7 +179,7 @@ class ChunkProcessor:
         selector runs.
         """
         source_map.clear()
-        source_map.set_base_uri(self.xpath_base_uri)
+        source_map.set_base_uri(self.xpath_env.base_uri)
         if self.config.selector:
             import importlib
             module_name, _, func_name = self.config.selector.rpartition('.')
@@ -1313,21 +1293,12 @@ def chunk_document(
     tree = etree.parse(str(xml_path))
     root = tree.getroot()
     cfg = project_config or ProjectConfig()
-    xpath_documents = load_xpath_documents(cfg.xpath_documents)
-    xpath_collections, xpath_documents = load_xpath_collections(
-        cfg.xpath_collections, xpath_documents,
-    )
 
     processor = ChunkProcessor(
         resolved_module, root, config, project_root,
         project_config=project_config,
         webcomponents=webcomponents,
-        xpath_extensions=xpath_extensions,
-        xpath_base_uri=xml_path.resolve().as_uri(),
-        xpath_documents=xpath_documents,
-        xpath_collections=xpath_collections,
-        xpath_variables=dict(cfg.xpath_variables),
-        xpath_namespaces=dict(cfg.xpath_namespaces),
+        xpath_env=project_xpath_env(cfg, xml_path, extensions=xpath_extensions),
         source_dir=xml_path.parent,
     )
     if output_format == 'pb-view':

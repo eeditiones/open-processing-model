@@ -13,6 +13,7 @@ transforms in your own scripts, a static site generator, or a web service.
 | Read `opm.toml` settings programmatically | [`opm.config`](config.md) |
 | Compile an ODD into a transform module | [`opm.odd_compiler`](odd-compiler.md) |
 | Implement a new output format | [`opm.runtime.output_functions`](output-functions.md) |
+| See or add what an output mode (`-t`) does | [`opm.output_modes`](output-modes.md) |
 | Understand the tree-walking runtime / XPath extensions | [`opm.runtime`](runtime.md) |
 
 The pages below are generated directly from the source docstrings, so they stay

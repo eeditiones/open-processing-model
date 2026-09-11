@@ -13,8 +13,10 @@ from pathlib import Path
 
 from jinja2 import Environment, PackageLoader
 
+from opm.output_modes import RENDER_MODES
+
 VOCABULARIES = ('tei', 'docbook', 'jats')
-DEFAULT_OUTPUTS = frozenset({'web', 'typst', 'docx', 'markdown'})
+DEFAULT_OUTPUTS = frozenset(name for name, mode in RENDER_MODES.items() if mode.scaffold)
 
 _TITLE_XPATH = {
     'tei': "(//teiHeader/fileDesc/titleStmt/title)[1]",

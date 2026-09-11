@@ -281,31 +281,6 @@ def test_other_output_modes_keep_their_inline_dispatch_fallthrough() -> None:
     assert 'ODD_MODELS = {' in src
 
 
-# ── output channels ──────────────────────────────────────────────────────────
-
-def test_json_channel_aliases_cover_every_render_mode() -> None:
-    from opm.odd_compiler.codegen import (
-        OUTPUT_MODE_ALIASES,
-        RENDER_MODES,
-        is_json_mode,
-        json_channel,
-    )
-
-    for mode in RENDER_MODES:
-        accepted = OUTPUT_MODE_ALIASES[f'json-{mode}']
-        assert accepted[0] == 'json'
-        assert mode in accepted
-        assert is_json_mode(f'json-{mode}')
-        assert json_channel(f'json-{mode}') == mode
-
-    # print and epub carry their own web fallback into the JSON view.
-    assert OUTPUT_MODE_ALIASES['json-print'] == ('json', 'print', 'web')
-    assert OUTPUT_MODE_ALIASES['json-epub'] == ('json', 'epub', 'web')
-    # typst and markdown do not fall back to web, so neither do their JSON modes.
-    assert OUTPUT_MODE_ALIASES['json-typst'] == ('json', 'typst')
-    assert not is_json_mode('typst')
-    assert json_channel('json') == 'web'
-
 
 def test_channel_selects_that_channels_models() -> None:
     """``-t json`` alone shows the reading view; a typst ODD needs its own channel."""

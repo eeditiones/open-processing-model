@@ -11,9 +11,11 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from lxml import etree
 
-DEFAULT_TEMPLATE_NAME = 'default_document.html.j2'
-DEFAULT_PRINT_TEMPLATE_NAME = 'default_print.html.j2'
-DEFAULT_TYPST_TEMPLATE_NAME = 'default_document.typ.j2'
+from opm.output_modes import RENDER_MODES
+
+DEFAULT_TEMPLATE_NAME: str = RENDER_MODES['web'].default_template  # type: ignore[assignment]
+DEFAULT_PRINT_TEMPLATE_NAME: str = RENDER_MODES['print'].default_template  # type: ignore[assignment]
+DEFAULT_TYPST_TEMPLATE_NAME: str = RENDER_MODES['typst'].default_template  # type: ignore[assignment]
 DEFAULT_INDEX_TEMPLATE_NAME = 'default_index.html.j2'
 
 

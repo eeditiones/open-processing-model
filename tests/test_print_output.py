@@ -127,17 +127,27 @@ def test_model_matches_opm_prefix_with_aliases() -> None:
     assert not _model_matches_output_mode(opm_print, 'web')
 
 
-def test_compile_print_mode_imports_print_output_functions(tmp_path: Path) -> None:
+def test_compile_print_mode_renders_with_print_output_functions(tmp_path: Path) -> None:
+    import importlib.util
+
     from opm.odd_compiler import compile_odd
     from opm.resources import packaged_odd
 
     src = compile_odd(str(packaged_odd('teipublisher')), output_mode='print')
-    assert 'PrintOutputFunctions' in src
-    assert 'PrintOutputFunctions()' in src
-    assert 'webcomponents_allowed=False' in src
-    assert "return ['print']" in src
+    assert "OUTPUT_MODE = 'print'" in src
     # print also matches web models — dispatch should still have cases
     assert 'match _tag(node):' in src
+
+    out = tmp_path / 'print_gen.py'
+    out.write_text(src, encoding='utf-8')
+    spec = importlib.util.spec_from_file_location('print_gen', str(out))
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    config = mod.new_context(etree.fromstring('<TEI/>'), {'webcomponents': True})
+    assert isinstance(config.pmf, PrintOutputFunctions)
+    # Paged media never enables web components, whatever the caller asks for.
+    assert config.webcomponents is False
 
     out = tmp_path / 'print_gen.py'
     out.write_text(src, encoding='utf-8')

@@ -31,6 +31,7 @@ _JATS = (
 
 def _docx(tmp_path: Path, odd: str, xml: str) -> Document:
     from opm.odd_compiler import compile_odd
+    from opm.runtime.xpath_env import XPathEnvironment
     from opm.transform import load_transform_module, run_transform
 
     mod_path = tmp_path / f'{odd}_docx.py'
@@ -40,7 +41,7 @@ def _docx(tmp_path: Path, odd: str, xml: str) -> Document:
     out = run_transform(
         load_transform_module(mod_path),
         etree.fromstring(xml.encode()),
-        xpath_extensions=['opm.runtime.common_xpath_functions'],
+        xpath_env=XPathEnvironment(extensions=['opm.runtime.common_xpath_functions']),
     )
     assert isinstance(out, bytes)
     path = tmp_path / f'{odd}.docx'

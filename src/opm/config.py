@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from opm.output_modes import CONFIG_SECTIONS, MODES
+
 DEFAULT_CDN_TEMPLATE = (
     'https://cdn.jsdelivr.net/npm/@teipublisher/pb-components'
     '@{version}/dist/pb-components-bundle.js'
@@ -25,8 +27,15 @@ DEFAULT_VERSION = '3.6.7'
 
 CONFIG_FILENAME = 'opm.toml'
 
-# Output types that may declare ``[transform.<type>]`` (odd + optional template).
-TRANSFORM_TYPE_SECTIONS = ('web', 'docx', 'typst', 'markdown', 'print', 'epub', 'json')
+
+def _section_for(transform_type: str | None) -> str:
+    """The ``[transform.<type>]`` table configuring *transform_type*.
+
+    ``json-typst`` and the other JSON channels share ``[transform.json]``.
+    """
+    key = (transform_type or '').strip().lower()
+    mode = MODES.get(key)
+    return mode.section if mode is not None else key
 
 
 def _section_table(value: Any) -> dict[str, Any]:
@@ -345,7 +354,7 @@ class ProjectConfig:
         set that key itself, which then wins.
         """
         merged = dict(self.template_context)
-        key = (transform_type or '').strip().lower()
+        key = _section_for(transform_type)
         if key:
             merged.update(self.template_context_by_type.get(key, {}))
         if webcomponents:
@@ -367,9 +376,9 @@ class ProjectConfig:
         """Return the ODD for *transform_type*.
 
         Precedence: ``[transform.<type>].odd`` → ``[transform].odd`` → ``None``.
+        The JSON channels (``json-typst``, …) read ``[transform.json]``.
         """
-        key = transform_type.strip().lower()
-        return self.transform_odds.get(key) or self.transform_odd
+        return self.transform_odds.get(_section_for(transform_type)) or self.transform_odd
 
 
 def _resolve_type_section(
@@ -405,7 +414,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     # Per-type tables: prefer [transform.<type>], accept legacy top-level [<type>].
     type_sections = {
         type_name: _resolve_type_section(transform, data, type_name)
-        for type_name in TRANSFORM_TYPE_SECTIONS
+        for type_name in CONFIG_SECTIONS
     }
     docx_data = type_sections['docx']
     typst_data = type_sections['typst']

@@ -6,6 +6,7 @@ import importlib.util
 import py_compile
 from pathlib import Path
 
+import pytest
 from lxml import etree
 
 from opm.resources import packaged_odd
@@ -45,41 +46,66 @@ def test_compile_typst_mode_imports_typst_output_functions(tmp_path: Path) -> No
     from opm.odd_compiler import compile_odd
 
     src = compile_odd(str(ODD), output_mode='typst')
-    assert 'TypstOutputFunctions' in src
-    assert 'normalize_markdown_xml_text' in src
-    assert 'normalize_text=normalize_markdown_xml_text,' in src
-    assert 'TypstOutputFunctions()' in src
+    assert "OUTPUT_MODE = 'typst'" in src
     assert 'ODD_GENERATED_TYPST' in src
     assert 'ODD_GENERATED_CSS' not in src
     assert 'TYPST_RENDITION_FUNCTIONS' in src
     assert 'typst_functions=TYPST_RENDITION_FUNCTIONS,' in src
-    assert "odd_css=''," in src
-    assert "return ['typst']" in src
 
     out = tmp_path / 'typst_gen.py'
     out.write_text(src, encoding='utf-8')
     py_compile.compile(str(out), doraise=True)
     assert r'\[' in src or '\\[' in src  # backslashes escaped for Python source
 
+    from opm.runtime.markdown_output_functions import normalize_markdown_xml_text
+    from opm.runtime.typst_output_functions import TypstOutputFunctions, escape_typst_text_node
 
-def test_compile_markdown_mode_imports_markdown_output_functions() -> None:
+    config = _load_generated(out).new_context(etree.fromstring('<TEI/>'))
+    assert isinstance(config.pmf, TypstOutputFunctions)
+    assert config.normalize_text is normalize_markdown_xml_text
+    assert config.text_escape is escape_typst_text_node
+    assert config.odd_css == ''
+
+
+def _load_generated(path: Path):
+    spec = importlib.util.spec_from_file_location(path.stem, str(path))
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_compile_markdown_mode_renders_with_markdown_output_functions(tmp_path: Path) -> None:
     from opm.odd_compiler import compile_odd
+    from opm.runtime.markdown_output_functions import (
+        MarkdownOutputFunctions,
+        normalize_markdown_xml_text,
+    )
 
     src = compile_odd(str(ODD), output_mode='markdown')
-    assert 'MarkdownOutputFunctions' in src
-    assert 'normalize_markdown_xml_text' in src
-    assert 'normalize_text=normalize_markdown_xml_text,' in src
-    assert 'MarkdownOutputFunctions()' in src
-    assert 'def transform_output_channels' in src
-    assert "return ['markdown']" in src
+    assert "OUTPUT_MODE = 'markdown'" in src
+    out = tmp_path / 'md_gen.py'
+    out.write_text(src, encoding='utf-8')
+
+    config = _load_generated(out).new_context(etree.fromstring('<TEI/>'))
+    assert isinstance(config.pmf, MarkdownOutputFunctions)
+    assert config.normalize_text is normalize_markdown_xml_text
+    assert config.output == 'markdown'
 
 
-def test_compile_web_mode_emits_transform_output_channels() -> None:
+def test_compile_web_mode_emits_output_mode() -> None:
     from opm.odd_compiler import compile_odd
 
     src = compile_odd(str(ODD), output_mode='web')
-    assert 'def transform_output_channels' in src
-    assert "return ['web']" in src
+    assert "OUTPUT_MODE = 'web'" in src
+    assert 'odd_css=ODD_GENERATED_CSS,' in src
+
+
+def test_compile_unknown_mode_is_an_error() -> None:
+    from opm.odd_compiler import compile_odd
+
+    with pytest.raises(ValueError, match="Unknown output mode 'pdf'"):
+        compile_odd(str(ODD), output_mode='pdf')
 
 
 def test_opm_output_prefix_matches_web_mode_in_document_order(tmp_path: Path) -> None:

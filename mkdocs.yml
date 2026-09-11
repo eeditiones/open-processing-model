@@ -98,5 +98,6 @@ nav:
       - config: api/config.md
       - odd_compiler: api/odd-compiler.md
       - output functions: api/output-functions.md
+      - output modes: api/output-modes.md
       - runtime: api/runtime.md
   - License: license.md

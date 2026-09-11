@@ -14,6 +14,8 @@ from typing import TYPE_CHECKING
 
 from lxml import etree
 
+from ...output_modes import output_mode as _mode_named
+
 if TYPE_CHECKING:
     from ..parse_odd import ParsedOdd
 
@@ -126,49 +128,6 @@ def model_key(ident: str, spec_el, model_el) -> str:
 
 OPM_OUTPUT_PREFIX = 'opm-'
 
-JSON_MODE_PREFIX = 'json'
-
-# Every rendering channel an ODD may tag models for.
-RENDER_MODES: tuple[str, ...] = (
-    'web', 'print', 'epub', 'markdown', 'docx', 'typst',
-)
-
-# Modes that extend another mode; e.g. print accepts both print and web models.
-OUTPUT_MODE_ALIASES: dict[str, tuple[str, ...]] = {
-    'print': ('print', 'web'),
-    'epub': ('epub', 'web'),
-    'markdown': ('markdown', 'plain'),
-    # JSON has no models of its own in practice: it records what some *other*
-    # channel decided. Plain `json` inspects the reading view; `json-<channel>`
-    # inspects that channel, so a typst or docx ODD can be debugged too.
-    'json': ('json', 'web'),
-}
-for _channel in RENDER_MODES:
-    OUTPUT_MODE_ALIASES[f'{JSON_MODE_PREFIX}-{_channel}'] = (
-        JSON_MODE_PREFIX,
-        *OUTPUT_MODE_ALIASES.get(_channel, (_channel,)),
-    )
-del _channel
-
-
-def is_json_mode(output_mode: str) -> bool:
-    """Whether *output_mode* emits JSON records (``json`` or ``json-<channel>``)."""
-    mode = (output_mode or '').strip().lower()
-    return mode == JSON_MODE_PREFIX or mode.startswith(f'{JSON_MODE_PREFIX}-')
-
-
-def json_channel(output_mode: str) -> str:
-    """The rendering channel a JSON mode inspects (``json-typst`` → ``typst``)."""
-    mode = (output_mode or '').strip().lower()
-    _, _, channel = mode.partition('-')
-    return channel or 'web'
-
-
-def _accepted_output_modes(output_mode: str) -> tuple[str, ...]:
-    """Return the ODD ``@output`` values that participate for *output_mode*."""
-    mode = (output_mode or 'web').strip().lower() or 'web'
-    return OUTPUT_MODE_ALIASES.get(mode, (mode,))
-
 
 def _model_matches_output_mode(el, output_mode: str) -> bool:
     """Whether *el* participates in the given ODD output channel (``@output`` on models).
@@ -176,8 +135,8 @@ def _model_matches_output_mode(el, output_mode: str) -> bool:
     Models without ``@output`` are generic and apply to all modes.  Mode-specific
     models override them via the predicate/ordering rules in ``_top_level_models``.
 
-    Some modes build upon other modes (see
-    :data:`OUTPUT_MODE_ALIASES`): e.g. ``print`` matches ``@output="print"`` and
+    Some modes build upon other modes (see ``accepts`` in
+    :mod:`opm.output_modes`): e.g. ``print`` matches ``@output="print"`` and
     ``@output="web"``; ``markdown`` matches ``@output="markdown"`` and
     ``@output="plain"``.
 
@@ -187,7 +146,7 @@ def _model_matches_output_mode(el, output_mode: str) -> bool:
     o = el.get('output')
     if o is None:
         return True
-    accepted = _accepted_output_modes(output_mode)
+    accepted = _mode_named(output_mode).accepts
     if o in accepted:
         return True
     return any(o == f'{OPM_OUTPUT_PREFIX}{mode}' for mode in accepted)

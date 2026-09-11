@@ -40,8 +40,7 @@ ODD_GENERATED_CSS = ''
 ODD_NAME = 'teipublisher'
 
 
-def transform_output_channels():
-    return ['web']
+OUTPUT_MODE = 'web'
 
 
 def _append_children(node, out):
@@ -123,11 +122,10 @@ def transform(root, options=None, *, xpath_env=None):
 
 def new_context(root, options=None, *, xpath_env=None):
     from opm.runtime.context import build_context
-    from opm.runtime.html_output_functions import HtmlOutputFunctions
 
     return build_context(
-        root, options, xpath_env=xpath_env,
-        pmf=HtmlOutputFunctions(), dispatch=_dispatch, apply=apply,
+        root, options, mode=OUTPUT_MODE, xpath_env=xpath_env,
+        dispatch=_dispatch, apply=apply,
     )
 
 

@@ -24,9 +24,9 @@ from . import (
     _sanitize_ident,
     _serialize_template_content,
     _top_level_models,
-    is_json_mode,
     model_key,
 )
+from ...output_modes import output_mode as _mode_named
 from ..behaviour_map import BEHAVIOUR_METHOD, method_for_behaviour
 from ..css_generator import collect_odd_generated_css
 from ..expression_check import UnsupportedExpression, static_problem
@@ -153,25 +153,26 @@ class PythonGenerator(CodeGenerator):
         schema_ns = parsed.schema_ns
         odd_path = parsed.odd_path
         odd_name = Path(odd_path).stem if odd_path else ''
-        odd_typst_literal = ''
-        if output_mode == 'typst':
+        mode = _mode_named(output_mode)
+        # RenderContext fields the module supplies from its own constants; what
+        # the mode itself sets comes from opm.output_modes at run time.
+        module_settings: list[str] = []
+        if mode.stylesheet == 'typst':
             odd_typst, typst_fn_names = collect_odd_generated_typst(parsed, output_mode=output_mode)
             typst_fn_literal = self._python_frozenset_literal(typst_fn_names)
-            odd_typst_literal = (
+            odd_generated_constants = (
                 f'\n\nODD_GENERATED_TYPST = {self._python_triple_quoted(odd_typst)}'
                 f'\n\nTYPST_RENDITION_FUNCTIONS = {typst_fn_literal}'
             )
-            odd_generated_constants = odd_typst_literal
-            odd_css_config = "''"
+            module_settings.append('typst_functions=TYPST_RENDITION_FUNCTIONS')
         else:
             odd_css = collect_odd_generated_css(
                 parsed, output_mode=output_mode, base_css=base_css
             )
             odd_generated_constants = (
                 f'\n\nODD_GENERATED_CSS = {self._python_triple_quoted(odd_css)}'
-                f'{odd_typst_literal}'
             )
-            odd_css_config = 'ODD_GENERATED_CSS'
+            module_settings.append('odd_css=ODD_GENERATED_CSS')
         # Generate NSMAP from ODD namespace declarations for XPath expressions
         nsmap_literal = self._python_nsmap_literal(parsed.nsmap)
         self._odd_nsmap = dict(parsed.nsmap or {})
@@ -204,7 +205,7 @@ class PythonGenerator(CodeGenerator):
         # JSON output routes unmatched elements through the PMF so they appear
         # in the record tree; every other mode recurses inline exactly as
         # before, so their generated dispatch is unchanged.
-        if is_json_mode(output_mode):
+        if mode.records:
             fallthrough = 'return pmf.unmatched(config, node)'
         else:
             fallthrough = 'return apply(config, child_nodes(node))'
@@ -222,90 +223,18 @@ class PythonGenerator(CodeGenerator):
             # also invalid.
             dispatch_body = f'    {fallthrough}'
 
-        if output_mode == 'markdown':
-            pmf_import = (
-                'from opm.runtime.markdown_output_functions import (\n'
-                '    MarkdownOutputFunctions,\n'
-                '    normalize_markdown_xml_text,\n'
-                ')'
-            )
-            pmf_ctor = 'MarkdownOutputFunctions()'
-            context_settings = ['normalize_text=normalize_markdown_xml_text']
-            webcomponents_allowed = True
-        elif output_mode == 'docx':
-            pmf_import = (
-                'from opm.runtime.docx_output_functions import (\n'
-                '    DocxOutputFunctions,\n'
-                '    docx_apply_children,\n'
-                ')\n'
-                'from opm.runtime.markdown_output_functions import normalize_markdown_xml_text'
-            )
-            pmf_ctor = 'DocxOutputFunctions()'
-            context_settings = [
-                'apply_children=docx_apply_children',
-                'normalize_text=normalize_markdown_xml_text',
-            ]
-            webcomponents_allowed = True
-        elif output_mode == 'typst':
-            pmf_import = (
-                'from opm.runtime.typst_output_functions import (\n'
-                '    TypstOutputFunctions,\n'
-                '    escape_typst_text_node,\n'
-                ')\n'
-                'from opm.runtime.markdown_output_functions import normalize_markdown_xml_text'
-            )
-            pmf_ctor = 'TypstOutputFunctions()'
-            context_settings = [
-                'normalize_text=normalize_markdown_xml_text',
-                'text_escape=escape_typst_text_node',
-                'typst_functions=TYPST_RENDITION_FUNCTIONS',
-            ]
-            webcomponents_allowed = True
-        elif output_mode == 'print':
-            pmf_import = (
-                'from opm.runtime.print_output_functions import PrintOutputFunctions'
-            )
-            pmf_ctor = 'PrintOutputFunctions()'
-            # Paged media has no interactive UI; never enable web components.
-            context_settings = []
-            webcomponents_allowed = False
-        elif output_mode == 'epub':
-            pmf_import = (
-                'from opm.runtime.epub_output_functions import EpubOutputFunctions'
-            )
-            pmf_ctor = 'EpubOutputFunctions()'
-            # EPUB readers have no tei-publisher web-component runtime.
-            context_settings = []
-            webcomponents_allowed = False
-        elif is_json_mode(output_mode):
-            pmf_import = (
-                'from opm.runtime.json_output_functions import JsonOutputFunctions\n'
-                'from opm.runtime.markdown_output_functions import normalize_markdown_xml_text'
-            )
-            pmf_ctor = 'JsonOutputFunctions()'
+        if mode.records:
             # ODD_MODELS lets a record name not just *which* model won but what
             # it was, and lets `finish` list the models that did not win, pruned
-            # against the context's `root`. normalize_text keeps XML
-            # pretty-printing out of the text runs.
-            context_settings = [
-                'models=ODD_MODELS',
-                'normalize_text=normalize_markdown_xml_text',
-            ]
-            webcomponents_allowed = False
-        else:
-            pmf_import = 'from opm.runtime.html_output_functions import HtmlOutputFunctions'
-            pmf_ctor = 'HtmlOutputFunctions()'
-            context_settings = []
-            webcomponents_allowed = True
-
-        if is_json_mode(output_mode):
+            # against the context's `root`.
             odd_generated_constants += (
                 f'\n\nODD_MODELS = {self._python_models_literal(parsed, output_mode)}'
             )
+            module_settings.append('models=ODD_MODELS')
 
         template_helpers_block = helpers.functions_block
         unsupported_literal = self._python_unsupported_literal()
-        settings_src = ''.join(f'\n        {setting},' for setting in context_settings)
+        settings_src = ''.join(f'\n        {setting},' for setting in module_settings)
 
         return f'''#!/usr/bin/env python3
 """Auto-generated TEI processing model ({output_mode} output).
@@ -326,7 +255,6 @@ from opm.runtime.output_functions import (
     child_nodes,
     normalize,
 )
-{pmf_import}
 from opm.runtime.pm_runtime import (
     apply as _apply_impl,
     apply_template_param_value,
@@ -341,19 +269,14 @@ from opm.runtime.pm_runtime import (
 # Name of the ODD this module was generated from (stem, no extension).
 ODD_NAME = {odd_name!r}
 
+# The output mode this module was compiled for; opm.output_modes says what it
+# renders with and how the result is wrapped.
+OUTPUT_MODE = {mode.name!r}
+
 # ODD expressions opm can never evaluate (eXist functions, XQuery syntax). Each
 # was compiled to the result a failing evaluation returns; see
 # opm.odd_compiler.expression_check. `opm coverage` lists them.
 ODD_UNSUPPORTED = {unsupported_literal}
-
-
-def transform_output_channels():
-    """Return ODD processing-model output channel(s) for this module.
-
-    Same values as ``opm transform --type`` / ODD compile ``output_mode`` and the ``output`` key in ``transform()`` config.
-    """
-    return ['{output_mode}']
-
 
 {odd_generated_constants}
 
@@ -376,14 +299,11 @@ def new_context(root, options=None, *, xpath_env=None):
     return build_context(
         root,
         options,
+        mode=OUTPUT_MODE,
         xpath_env=xpath_env,
         odd_namespaces=NSMAP,
-        webcomponents_allowed={webcomponents_allowed!r},
-        output={output_mode!r},
-        pmf={pmf_ctor},
         dispatch=_dispatch,
-        apply=apply,
-        odd_css={odd_css_config},{settings_src}
+        apply=apply,{settings_src}
     )
 
 
@@ -582,42 +502,13 @@ def transform(root, options=None, *, xpath_env=None):
             return f'{normalized}_'
         return normalized
 
-    @staticmethod
-    def _pmf_class_for_output_mode(output_mode: str):
-        if output_mode == 'markdown':
-            from opm.runtime.markdown_output_functions import MarkdownOutputFunctions
-
-            return MarkdownOutputFunctions
-        if output_mode == 'docx':
-            from opm.runtime.docx_output_functions import DocxOutputFunctions
-
-            return DocxOutputFunctions
-        if output_mode == 'typst':
-            from opm.runtime.typst_output_functions import TypstOutputFunctions
-
-            return TypstOutputFunctions
-        if output_mode == 'print':
-            from opm.runtime.print_output_functions import PrintOutputFunctions
-
-            return PrintOutputFunctions
-        if is_json_mode(output_mode):
-            from opm.runtime.json_output_functions import JsonOutputFunctions
-            return JsonOutputFunctions
-        if output_mode == 'epub':
-            from opm.runtime.epub_output_functions import EpubOutputFunctions
-
-            return EpubOutputFunctions
-        from opm.runtime.html_output_functions import HtmlOutputFunctions
-
-        return HtmlOutputFunctions
-
     def _accepted_method_kwargs(
         self,
         output_mode: str,
         method: str,
     ) -> tuple[dict[str, inspect.Parameter], bool]:
         """Return accepted keyword params for pmf.<method> after content."""
-        cls = self._pmf_class_for_output_mode(output_mode)
+        cls = _mode_named(output_mode).output_functions()
         fn = getattr(cls, method)
         sig = inspect.signature(fn)
         allowed: dict[str, inspect.Parameter] = {}

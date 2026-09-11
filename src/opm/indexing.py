@@ -506,7 +506,6 @@ def _chunk_processor(root, module_path: Path, cfg, project_root: Path):
         cfg.chunking,
         project_root,
         project_config=cfg,
-        xpath_extensions=cfg.xpath_extensions or None,
     )
     processor.select_chunks()
     return processor
@@ -529,11 +528,9 @@ def index_document(
     whose ids never existed in the source document.
     """
     from opm.odd_cache import resolve_transform_module
-    from opm.runtime.xpath_env import XPathEnvironment
     from opm.transform import (
         load_transform_module,
-        load_xpath_collections,
-        load_xpath_documents,
+        project_xpath_env,
     )
 
     project_root = project_root or Path.cwd()
@@ -560,18 +557,7 @@ def index_document(
     # Register lookups (e.g. collection($global:register-root)) need the same
     # XPath runtime context as `opm transform`; without collections, ODD models
     # fall back to the TEI surface form instead of the register main name.
-    xpath_documents = load_xpath_documents(cfg.xpath_documents)
-    xpath_collections, xpath_documents = load_xpath_collections(
-        cfg.xpath_collections, xpath_documents,
-    )
-    xpath_env = XPathEnvironment(
-        base_uri=xml_path.resolve().as_uri(),
-        documents=xpath_documents,
-        collections=xpath_collections,
-        variables=dict(cfg.xpath_variables),
-        namespaces=dict(cfg.xpath_namespaces),
-        extensions=cfg.xpath_extensions,
-    )
+    xpath_env = project_xpath_env(cfg, xml_path)
     transform_opts: dict[str, Any] = dict(parameters)
 
     def transform(node) -> list:

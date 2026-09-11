@@ -80,8 +80,7 @@ def test_compile_typst_mode_emits_odd_generated_typst() -> None:
     src = compile_odd(str(ODD), output_mode='typst')
     assert 'ODD_GENERATED_TYPST' in src
     assert 'ODD_GENERATED_CSS' not in src
-    assert 'TypstOutputFunctions' in src
-    assert "return ['typst']" in src
+    assert "OUTPUT_MODE = 'typst'" in src
 
 
 def test_css_body_to_typst_function_font_size() -> None:
