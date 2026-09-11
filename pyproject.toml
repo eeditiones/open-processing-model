@@ -34,6 +34,7 @@ dependencies = [
     "python-docx>=1.1",
     "platformdirs>=4.10.0",
     "questionary>=2.1.1",
+    "rich-pyfiglet>=2.0.1",
 ]
 
 [dependency-groups]

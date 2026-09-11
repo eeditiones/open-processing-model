@@ -74,6 +74,24 @@ def _version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
+def _print_logo() -> None:
+    """Print the OPM logo on stderr, so it never mixes with output on stdout.
+
+    Only in an interactive terminal: piped or redirected runs stay as they were.
+    """
+    if not sys.stderr.isatty():
+        return
+    # Imported lazily, like rich: only the logo needs them.
+    from rich.console import Console
+    from rich.text import Text
+    from rich_pyfiglet import RichFiglet
+
+    console = Console(stderr=True)
+    # The orange of the OPM logo (docs/assets/logo.svg).
+    console.print(RichFiglet('OPM', font='slant', colors=['#F5A623']))
+    console.print(Text(f'Open Processing Model {opm_version()}\n', style='dim'))
+
+
 @app.callback()
 def _root(
     version: Annotated[
@@ -86,9 +104,14 @@ def _root(
             is_eager=True,
         ),
     ] = False,
+    quiet: Annotated[
+        bool,
+        typer.Option('--quiet', '-q', help='Do not print the OPM logo.'),
+    ] = False,
 ) -> None:
     # No docstring: Typer would use it as the group help, replacing ``app.help``.
-    pass
+    if not quiet:
+        _print_logo()
 
 
 @app.command('init')

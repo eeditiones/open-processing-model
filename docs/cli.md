@@ -17,6 +17,7 @@ opm [OPTIONS] COMMAND [ARGS]...
 | Option | Description |
 | --- | --- |
 | `--version, -V` | Show the installed version and exit. |
+| `--quiet, -q` | Do not print the OPM logo. |
 | `--install-completion` | Install completion for the current shell. |
 | `--show-completion` | Show completion for the current shell, to copy it or customize the installation. |
 | `--help` | Show this message and exit. |

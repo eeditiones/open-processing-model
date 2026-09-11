@@ -33,6 +33,21 @@ def test_preview_follows_the_output_mode(monkeypatch, mode: str, shown_by: str) 
     assert shown == [shown_by]
 
 
+@pytest.mark.parametrize(('args', 'tty', 'shown'), [
+    (['transform', '--help'], True, True),
+    (['-q', 'transform', '--help'], True, False),
+    (['--quiet', 'transform', '--help'], True, False),
+    (['transform', '--help'], False, False),  # piped or redirected
+])
+def test_logo_in_a_terminal_unless_quiet(monkeypatch, capsys, args, tty, shown) -> None:
+    monkeypatch.setattr(sys.stderr, 'isatty', lambda: tty)
+    main(args)
+    captured = capsys.readouterr()
+    assert ('Open Processing Model' in captured.err) is shown
+    # The logo never reaches stdout, where the transform output goes.
+    assert 'Open Processing Model 0' not in captured.out
+
+
 def test_preview_opens_packages_in_the_default_app(monkeypatch) -> None:
     opened: list[tuple] = []
     monkeypatch.setattr(
