@@ -9,6 +9,7 @@ from docx import Document
 from lxml import etree
 
 from opm.resources import packaged_odd
+from opm.runtime.context import RenderContext, RunState
 from opm.runtime.docx_output_functions import DocxOutputFunctions
 
 _JATS = (
@@ -75,7 +76,7 @@ def test_over_long_property_is_truncated_not_fatal() -> None:
     """
     doc = Document()
     pmf = DocxOutputFunctions()
-    config = {'parameters': {'metadata': {'abstract': ['x' * 400]}}}
+    config = RenderContext(state=RunState(metadata={'abstract': ['x' * 400]}))
     pmf._apply_core_properties(config, doc)
 
     assert len(doc.core_properties.comments) == 255
@@ -85,7 +86,7 @@ def test_over_long_property_is_truncated_not_fatal() -> None:
 def test_unmapped_metadata_key_is_ignored() -> None:
     doc = Document()
     pmf = DocxOutputFunctions()
-    pmf._apply_core_properties({'parameters': {'metadata': {'nonesuch': ['v']}}}, doc)
+    pmf._apply_core_properties(RenderContext(state=RunState(metadata={'nonesuch': ['v']})), doc)
     assert doc.core_properties.title == ''
 
 

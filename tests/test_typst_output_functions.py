@@ -8,6 +8,7 @@ from pathlib import Path
 from lxml import etree
 
 from opm.resources import packaged_odd
+from opm.runtime.context import RenderContext
 from opm.runtime.markdown_output_functions import normalize_markdown_xml_text
 from opm.runtime.output_functions import TemplateOutput
 from opm.runtime.pm_runtime import apply_children
@@ -34,13 +35,13 @@ def test_finish_cleanup_does_not_stub_css_classes() -> None:
 
 def test_wrap_typst_classes_innermost_first() -> None:
     inner = 'text'
-    config = {'typst_functions': frozenset({'tei_pb', 'tei_pb2'})}
+    config = RenderContext(typst_functions=frozenset({'tei_pb', 'tei_pb2'}))
     wrapped = _wrap_typst_classes(config, ['tei-pb', 'tei-pb2'], inner)
     assert wrapped == '#tei_pb2[#tei_pb[text]]'
 
 
 def test_wrap_typst_classes_css_class_only() -> None:
-    config: dict = {'typst_functions': frozenset()}
+    config = RenderContext()
     wrapped = _wrap_typst_classes(
         config,
         ['tei-title', 'tei-title10', 'r', 'title'],
@@ -50,7 +51,7 @@ def test_wrap_typst_classes_css_class_only() -> None:
 
 
 def test_wrap_typst_classes_output_rendition_and_css_class() -> None:
-    config = {'typst_functions': frozenset({'tei_emphasis1'})}
+    config = RenderContext(typst_functions=frozenset({'tei_emphasis1'}))
     wrapped = _wrap_typst_classes(
         config,
         ['tei-emphasis', 'tei-emphasis1', 'r', 'customEmph'],
@@ -61,26 +62,26 @@ def test_wrap_typst_classes_output_rendition_and_css_class() -> None:
 
 def test_wrap_typst_classes_skips_undefined_renditions() -> None:
     inner = 'hello'
-    config = {'typst_functions': frozenset({'tei_del1'})}
+    config = RenderContext(typst_functions=frozenset({'tei_del1'}))
     wrapped = _wrap_typst_classes(config, ['tei-hi', 'tei-hi1'], inner)
     assert wrapped == 'hello'
 
 
 def test_wrap_typst_classes_wraps_css_class() -> None:
-    config: dict = {'typst_functions': frozenset()}
+    config = RenderContext()
     wrapped = _wrap_typst_classes(config, ['tei-guilabel', 'tei-guilabel1', 'r', 'guilabel'], 'Save')
     assert wrapped == '#opm-css("guilabel")[Save]'
 
 
 def test_wrap_typst_classes_wraps_multiple_css_classes() -> None:
-    config: dict = {'typst_functions': frozenset()}
+    config = RenderContext()
     wrapped = _wrap_typst_classes(config, ['r', 'persName', 'context'], 'Name')
     assert wrapped == '#opm-css("context")[#opm-css("persName")[Name]]'
 
 
 def test_break_line_emits_typst_markup() -> None:
     pmf = TypstOutputFunctions()
-    config: dict = {'typst_functions': frozenset()}
+    config = RenderContext()
 
     class Node:
         def get(self, key):
@@ -93,10 +94,10 @@ def test_break_line_emits_typst_markup() -> None:
 
 
 def test_apply_inline_styling_wraps_output_rendition() -> None:
-    config = {
-        'typst_functions': frozenset({'tei_emphasis1'}),
-        'odd_css': '.tei-emphasis1 { font-weight: bold; font-style: italic; }',
-    }
+    config = RenderContext(
+        typst_functions=frozenset({'tei_emphasis1'}),
+        odd_css='.tei-emphasis1 { font-weight: bold; font-style: italic; }',
+    )
 
     class Node:
         def get(self, key):
@@ -111,7 +112,7 @@ def test_apply_inline_styling_wraps_output_rendition() -> None:
 
 
 def test_apply_inline_styling_wraps_output_rendition_and_css_class() -> None:
-    config = {'typst_functions': frozenset({'tei_emphasis1'})}
+    config = RenderContext(typst_functions=frozenset({'tei_emphasis1'}))
 
     class Node:
         def get(self, key):
@@ -131,13 +132,13 @@ def test_apply_inline_styling_rend_bold() -> None:
         def get(self, key):
             return 'bold' if key == 'rend' else None
 
-    result = _apply_inline_styling({}, Node(), [], 'hello')
+    result = _apply_inline_styling(RenderContext(), Node(), [], 'hello')
     assert result == '*hello*'
 
 
 def test_typst_heading_and_finish() -> None:
     pmf = TypstOutputFunctions()
-    config: dict = {}
+    config = RenderContext()
     nodes = ['\n= Title\n\n', 'Body text']
     finished = pmf.finish(config, nodes)
     assert len(finished) == 1
@@ -147,10 +148,9 @@ def test_typst_heading_and_finish() -> None:
 
 def test_typst_heading_wraps_css_class() -> None:
     pmf = TypstOutputFunctions()
-    config = {
-        'typst_functions': frozenset(),
-        'apply_children': lambda cfg, node, content, buf: buf.append('My Title'),
-    }
+    config = RenderContext(
+        apply_children=lambda cfg, node, content, buf: buf.append('My Title'),
+    )
 
     class Node:
         def getprevious(self):
@@ -169,10 +169,10 @@ def test_typst_heading_wraps_css_class() -> None:
 
 def test_typst_heading_wraps_output_rendition() -> None:
     pmf = TypstOutputFunctions()
-    config = {
-        'typst_functions': frozenset({'tei_title9'}),
-        'apply_children': lambda cfg, node, content, buf: buf.append('My Title'),
-    }
+    config = RenderContext(
+        typst_functions=frozenset({'tei_title9'}),
+        apply_children=lambda cfg, node, content, buf: buf.append('My Title'),
+    )
 
     class Node:
         def getprevious(self):
@@ -209,11 +209,9 @@ def test_apply_typst_finish_cleanup_strips_pb_popover() -> None:
 
 def test_typst_code_preserves_line_breaks() -> None:
     pmf = TypstOutputFunctions()
-    config = {
-        'normalize_text': normalize_markdown_xml_text,
-        'apply_children': apply_children,
-        'dispatch': lambda *a, **k: [],
-    }
+    config = RenderContext(
+        normalize_text=normalize_markdown_xml_text, dispatch=lambda *a, **k: [],
+    )
 
     class Node:
         def get(self, key):
@@ -238,7 +236,7 @@ def test_typst_code_preserves_xml_markup_literally() -> None:
     tag.text = 'elementSpec'
 
     pmf = TypstOutputFunctions()
-    config: dict = {'dispatch': lambda *a, **k: ['SHOULD_NOT_APPEAR']}
+    config = RenderContext(dispatch=lambda *a, **k: ['SHOULD_NOT_APPEAR'])
 
     result = pmf.code(config, listing, [], listing, 'xml')
     body = str(result[0])
@@ -265,7 +263,7 @@ def test_typst_template_preserves_line_breaks() -> None:
     pmf = TypstOutputFunctions()
     tpl = '#note[\n[[title]]\n\n[[content]]\n]'
     result = pmf.template(
-        {},
+        RenderContext(),
         None,
         [],
         tpl,
@@ -279,7 +277,7 @@ def test_typst_template_preserves_line_breaks() -> None:
 def test_typst_template_flattens_html_to_text() -> None:
     pmf = TypstOutputFunctions()
     tpl = '<span class="above tei-add">[[content]]</span>'
-    result = pmf.template({}, None, [], tpl, {'content': 'Trump Tower'})
+    result = pmf.template(RenderContext(), None, [], tpl, {'content': 'Trump Tower'})
     assert result == ['Trump Tower']
     assert '<' not in result[0]
 
@@ -290,14 +288,14 @@ def test_metadata_stores_keyed_value() -> None:
             return None
 
     pmf = TypstOutputFunctions()
-    params: dict = {}
-    config: dict = {
-        'parameters': params,
-        'apply_children': lambda cfg, node, content, buf: buf.extend(content),
-    }
+    config = RenderContext(
+        apply_children=lambda cfg, node, content, buf: buf.extend(content),
+    )
     result = pmf.metadata(config, Node(), [], ['TEI Publisher Docs'], key='title')
     assert result == []
-    assert params['metadata'] == {'title': ['TEI Publisher Docs']}
+    assert config.state.metadata == {'title': ['TEI Publisher Docs']}
+    # Collected values are run state; they never reach $parameters.
+    assert 'metadata' not in config.parameters
 
 
 def test_metadata_accumulates_multiple_values_as_list() -> None:
@@ -306,14 +304,12 @@ def test_metadata_accumulates_multiple_values_as_list() -> None:
             return None
 
     pmf = TypstOutputFunctions()
-    params: dict = {}
-    config: dict = {
-        'parameters': params,
-        'apply_children': lambda cfg, node, content, buf: buf.extend(content),
-    }
+    config = RenderContext(
+        apply_children=lambda cfg, node, content, buf: buf.extend(content),
+    )
     pmf.metadata(config, Node(), [], ['Alice Smith'], key='authors')
     pmf.metadata(config, Node(), [], ['Bob Jones'], key='authors')
-    assert params['metadata']['authors'] == ['Alice Smith', 'Bob Jones']
+    assert config.state.metadata['authors'] == ['Alice Smith', 'Bob Jones']
 
 
 def test_metadata_no_key_is_noop() -> None:
@@ -322,10 +318,10 @@ def test_metadata_no_key_is_noop() -> None:
             return None
 
     pmf = TypstOutputFunctions()
-    config: dict = {'parameters': {}, 'apply_children': lambda *a, **k: None}
+    config = RenderContext(apply_children=lambda *a, **k: None)
     result = pmf.metadata(config, Node(), [], [], key=None)
     assert result == []
-    assert 'metadata' not in config['parameters']
+    assert config.state.metadata == {}
 
 
 def test_typst_note_emits_inline_footnote() -> None:
@@ -334,12 +330,12 @@ def test_typst_note_emits_inline_footnote() -> None:
             return None
 
     pmf = TypstOutputFunctions()
-    config: dict = {
-        'apply_children': lambda cfg, node, content, buf: buf.extend(content),
-    }
+    config = RenderContext(
+        apply_children=lambda cfg, node, content, buf: buf.extend(content),
+    )
     result = pmf.note(config, Node(), [], ['note text'], None, None)
     assert result == ['#footnote[note text];']
-    assert 'footnotes' not in config
+    assert config.state.footnotes == []
 
 
 def test_typst_note_margin_emits_marginnote() -> None:
@@ -348,9 +344,9 @@ def test_typst_note_margin_emits_marginnote() -> None:
             return None
 
     pmf = TypstOutputFunctions()
-    config: dict = {
-        'apply_children': lambda cfg, node, content, buf: buf.extend(content),
-    }
+    config = RenderContext(
+        apply_children=lambda cfg, node, content, buf: buf.extend(content),
+    )
     result = pmf.note(config, Node(), [], ['42'], 'margin', None)
     assert result == ['#marginnote[42];']
     # ODD XPath often yields a singleton sequence for string params.
@@ -441,18 +437,17 @@ def test_escape_typst_asterisks_preserves_bold_pairs() -> None:
 def test_css_typst_wrap_uses_brackets() -> None:
     from opm.runtime.typst_output_functions import _css_typst_wrap
 
-    config = {'odd_css': '.simple_bold { font-weight: bold; }'}
+    config = RenderContext(odd_css='.simple_bold { font-weight: bold; }')
     assert _css_typst_wrap(config, ['simple_bold'], 'NB:') == 'strong[NB:]'
 
 
 def test_typst_figure_skips_figure_css_class_wrap() -> None:
     pmf = TypstOutputFunctions()
-    config = {
-        'typst_functions': frozenset(),
-        'apply_children': lambda cfg, node, content, buf: buf.extend(
+    config = RenderContext(
+        apply_children=lambda cfg, node, content, buf: buf.extend(
             pmf.graphic(cfg, node, [], [], 'demo.png', '512px', None, None, None)
         ),
-    }
+    )
     result = pmf.figure(
         config,
         None,
@@ -468,11 +463,11 @@ def test_typst_figure_skips_figure_css_class_wrap() -> None:
 
 def test_typst_figure_uses_code_mode_for_nested_image() -> None:
     pmf = TypstOutputFunctions()
-    config = {
-        'apply_children': lambda cfg, node, content, buf: buf.extend(
+    config = RenderContext(
+        apply_children=lambda cfg, node, content, buf: buf.extend(
             pmf.graphic(cfg, node, [], [], 'fig.png', '512px', None, None, None)
         ),
-    }
+    )
     result = pmf.figure(config, None, [], [], title=None)
     text = ''.join(result)
     assert 'image("fig.png", width: 384pt)' in text
@@ -481,16 +476,16 @@ def test_typst_figure_uses_code_mode_for_nested_image() -> None:
 
 def test_typst_link() -> None:
     pmf = TypstOutputFunctions()
-    config = {
-        'apply_children': lambda cfg, node, content, out: out.append('label'),
-    }
+    config = RenderContext(
+        apply_children=lambda cfg, node, content, out: out.append('label'),
+    )
     result = pmf.link(config, None, [], [], 'http://example.com', None, None)
     assert ''.join(result) == '#link("http://example.com")[label]'
 
 
 def test_wrap_typst_classes_skips_rend_function_tokens() -> None:
     """``color(red)`` from @rend must not become an invalid ``#color(red)[...]`` call."""
-    config: dict = {'typst_functions': frozenset()}
+    config = RenderContext()
     wrapped = _wrap_typst_classes(config, ['tei-hi', 'tei-hi1', 'color(red)'], 'text')
     assert 'color(red)' not in wrapped
     assert wrapped == 'text'
@@ -503,7 +498,7 @@ def test_apply_inline_styling_rend_color() -> None:
         def get(self, key):
             return 'color(red)' if key == 'rend' else None
 
-    config: dict = {'typst_functions': frozenset()}
+    config = RenderContext()
     result = _apply_inline_styling(config, Node(), ['tei-hi', 'tei-hi1', 'color(red)'], 'red text')
     assert 'color(red)' not in result
     assert '#text(fill: red)[red text]' in result
@@ -516,7 +511,7 @@ def test_apply_inline_styling_rend_unknown_function_is_ignored() -> None:
         def get(self, key):
             return 'unknown(value)' if key == 'rend' else None
 
-    config: dict = {'typst_functions': frozenset()}
+    config = RenderContext()
     result = _apply_inline_styling(config, Node(), ['tei-hi', 'tei-hi1', 'unknown(value)'], 'text')
     assert 'unknown(value)' not in result
     assert result == 'text'
@@ -645,10 +640,10 @@ def test_ordered_list_item_numbering_ignores_other_siblings() -> None:
         '<ref>First</ref><ref>Second</ref><ref>Third</ref></ref-list>'
     )
     pmf = TypstOutputFunctions()
-    config: dict = {
-        'listType': 'ordered',
-        'apply_children': lambda cfg, node, content, buf: buf.append(node.text),
-    }
+    config = RenderContext(
+        list_type='ordered',
+        apply_children=lambda cfg, node, content, buf: buf.append(node.text),
+    )
     markers = [
         ''.join(str(p) for p in pmf.list_item(config, ref, [], None))
         for ref in root.findall('ref')

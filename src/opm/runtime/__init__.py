@@ -5,9 +5,10 @@
 
 This package provides the runtime support for ODD-generated transformation modules:
 
-- XPath evaluation with caching
+- the render context passed to every output function
+- XPath evaluation through a per-document environment
 - apply/apply_children dispatch
-- Output format implementations (HTML, Markdown)
+- Output format implementations (HTML, Markdown, …)
 - XPath extension support
 """
 
@@ -17,22 +18,15 @@ from .pm_runtime import (
     apply,
     apply_children,
     apply_template_param_value,
-    clear_xpath_document_cache,
     inject_cached_footnotes,
-    make_context,
     ns,
-    resolve_context_element,
     serialize,
     tag,
-    xpath_count,
-    xpath_select_nodes,
-    xpath_test,
 )
 from .output_functions import (
     ProcessingModelFunctions,
     child_nodes,
     normalize,
-    reset_counters,
 )
 from .docx_output_functions import DocxOutputFunctions
 from .html_output_functions import HtmlOutputFunctions
@@ -40,28 +34,23 @@ from .markdown_output_functions import MarkdownOutputFunctions
 from .print_output_functions import PrintOutputFunctions
 from .epub_output_functions import EpubOutputFunctions
 from .typst_output_functions import TypstOutputFunctions
+from .context import RenderContext, RunState
 from .xpath_diagnostics import XPathErrorLog, XPathFailure, collect_xpath_errors
+from .xpath_env import XPathEnvironment
 
 __all__ = [
     # pm_runtime
     'apply',
     'apply_children',
     'apply_template_param_value',
-    'clear_xpath_document_cache',
     'inject_cached_footnotes',
-    'make_context',
     'ns',
-    'resolve_context_element',
     'serialize',
     'tag',
-    'xpath_count',
-    'xpath_select_nodes',
-    'xpath_test',
     # output_functions
     'ProcessingModelFunctions',
     'child_nodes',
     'normalize',
-    'reset_counters',
     # format implementations
     'DocxOutputFunctions',
     'HtmlOutputFunctions',
@@ -69,6 +58,10 @@ __all__ = [
     'PrintOutputFunctions',
     'EpubOutputFunctions',
     'TypstOutputFunctions',
+    # context
+    'RenderContext',
+    'RunState',
+    'XPathEnvironment',
     # xpath_diagnostics
     'XPathErrorLog',
     'XPathFailure',

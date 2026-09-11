@@ -130,7 +130,7 @@ def test_names_supplied_by_the_project_are_compiled_not_reported(tmp_path: Path)
     assert found == []
     # A config-dependent param that calls a tp: function is evaluated rather
     # than replaced by the context node.
-    assert "xpath_content_or_node(node, '($global:register" in src
+    assert "config.xpath.select_or_node(node, '($global:register" in src
 
 
 def test_stock_odd_reports_only_exist_functions_and_xquery() -> None:

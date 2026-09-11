@@ -192,12 +192,9 @@ def escape_typst_at_signs(text: str) -> str:
     return text.replace('@', '\\@')
 
 
-def _get_typst_functions(config: dict) -> frozenset[str]:
-    """Return Typst function names compiled from the ODD (``TYPST_RENDITION_FUNCTIONS``)."""
-    if '_typst_functions' not in config:
-        raw = config.get('typst_functions')
-        config['_typst_functions'] = frozenset(raw) if raw is not None else frozenset()
-    return config['_typst_functions']
+def _get_typst_functions(config) -> frozenset[str]:
+    """Typst function names compiled from the ODD (``TYPST_RENDITION_FUNCTIONS``)."""
+    return config.typst_functions
 
 
 
@@ -355,7 +352,7 @@ def apply_typst_finish_cleanup(text: str) -> str:
     """Post-process Typst body text after the transform tree is flattened.
 
     Character escaping (#, $, @, *, _) is handled at the text-node level via
-    ``config['text_escape']`` (see ``escape_typst_text_node``).  Only HTML tag
+    ``config.text_escape`` (see ``escape_typst_text_node``).  Only HTML tag
     stripping and structural markdown normalisation are performed here.
 
     Custom ``@cssClass`` / ``@rend`` wrappers are emitted as ``#opm-css("…")[…]``
@@ -418,10 +415,10 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         if should_preserve_whitespace(cls):
             apply_children_without_normalization(config, node, content, body)
         else:
-            config['apply_children'](config, node, content, body)
+            config.apply_children(config, node, content, body)
         text = _wrap_typst_classes(config, cls, _join_buf(body))
         out: list = []
-        ind = config.get('indent', '')
+        ind = config.indent
         if ind:
             out.append(ind)
         if text:
@@ -431,18 +428,18 @@ class TypstOutputFunctions(ProcessingModelFunctions):
 
     def inline(self, config, node, cls, content) -> PMResult:
         out: list = []
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         text = _join_buf(out)
         return [_apply_inline_styling(config, node, cls, text)]
 
     def paragraph(self, config, node, cls, content) -> PMResult:
         body: list = []
-        config['apply_children'](config, node, content, body)
+        config.apply_children(config, node, content, body)
         text = _wrap_typst_classes(config, cls, _join_buf(body))
         out: list = []
         if node.getprevious() is not None:
             out.append('\n')
-        ind = config.get('indent', '')
+        ind = config.indent
         if ind:
             out.append(ind)
         if text:
@@ -458,26 +455,26 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         lvl = max(1, min(6, lvl))
         hashes = '=' * lvl
         body: list = []
-        config['apply_children'](config, node, content, body)
+        config.apply_children(config, node, content, body)
         text = _wrap_typst_classes(config, cls, _join_buf(body))
-        return ['\n', config.get('indent', ''), hashes, ' ', text, '\n\n']
+        return ['\n', config.indent, hashes, ' ', text, '\n\n']
 
     def section(self, config, node, cls, content) -> PMResult:
         return self.block(config, node, cls, content)
 
     def body(self, config, node, cls, content) -> PMResult:
         out: list = []
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         return out
 
     def document(self, config, node, cls, content) -> PMResult:
         out: list = []
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         return out
 
     def pass_through(self, config, node, cls, content) -> PMResult:
-        norm = config.get('normalize_text')
-        text_escape = config.get('text_escape')
+        norm = config.normalize_text
+        text_escape = config.text_escape
         result: list = []
         for item in normalize(content):
             if isinstance(item, str):
@@ -487,33 +484,32 @@ class TypstOutputFunctions(ProcessingModelFunctions):
                 result.append(t)
             elif isinstance(item, etree._Element):
                 sub = (
-                    config['apply'](config, child_nodes(node))
+                    config.apply(config, child_nodes(node))
                     if item is node
-                    else config['apply'](config, [item])
+                    else config.apply(config, [item])
                 )
                 result.extend(sub)
         return result
 
     def list(self, config, node, cls, content, type=None) -> PMResult:
         effective = type or node.get('type')
-        sub = {**config}
-        sub['listType'] = 'ordered' if effective == 'ordered' else 'unordered'
+        sub = config.derive(list_type='ordered' if effective == 'ordered' else 'unordered')
         out: list = []
-        config['apply_children'](sub, node, content, out)
+        config.apply_children(sub, node, content, out)
         out.append('\n')
         return out
 
     def list_item(self, config, node, cls, content, n=None) -> PMResult:
         _ = n
-        ind = config.get('indent', '')
-        list_type = config.get('listType', 'unordered')
+        ind = config.indent
+        list_type = config.list_type or 'unordered'
         # Count only siblings of the same element, so an ordered list whose items
         # follow a heading (JATS <ref-list><title>… then <ref>) still starts at 1.
         pos = sum(1 for s in node.itersiblings(preceding=True) if s.tag == node.tag) + 1
         marker = f'{pos}. ' if list_type == 'ordered' else '- '
         body: list = []
-        deeper = {**config, 'indent': ind + TYPST_INDENT}
-        config['apply_children'](deeper, node, content, body)
+        deeper = config.derive(indent=ind + TYPST_INDENT)
+        config.apply_children(deeper, node, content, body)
         text = _wrap_typst_classes(config, cls, _join_buf(body))
         return ['\n', ind, marker, text, '\n']
 
@@ -526,15 +522,15 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         href_s = str(href) if href else ''
         out: list = [f'#link("{href_s}")[']
         body: list = []
-        config['apply_children'](config, node, content, body)
+        config.apply_children(config, node, content, body)
         out.append(_wrap_typst_classes(config, _cls_without_names(cls, 'link'), _join_buf(body)))
         out.append(']')
         return out
 
     def table(self, config, node, cls, content) -> PMResult:
         rows_buf: list = []
-        sub = {**config, '_typst_table_rows': rows_buf}
-        config['apply_children'](sub, node, content, rows_buf)
+        sub = config.derive(table_rows=rows_buf)
+        config.apply_children(sub, node, content, rows_buf)
         if not rows_buf:
             return ['\n']
         row_strs = [_join_buf(r) if isinstance(r, list) else str(r) for r in rows_buf]
@@ -552,9 +548,9 @@ class TypstOutputFunctions(ProcessingModelFunctions):
 
     def row(self, config, node, cls, content) -> PMResult:
         out: list = []
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         row_text = _join_buf(out).strip()
-        rows = config.get('_typst_table_rows')
+        rows = config.table_rows
         if rows is not None:
             rows.append(row_text)
             return []
@@ -563,12 +559,12 @@ class TypstOutputFunctions(ProcessingModelFunctions):
     def cell(self, config, node, cls, content, type=None) -> PMResult:
         _ = type
         out: list = []
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         return [_join_buf(out) + ' |']
 
     def figure(self, config, node, cls, content, title=None) -> PMResult:
         body: list = []
-        config['apply_children'](config, node, content, body)
+        config.apply_children(config, node, content, body)
         body_text = _typst_code_mode_body(
             _wrap_typst_classes(
                 config,
@@ -579,7 +575,7 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         parts = [f'\n#figure(\n  {body_text}']
         if title:
             tbuf: list = []
-            config['apply_children'](config, node, title, tbuf)
+            config.apply_children(config, node, title, tbuf)
             caption = _join_buf(tbuf).strip()
             parts.append(f',\n  caption: [{caption}]')
         parts.append('\n)\n\n')
@@ -607,7 +603,7 @@ class TypstOutputFunctions(ProcessingModelFunctions):
     def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
         _ = label
         buf: list = []
-        config['apply_children'](config, node, content, buf)
+        config.apply_children(config, node, content, buf)
         body = _join_buf(buf).strip()
         place_s = _param_str(place)
         # Trailing ';' ends the code expression so a following ".Word" is
@@ -619,13 +615,13 @@ class TypstOutputFunctions(ProcessingModelFunctions):
 
     def cit(self, config, node, cls, content, source=None) -> PMResult:
         body: list = []
-        config['apply_children'](config, node, content, body)
+        config.apply_children(config, node, content, body)
         main = _wrap_typst_classes(config, _cls_without_names(cls, 'quote'), _join_buf(body))
         out: list = ['#quote(block: true)[\n', main]
         if source:
             out.append('\n---\n')
             src: list = []
-            config['apply_children'](config, node, source, src)
+            config.apply_children(config, node, source, src)
             out.append(_join_buf(src))
         out.append('\n]')
         return out
@@ -633,7 +629,7 @@ class TypstOutputFunctions(ProcessingModelFunctions):
     def webcomponent(self, config, node, cls, content, name, optional=None) -> PMResult:
         _ = name, optional
         out: list = []
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         _wrap_buf_dispatch_classes(config, cls, out)
         return out
 
@@ -663,7 +659,7 @@ class TypstOutputFunctions(ProcessingModelFunctions):
     def alternate(self, config, node, cls, content, default, alternate, optional=None) -> PMResult:
         _ = alternate, optional
         out: list = []
-        config['apply_children'](config, node, default, out)
+        config.apply_children(config, node, default, out)
         return out
 
     def glyph(self, config, node, cls, content) -> PMResult:
@@ -672,8 +668,8 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         return []
 
     def text(self, config, node, cls, content) -> PMResult:
-        norm = config.get('normalize_text')
-        text_escape = config.get('text_escape')
+        norm = config.normalize_text
+        text_escape = config.text_escape
         out = []
         for item in normalize(content):
             if isinstance(item, str):
@@ -688,20 +684,20 @@ class TypstOutputFunctions(ProcessingModelFunctions):
     def metadata(self, config, node, cls, content, key=None) -> PMResult:
         if key:
             buf: list = []
-            config['apply_children'](config, node, content, buf)
+            config.apply_children(config, node, content, buf)
             text = _join_buf(buf).strip()
-            config['parameters'].setdefault('metadata', {}).setdefault(str(key), []).append(text)
+            config.state.metadata.setdefault(str(key), []).append(text)
         return []
 
     def title(self, config, node, cls, content) -> PMResult:
         out: list = []
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         _wrap_buf_dispatch_classes(config, cls, out)
         return out
 
     def match(self, config, node, cls, content) -> PMResult:
         body: list = []
-        config['apply_children'](config, node, content, body)
+        config.apply_children(config, node, content, body)
         inner = _wrap_typst_classes(config, _cls_without_names(cls, 'highlight'), _join_buf(body))
         return [f'#highlight[{inner}]']
 

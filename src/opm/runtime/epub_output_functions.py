@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """EPUB-oriented HTML serialisation (``ext-epub.xql`` equivalent).
 
 Extends web HTML with EPUB 3 semantics: synthetic fragment ids, pagebreak
@@ -29,17 +32,15 @@ BLOCK_TAGS = frozenset({
 })
 
 
-def _epub_safe_id(node, config: dict) -> str:
+def _epub_safe_id(node, config) -> str:
     """Stable-enough id for TOC / footnote links within one transform run."""
     existing = node.get(XML_ID) if node is not None else None
     if existing:
         return re.sub(r'[^A-Za-z0-9_-]', '_', existing)
-    counter = config.setdefault('_epub_id_counter', 0) + 1
-    config['_epub_id_counter'] = counter
-    return f'n{counter}'
+    return f'n{config.state.next_id()}'
 
 
-def _footnote_body(config: dict, node, content) -> etree._Element:
+def _footnote_body(config, node, content) -> etree._Element:
     """Wrap footnote content so popover styling can target a plain class.
 
     Register entries (person, place, …) get their own ``output="epub"`` models
@@ -50,7 +51,7 @@ def _footnote_body(config: dict, node, content) -> etree._Element:
     body = etree.Element('div')
     body.set('class', 'fn-body')
     if content is not None:
-        config['apply_children'](config, node, content, body)
+        config.apply_children(config, node, content, body)
     return body
 
 
@@ -68,7 +69,7 @@ class EpubOutputFunctions(HtmlOutputFunctions):
             el.set('id', node.get(XML_ID))
         else:
             el.set('id', _epub_safe_id(node, config))
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     def break_(self, config, node, cls, content, type=None, label=None) -> PMResult:
@@ -86,7 +87,7 @@ class EpubOutputFunctions(HtmlOutputFunctions):
                 el.set('id', f'page{_epub_safe_id(node, config)}')
                 # XQuery wraps applied content in ``[...]``.
                 el.text = '['
-                config['apply_children'](config, node, content if content is not None else [], el)
+                config.apply_children(config, node, content if content is not None else [], el)
                 if len(el):
                     el[-1].tail = (el[-1].tail or '') + ']'
                 else:
@@ -96,12 +97,9 @@ class EpubOutputFunctions(HtmlOutputFunctions):
 
     def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
         """Emit an EPUB noteref + footnote aside (in-flow; packager may hoist)."""
-        from . import output_functions as of
-
         _ = place, label
-        of._note_counter += 1
+        nr = config.state.next_note()
         fn_id = _epub_safe_id(node, config)
-        nr = of._note_counter
 
         ref = etree.Element('a', nsmap={'epub': EPUB_NS})
         ref.set(EPUB_TYPE, 'noteref')
@@ -126,7 +124,7 @@ class EpubOutputFunctions(HtmlOutputFunctions):
         ref.set(EPUB_TYPE, 'noteref')
         ref.set('href', f'#fn{fn_id}')
         ref.set('class', classes('alternate', *cls))
-        config['apply_children'](config, node, default, ref)
+        config.apply_children(config, node, default, ref)
 
         aside = etree.Element('aside', nsmap={'epub': EPUB_NS})
         aside.set(EPUB_TYPE, 'footnote')
@@ -151,14 +149,14 @@ class EpubOutputFunctions(HtmlOutputFunctions):
             if target:
                 a = self._el('a', cls, node)
                 a.set('href', f'#{target}')
-                config['apply_children'](config, node, content, a)
+                config.apply_children(config, node, content, a)
                 return [a]
 
         el = self._el('div', cls, node)
         xml_id = node.get(XML_ID)
         if xml_id:
             el.set('id', xml_id)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         if not any(
             isinstance(child.tag, str) and etree.QName(child).localname in BLOCK_TAGS
             for child in el
@@ -172,5 +170,5 @@ class EpubOutputFunctions(HtmlOutputFunctions):
         for item in normalize(content):
             td = etree.SubElement(tr, 'td')
             td.set('class', classes(*cls))
-            config['apply_children'](config, node, item, td)
+            config.apply_children(config, node, item, td)
         return [tr]

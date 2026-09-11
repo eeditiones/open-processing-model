@@ -6,6 +6,8 @@
 from __future__ import annotations
 
 import re
+from functools import lru_cache
+
 from lxml import etree
 
 from opm.runtime.output_functions import (
@@ -62,11 +64,17 @@ def _parse_css_classes(css_text: str) -> dict:
     return result
 
 
-def _get_css_map(config: dict) -> dict:
-    """Return (and cache) the parsed CSS class map from ``config['odd_css']``."""
-    if '_css_map' not in config:
-        config['_css_map'] = _parse_css_classes(config.get('odd_css', ''))
-    return config['_css_map']
+@lru_cache(maxsize=16)
+def _css_map_for(css_text: str) -> dict:
+    return _parse_css_classes(css_text)
+
+
+def _get_css_map(config) -> dict:
+    """The parsed class map of ``config.odd_css``, shared by runs with the same stylesheet.
+
+    Callers read it and never modify it: it is one object per stylesheet.
+    """
+    return _css_map_for(config.odd_css or '')
 
 
 def _css_class_names(cls: list) -> set[str]:
@@ -231,19 +239,19 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
 
     def block(self, config, node, cls, content) -> PMResult:
         out: list = []
-        ind = config.get('indent', '')
+        ind = config.indent
         if ind:
             out.append(ind)
         if should_preserve_whitespace(cls):
             apply_children_without_normalization(config, node, content, out)
         else:
-            config['apply_children'](config, node, content, out)
+            config.apply_children(config, node, content, out)
         out.append('\n\n')
         return out
 
     def inline(self, config, node, cls, content) -> PMResult:
         out: list = []
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         text = _join_buf(out)
         trailing = _css_trailing_space(config, cls)
 
@@ -267,10 +275,10 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         # indented code block (same rule as pmf:paragraph).
         if node.getprevious() is not None:
             out.append('\n')
-            ind = config.get('indent', '')
+            ind = config.indent
             if ind:
                 out.append(ind)
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         out.append('\n\n')
         return out
 
@@ -281,8 +289,8 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
             lvl = 1
         lvl = max(1, min(6, lvl))
         hashes = '#' * lvl
-        out: list = ['\n', config.get('indent', ''), hashes, ' ']
-        config['apply_children'](config, node, content, out)
+        out: list = ['\n', config.indent, hashes, ' ']
+        config.apply_children(config, node, content, out)
         out.append('\n\n')
         return out
 
@@ -291,42 +299,41 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
 
     def body(self, config, node, cls, content) -> PMResult:
         out: list = []
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         return out
 
     def document(self, config, node, cls, content) -> PMResult:
         out: list = []
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         return out
 
     def pass_through(self, config, node, cls, content) -> PMResult:
-        norm = config.get('normalize_text')
+        norm = config.normalize_text
         result: list = []
         for item in normalize(content):
             if isinstance(item, str):
                 result.append(maybe_normalize_text(item, norm))
             elif isinstance(item, etree._Element):
                 sub = (
-                    config['apply'](config, child_nodes(node))
+                    config.apply(config, child_nodes(node))
                     if item is node
-                    else config['apply'](config, [item])
+                    else config.apply(config, [item])
                 )
                 result.extend(sub)
         return result
 
     def list(self, config, node, cls, content, type=None) -> PMResult:
         effective = type or node.get('type')
-        sub = {**config}
-        sub['listType'] = 'ordered' if effective == 'ordered' else 'unordered'
+        sub = config.derive(list_type='ordered' if effective == 'ordered' else 'unordered')
         out: list = []
-        config['apply_children'](sub, node, content, out)
+        config.apply_children(sub, node, content, out)
         out.append('\n')
         return out
 
     def list_item(self, config, node, cls, content, n=None) -> PMResult:
         out: list = []
-        ind = config.get('indent', '')
-        list_type = config.get('listType', 'unordered')
+        ind = config.indent
+        list_type = config.list_type or 'unordered'
         # Count only siblings of the same element, so an ordered list whose items
         # follow a heading (JATS <ref-list><title>… then <ref>) still starts at 1.
         pos = sum(1 for s in node.itersiblings(preceding=True) if s.tag == node.tag) + 1
@@ -334,8 +341,8 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         out.append('\n')
         out.append(ind)
         out.append(marker)
-        deeper = {**config, 'indent': ind + MD_INDENT}
-        config['apply_children'](deeper, node, content, out)
+        deeper = config.derive(indent=ind + MD_INDENT)
+        config.apply_children(deeper, node, content, out)
         out.append('\n')
         return out
 
@@ -346,19 +353,19 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
             href = uri
         href_s = str(href) if href else ''
         out: list = ['[']
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         out.append(f']({href_s})')
         return out
 
     def table(self, config, node, cls, content) -> PMResult:
         out: list = ['\n']
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         out.append('\n')
         return out
 
     def row(self, config, node, cls, content) -> PMResult:
         out: list = ['|']
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         out.append('\n')
         if node.getprevious() is None:
             n = len(node)
@@ -369,17 +376,17 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
     def cell(self, config, node, cls, content, type=None) -> PMResult:
         _ = type
         out: list = [' ']
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         out.append(' |')
         return out
 
     def figure(self, config, node, cls, content, title=None) -> PMResult:
         out: list = ['\n']
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         if title:
             out.append('\n\n_')
             tbuf: list = []
-            config['apply_children'](config, node, title, tbuf)
+            config.apply_children(config, node, title, tbuf)
             out.extend(tbuf)
             out.append('_')
         out.append('\n\n')
@@ -396,25 +403,22 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         return [f'![{tit}]({href})']
 
     def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
-        from . import output_functions as of
-
-        of._note_counter += 1
-        nr = of._note_counter
+        nr = config.state.next_note()
         node_id = node.get(XML_ID) or node.get('id') or str(nr)
         safe_id = re.sub(r'[-.]', '_', node_id)
         ref = f'[^{safe_id}]'
         buf: list = []
-        config['apply_children'](config, node, content, buf)
+        config.apply_children(config, node, content, buf)
         body = _join_buf(buf).strip()
-        config.setdefault('footnotes', []).append(f'\n[^{safe_id}]: {body}\n')
+        config.state.footnotes.append(f'\n[^{safe_id}]: {body}\n')
         return [ref]
 
     def cit(self, config, node, cls, content, source=None) -> PMResult:
         out: list = ['\n> ']
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         if source:
             out.append('\n> — ')
-            config['apply_children'](config, node, source, out)
+            config.apply_children(config, node, source, out)
         return out
 
     def webcomponent(self, config, node, cls, content, name, optional=None) -> PMResult:
@@ -426,7 +430,7 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
             else:
                 out.append(f' {k}="{v}"')
         out.append('>')
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         out.append(f'</{name}>')
         return out
 
@@ -449,7 +453,7 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
 
     def alternate(self, config, node, cls, content, default, alternate, optional=None) -> PMResult:
         out: list = []
-        config['apply_children'](config, node, default, out)
+        config.apply_children(config, node, default, out)
         return out
 
     def glyph(self, config, node, cls, content) -> PMResult:
@@ -458,7 +462,7 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         return []
 
     def text(self, config, node, cls, content) -> PMResult:
-        norm = config.get('normalize_text')
+        norm = config.normalize_text
         out = []
         for item in normalize(content):
             if isinstance(item, str):
@@ -472,12 +476,12 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
 
     def title(self, config, node, cls, content) -> PMResult:
         out: list = []
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         return out
 
     def match(self, config, node, cls, content) -> PMResult:
         out: list = ['==']
-        config['apply_children'](config, node, content, out)
+        config.apply_children(config, node, content, out)
         out.append('==')
         return out
 

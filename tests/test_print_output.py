@@ -9,6 +9,7 @@ from pathlib import Path
 from lxml import etree
 
 from opm.odd_compiler.codegen import _model_matches_output_mode
+from opm.runtime.context import RenderContext
 from opm.runtime.print_output_functions import PrintOutputFunctions
 from opm.runtime.pm_runtime import apply_children, serialize
 
@@ -17,13 +18,11 @@ def _apply_children(config, node, content, parent_el) -> None:
     apply_children(config, node, content, parent_el)
 
 
-def _config() -> dict:
-    return {
-        'apply_children': _apply_children,
-        'apply': lambda _c, nodes: list(nodes) if isinstance(nodes, list) else [nodes],
-        'footnotes': [],
-        'webcomponents': False,
-    }
+def _config() -> RenderContext:
+    return RenderContext(
+        apply_children=_apply_children,
+        apply=lambda _c, nodes: list(nodes) if isinstance(nodes, list) else [nodes],
+    )
 
 
 def test_print_note_margin_place() -> None:
@@ -64,7 +63,7 @@ def test_print_note_does_not_collect_footnotes() -> None:
     config = _config()
     node = etree.Element('n')
     pmf.note(config, node, ['c'], 'X', place='footnote', label=None)
-    assert config['footnotes'] == []
+    assert config.state.footnotes == []
 
 
 def test_print_alternate_nested_spans() -> None:
@@ -82,7 +81,7 @@ def test_print_alternate_nested_spans() -> None:
 def test_print_alternate_ignores_webcomponents() -> None:
     pmf = PrintOutputFunctions()
     config = _config()
-    config['webcomponents'] = True
+    config.webcomponents = True
     node = etree.Element('n')
     res = pmf.alternate(config, node, ['c'], None, 'D', 'A')
     assert all(isinstance(el, etree._Element) and el.tag == 'span' for el in res)
@@ -135,7 +134,7 @@ def test_compile_print_mode_imports_print_output_functions(tmp_path: Path) -> No
     src = compile_odd(str(packaged_odd('teipublisher')), output_mode='print')
     assert 'PrintOutputFunctions' in src
     assert 'PrintOutputFunctions()' in src
-    assert 'webcomponents = False' in src
+    assert 'webcomponents_allowed=False' in src
     assert "return ['print']" in src
     # print also matches web models — dispatch should still have cases
     assert 'match _tag(node):' in src

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from lxml import etree
 
+from opm.runtime.context import RenderContext
 from opm.runtime.markdown_output_functions import (
     MarkdownOutputFunctions,
     normalize_markdown_xml_text,
@@ -14,11 +15,9 @@ from opm.runtime.pm_runtime import apply_children
 
 def test_markdown_code_preserves_line_breaks() -> None:
     pmf = MarkdownOutputFunctions()
-    config = {
-        'normalize_text': normalize_markdown_xml_text,
-        'apply_children': apply_children,
-        'dispatch': lambda *a, **k: [],
-    }
+    config = RenderContext(
+        normalize_text=normalize_markdown_xml_text, dispatch=lambda *a, **k: [],
+    )
 
     class Node:
         def get(self, key):
@@ -43,7 +42,7 @@ def test_markdown_code_preserves_xml_markup_literally() -> None:
     tag.text = 'elementSpec'
 
     pmf = MarkdownOutputFunctions()
-    config: dict = {'dispatch': lambda *a, **k: ['SHOULD_NOT_APPEAR']}
+    config = RenderContext(dispatch=lambda *a, **k: ['SHOULD_NOT_APPEAR'])
 
     result = pmf.code(config, listing, [], listing, 'xml')
     body = str(result[0])
@@ -57,11 +56,10 @@ def test_markdown_inline_margin_right_adds_trailing_space() -> None:
     from opm.runtime.pm_runtime import apply_children
 
     pmf = MarkdownOutputFunctions()
-    config = {
-        'odd_css': '.tei-speaker { margin-right: 1rem; }\n',
-        'apply_children': apply_children,
-        'dispatch': lambda *a, **k: [],
-    }
+    config = RenderContext(
+        odd_css='.tei-speaker { margin-right: 1rem; }\n',
+        dispatch=lambda *a, **k: [],
+    )
 
     class Node:
         def get(self, key):
@@ -76,11 +74,10 @@ def test_markdown_inline_without_margin_right_has_no_trailing_space() -> None:
     from opm.runtime.pm_runtime import apply_children
 
     pmf = MarkdownOutputFunctions()
-    config = {
-        'odd_css': '.tei-hi { font-style: italic; }\n',
-        'apply_children': apply_children,
-        'dispatch': lambda *a, **k: [],
-    }
+    config = RenderContext(
+        odd_css='.tei-hi { font-style: italic; }\n',
+        dispatch=lambda *a, **k: [],
+    )
 
     class Node:
         def get(self, key):
@@ -92,11 +89,9 @@ def test_markdown_inline_without_margin_right_has_no_trailing_space() -> None:
 
 def test_markdown_block_programlisting_preserves_whitespace() -> None:
     pmf = MarkdownOutputFunctions()
-    config = {
-        'normalize_text': normalize_markdown_xml_text,
-        'apply_children': apply_children,
-        'dispatch': lambda *a, **k: [],
-    }
+    config = RenderContext(
+        normalize_text=normalize_markdown_xml_text, dispatch=lambda *a, **k: [],
+    )
 
     class Node:
         def get(self, key):

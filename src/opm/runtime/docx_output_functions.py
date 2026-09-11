@@ -10,12 +10,12 @@ into a .docx binary in finish().
 
 from __future__ import annotations
 
-import re
 from io import BytesIO
 from xml.sax.saxutils import quoteattr
 
 from lxml import etree
 
+from opm.runtime.markdown_output_functions import _get_css_map
 from opm.runtime.output_functions import (
     PMResult,
     ProcessingModelFunctions,
@@ -51,7 +51,7 @@ def docx_apply_children(config, source_node, content, parent_el) -> None:
     """
     from opm.runtime.pm_runtime import apply as _pm_apply, append_to  # noqa: PLC0415
 
-    norm = config.get('normalize_text')
+    norm = config.normalize_text
     for item in normalize(content):
         if isinstance(item, str):
             s = norm(item) if norm else item
@@ -60,7 +60,7 @@ def docx_apply_children(config, source_node, content, parent_el) -> None:
             else:
                 append_to(parent_el, s)
         elif isinstance(item, etree._Element):
-            dispatch = config['dispatch']
+            dispatch = config.dispatch
             sub = (
                 _pm_apply(config, child_nodes(source_node), dispatch)
                 if item is source_node
@@ -100,27 +100,8 @@ def _wset(el: etree._Element, attr: str, val: str) -> None:
 
 # ── CSS parsing (shared with Markdown approach) ────────────────────────────────
 
-def _parse_css_classes(css_text: str) -> dict:
-    """Parse CSS and return ``{class_name: {property: value}}`` for simple class selectors."""
-    css_text = re.sub(r'/\*.*?\*/', '', css_text, flags=re.DOTALL)
-    result: dict = {}
-    for block in re.finditer(r'([^{}]+)\{([^{}]*)\}', css_text):
-        props: dict = {}
-        for pm in re.finditer(r'([\w-]+)\s*:\s*([^;]+)', block.group(2)):
-            props[pm.group(1).strip().lower()] = pm.group(2).strip().lower()
-        if not props:
-            continue
-        for sel in block.group(1).strip().split(','):
-            m = re.match(r'^\.([a-zA-Z0-9_-]+)$', sel.strip())
-            if m:
-                result.setdefault(m.group(1), {}).update(props)
-    return result
-
-
-def _get_css_map(config: dict) -> dict:
-    if '_css_map' not in config:
-        config['_css_map'] = _parse_css_classes(config.get('odd_css', ''))
-    return config['_css_map']
+# The class map is markdown_output_functions._get_css_map: one parser for every
+# text backend, cached per stylesheet.
 
 
 def _css_props(config: dict, cls: list) -> dict:
@@ -159,6 +140,11 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         self._ordered_abstract_id: int = 7  # python-docx default abstract for ordered
         self._needs_numbering: bool = False
         self._current_template: str | None = None  # Store template path globally
+        # Per-run package state; a run creates its own instance.
+        self._footnotes: dict[int, list] = {}
+        self._num_instances: list[tuple[int, str]] = []
+        self._image_counter = 0
+        self._image_rid_map: dict[str, str] = {}
 
     # ── Style index ────────────────────────────────────────────────────────────
 
@@ -166,7 +152,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         if self._styles_loaded:
             return
         from docx import Document  # noqa: PLC0415
-        template = config.get('docx_template')
+        template = config.docx_template
         if template:
             self._current_template = template
         doc = Document(template) if template else Document()
@@ -352,7 +338,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
 
     def _collect(self, config: dict, node, content) -> list:
         items: list = []
-        config['apply_children'](config, node, content, items)
+        config.apply_children(config, node, content, items)
         return self._filter_ooxml(items)
 
     _ALLOWED_NS = {W, 'http://www.tei-c.org/ns/docx'}
@@ -547,12 +533,10 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         self._ensure_styles(config)
         style = self._resolve_para_style(cls)
         preserve = self._should_preserve_whitespace(cls)
+        items = self._collect(
+            config.derive(normalize_text=None) if preserve else config, node, content,
+        )
         if preserve:
-            saved_norm = config.pop('normalize_text', None)
-        items = self._collect(config, node, content)
-        if preserve:
-            if saved_norm is not None:
-                config['normalize_text'] = saved_norm
             items = self._split_newlines(items)
         result = self._blockify(items, style)
         # Propagate the block style to child paragraphs that carry only the document
@@ -635,12 +619,9 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         # Fall back to reading @type from the source node when the ODD doesn't pass it
         if not type and node is not None:
             type = node.get('type') or None
-        prev_type = config.get('_docx_list_type')
-        prev_depth = config.get('_docx_list_depth', -1)
-        prev_numid = config.get('_docx_list_num_id')
+        prev_type = config.list_type
+        prev_depth = config.list_depth
         effective_type = type or 'unordered'
-        config['_docx_list_type'] = effective_type
-        config['_docx_list_depth'] = prev_depth + 1
         # Allocate a fresh numId when:
         # - this is a top-level list (prev_depth < 0), OR
         # - this is a nested list of a DIFFERENT type than the parent
@@ -649,23 +630,20 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         is_ordered = effective_type == 'ordered'
         parent_type = prev_type or 'unordered'
         type_changed = effective_type != parent_type
+        list_id = config.list_id
         if prev_depth < 0 or type_changed:
-            instances: list = config.setdefault('_docx_num_instances', [])
-            new_numid = 100 + len(instances)
-            instances.append((new_numid, 'ordered' if is_ordered else 'bullet'))
-            config['_docx_list_num_id'] = new_numid
-        items = self._collect(config, node, content)
-        config['_docx_list_type'] = prev_type
-        config['_docx_list_depth'] = prev_depth
-        config['_docx_list_num_id'] = prev_numid
-        return items
+            list_id = 100 + len(self._num_instances)
+            self._num_instances.append((list_id, 'ordered' if is_ordered else 'bullet'))
+        # The items see this list's settings; the list's siblings keep their own.
+        sub = config.derive(list_type=effective_type, list_depth=prev_depth + 1, list_id=list_id)
+        return self._collect(sub, node, content)
 
     def list_item(self, config, node, cls, content, n=None) -> PMResult:
         self._ensure_styles(config)
         items = self._collect(config, node, content)
-        list_type = config.get('_docx_list_type', 'unordered')
-        depth = config.get('_docx_list_depth', 0)
-        numid = config.get('_docx_list_num_id') or (
+        list_type = config.list_type or 'unordered'
+        depth = max(config.list_depth, 0)
+        numid = config.list_id or (
             self._ordered_numid if list_type == 'ordered' else self._bullet_numid
         )
         # Use ListParagraph base style (locale-independent; German: Listenabsatz)
@@ -826,10 +804,8 @@ class DocxOutputFunctions(ProcessingModelFunctions):
 
     def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
         self._ensure_styles(config)
-        if '_docx_footnotes' not in config:
-            config['_docx_footnotes'] = {}
-        fn_id = len(config['_docx_footnotes']) + 1
-        config['_docx_footnotes'][fn_id] = self._collect(config, node, content)
+        fn_id = len(self._footnotes) + 1
+        self._footnotes[fn_id] = self._collect(config, node, content)
         sentinel = etree.Element(FOOTNOTE_SENTINEL_TAG)
         sentinel.set('id', str(fn_id))
         return [sentinel]
@@ -882,13 +858,13 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         """Collect a header value under *key* instead of emitting body content.
 
         Mirrors :meth:`TypstOutputFunctions.metadata`: the ODD names the field,
-        the collected text lands in ``config['parameters']['metadata']`` and is
+        the collected text lands in ``config.state.metadata`` and is
         mapped onto the ``.docx`` core properties by :meth:`finish`.
         """
         if key:
             self._ensure_styles(config)
             text = _ooxml_text(self._collect(config, node, content)).strip()
-            config['parameters'].setdefault('metadata', {}).setdefault(str(key), []).append(text)
+            config.state.metadata.setdefault(str(key), []).append(text)
         return []
 
     def title(self, config, node, cls, content) -> PMResult:
@@ -1073,7 +1049,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
 
     def _apply_core_properties(self, config: dict, doc) -> None:
         """Map values collected by :meth:`metadata` onto the document properties."""
-        collected = (config.get('parameters') or {}).get('metadata') or {}
+        collected = config.state.metadata
         for key, values in collected.items():
             prop = self._CORE_PROPERTY_KEYS.get(str(key).lower())
             if prop is None:
@@ -1090,7 +1066,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         from docx.opc.part import Part  # noqa: PLC0415
         from docx.opc.packuri import PackURI  # noqa: PLC0415
 
-        template_path = config.get('docx_template')
+        template_path = config.docx_template
         doc = Document(template_path) if template_path else Document()
         if not self._styles_loaded:
             self._load_style_index(doc)
@@ -1109,7 +1085,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
                 doc.part.relate_to(_new_np, _RT.NUMBERING)
 
         # Add per-list w:num instances so each list gets its own counter
-        instances = config.get('_docx_num_instances', [])
+        instances = self._num_instances
         if instances:
             numbering_el = doc.part.numbering_part._element
             # Create pStyle-free abstract copies so Word doesn't share a global
@@ -1152,7 +1128,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
             else:
                 body.append(el)
 
-        footnotes_data = config.get('_docx_footnotes', {})
+        footnotes_data = self._footnotes
         if footnotes_data:
             # Drop any existing footnotes part from the template to avoid duplicates.
             existing_fn_rids = [
@@ -1290,7 +1266,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         import os  # noqa: PLC0415
 
         image_url = sentinel.get('url')
-        input_path = config.get('input_path')
+        input_path = config.input_path
         if not image_url or not input_path:
             return None
         image_path = os.path.join(os.path.dirname(os.path.abspath(input_path)), image_url)
@@ -1307,8 +1283,8 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         except OSError:
             return None
 
-        config['_docx_image_counter'] = config.get('_docx_image_counter', 0) + 1
-        filename = f'media/image{10 + config["_docx_image_counter"]}{ext}'
+        self._image_counter += 1
+        filename = f'media/image{10 + self._image_counter}{ext}'
         try:
             from docx.opc.packuri import PackURI  # noqa: PLC0415
             from docx.opc.part import Part  # noqa: PLC0415
@@ -1533,9 +1509,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
 
     def _replace_image_sentinels(self, body_elements: list, doc, nsmap: dict, config: dict) -> None:
         """Replace image sentinels with actual OOXML drawing elements using XQuery-compatible approach."""
-        # Initialize image counter for unique filenames
-        if '_docx_image_counter' not in config:
-            config['_docx_image_counter'] = 0
+        # Image numbering continues self._image_counter, which is per run.
         
         # Collect all image sentinels first
         image_sentinels = []
@@ -1563,13 +1537,11 @@ class DocxOutputFunctions(ProcessingModelFunctions):
         """Build image package like XQuery pmf:build-image-package."""
         import os  # noqa: PLC0415
         
-        # Store mapping of rId to actual relationship
-        if '_docx_image_rid_map' not in config:
-            config['_docx_image_rid_map'] = {}
+        # The rId → actual relationship mapping lands in self._image_rid_map.
         
         for i, sentinel in enumerate(sentinels):
-            config['_docx_image_counter'] += 1
-            r_id_num = 10 + config['_docx_image_counter']  # Start from rId10 like XQuery
+            self._image_counter += 1
+            r_id_num = 10 + self._image_counter  # Start from rId10 like XQuery
             r_id = f'rId{r_id_num}'
             
             # Store the rId on the sentinel for later use
@@ -1581,7 +1553,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
                 continue
             
             # Resolve image path
-            input_path = config.get('input_path')
+            input_path = config.input_path
             if not input_path:
                 continue
             
@@ -1621,7 +1593,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
                 
                 # Create relationship and store the actual rId
                 actual_rid = doc.part.relate_to(image_part, IMAGE_RT)
-                config['_docx_image_rid_map'][r_id] = actual_rid
+                self._image_rid_map[r_id] = actual_rid
                 
             except Exception:
                 continue
@@ -1639,7 +1611,7 @@ class DocxOutputFunctions(ProcessingModelFunctions):
             # failure below (unregistered rId, missing/unreadable image file,
             # drawing construction) degrades to a visible placeholder run.
             r_id = sentinel.get('rId')
-            actual_rid = config.get('_docx_image_rid_map', {}).get(r_id) if r_id else None
+            actual_rid = self._image_rid_map.get(r_id) if r_id else None
             
             drawing_run = None
             if actual_rid:

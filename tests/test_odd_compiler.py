@@ -19,8 +19,8 @@ def test_compile_teipublisher_odd_emits_valid_python(tmp_path: Path) -> None:
     src = compile_odd(str(ODD))
     assert 'def _dispatch' in src
     assert 'def transform' in src
-    assert "'xpath_extensions'" in src
-    assert 'xpath_extensions=config.get("xpath_extensions")' in src
+    assert 'def new_context' in src
+    assert 'config.xpath.test(node, ' in src
     assert 'pass_through' in src
     assert 'ODD_GENERATED_CSS' in src
     assert 'odd_css' in src
@@ -47,13 +47,13 @@ def test_compile_typst_mode_imports_typst_output_functions(tmp_path: Path) -> No
     src = compile_odd(str(ODD), output_mode='typst')
     assert 'TypstOutputFunctions' in src
     assert 'normalize_markdown_xml_text' in src
-    assert "'normalize_text': normalize_markdown_xml_text" in src
+    assert 'normalize_text=normalize_markdown_xml_text,' in src
     assert 'TypstOutputFunctions()' in src
     assert 'ODD_GENERATED_TYPST' in src
     assert 'ODD_GENERATED_CSS' not in src
     assert 'TYPST_RENDITION_FUNCTIONS' in src
-    assert "'typst_functions': TYPST_RENDITION_FUNCTIONS" in src
-    assert "'odd_css':       ''" in src
+    assert 'typst_functions=TYPST_RENDITION_FUNCTIONS,' in src
+    assert "odd_css=''," in src
     assert "return ['typst']" in src
 
     out = tmp_path / 'typst_gen.py'
@@ -68,7 +68,7 @@ def test_compile_markdown_mode_imports_markdown_output_functions() -> None:
     src = compile_odd(str(ODD), output_mode='markdown')
     assert 'MarkdownOutputFunctions' in src
     assert 'normalize_markdown_xml_text' in src
-    assert "'normalize_text': normalize_markdown_xml_text" in src
+    assert 'normalize_text=normalize_markdown_xml_text,' in src
     assert 'MarkdownOutputFunctions()' in src
     assert 'def transform_output_channels' in src
     assert "return ['markdown']" in src
@@ -160,7 +160,7 @@ def test_generated_transform_calls_pmf_finish() -> None:
     from opm.odd_compiler import compile_odd
 
     src = compile_odd(str(ODD))
-    assert "config['pmf'].finish(config, result)" in src
+    assert 'config.pmf.finish(config, result)' in src
 
 
 def test_load_odd_tolerates_duplicate_xml_id(tmp_path: Path) -> None:
@@ -323,7 +323,7 @@ def test_emit_template_params_use_apply_template_param_value(tmp_path: Path) -> 
     src = compile_odd(str(odd))
     assert 'apply_template_param_value,' in src
     assert 'apply_template_param_value(config, node, node)' in src
-    assert 'apply_template_param_value(config, node, xpath_content(node,' in src
+    assert 'apply_template_param_value(config, node, config.xpath.select(node,' in src
 
 
 def test_compile_odd_without_web_specs_emits_valid_python(tmp_path: Path) -> None:

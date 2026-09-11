@@ -74,8 +74,8 @@ from opm.config import (
     ProjectConfig,
     load_project_config,
 )
-from opm.runtime.pm_runtime import resolve_context_element, xpath_runtime_context
 from opm.runtime.pm_runtime import serialize as _default_serialize
+from opm.runtime.xpath_env import XPathEnvironment
 from opm.template_rendering import (
     DEFAULT_PRINT_TEMPLATE_NAME,
     DEFAULT_TYPST_TEMPLATE_NAME,
@@ -117,6 +117,8 @@ def xpath_select(
     xpath_collections: dict[str, list] | None = None,
     xpath_variables: dict[str, Any] | None = None,
     xpath_namespaces: dict[str, str] | None = None,
+    *,
+    xpath_env: XPathEnvironment | None = None,
 ) -> list:
     """Evaluate XPath 3.1 *expr* against *root*, returning a plain list.
 
@@ -136,27 +138,20 @@ def xpath_select(
         expr: XPath 3.1 expression with unprefixed element names.
         params: Values bound as the XPath ``$parameters`` map.
         xpath_extensions: Dotted module paths for custom XPath functions in the ``tp:`` namespace.
+        xpath_env: Evaluate in this environment instead of one built from the
+            other arguments; its cached document trees are then reused.
     """
-    from opm.runtime.pm_runtime import xpath_select_nodes  # noqa: PLC0415
-
-    effective_params: dict[str, Any] = dict(params or {})
-    effective_params.update(
-        xpath_runtime_context(
-            base_uri=xpath_base_uri,
-            documents=xpath_documents,
-            collections=xpath_collections,
-            variables=xpath_variables,
-            namespaces=xpath_namespaces,
-        ),
+    env = xpath_env if xpath_env is not None else XPathEnvironment(
+        base_uri=xpath_base_uri,
+        documents=xpath_documents,
+        collections=xpath_collections,
+        variables=xpath_variables,
+        namespaces=xpath_namespaces,
+        extensions=xpath_extensions,
     )
-    result = xpath_select_nodes(
-        root,
-        expr,
-        effective_params or None,
-        xpath_extensions=tuple(xpath_extensions) if xpath_extensions else None,
-    )
-    # xpath_select_nodes unwraps a single-item list to a scalar; normalise back to list
-    return result if isinstance(result, list) else [result]
+    if params:
+        env = env.with_parameters(params)
+    return env.select_all(root, expr)
 
 
 def load_xpath_documents(paths: Sequence[Path]) -> dict[str, Any]:
@@ -170,7 +165,8 @@ def load_xpath_documents(paths: Sequence[Path]) -> dict[str, Any]:
     ``doc()``-using predicate, the register documents were being re-wrapped
     thousands of times per chunked file. ``get_node_tree()`` short-circuits on
     an already-wrapped ``DocumentNode``, so pre-wrapping turns that back into a
-    dict lookup. Mirrors what ``_xpath_root_wrapped()`` does for the main root.
+    dict lookup. Mirrors what :meth:`~opm.runtime.xpath_env.XPathEnvironment.wrapped`
+    does for the main document.
     """
     documents: dict[str, Any] = {}
     for path in paths:
@@ -255,6 +251,7 @@ def run_transform(
     epub_chunking: ChunkingConfig | None = None,
     epub_css: Path | None = None,
     epub_skip_title: bool = False,
+    xpath_env: XPathEnvironment | None = None,
 ) -> str | bytes:
     """Run *mod* against *root* and return the serialized output.
 
@@ -280,21 +277,20 @@ def run_transform(
         epub_chunking: Chapter selection for ``-t epub`` (defaults from TEI/DocBook).
         epub_css: Stylesheet appended last to the EPUB package.
         epub_skip_title: Omit the generated EPUB title page.
+        xpath_env: The XPath environment to evaluate in; built from the
+            ``xpath_*`` arguments when omitted, which it then replaces.
     """
     serialize = getattr(mod, 'serialize', _default_serialize)
 
-    transform_opts: dict[str, Any] = dict(parameters or {})
-    transform_opts.update(
-        xpath_runtime_context(
-            base_uri=xpath_base_uri,
-            documents=xpath_documents,
-            collections=xpath_collections,
-            variables=xpath_variables,
-            namespaces=xpath_namespaces,
-        ),
+    env = xpath_env if xpath_env is not None else XPathEnvironment(
+        base_uri=xpath_base_uri,
+        documents=xpath_documents,
+        collections=xpath_collections,
+        variables=xpath_variables,
+        namespaces=xpath_namespaces,
+        extensions=xpath_extensions,
     )
-    if xpath_extensions:
-        transform_opts['xpath_extensions'] = list(xpath_extensions)
+    transform_opts: dict[str, Any] = dict(parameters or {})
     if webcomponents:
         transform_opts['webcomponents'] = True
     if docx_template is not None:
@@ -319,13 +315,14 @@ def run_transform(
             input_path=input_path,
             transform_opts=transform_opts,
             skip_title=epub_skip_title,
+            xpath_env=env,
         )
 
     metadata: dict = {}
     if primary == 'typst':
         transform_opts['metadata'] = metadata
 
-    result = mod.transform(root, transform_opts if transform_opts else None)
+    result = mod.transform(root, transform_opts or None, xpath_env=env)
 
     # Binary output (e.g. docx) — finish() already packaged everything
     if result and isinstance(result[0], bytes):
@@ -395,11 +392,12 @@ def transform_node(
     epub_chunking: ChunkingConfig | None = None,
     epub_css: Path | None = None,
     epub_skip_title: bool = False,
+    xpath_env: XPathEnvironment | None = None,
 ) -> str | bytes:
     """Load *script_path* as a transform module and apply it to *root*.
 
     If *xpath* is given it is evaluated against *root* via
-    :func:`~opm.pm_runtime.resolve_context_element` to select the
+    :meth:`~opm.runtime.xpath_env.XPathEnvironment.resolve_element` to select the
     actual element to transform; unprefixed names use the document's default
     namespace.  Without *xpath*, *root* itself is the transform target.
 
@@ -425,24 +423,16 @@ def transform_node(
         if isinstance(script_path, ModuleType)
         else load_transform_module(script_path)
     )
-    effective_extensions: tuple[str, ...] = tuple(xpath_extensions) if xpath_extensions else ()
-    effective_parameters: dict[str, Any] = dict(parameters or {})
-    effective_parameters.update(
-        xpath_runtime_context(
-            base_uri=xpath_base_uri,
-            documents=xpath_documents,
-            collections=xpath_collections,
-            variables=xpath_variables,
-            namespaces=xpath_namespaces,
-        ),
+    env = xpath_env if xpath_env is not None else XPathEnvironment(
+        base_uri=xpath_base_uri,
+        documents=xpath_documents,
+        collections=xpath_collections,
+        variables=xpath_variables,
+        namespaces=xpath_namespaces,
+        extensions=xpath_extensions,
     )
     element = (
-        resolve_context_element(
-            root,
-            xpath,
-            effective_parameters or None,
-            xpath_extensions=effective_extensions,
-        )
+        env.with_parameters(parameters).resolve_element(root, xpath)
         if xpath
         else root
     )
@@ -450,21 +440,16 @@ def transform_node(
         mod,
         element,
         parameters=parameters,
-        xpath_extensions=effective_extensions or None,
         webcomponents=webcomponents,
         apply_template=apply_template,
         template_path=template_path,
         template_context=template_context,
         docx_template=docx_template,
         typst_template_path=typst_template_path,
-        xpath_base_uri=xpath_base_uri,
-        xpath_documents=xpath_documents,
-        xpath_collections=xpath_collections,
-        xpath_variables=xpath_variables,
-        xpath_namespaces=xpath_namespaces,
         epub_chunking=epub_chunking,
         epub_css=epub_css,
         epub_skip_title=epub_skip_title,
+        xpath_env=env,
     )
 
 
@@ -524,13 +509,18 @@ def transform_file(
     )
 
     doc_root = etree.parse(str(xml_path)).getroot()
-    xpath_base_uri = xml_path.resolve().as_uri()
     xpath_documents = load_xpath_documents(cfg.xpath_documents)
     xpath_collections, xpath_documents = load_xpath_collections(
         cfg.xpath_collections, xpath_documents,
     )
-    xpath_variables = dict(cfg.xpath_variables)
-    xpath_namespaces = dict(cfg.xpath_namespaces)
+    xpath_env = XPathEnvironment(
+        base_uri=xml_path.resolve().as_uri(),
+        documents=xpath_documents,
+        collections=xpath_collections,
+        variables=dict(cfg.xpath_variables),
+        namespaces=dict(cfg.xpath_namespaces),
+        extensions=effective_extensions,
+    )
 
     if primary == 'print':
         effective_template = template if template is not None else cfg.print_template
@@ -545,17 +535,12 @@ def transform_file(
         doc_root,
         xpath=xpath,
         parameters=parameters_with_path,
-        xpath_extensions=effective_extensions or None,
         webcomponents=effective_webcomponents,
         template_path=effective_template,
         template_context=template_context,
         docx_template=cfg.document_docx_template,
         typst_template_path=template if template is not None else cfg.typst_template,
-        xpath_base_uri=xpath_base_uri,
-        xpath_documents=xpath_documents,
-        xpath_collections=xpath_collections,
-        xpath_variables=xpath_variables,
-        xpath_namespaces=xpath_namespaces,
+        xpath_env=xpath_env,
         epub_chunking=cfg.chunking,
         epub_css=cfg.epub_css,
         epub_skip_title=cfg.epub_skip_title,

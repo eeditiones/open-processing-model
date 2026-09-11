@@ -49,14 +49,13 @@ from opm.scaffold import (
     VOCABULARIES,
     scaffold,
 )
-from opm.runtime.pm_runtime import resolve_context_element
 from opm.transform import (
     load_transform_module,
     load_xpath_collections,
     load_xpath_documents,
     run_transform,
 )
-from opm.runtime.pm_runtime import xpath_runtime_context
+from opm.runtime.xpath_env import XPathEnvironment
 from opm.runtime.xpath_diagnostics import XPathErrorLog, collect_xpath_errors
 from opm.chunking import build_index, chunk_document
 
@@ -1003,19 +1002,17 @@ def transform_cmd(
         parameters.update(_parameters_from_cli(param if param else None))
         # Add input_path to parameters for image processing in DOCX output
         parameters['input_path'] = str(input_xml)
-        xpath_base_uri = input_xml.resolve().as_uri()
         xpath_documents = load_xpath_documents(cfg.xpath_documents)
         xpath_collections, xpath_documents = load_xpath_collections(
             cfg.xpath_collections, xpath_documents,
         )
-        parameters.update(
-            xpath_runtime_context(
-                base_uri=xpath_base_uri,
-                documents=xpath_documents,
-                collections=xpath_collections,
-                variables=dict(cfg.xpath_variables),
-                namespaces=dict(cfg.xpath_namespaces),
-            ),
+        xpath_env = XPathEnvironment(
+            base_uri=input_xml.resolve().as_uri(),
+            documents=xpath_documents,
+            collections=xpath_collections,
+            variables=dict(cfg.xpath_variables),
+            namespaces=dict(cfg.xpath_namespaces),
+            extensions=effective_extensions,
         )
 
         tree = etree.parse(str(input_xml))
@@ -1026,12 +1023,7 @@ def transform_cmd(
 
         with collect_xpath_errors() as xpath_log:
             root = (
-                resolve_context_element(
-                    doc_root,
-                    xpath,
-                    parameters or None,
-                    xpath_extensions=effective_extensions,
-                )
+                xpath_env.with_parameters(parameters).resolve_element(doc_root, xpath)
                 if xpath
                 else doc_root
             )
@@ -1039,14 +1031,12 @@ def transform_cmd(
                 mod,
                 root,
                 parameters=parameters,
-                xpath_extensions=effective_extensions,
                 webcomponents=effective_webcomponents,
                 template_path=effective_template,
                 template_context=template_context,
                 docx_template=effective_docx_template,
                 typst_template_path=effective_template if primary == 'typst' else None,
-                xpath_base_uri=xpath_base_uri,
-                xpath_documents=xpath_documents,
+                xpath_env=xpath_env,
                 epub_chunking=cfg.epub_chunking,
                 epub_css=cfg.epub_css,
                 epub_skip_title=cfg.epub_skip_title,

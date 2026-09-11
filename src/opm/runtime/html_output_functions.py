@@ -39,17 +39,17 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
 
     def block(self, config, node, cls, content) -> PMResult:
         el = self._el('div', cls, node)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     def inline(self, config, node, cls, content) -> PMResult:
         el = self._el('span', cls, node)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     def paragraph(self, config, node, cls, content) -> PMResult:
         el = self._el('p', cls, node)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     def heading(self, config, node, cls, content, level) -> PMResult:
@@ -58,17 +58,17 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         except (TypeError, ValueError):
             lvl = 1
         el = self._el(f'h{max(1, min(6, lvl))}', cls, node)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     def section(self, config, node, cls, content) -> PMResult:
         el = self._el('section', cls, node)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     def body(self, config, node, cls, content) -> PMResult:
         el = self._el('body', cls, node)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     @staticmethod
@@ -83,7 +83,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         st.text = css
 
     def _append_odd_css(self, config, head_el: etree._Element) -> None:
-        self._append_style_once(head_el, config.get('odd_css'))
+        self._append_style_once(head_el, config.odd_css)
 
     def document(self, config, node, cls, content) -> PMResult:
         el = self._el('html', cls, node)
@@ -93,8 +93,8 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         meta.set('charset', 'utf-8')
         el.append(head)
         body = etree.SubElement(el, 'body')
-        config['apply_children'](config, node, content, body)
-        odd_css = config.get('odd_css')
+        config.apply_children(config, node, content, body)
+        odd_css = config.odd_css
         if odd_css:
             self._append_odd_css(config, head)
         return [el]
@@ -106,9 +106,9 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
             if isinstance(item, str):
                 result.append(item)
             elif isinstance(item, etree._Element):
-                sub = (config['apply'](config, child_nodes(node))
+                sub = (config.apply(config, child_nodes(node))
                        if item is node
-                       else config['apply'](config, [item]))
+                       else config.apply(config, [item]))
                 result.extend(sub)
         return result
 
@@ -118,12 +118,12 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         # Output <dl> if node has tei:label children, else <ul>/<ol>
         if node.xpath('tei:label', namespaces=self.NSMAP):
             el = self._el('dl', cls, node)
-            config['apply_children'](config, node, content, el)
+            config.apply_children(config, node, content, el)
             return [el]
         effective = type or node.get('type')
         tag = 'ol' if effective == 'ordered' else 'ul'
         el = self._el(tag, cls, node)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     def list_item(self, config, node, cls, content, n=None) -> PMResult:
@@ -134,14 +134,14 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
             if label or n is not None:
                 dt = self._el('dt', cls, node)
                 if label:
-                    config['apply_children'](config, label[0], [label[0]], dt)
+                    config.apply_children(config, label[0], [label[0]], dt)
                 elif n is not None:
                     dt.text = str(n)
                 dd = self._el('dd', cls, node)
-                config['apply_children'](config, node, content, dd)
+                config.apply_children(config, node, content, dd)
                 return [dt, dd]
         el = self._el('li', cls, node)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     def link(self, config, node, cls, content, uri, target, optional) -> PMResult:
@@ -156,17 +156,17 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         if target:
             el.set('target', str(target))
         add_lang_attrs(el, node)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     def table(self, config, node, cls, content) -> PMResult:
         el = self._el('table', cls, node)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     def row(self, config, node, cls, content) -> PMResult:
         el = self._el('tr', cls, node)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     def cell(self, config, node, cls, content, type=None) -> PMResult:
@@ -177,17 +177,17 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         if node.get('rows'):
             el.set('rowspan', node.get('rows'))
         add_lang_attrs(el, node)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     def figure(self, config, node, cls, content, title=None) -> PMResult:
         el = etree.Element('figure')
         el.set('class', classes(*cls))
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         if title:
             cap = etree.SubElement(el, 'figcaption')
             add_lang_attrs(cap, node)
-            config['apply_children'](config, node, title, cap)
+            config.apply_children(config, node, title, cap)
         return [el]
 
     def graphic(self, config, node, cls, content, url,
@@ -215,9 +215,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
 
     def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
         """Emit note - margin notes as inline spans, others as footnotes."""
-        from . import output_functions as of
-
-        node_id = node.get(XML_ID) or node.get('id') or str(of._note_counter + 1)
+        node_id = node.get(XML_ID) or node.get('id') or str(config.state.note_counter + 1)
         safe_id = re.sub(r'[-.]', '_', node_id)
 
         # Margin notes: output inline span(s), not footnotes
@@ -226,7 +224,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
             if label:
                 # Label reference span
                 ref_span = self._el('span', list(cls) + ['margin-note-ref'], node)
-                config['apply_children'](config, node, [label], ref_span)
+                config.apply_children(config, node, [label], ref_span)
                 result.append(ref_span)
                 # Margin note content with label
                 note_span = self._el('span', list(cls) + ['margin-note'], node)
@@ -234,19 +232,19 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
                 n_span.set('class', 'n')
                 n_span.text = label if isinstance(label, str) else str(label)
                 n_span.tail = ' '
-                config['apply_children'](config, node, content, note_span)
+                config.apply_children(config, node, content, note_span)
                 result.append(note_span)
             else:
                 # Margin note without label
                 note_span = self._el('span', list(cls) + ['margin-note'], node)
                 note_span.set('id', f'margin_ref_{safe_id}')
-                config['apply_children'](config, node, content, note_span)
+                config.apply_children(config, node, content, note_span)
                 result.append(note_span)
             return result
 
         # Footnote handling (default)
-        of._note_counter += 1
-        nr = label if label is not None else of._note_counter
+        counter = config.state.next_note()
+        nr = label if label is not None else counter
 
         ref_span = etree.Element('span')
         ref_span.set('id', f'fnref_{safe_id}')
@@ -267,28 +265,28 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         dd = etree.SubElement(dl, 'dd')
         dd.set('class', 'fn-content')
         add_lang_attrs(dd, node)
-        config['apply_children'](config, node, content, dd)
+        config.apply_children(config, node, content, dd)
         back = etree.SubElement(dd, 'a')
         back.set('class', 'fn-back')
         back.set('href', f'#fnref_{safe_id}')
         back.text = '↩'
 
-        config.setdefault('footnotes', []).append(dl)
+        config.state.footnotes.append(dl)
         return [ref_span]
 
     def cit(self, config, node, cls, content, source=None) -> PMResult:
         el = self._el('blockquote', cls, node)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         if source:
             cite = etree.SubElement(el, 'cite')
-            config['apply_children'](config, node, source, cite)
+            config.apply_children(config, node, source, cite)
         return [el]
 
     def webcomponent(self, config, node, cls, content, name, optional=None) -> PMResult:
         # Without the JS bundle, custom elements are unknown inline tags and the
         # browser collapses whitespace — fatal for code listings. Degrade to a
         # real <pre><code> (same path print always takes: webcomponents=False).
-        if not config.get('webcomponents') and name == 'pb-code-highlight':
+        if not config.webcomponents and name == 'pb-code-highlight':
             language = (optional or {}).get('language')
             return self.code(config, node, cls, content, language=language)
 
@@ -303,7 +301,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
                     el.set(k, k)
             else:
                 el.set(k, str(v))
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     def code(self, config, node, cls, content, language=None) -> PMResult:
@@ -314,7 +312,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
             lang = str(language).strip()
             if lang:
                 code_el.set('data-language', lang)
-        config['apply_children'](config, node, content, code_el)
+        config.apply_children(config, node, content, code_el)
         return [pre]
 
     def omit(self, config, node, cls, content) -> PMResult:
@@ -327,7 +325,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         kind = (type or '').lower()
         if kind == 'page':
             el = self._el('span', cls, node)
-            config['apply_children'](config, node, label if label is not None else [], el)
+            config.apply_children(config, node, label if label is not None else [], el)
             return [el]
         # Column breaks must be real block elements: Chromium ignores
         # ``break-before: column`` on ``<br>``, which collapses Folio pages
@@ -355,26 +353,26 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         return [el]
 
     def alternate(self, config, node, cls, content, default, alternate, optional=None) -> PMResult:
-        if config.get('webcomponents'):
+        if config.webcomponents:
             outer = etree.Element('pb-popover')
             if cls:
                 outer.set('class', classes(*cls))
             d = etree.SubElement(outer, 'span')
             d.set('slot', 'default')
-            config['apply_children'](config, node, default, d)
+            config.apply_children(config, node, default, d)
             if alternate is not None:
                 a = etree.SubElement(outer, 'template')
                 a.set('slot', 'alternate')
-                config['apply_children'](config, node, alternate, a)
+                config.apply_children(config, node, alternate, a)
             return [outer]
         alt_parts = list(cls) + ['alternate'] if cls is not None else ['alternate']
         outer = self._el('span', alt_parts, node)
         d = etree.SubElement(outer, 'span')
-        config['apply_children'](config, node, default, d)
+        config.apply_children(config, node, default, d)
         if alternate is not None:
             a = etree.SubElement(outer, 'span')
             a.set('class', 'altcontent')
-            config['apply_children'](config, node, alternate, a)
+            config.apply_children(config, node, alternate, a)
         return [outer]
 
     def glyph(self, config, node, cls, content) -> PMResult:
@@ -408,14 +406,14 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         el = etree.Element('title')
         el.set('class', classes(*cls))
         add_lang_attrs(el, node)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     def match(self, config, node, cls, content) -> PMResult:
         el = etree.Element('mark')
         el.set('class', classes(*cls))
         add_lang_attrs(el, node)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     def template(self, config, node, cls, template_str: str, params: dict) -> PMResult:

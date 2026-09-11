@@ -116,9 +116,19 @@ def _render(node):
     return [node.text or '']
 
 
-def transform(root, options=None):
-    _ = options
+def transform(root, options=None, *, xpath_env=None):
+    _ = options, xpath_env
     return _render(root)
+
+
+def new_context(root, options=None, *, xpath_env=None):
+    from opm.runtime.context import build_context
+    from opm.runtime.html_output_functions import HtmlOutputFunctions
+
+    return build_context(
+        root, options, xpath_env=xpath_env,
+        pmf=HtmlOutputFunctions(), dispatch=_dispatch, apply=apply,
+    )
 
 
 def apply(config, nodes):

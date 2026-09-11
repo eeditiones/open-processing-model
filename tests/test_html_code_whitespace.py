@@ -4,18 +4,17 @@ from __future__ import annotations
 
 from lxml import etree
 
+from opm.runtime.context import RenderContext
 from opm.runtime.html_output_functions import HtmlOutputFunctions
 from opm.runtime.pm_runtime import apply_children, serialize
 from opm.runtime.print_output_functions import PrintOutputFunctions
 
 
-def _config(*, webcomponents: bool = False) -> dict:
-    return {
-        'apply_children': apply_children,
-        'apply': lambda _c, nodes: list(nodes) if isinstance(nodes, list) else [nodes],
-        'footnotes': [],
-        'webcomponents': webcomponents,
-    }
+def _config(*, webcomponents: bool = False) -> RenderContext:
+    return RenderContext(
+        apply=lambda _c, nodes: list(nodes) if isinstance(nodes, list) else [nodes],
+        webcomponents=webcomponents,
+    )
 
 
 def test_html_code_emits_pre_code() -> None:

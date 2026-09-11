@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """EPUB 3 packager — ZIP container around EPUB-mode HTML transforms.
 
 Mirrors ``tei-publisher-app/modules/lib/epub.xql``: chapter XHTML, OPF, nav,
@@ -498,9 +501,9 @@ def _transform_fragment(
     mod: ModuleType,
     element: etree._Element,
     transform_opts: dict[str, Any] | None,
+    xpath_env: Any = None,
 ) -> list[etree._Element]:
-    opts = dict(transform_opts or {})
-    result = mod.transform(element, opts if opts else None)
+    result = mod.transform(element, dict(transform_opts or {}) or None, xpath_env=xpath_env)
     return _collect_body_nodes(list(result or []))
 
 
@@ -784,6 +787,7 @@ def build_epub(
     fonts: Sequence[Path] = (),
     cover_image: str | None = None,
     metadata: EpubMetadata | None = None,
+    xpath_env: Any = None,
 ) -> bytes:
     """Transform *root* with an EPUB-mode module and return ``.epub`` bytes."""
     meta = metadata or extract_epub_metadata(root)
@@ -798,7 +802,7 @@ def build_epub(
     if not skip_title:
         header = _find_header(root)
         if header is not None:
-            body_nodes = _transform_fragment(mod, header, opts)
+            body_nodes = _transform_fragment(mod, header, opts, xpath_env)
             title_div = etree.Element(f'{{{XHTML_NS}}}div')
             title_div.set('id', 'title')
             for n in body_nodes:
@@ -811,7 +815,7 @@ def build_epub(
             xhtml_docs['title'] = assemble_xhtml('Title page', meta.language, [p])
 
     for ch in chapters:
-        body_nodes = _transform_fragment(mod, ch.element, opts)
+        body_nodes = _transform_fragment(mod, ch.element, opts, xpath_env)
         # Ensure chapter root anchor exists for TOC links.
         if body_nodes and not any(
             (n.get('id') == ch.anchor_id) for n in body_nodes if isinstance(n, etree._Element)

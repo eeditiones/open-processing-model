@@ -11,6 +11,7 @@ from lxml import etree
 
 from opm.resources import packaged_odd
 from opm.runtime.json_output_functions import JsonOutputFunctions
+from opm.runtime.context import RenderContext
 from opm.runtime.pm_runtime import apply, apply_children
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,16 +20,8 @@ DEMO_TEI_TEST_XML = ROOT / 'examples' / 'tei-test.xml'
 TEI = 'http://www.tei-c.org/ns/1.0'
 
 
-def _config(**extra) -> dict:
-    config: dict = {
-        'apply_children': apply_children,
-        'apply': lambda cfg, nodes: apply(cfg, nodes, cfg['dispatch']),
-        'dispatch': lambda cfg, node, params: [],
-        'parameters': {},
-        'footnotes': [],
-    }
-    config.update(extra)
-    return config
+def _config(**extra) -> RenderContext:
+    return RenderContext(**{'dispatch': lambda cfg, node, params: [], **extra})
 
 
 def _el(tag: str, text: str | None = None, **attrs) -> etree._Element:
@@ -98,7 +91,7 @@ def test_prose_is_stored_on_exactly_one_record() -> None:
 
     pmf = JsonOutputFunctions()
     config = _config()
-    config['dispatch'] = lambda cfg, node, params: pmf.paragraph(
+    config.dispatch = lambda cfg, node, params: pmf.paragraph(
         cfg, node, ['tei-p', 'tei-p1', None], node,
     )
     result = pmf.section(config, parent, ['tei-div', 'tei-div1', None], parent)
@@ -152,7 +145,7 @@ def test_mixed_content_keeps_source_order() -> None:
 
     pmf = JsonOutputFunctions()
     config = _config()
-    config['dispatch'] = lambda cfg, node, params: pmf.inline(
+    config.dispatch = lambda cfg, node, params: pmf.inline(
         cfg, node, ['tei-hi', 'tei-hi1', None], node,
     )
     rec = pmf.paragraph(config, para, ['tei-p', 'tei-p1', None], para)[0]

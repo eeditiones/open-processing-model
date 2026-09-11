@@ -24,6 +24,7 @@ from opm.epub import (
 from opm.odd_cache import ensure_compiled_module
 from opm.odd_compiler.codegen import _model_matches_output_mode
 from opm.resources import packaged_odd
+from opm.runtime.context import RenderContext
 from opm.runtime.epub_output_functions import EPUB_TYPE, EpubOutputFunctions
 from opm.runtime.pm_runtime import apply_children, serialize
 from opm.transform import load_transform_module, run_transform
@@ -33,16 +34,14 @@ def _apply_children(config, node, content, parent_el) -> None:
     apply_children(config, node, content, parent_el)
 
 
-def _config() -> dict:
-    return {
-        'apply_children': _apply_children,
-        'apply': lambda _c, nodes: list(nodes) if isinstance(nodes, list) else [nodes],
+def _config() -> RenderContext:
+    return RenderContext(
+        apply_children=_apply_children,
+        apply=lambda _c, nodes: list(nodes) if isinstance(nodes, list) else [nodes],
         # Content elements pass straight through: these tests exercise the
         # output functions, not model dispatch.
-        'dispatch': lambda _c, node, _params: [node],
-        'footnotes': [],
-        'webcomponents': False,
-    }
+        dispatch=lambda _c, node, _params: [node],
+    )
 
 
 def test_epub_block_sets_id_when_missing() -> None:

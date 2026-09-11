@@ -14,7 +14,6 @@ from datetime import date, datetime
 import lxml.etree as ET
 from babel.dates import format_date as babel_format_date
 from elementpath.tree_builders import get_node_tree
-from elementpath.xpath_nodes import XPathNode
 from opm.runtime.xpath_extensions import expect_element, expect_string
 
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
@@ -113,74 +112,6 @@ def roman_fn(n: Any) -> str:
     except (TypeError, ValueError):
         return str(n)
     return _to_app_label(num)
-
-
-# ── tp:id() — fast xml:id lookup ───────────────────────────────────────────────
-#
-# elementpath's built-in id() scans every node in the document tree (O(N)),
-# because it was designed for DTD-typed ID attributes rather than xml:id.
-# This extension builds a {xml:id → element} dict once per document root and
-# caches it, giving O(1) lookups on every subsequent call.
-
-_xml_id_index_cache: dict[int, dict[str, ET._Element]] = {}
-_object_id = id  # preserve built-in before our `id` function shadows it
-
-
-def _xml_id_index(doc_root: ET._Element) -> dict[str, ET._Element]:
-    """Return (cached) ``{xml:id value → element}`` dict for *doc_root*."""
-    key = _object_id(doc_root)
-    idx = _xml_id_index_cache.get(key)
-    if idx is None:
-        idx = {
-            el.get(XML_ID): el
-            for el in doc_root.iter()
-            if el.get(XML_ID) is not None
-        }
-        _xml_id_index_cache[key] = idx
-    return idx
-
-
-def lookup(idref: Any, context_node: Any = None) -> list:
-    """Fast ``tp:lookup(idref, context_node)`` — O(1) xml:id lookup via a cached index.
-
-    Drop-in replacement for XPath ``id()`` in ODD expressions::
-
-        id($target, root(.))           →  tp:lookup($target, root(.))
-        id(substring-after(@ref,'#'))  →  tp:lookup(substring-after(@ref,'#'), root(.))
-
-    The second argument must resolve to any node in the target document so the
-    function can locate the document root.  Passing ``root(.)`` is idiomatic.
-    """
-    id_str = str(idref).lstrip('#') if idref is not None else ''
-    if not id_str:
-        return []
-
-    node = context_node
-    if isinstance(node, XPathNode):
-        node = node.value
-    # EtreeDocumentNode.value is an _ElementTree; EtreeElementNode.value is _Element
-    if isinstance(node, ET._ElementTree):
-        node = node.getroot()
-    if not isinstance(node, ET._Element):
-        return []
-
-    doc_root = node.getroottree().getroot()
-    idx = _xml_id_index(doc_root)
-    el = idx.get(id_str)
-    if el is None:
-        return []
-
-    # Return the node wrapper from the *same* cached elementpath tree so that
-    # subsequent path steps (e.g. /node(), /bibl) work correctly.
-    from opm.runtime.pm_runtime import _xpath_root_wrapped
-    doc_wrapped = _xpath_root_wrapped(doc_root)
-    wrapped_el = doc_wrapped.elements.get(el)
-    return [wrapped_el] if wrapped_el is not None else []
-
-
-def clear_xml_id_index_cache() -> None:
-    """Invalidate the xml:id index (e.g. after the document changes)."""
-    _xml_id_index_cache.clear()
 
 
 # ── tp:request(uri) — HTTP GET with XML-or-string response ───────────────────────

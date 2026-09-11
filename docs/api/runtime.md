@@ -1,9 +1,30 @@
 # Runtime
 
 The tree-walking engine that drives a transform: `apply()` / `apply_children()`
-route each element through the generated `_dispatch` router, evaluate XPath, and
-cache compiled expressions. `xpath_extensions` loads user-defined `tp:*`
-functions — see the [XPath extensions guide](../guide/xpath-extensions.md).
+route each element through the generated `_dispatch` router. Every output
+function receives the run's `RenderContext` as `config`; XPath is evaluated by
+the context's `XPathEnvironment`, which is built once per document and caches
+the parsed node trees. `xpath_extensions` loads user-defined `tp:*` functions —
+see the [XPath extensions guide](../guide/xpath-extensions.md).
+
+To drive a compiled module yourself, build one environment per document and
+pass it to each transform:
+
+```python
+from opm.runtime import XPathEnvironment
+from opm.transform import run_transform
+
+env = XPathEnvironment(base_uri=path.resolve().as_uri(), extensions=['my.ext'])
+html = run_transform(mod, root, xpath_env=env)
+```
+
+## Render context
+
+::: opm.runtime.context
+
+## XPath environment
+
+::: opm.runtime.xpath_env
 
 ## Processing-model runtime
 

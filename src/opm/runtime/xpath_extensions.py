@@ -12,8 +12,9 @@ from typing import Any, Callable, cast
 
 from elementpath.exceptions import ElementPathValueError
 from elementpath.xpath_nodes import XPathNode
-from elementpath.xpath31.xpath31_parser import XPath31Parser
 import lxml.etree as ET
+
+from .xpath_parser import OpmXPathParser
 
 # Stable namespace for ``tp:yourFunction()`` in XPath expressions.
 TEI_PUBLISHER_XPATH_EXT_PREFIX = 'tp'
@@ -108,8 +109,8 @@ def build_extension_parser(
     callables: dict[str, Callable[..., Any]],
     namespaces: dict[str, str] | None = None,
     base_uri: str | None = None,
-) -> XPath31Parser:
-    """Create an :class:`~elementpath.xpath31.xpath31_parser.XPath31Parser` with ``tp:`` external functions."""
+) -> OpmXPathParser:
+    """Create an :class:`~opm.runtime.xpath_parser.OpmXPathParser` with ``tp:`` external functions."""
     ns = extension_namespace_map()
     if namespaces:
         ns = {**namespaces, **ns}  # ODD namespaces take precedence over tp: prefix
@@ -118,7 +119,7 @@ def build_extension_parser(
         kwargs['default_namespace'] = default_element_ns
     if base_uri:
         kwargs['base_uri'] = base_uri
-    parser = XPath31Parser(**kwargs)
+    parser = OpmXPathParser(**kwargs)
     for name, fn in sorted(callables.items()):
         try:
             parser.external_function(

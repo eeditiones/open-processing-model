@@ -24,6 +24,16 @@ All notable changes to this project are documented here. The format follows
   error when an XPath expression fails at run time.
 - `opm.runtime.collect_xpath_errors()` collects the same information from Python.
 
+### Changed
+
+- The runtime passes a typed `RenderContext` to every output function instead
+  of a plain dict, and evaluates XPath through an `XPathEnvironment` built once
+  per document.
+- `fn:id()` answers from an index built once per document and run instead of
+  walking the whole document on every call, which dominated runs on
+  register-heavy editions. Results are unchanged. `tp:lookup()`, an opm-only
+  workaround no ODD used, is gone.
+
 ### Fixed
 
 - A `param` that reads project configuration (`$global:…`, `collection()`) and

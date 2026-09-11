@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Where each element starts in the original XML text.
 
 ``-t json`` exists to explain a transform, and the first thing you do with an

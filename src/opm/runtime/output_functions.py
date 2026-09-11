@@ -8,7 +8,7 @@ Equivalent to html-functions.xql (and sibling format modules) in
 tei-publisher-lib/content.  Each concrete subclass of
 :class:`ProcessingModelFunctions` implements a specific serialisation
 target (HTML, Markdown, …).  The generated transformation module
-calls methods on ``config['pmf']`` and never imports a format-specific
+calls methods on ``config.pmf`` and never imports a format-specific
 module directly.
 
 HTML and Markdown implementations live in :mod:`opm.html_output_functions` and
@@ -37,16 +37,6 @@ RTL_LANGUAGES = {
     "ara", "heb", "syr", "syc", "kur", "fas", "per",
     "pus", "uig", "urd", "yid",
 }
-
-# ── Counters (equivalent to counters.xql) ─────────────────────────────────────
-
-_note_counter = 0
-
-
-def reset_counters():
-    global _note_counter
-    _note_counter = 0
-
 
 # ── CSS helpers (equivalent to css.xql) ───────────────────────────────────────
 
@@ -143,13 +133,8 @@ def apply_children_without_normalization(
     content,
     parent_el,
 ) -> None:
-    """Call ``config['apply_children']`` with ``normalize_text`` temporarily disabled."""
-    saved = config.pop('normalize_text', None)
-    try:
-        config['apply_children'](config, source_node, content, parent_el)
-    finally:
-        if saved is not None:
-            config['normalize_text'] = saved
+    """Call ``config.apply_children`` with ``normalize_text`` off for this subtree."""
+    config.apply_children(config.derive(normalize_text=None), source_node, content, parent_el)
 
 
 _CLARK_TAG_RE = re.compile(r'^\{[^}]+\}')
@@ -398,17 +383,19 @@ class ProcessingModelFunctions(ABC):
 
     Method names mirror the TEI Processing Model function vocabulary used by
     ``html-functions.xql`` / ``markdown-functions.xql`` etc.  The generated
-    transformation module calls these methods via ``config['pmf']`` so that
+    transformation module calls these methods via ``config.pmf`` so that
     only the *config* construction needs to change
     when a different output format is required.
 
-    Every method receives *config* as its first argument.  The config dict
-    **must** carry the following callable entries so that output functions can
-    delegate recursive processing without importing the dispatch module:
+    Every method receives *config*, a :class:`~opm.runtime.context.RenderContext`,
+    as its first argument. Output functions delegate recursive processing
+    through it without importing the dispatch module:
 
-    ``config['apply']``            – ``apply(config, nodes) → list``
-    ``config['apply_children']``   – ``apply_children(config, node, content,
-                                       parent) → None``
+    ``config.apply``            – ``apply(config, nodes) → list``
+    ``config.apply_children``   – ``apply_children(config, node, content,
+                                    parent) → None``
+
+    A run creates its own instance, so per-run caches may live on ``self``.
     """
 
     @abstractmethod
@@ -519,7 +506,7 @@ class ProcessingModelFunctions(ABC):
         this — it is the sole way to see elements the ODD has no model for,
         since they otherwise never reach a ``pmf`` method at all.
         """
-        return config['apply'](config, child_nodes(node))
+        return config.apply(config, child_nodes(node))
 
     def finish(self, config, nodes: list) -> list:
         """Post-process output after :func:`~opm.pm_runtime.apply`, before footnotes.
@@ -538,7 +525,6 @@ __all__ = [
     'XLINK_HREF',
     'child_nodes',
     'normalize',
-    'reset_counters',
     'map_rend_to_class',
     'classes',
 ]

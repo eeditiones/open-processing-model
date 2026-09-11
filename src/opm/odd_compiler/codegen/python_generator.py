@@ -154,7 +154,6 @@ class PythonGenerator(CodeGenerator):
         odd_path = parsed.odd_path
         odd_name = Path(odd_path).stem if odd_path else ''
         odd_typst_literal = ''
-        transform_config_extra = ''
         if output_mode == 'typst':
             odd_typst, typst_fn_names = collect_odd_generated_typst(parsed, output_mode=output_mode)
             typst_fn_literal = self._python_frozenset_literal(typst_fn_names)
@@ -164,10 +163,6 @@ class PythonGenerator(CodeGenerator):
             )
             odd_generated_constants = odd_typst_literal
             odd_css_config = "''"
-            transform_config_extra = (
-                "\n        'normalize_text': normalize_markdown_xml_text,"
-                "\n        'typst_functions': TYPST_RENDITION_FUNCTIONS,"
-            )
         else:
             odd_css = collect_odd_generated_css(
                 parsed, output_mode=output_mode, base_css=base_css
@@ -235,9 +230,8 @@ class PythonGenerator(CodeGenerator):
                 ')'
             )
             pmf_ctor = 'MarkdownOutputFunctions()'
-            transform_config_extra = "\n        'normalize_text': normalize_markdown_xml_text,"
-            transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
-            webcomponents_init = "runtime_options.get('webcomponents', False)"
+            context_settings = ['normalize_text=normalize_markdown_xml_text']
+            webcomponents_allowed = True
         elif output_mode == 'docx':
             pmf_import = (
                 'from opm.runtime.docx_output_functions import (\n'
@@ -247,14 +241,11 @@ class PythonGenerator(CodeGenerator):
                 'from opm.runtime.markdown_output_functions import normalize_markdown_xml_text'
             )
             pmf_ctor = 'DocxOutputFunctions()'
-            transform_config_extra = (
-                "\n        'docx_template': runtime_options.get('docx_template'),"
-                "\n        'apply_children': docx_apply_children,"
-                "\n        'normalize_text': normalize_markdown_xml_text,"
-                "\n        'input_path': runtime_options.get('input_path'),"
-            )
-            transform_opts_exclude = "('xpath_extensions', 'webcomponents', 'docx_template')"
-            webcomponents_init = "runtime_options.get('webcomponents', False)"
+            context_settings = [
+                'apply_children=docx_apply_children',
+                'normalize_text=normalize_markdown_xml_text',
+            ]
+            webcomponents_allowed = True
         elif output_mode == 'typst':
             pmf_import = (
                 'from opm.runtime.typst_output_functions import (\n'
@@ -264,29 +255,28 @@ class PythonGenerator(CodeGenerator):
                 'from opm.runtime.markdown_output_functions import normalize_markdown_xml_text'
             )
             pmf_ctor = 'TypstOutputFunctions()'
-            transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
-            transform_config_extra += "\n        'text_escape': escape_typst_text_node,"
-            webcomponents_init = "runtime_options.get('webcomponents', False)"
+            context_settings = [
+                'normalize_text=normalize_markdown_xml_text',
+                'text_escape=escape_typst_text_node',
+                'typst_functions=TYPST_RENDITION_FUNCTIONS',
+            ]
+            webcomponents_allowed = True
         elif output_mode == 'print':
             pmf_import = (
                 'from opm.runtime.print_output_functions import PrintOutputFunctions'
             )
             pmf_ctor = 'PrintOutputFunctions()'
             # Paged media has no interactive UI; never enable web components.
-            transform_config_extra = ''
-            transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
-            webcomponents_init = 'False'
+            context_settings = []
+            webcomponents_allowed = False
         elif output_mode == 'epub':
             pmf_import = (
                 'from opm.runtime.epub_output_functions import EpubOutputFunctions'
             )
             pmf_ctor = 'EpubOutputFunctions()'
             # EPUB readers have no tei-publisher web-component runtime.
-            transform_config_extra = (
-                "\n        'input_path': runtime_options.get('input_path'),"
-            )
-            transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
-            webcomponents_init = 'False'
+            context_settings = []
+            webcomponents_allowed = False
         elif is_json_mode(output_mode):
             pmf_import = (
                 'from opm.runtime.json_output_functions import JsonOutputFunctions\n'
@@ -294,23 +284,19 @@ class PythonGenerator(CodeGenerator):
             )
             pmf_ctor = 'JsonOutputFunctions()'
             # ODD_MODELS lets a record name not just *which* model won but what
-            # it was, and lets `finish` list the models that did not win. `root`
-            # is what it prunes that list against; normalize_text keeps XML
+            # it was, and lets `finish` list the models that did not win, pruned
+            # against the context's `root`. normalize_text keeps XML
             # pretty-printing out of the text runs.
-            transform_config_extra = (
-                "\n        'models': ODD_MODELS,"
-                "\n        'root': root,"
-                "\n        'input_path': runtime_options.get('input_path'),"
-                "\n        'normalize_text': normalize_markdown_xml_text,"
-            )
-            transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
-            webcomponents_init = 'False'
+            context_settings = [
+                'models=ODD_MODELS',
+                'normalize_text=normalize_markdown_xml_text',
+            ]
+            webcomponents_allowed = False
         else:
             pmf_import = 'from opm.runtime.html_output_functions import HtmlOutputFunctions'
             pmf_ctor = 'HtmlOutputFunctions()'
-            transform_config_extra = ''
-            transform_opts_exclude = "('xpath_extensions', 'webcomponents')"
-            webcomponents_init = "runtime_options.get('webcomponents', False)"
+            context_settings = []
+            webcomponents_allowed = True
 
         if is_json_mode(output_mode):
             odd_generated_constants += (
@@ -319,6 +305,7 @@ class PythonGenerator(CodeGenerator):
 
         template_helpers_block = helpers.functions_block
         unsupported_literal = self._python_unsupported_literal()
+        settings_src = ''.join(f'\n        {setting},' for setting in context_settings)
 
         return f'''#!/usr/bin/env python3
 """Auto-generated TEI processing model ({output_mode} output).
@@ -332,46 +319,22 @@ from lxml import etree
 # Namespace mappings from ODD root element (for XPath expressions)
 NSMAP = {nsmap_literal}
 
+from opm.runtime.context import build_context
 from opm.runtime.output_functions import (
     XML_ID,
     map_rend_to_class,
     child_nodes,
     normalize,
-    reset_counters,
 )
 {pmf_import}
 from opm.runtime.pm_runtime import (
     apply as _apply_impl,
-    apply_children as apply_children_impl,
     apply_template_param_value,
     inject_cached_footnotes,
     template_config,
     tag as _tag,
     ns as _ns,
-    xpath_test,
-    xpath_select_nodes,
-    xpath_select_nodes_or_node,
 )
-
-def xpath_content_or_node(node, expr, params=None, xpath_extensions=None):
-    """collection()/external-variable params: fall back to the node if unconfigured."""
-    return xpath_select_nodes_or_node(
-        node,
-        expr,
-        params,
-        xpath_extensions=xpath_extensions,
-        namespaces=NSMAP,
-    )
-
-
-def xpath_content(node, expr, params=None, xpath_extensions=None):
-    return xpath_select_nodes(
-        node,
-        expr,
-        params,
-        xpath_extensions=xpath_extensions,
-        namespaces=NSMAP,
-    )
 {template_helpers_block}
 
 
@@ -396,11 +359,11 @@ def transform_output_channels():
 
 
 def apply(config, nodes):
-    return _apply_impl(config, nodes, config['dispatch'])
+    return _apply_impl(config, nodes, config.dispatch)
 
 
 def _dispatch(config, node, params):
-    pmf = config['pmf']
+    pmf = config.pmf
     r = map_rend_to_class(node)
     if _ns(node) != {schema_ns!r}:
         return [node]
@@ -408,28 +371,26 @@ def _dispatch(config, node, params):
 {dispatch_body}
 
 
-def transform(root, options=None):
-    reset_counters()
-    runtime_options = options or {{}}
-    xpath_extensions = runtime_options.get('xpath_extensions')
-    webcomponents = {webcomponents_init}
-    parameters = {{
-        k: v for k, v in runtime_options.items() if k not in {transform_opts_exclude}
-    }}
-    config = {{
-        'output':         [{output_mode!r}],
-        'parameters':    parameters,
-        'xpath_extensions': xpath_extensions,
-        'webcomponents': webcomponents,
-        'pmf':           {pmf_ctor},
-        'apply':         apply,
-        'apply_children': apply_children_impl,
-        'dispatch':      _dispatch,
-        'odd_css':       {odd_css_config},
-        'footnotes':     [],{transform_config_extra}
-    }}
+def new_context(root, options=None, *, xpath_env=None):
+    """The RenderContext a run over *root* uses; see opm.runtime.context.build_context."""
+    return build_context(
+        root,
+        options,
+        xpath_env=xpath_env,
+        odd_namespaces=NSMAP,
+        webcomponents_allowed={webcomponents_allowed!r},
+        output={output_mode!r},
+        pmf={pmf_ctor},
+        dispatch=_dispatch,
+        apply=apply,
+        odd_css={odd_css_config},{settings_src}
+    )
+
+
+def transform(root, options=None, *, xpath_env=None):
+    config = new_context(root, options, xpath_env=xpath_env)
     result = apply(config, [root])
-    result = config['pmf'].finish(config, result)
+    result = config.pmf.finish(config, result)
     return inject_cached_footnotes(result, config)
 '''
 
@@ -565,16 +526,13 @@ def transform(root, options=None):
         """The Python condition for ``@predicate`` *pred* on *el*.
 
         A predicate opm can never evaluate compiles to ``False``, which is what
-        ``xpath_test`` returned for it on every node, and is recorded instead.
+        evaluating it gave on every node, and is recorded instead.
         """
         problem = self._static_problem(pred)
         if problem is not None:
             self._record_unsupported((ident, spec_el, el), 'predicate', pred, problem)
             return 'False'
-        return (
-            f'xpath_test(node, {pred!r}, params, '
-            'xpath_extensions=config.get("xpath_extensions"), namespaces=NSMAP)'
-        )
+        return f'config.xpath.test(node, {pred!r})'
 
     def _param_to_expr(self, value: str, *, site=None, name: str = 'content') -> str:
         v = (value or '').strip()
@@ -610,14 +568,11 @@ def transform(root, options=None):
             return repr(m.group(1))
         problem = self._static_problem(v)
         if problem is not None:
-            # Fails on every node, where xpath_content returned an empty sequence.
+            # Fails on every node, where evaluating it gave an empty sequence.
             self._record_unsupported(site, f'param {name}', value, problem)
             return '[]'
-        fn = 'xpath_content_or_node' if self._needs_external_context(v) else 'xpath_content'
-        return (
-            f'{fn}(node, '
-            f'{repr(v)}, params, xpath_extensions=config.get("xpath_extensions"))'
-        )
+        method = 'select_or_node' if self._needs_external_context(v) else 'select'
+        return f'config.xpath.{method}(node, {v!r})'
 
     @staticmethod
     def _normalize_param_name(name: str) -> str:
@@ -834,7 +789,7 @@ def transform(root, options=None):
                 param_items.append(
                     f"{name!r}: apply_template_param_value(config, node, node)"
                 )
-            elif expr.startswith(('xpath_content(', 'xpath_content_or_node(')):
+            elif expr.startswith('config.xpath.select'):
                 # XPath may return the context element; expand that via children, not raw node.
                 param_items.append(
                     f"{name!r}: apply_template_param_value(config, node, {expr})"
@@ -911,7 +866,7 @@ def transform(root, options=None):
                 pm, pretty=True, site=(ident, spec_el, model_el),
             )
             tmpl_lit = self._python_triple_quoted(template_str)
-            sig = f'def {name}(config, node, pmf, params, xpath_extensions, r)'
+            sig = f'def {name}(config, node, pmf, r)'
             return (
                 f'{sig}:\n'
                 f'    return pmf.template(\n'
@@ -927,7 +882,7 @@ def transform(root, options=None):
         cls_e = self._classes_expr(ident, model_el, spec_el)
         params_line = self._emit_template_params_dict_expr(pm, pretty=True)
         tmpl_lit = self._python_triple_quoted(template_str)
-        sig = f'def {name}(config, node, pmf, params, xpath_extensions, r)'
+        sig = f'def {name}(config, node, pmf, r)'
         return (
             f'{sig}:\n'
             f'    return pmf.template(\n'
@@ -942,15 +897,8 @@ def transform(root, options=None):
     def _template_helper_call(self, name: str, *, combo: bool) -> str:
         # Both forms take `r` (the @rend classes) because both build their
         # class list with _classes_expr, which references it.
-        if combo:
-            return (
-                f'{name}(config, node, pmf, params, '
-                f'xpath_extensions=config.get("xpath_extensions"), r=r)'
-            )
-        return (
-            f'{name}(config, node, pmf, params, '
-            f'xpath_extensions=config.get("xpath_extensions"), r=r)'
-        )
+        _ = combo
+        return f'{name}(config, node, pmf, r=r)'
 
     def _emit_template_call(
         self,

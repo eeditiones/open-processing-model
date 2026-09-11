@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Roll the JSON output mode's records up into embedding-sized index units.
 
 ``opm transform -t json`` records every decision the processing model made,
@@ -526,7 +529,7 @@ def index_document(
     whose ids never existed in the source document.
     """
     from opm.odd_cache import resolve_transform_module
-    from opm.runtime.pm_runtime import xpath_runtime_context
+    from opm.runtime.xpath_env import XPathEnvironment
     from opm.transform import (
         load_transform_module,
         load_xpath_collections,
@@ -561,21 +564,19 @@ def index_document(
     xpath_collections, xpath_documents = load_xpath_collections(
         cfg.xpath_collections, xpath_documents,
     )
-    transform_opts: dict[str, Any] = dict(parameters)
-    transform_opts.update(
-        xpath_runtime_context(
-            base_uri=xml_path.resolve().as_uri(),
-            documents=xpath_documents,
-            collections=xpath_collections,
-            variables=dict(cfg.xpath_variables),
-            namespaces=dict(cfg.xpath_namespaces),
-        ),
+    xpath_env = XPathEnvironment(
+        base_uri=xml_path.resolve().as_uri(),
+        documents=xpath_documents,
+        collections=xpath_collections,
+        variables=dict(cfg.xpath_variables),
+        namespaces=dict(cfg.xpath_namespaces),
+        extensions=cfg.xpath_extensions,
     )
-    if cfg.xpath_extensions:
-        transform_opts['xpath_extensions'] = list(cfg.xpath_extensions)
+    transform_opts: dict[str, Any] = dict(parameters)
 
     def transform(node) -> list:
-        return json.loads(module.transform(node, dict(transform_opts))[0]).get('document', [])
+        payload = module.transform(node, dict(transform_opts) or None, xpath_env=xpath_env)[0]
+        return json.loads(payload).get('document', [])
 
     processor = _chunk_processor(root, resolved.module_path, cfg, project_root)
     if processor is None or not processor.chunks:

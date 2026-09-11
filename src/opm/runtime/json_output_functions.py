@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """JSON serialisation of the processing model's own decisions.
 
 Unlike the HTML / Markdown / Typst backends this one does not render the
@@ -117,6 +120,9 @@ def _prune(children: list) -> list:
 class JsonOutputFunctions(ProcessingModelFunctions):
     """Emit the processing model's decisions as JSON records."""
 
+    #: Source positions of the run's document, filled in by :func:`_positions`.
+    _positions_cache: dict | None = None
+
     # ── record construction ───────────────────────────────────────────────────
 
     def _record(
@@ -132,7 +138,7 @@ class JsonOutputFunctions(ProcessingModelFunctions):
     ) -> PMResult:
         children: list = []
         if recurse:
-            config['apply_children'](config, node, content, children)
+            config.apply_children(config, node, content, children)
         return [
             self._build(
                 node, cls, behaviour, _prune(children),
@@ -230,7 +236,7 @@ class JsonOutputFunctions(ProcessingModelFunctions):
 
     def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
         # Notes stay inline in the tree rather than going through
-        # ``config['footnotes']``: that accumulator is typed for str / Element
+        # ``config.state.footnotes``: that accumulator is typed for str / Element
         # and silently discards dicts when the footnotes are injected.
         return self._record(
             config, node, cls, 'note', content,
@@ -361,9 +367,9 @@ class JsonOutputFunctions(ProcessingModelFunctions):
                 result.append(item)
             elif isinstance(item, etree._Element):
                 sub = (
-                    config['apply'](config, child_nodes(node))
+                    config.apply(config, child_nodes(node))
                     if item is node
-                    else config['apply'](config, [item])
+                    else config.apply(config, [item])
                 )
                 result.extend(sub)
         return [
@@ -401,7 +407,7 @@ class JsonOutputFunctions(ProcessingModelFunctions):
         is the one thing you most want to find when an ODD looks incomplete.
         """
         children: list = []
-        config['apply_children'](config, node, node, children)
+        config.apply_children(config, node, node, children)
         return [self._build(node, [], None, _prune(children), positions=_positions(config))]
 
     # ── assembly ──────────────────────────────────────────────────────────────
@@ -413,23 +419,24 @@ class JsonOutputFunctions(ProcessingModelFunctions):
         ]
         payload = {
             'document': roots,
-            'models': _relevant_models(config.get('models'), config.get('root')),
+            'models': _relevant_models(config.models, config.root),
         }
         return [json.dumps(payload, ensure_ascii=False, indent=2)]
 
 
-def _positions(config: dict) -> dict:
+def _positions(config) -> dict:
     """Source positions for this document, built once per transform.
 
-    Cached on *config* because it costs a second parse of the file. Absent
-    without an ``input_path`` — a caller handing in a tree it built itself has
-    no source text to point at.
+    Cached on the run's output functions because it costs a second parse of
+    the file. Absent without an ``input_path`` — a caller handing in a tree it
+    built itself has no source text to point at.
     """
-    cached = config.get('_positions')
+    owner = config.pmf
+    cached = getattr(owner, '_positions_cache', None)
     if cached is not None:
         return cached
-    path = config.get('input_path')
-    root = config.get('root')
+    path = config.input_path
+    root = config.root
     positions: dict = {}
     if path and root is not None:
         # A chunk selector may hand us a rebuilt tree; positions live in the
@@ -440,7 +447,8 @@ def _positions(config: dict) -> dict:
         if origin is None:
             origin = root
         positions = source_positions.build(Path(str(path)), origin)
-    config['_positions'] = positions
+    if owner is not None:
+        owner._positions_cache = positions
     return positions
 
 

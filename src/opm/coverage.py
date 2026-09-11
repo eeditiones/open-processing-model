@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """What an ODD declares, and what of it actually runs.
 
 ``-t json`` records every decision the processing model made on one document.
@@ -442,7 +445,7 @@ def analyze(
     run is always about one channel.
     """
     from opm.odd_cache import resolve_transform_module
-    from opm.runtime.pm_runtime import xpath_runtime_context
+    from opm.runtime.xpath_env import XPathEnvironment
     from opm.transform import (
         load_transform_module,
         load_xpath_collections,
@@ -503,19 +506,15 @@ def analyze(
 
     for document in documents:
         root = etree.parse(str(document)).getroot()
-        options = dict(merged)
-        options.update(
-            xpath_runtime_context(
-                base_uri=document.resolve().as_uri(),
-                documents=xpath_documents,
-                collections=xpath_collections,
-                variables=dict(cfg.xpath_variables) if cfg else {},
-                namespaces=dict(cfg.xpath_namespaces) if cfg else {},
-            ),
+        env = XPathEnvironment(
+            base_uri=document.resolve().as_uri(),
+            documents=xpath_documents,
+            collections=xpath_collections,
+            variables=dict(cfg.xpath_variables) if cfg else {},
+            namespaces=dict(cfg.xpath_namespaces) if cfg else {},
+            extensions=extensions,
         )
-        if extensions:
-            options['xpath_extensions'] = list(extensions)
-        payload = json.loads(module.transform(root, options)[0])
+        payload = json.loads(module.transform(root, dict(merged) or None, xpath_env=env)[0])
         seen = _Seen()
         _scan_records(payload.get('document', []), report, seen)
         _scan_source(root, document, seen, report)

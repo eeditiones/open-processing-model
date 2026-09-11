@@ -22,6 +22,8 @@ from lxml import html as lxml_html
 from opm.config import ChunkingConfig, FragmentConfig, ProjectConfig
 from opm.epub import _resolve_image_sources
 from opm.runtime import source_map
+from opm.runtime.context import RunState
+from opm.runtime.xpath_env import XPathEnvironment
 from opm.transform import (
     load_transform_module,
     load_xpath_collections,
@@ -29,7 +31,6 @@ from opm.transform import (
     run_transform,
     xpath_select,
 )
-from opm.runtime.pm_runtime import xpath_runtime_context
 from opm.template_rendering import (
     DEFAULT_INDEX_TEMPLATE_NAME,
     render_index_template,
@@ -37,7 +38,7 @@ from opm.template_rendering import (
     _inner_html,
 )
 from opm.runtime.pm_runtime import serialize as _default_serialize, inject_cached_footnotes
-from opm.runtime.output_functions import XML_ID, reset_counters
+from opm.runtime.output_functions import XML_ID
 
 # ``pb-link`` carries its cross-reference in a pb-view attribute rather than an
 # href; the first one set wins when resolving the target.
@@ -127,6 +128,16 @@ class ChunkProcessor:
         self.xpath_namespaces = dict(
             xpath_namespaces if xpath_namespaces is not None else cfg.xpath_namespaces,
         )
+        # One environment for the whole document: the selector, every chunk
+        # and every fragment share its cached node trees.
+        self.xpath_env = XPathEnvironment(
+            base_uri=self.xpath_base_uri,
+            documents=self.xpath_documents,
+            collections=self.xpath_collections,
+            variables=self.xpath_variables,
+            namespaces=self.xpath_namespaces,
+            extensions=self.xpath_extensions,
+        )
         # Includes the project's base override ([transform] css), compiled in.
         # Design CSS is not part of this — it travels through chunking.assets.
         self.odd_css: str = getattr(self.module, 'ODD_GENERATED_CSS', '') or ''
@@ -134,8 +145,9 @@ class ChunkProcessor:
         self.results: list[ChunkResult] = []
         self._jinja_env: Any | None = None
         self._jinja_template: Any | None = None
-        # Built once; only config['footnotes'] is reset between chunks.
-        self._transform_config: dict[str, Any] | None = None
+        # Built once per document; each chunk derives a run of its own from it.
+        self._base_context: Any | None = None
+        self._id_index: dict[str, etree._Element] | None = None
         self._chunk_anchor_map: dict[str, str] = {}
         self._shared_urls: dict[str, Any] = {
             'odd_css_url': '',
@@ -164,10 +176,14 @@ class ChunkProcessor:
         xml_id = node.get(XML_ID)
         if not xml_id:
             return self.xml_root
-        for el in self.xml_root.iter():
-            if isinstance(el, etree._Element) and el.get(XML_ID) == xml_id:
-                return el
-        return self.xml_root
+        if self._id_index is None:
+            # Built once: scanning the document per chunk was quadratic.
+            self._id_index = {}
+            for el in self.xml_root.iter():
+                el_id = el.get(XML_ID) if isinstance(el.tag, str) else None
+                if el_id:
+                    self._id_index.setdefault(el_id, el)
+        return self._id_index.get(xml_id, self.xml_root)
 
     def select_chunks(self) -> list[etree._Element]:
         """Find chunk elements.
@@ -197,12 +213,7 @@ class ChunkProcessor:
             chunks = xpath_select(
                 self.xml_root,
                 self.config.xpath or '//text/body/div',
-                xpath_extensions=self.xpath_extensions or None,
-                xpath_base_uri=self.xpath_base_uri,
-                xpath_documents=self.xpath_documents,
-                xpath_collections=self.xpath_collections,
-                xpath_variables=self.xpath_variables,
-                xpath_namespaces=self.xpath_namespaces,
+                xpath_env=self.xpath_env,
             )
 
         if not isinstance(chunks, list):
@@ -576,28 +587,9 @@ class ChunkProcessor:
         view_root = (
             self.xml_root if fragment.scope == 'global' else self._source_node(context)
         )
-        params.update(
-            xpath_runtime_context(
-                base_uri=self.xpath_base_uri,
-                documents=self.xpath_documents,
-                collections=self.xpath_collections,
-                variables=self.xpath_variables,
-                namespaces=self.xpath_namespaces,
-                root=view_root,
-            ),
-        )
+        env = self.xpath_env.with_root(view_root).with_parameters(params)
 
-        fragment_content = xpath_select(
-            context,
-            fragment.xpath,
-            params=params,
-            xpath_extensions=self.xpath_extensions or None,
-            xpath_base_uri=self.xpath_base_uri,
-            xpath_documents=self.xpath_documents,
-            xpath_collections=self.xpath_collections,
-            xpath_variables=self.xpath_variables,
-                xpath_namespaces=self.xpath_namespaces,
-        )
+        fragment_content = xpath_select(context, fragment.xpath, xpath_env=env)
 
         if not fragment_content:
             return ""
@@ -630,7 +622,6 @@ class ChunkProcessor:
                 mod,
                 fragment_content,
                 parameters=params,
-                xpath_extensions=self.xpath_extensions or None,
                 # Fragments must use the same output mode as the chunk body.
                 # Without it an `alternate` model degrades to the non-component
                 # form, which inlines the alternate content in a <span> — and
@@ -639,11 +630,7 @@ class ChunkProcessor:
                 # the running text instead of staying a popover.
                 webcomponents=self.webcomponents,
                 apply_template=False,
-                xpath_base_uri=self.xpath_base_uri,
-                xpath_documents=self.xpath_documents,
-                xpath_collections=self.xpath_collections,
-                xpath_variables=self.xpath_variables,
-                xpath_namespaces=self.xpath_namespaces,
+                xpath_env=env,
             )
             if _cache is not None and mod is self.module:
                 _cache[(id(fragment_content), params_key, id(view_root))] = result
@@ -653,79 +640,37 @@ class ChunkProcessor:
         else:
             return str(fragment_content)
 
-    def _build_transform_config(self) -> dict[str, Any]:
-        """Build the transform config dict once; reuse across all chunks."""
-        mod = self.module
-        # Mirror what the generated transform() function does, but without
-        # re-instantiating HtmlOutputFunctions or rebuilding the dict each time.
-        channels = mod.transform_output_channels()
-        primary = (channels[0] if channels else '') if isinstance(channels, (list, tuple)) else channels
-        pmf: Any
-        normalize_text = None
-        if primary == 'markdown':
-            from opm.runtime.markdown_output_functions import MarkdownOutputFunctions, normalize_markdown_xml_text
-            pmf = MarkdownOutputFunctions()
-            normalize_text = normalize_markdown_xml_text
-        else:
-            from opm.runtime.html_output_functions import HtmlOutputFunctions
-            pmf = HtmlOutputFunctions()
-
-        # Generated modules export apply_children_impl; fall back to the runtime function.
-        from opm.runtime.pm_runtime import apply_children as _apply_children_fallback
-        apply_children = getattr(mod, 'apply_children_impl', _apply_children_fallback)
-
-        cfg: dict[str, Any] = {
-            'output': [primary] if primary else [],
-            'parameters': dict(self.parameters),
-            'xpath_extensions': list(self.xpath_extensions) if self.xpath_extensions else None,
-            'webcomponents': self.webcomponents,
-            'pmf': pmf,
-            'apply': mod.apply,
-            'apply_children': apply_children,
-            'dispatch': mod._dispatch,
-            'odd_css': getattr(mod, 'ODD_GENERATED_CSS', ''),
-            'footnotes': [],
-        }
-        cfg.update(
-            xpath_runtime_context(
-                base_uri=self.xpath_base_uri,
-                documents=self.xpath_documents,
-                collections=self.xpath_collections,
-                variables=self.xpath_variables,
-                namespaces=self.xpath_namespaces,
-            ),
-        )
-        if normalize_text is not None:
-            cfg['normalize_text'] = normalize_text
-        return cfg
+    def _chunk_options(self) -> dict[str, Any]:
+        """The ``transform()`` options every chunk runs with."""
+        options: dict[str, Any] = dict(self.parameters)
+        if self.webcomponents:
+            options['webcomponents'] = True
+        return options
 
     def _run_chunk_transform(self, chunk: etree._Element) -> list:
-        """Apply the transform to *chunk*, reusing the shared config dict.
+        """Apply the transform to *chunk* as a run of its own.
 
-        Resets only the per-chunk mutable state (footnote accumulator + global
-        note counter) so we avoid rebuilding HtmlOutputFunctions and the config
-        dict on every iteration.
+        The module's context is built once per document. Each chunk derives a
+        view of it with fresh run state (footnotes, counters) and a fresh
+        output-functions instance, and binds its source node as
+        ``$parameters?root``; the XPath environment's cached document trees are
+        shared by all of them.
         """
-        if self._transform_config is None:
-            self._transform_config = self._build_transform_config()
-        cfg = self._transform_config
-        # Reset per-chunk state.
-        cfg['footnotes'] = []
-        cfg['parameters'] = {
-            **self.parameters,
-            **xpath_runtime_context(
-                base_uri=self.xpath_base_uri,
-                documents=self.xpath_documents,
-                collections=self.xpath_collections,
-                variables=self.xpath_variables,
-                namespaces=self.xpath_namespaces,
-                root=self._source_node(chunk),
-            ),
-        }
-        reset_counters()
-        result = self.module.apply(cfg, [chunk])
-        result = cfg['pmf'].finish(cfg, result)
-        return inject_cached_footnotes(result, cfg)
+        view_root = self._source_node(chunk)
+        if self._base_context is None:
+            self._base_context = self.module.new_context(
+                self.xml_root, self._chunk_options(), xpath_env=self.xpath_env,
+            )
+        base = self._base_context
+        ctx = base.derive(
+            root=chunk,
+            pmf=type(base.pmf)(),
+            state=RunState(),
+            xpath=base.xpath.with_root(view_root),
+        )
+        result = self.module.apply(ctx, [chunk])
+        result = ctx.pmf.finish(ctx, result)
+        return inject_cached_footnotes(result, ctx)
 
     def _render_chunk_html(self, chunk: etree._Element) -> tuple[str, str]:
         """Transform *chunk* and return ``(content_html, head_html)``.

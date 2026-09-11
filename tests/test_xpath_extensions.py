@@ -10,25 +10,19 @@ import pytest
 
 from opm.config import load_project_config
 from opm.runtime.common_xpath_functions import request
-from opm.runtime.pm_runtime import (
-    resolve_context_element,
-    xpath_runtime_context,
-    xpath_select_nodes,
-    xpath_test,
-)
+from opm.runtime.xpath_env import XPathEnvironment
 from opm.runtime.xpath_extensions import expect_string, expect_text
 from opm.transform import load_xpath_documents, transform_file
+
+SAMPLE = 'tests.extensions_sample'
+COMMON = 'opm.runtime.common_xpath_functions'
 
 
 def test_tp_function_in_xpath_select() -> None:
     TEI = 'http://www.tei-c.org/ns/1.0'
     root = etree.fromstring(f'<div xmlns="{TEI}"><p>a</p></div>')
     p = root[0]
-    r = xpath_select_nodes(
-        p,
-        'tp:greet("world")',
-        xpath_extensions='tests.extensions_sample',
-    )
+    r = XPathEnvironment(extensions=SAMPLE).select(p, 'tp:greet("world")')
     assert r == 'Hello world'
 
 
@@ -36,23 +30,17 @@ def test_tp_function_boolean_predicate() -> None:
     TEI = 'http://www.tei-c.org/ns/1.0'
     root = etree.fromstring(f'<div xmlns="{TEI}"><p/></div>')
     p = root[0]
-    ok = xpath_test(
-        p,
-        'starts-with(tp:greet(.), "Hello")',
-        xpath_extensions='tests.extensions_sample',
-    )
+    ok = XPathEnvironment(extensions=SAMPLE).test(p, 'starts-with(tp:greet(.), "Hello")')
     assert ok is True
 
 
-def test_resolve_context_element_with_tp_in_xpath() -> None:
+def test_resolve_element_with_tp_in_xpath() -> None:
     TEI = 'http://www.tei-c.org/ns/1.0'
     root = etree.fromstring(
         f'<TEI xmlns="{TEI}"><text><body><p>ok</p></body></text></TEI>',
     )
-    el = resolve_context_element(
-        root,
-        '//body/p[tp:greet(string(.)) = "Hello ok"]',
-        xpath_extensions='tests.extensions_sample',
+    el = XPathEnvironment(extensions=SAMPLE).resolve_element(
+        root, '//body/p[tp:greet(string(.)) = "Hello ok"]',
     )
     assert el.text == 'ok'
 
@@ -67,10 +55,8 @@ def test_tp_date_popover_accepts_element_and_formats_when() -> None:
         '</body></text></TEI>',
     )
     body = root[0][0]
-    result = xpath_select_nodes(
-        body,
-        'for $d in date return tp:date_popover($d)',
-        xpath_extensions='tests.extensions_sample',
+    result = XPathEnvironment(extensions=SAMPLE).select(
+        body, 'for $d in date return tp:date_popover($d)',
     )
 
     assert isinstance(result, list)
@@ -113,13 +99,13 @@ def test_doc_function_uses_configured_documents_and_input_base_uri(tmp_path) -> 
     lookup_path.write_text('<lookup><label>found</label></lookup>', encoding='utf-8')
 
     root = etree.parse(str(main_path)).getroot()
-    params = xpath_runtime_context(
+    env = XPathEnvironment(
         base_uri=main_path.resolve().as_uri(),
         documents=load_xpath_documents([lookup_path]),
     )
 
-    assert xpath_select_nodes(root, 'doc("lookup.xml")/lookup/label/string()', params) == 'found'
-    assert xpath_select_nodes(root, 'doc-available("lookup.xml")', params) is True
+    assert env.select(root, 'doc("lookup.xml")/lookup/label/string()') == 'found'
+    assert env.select(root, 'doc-available("lookup.xml")') is True
 
 
 def test_transform_file_passes_configured_documents_to_doc_function(tmp_path) -> None:
@@ -130,10 +116,7 @@ def test_transform_file_passes_configured_documents_to_doc_function(tmp_path) ->
     main_path.write_text('<root/>', encoding='utf-8')
     lookup_path.write_text('<lookup><label>from doc</label></lookup>', encoding='utf-8')
     module_path.write_text(
-        """from opm.runtime.pm_runtime import xpath_select_nodes
-
-
-def transform_output_channels():
+        """def transform_output_channels():
     return ['text']
 
 
@@ -141,8 +124,8 @@ def serialize(result):
     return ''.join(str(item) for item in result)
 
 
-def transform(root, options=None):
-    return [xpath_select_nodes(root, 'doc("lookup.xml")/lookup/label/string()', options)]
+def transform(root, options=None, *, xpath_env=None):
+    return [xpath_env.select(root, 'doc("lookup.xml")/lookup/label/string()')]
 """,
         encoding='utf-8',
     )
@@ -169,10 +152,8 @@ def test_heading_number_matches_ext_common_heading_number() -> None:
         '</body></text></TEI>',
     )
     body = root[0][0]
-    result = xpath_select_nodes(
-        body,
-        'for $d in div/div return tp:heading_number($d)',
-        xpath_extensions='opm.runtime.common_xpath_functions',
+    result = XPathEnvironment(extensions=COMMON).select(
+        body, 'for $d in div/div return tp:heading_number($d)',
     )
     assert result == ['1.1', '1.2', '2.1']
 
@@ -214,22 +195,16 @@ def test_tp_request_returns_string_for_non_xml() -> None:
 def test_tp_request_parses_xml_and_supports_path_steps() -> None:
     body = b'<api><item id="42"><name>alpha</name></item></api>'
     root = etree.fromstring('<p/>')
+    env = XPathEnvironment(extensions=COMMON)
 
     with patch(
         'opm.runtime.common_xpath_functions.urllib.request.urlopen',
         return_value=_MockHttpResponse(body, 'application/xml'),
     ):
-        assert xpath_select_nodes(
-            root,
-            'tp:request("https://example.com/api")/item/name/text()',
-            xpath_extensions='opm.runtime.common_xpath_functions',
+        assert env.select(
+            root, 'tp:request("https://example.com/api")/item/name/text()',
         ) == 'alpha'
-
-        assert xpath_select_nodes(
-            root,
-            'tp:request("https://example.com/api")/item/@id',
-            xpath_extensions='opm.runtime.common_xpath_functions',
-        ) == '42'
+        assert env.select(root, 'tp:request("https://example.com/api")/item/@id') == '42'
 
 
 def test_tp_request_path_steps_with_tei_default_namespace() -> None:
@@ -242,10 +217,9 @@ def test_tp_request_path_steps_with_tei_default_namespace() -> None:
         'opm.runtime.common_xpath_functions.urllib.request.urlopen',
         return_value=_MockHttpResponse(body, 'application/xml'),
     ):
-        assert xpath_select_nodes(
+        assert XPathEnvironment(extensions=COMMON).select(
             root,
             'tp:request("https://example.com/api")/*[local-name()="item"]/*[local-name()="name"]/text()',
-            xpath_extensions='opm.runtime.common_xpath_functions',
         ) == 'alpha'
 
 

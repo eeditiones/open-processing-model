@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """HTML for paged-media CSS (``ext-printcss.xql`` equivalent).
 
 Print extends web HTML: the same element tree and CSS pipeline, but notes and
@@ -21,12 +24,12 @@ class PrintOutputFunctions(HtmlOutputFunctions):
         """Emit note as an inline span for CSS ``float: footnote`` / margin notes.
 
         Unlike :meth:`HtmlOutputFunctions.note`, does not build callout links or
-        append bodies to ``config['footnotes']``.
+        append bodies to ``config.state.footnotes``.
         """
         _ = label
         fn_class = 'margin-note' if place == 'margin' else 'footnote'
         el = self._el('span', list(cls) + [fn_class], node)
-        config['apply_children'](config, node, content, el)
+        config.apply_children(config, node, content, el)
         return [el]
 
     def alternate(self, config, node, cls, content, default, alternate, optional=None) -> PMResult:
@@ -36,7 +39,7 @@ class PrintOutputFunctions(HtmlOutputFunctions):
         """
         _ = content, optional
         outer = self._el('span', cls, node)
-        config['apply_children'](config, node, default, outer)
+        config.apply_children(config, node, default, outer)
         result: PMResult = [outer]
         if alternate is not None:
             result.extend(
