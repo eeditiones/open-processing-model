@@ -474,6 +474,21 @@
                     </model>
                     <model behaviour="inline"/>
                 </elementSpec>
+                <elementSpec ident="correspContext" mode="change">
+                    <desc>Emit machine-readable stems for the letter toolbar (letter.html.j2,
+                        Astro FolioNav). Overwrites the base teipublisher.odd correspContext
+                        models (pb-popover icon toolbar).</desc>
+                    <model predicate="$parameters?mode='edition-navigation'" behaviour="pass-through">
+                        <param name="previous" value="let $t := (ref[@type = ('previous', 'prev')]/@target)[1] return if ($t) then replace($t, '\.xml$', '') else ()"/>
+                        <param name="next" value="let $t := (ref[@type = 'next']/@target)[1] return if ($t) then replace($t, '\.xml$', '') else ()"/>
+                        <param name="previous-in-correspondence" value="let $t := (ref[@type = 'previous-in-correspondence']/@target)[1] return if ($t) then replace($t, '\.xml$', '') else ()"/>
+                        <param name="next-in-correspondence" value="let $t := (ref[@type = 'next-in-correspondence']/@target)[1] return if ($t) then replace($t, '\.xml$', '') else ()"/>
+                        <pb:template xmlns="" xml:space="preserve"><nav class="corresp-nav" hidden="hidden" data-previous="[[previous]]" data-next="[[next]]" data-previous-in-correspondence="[[previous-in-correspondence]]" data-next-in-correspondence="[[next-in-correspondence]]"></nav></pb:template>
+                    </model>
+                    <model behaviour="omit">
+                        <desc>Correspondence nav is only produced via mode=edition-navigation.</desc>
+                    </model>
+                </elementSpec>
                 <elementSpec ident="publicationStmt" mode="change">
                     <model predicate="$parameters?display='browse'" behaviour="omit"/>
                     <model behaviour="block"/>

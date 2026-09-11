@@ -5,8 +5,8 @@
    Serafin — a reading surface for correspondence.
 
    Parallel transcription / translation with a tabbed register rail, a
-   parchment breadcrumb band, and folio navigation between letters. The ODD's
-   generated stylesheet owns the TEI content itself.
+   parchment breadcrumb band, and a correspondence toolbar between letters.
+   The ODD's generated stylesheet owns the TEI content itself.
 
    Copied into <output>/assets/ by chunking.assets and linked from each page,
    so parchment.jpg beside it is addressed by plain filename.
@@ -42,7 +42,6 @@
   --letter-pane-gap: 2rem;
   --letter-register-width: 15rem;
   --letter-rail-gap: 2.5rem;
-  --letter-folio-rail: 2.5rem;
   /* Taller than the app's 44px bar: it carries the two-line wordmark rather
      than the monogram, and needs the vertical room to stay legible. */
   --letter-menubar-height: 3.5rem;
@@ -204,10 +203,115 @@ body.letter {
   min-width: 0;
 }
 
+/* ── Letter intro: correspondence toolbar + head ──────────── */
+
+.letter-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+/* ── Correspondence toolbar (edition + thread) ────────────── */
+
+.letter-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0.15rem 0.7rem;
+  border-bottom: 1px solid var(--letter-rule);
+  font-family: var(--letter-font-meta);
+}
+
+.letter-nav__side {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.letter-nav__side--next {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.letter-nav__group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.letter-nav__group--end {
+  justify-content: flex-end;
+}
+
+.letter-nav__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 100%;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--letter-rule) 85%, transparent);
+  border-radius: 0.2rem;
+  background: color-mix(in srgb, var(--letter-parchment) 55%, var(--letter-paper));
+  color: var(--letter-ink);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.letter-nav__link--thread {
+  background: transparent;
+  color: var(--letter-muted);
+  letter-spacing: 0.06em;
+}
+
+.letter-nav__link:hover {
+  color: var(--letter-accent);
+  border-color: color-mix(in srgb, var(--letter-accent) 35%, var(--letter-rule));
+  background: var(--letter-accent-soft);
+}
+
+.letter-nav__link:focus-visible {
+  outline: 2px solid var(--letter-accent);
+  outline-offset: 2px;
+}
+
+.letter-nav__link--disabled {
+  opacity: 0.28;
+  pointer-events: none;
+}
+
+.letter-nav__icon {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+}
+
+.letter-nav__dir {
+  white-space: nowrap;
+}
+
+.letter-nav__mark {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--letter-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Letter head: title, source note, date ────────────────── */
 
 .letter-head {
-  margin-bottom: 2.25rem;
+  margin-bottom: 0;
 }
 
 .letter-head h1,
@@ -707,107 +811,6 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
   margin: 0;
 }
 
-/* ── Folio navigation ─────────────────────────────────────── */
-
-.letter-folio {
-  width: min(100%, calc(var(--letter-measure) + 2 * var(--letter-pad)));
-  margin: 0 auto;
-  /* Matches the page above it, so the rule lines up with the text. */
-  padding: 1.5rem var(--letter-pad) 2.75rem;
-  display: flex;
-  justify-content: center;
-  border-top: 1px solid var(--letter-rule);
-  font-family: var(--letter-font-meta);
-}
-
-body.letter:has(.letter-page--parallel) .letter-folio {
-  width: min(100%, calc(var(--letter-measure-parallel) + 2 * var(--letter-pad)));
-}
-
-/* Fixed vertical spine rails; the mark stays as a page-end folio. The gutters
-   keep the reading measure clear of the rails. */
-body.letter:has(.letter-folio__prev a) :is(.letter-page, .letter-folio) {
-  padding-left: calc(var(--letter-pad) + var(--letter-folio-rail));
-}
-
-body.letter:has(.letter-folio__next a) :is(.letter-page, .letter-folio) {
-  padding-right: calc(var(--letter-pad) + var(--letter-folio-rail));
-}
-
-.letter-folio__prev:has(a),
-.letter-folio__next:has(a) {
-  position: fixed;
-  top: 50%;
-  z-index: 3;
-  transform: translateY(-50%);
-  padding: 0.75rem 0.28rem;
-  color: var(--letter-ink);
-  font-size: 0.92rem;
-  letter-spacing: 0.02em;
-  background: color-mix(in srgb, var(--letter-paper) 82%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-.letter-folio__prev:has(a) {
-  left: 0;
-  border-right: 1px solid color-mix(in srgb, var(--letter-rule) 75%, transparent);
-}
-
-.letter-folio__next:has(a) {
-  right: 0;
-  text-align: center;
-  border-left: 1px solid color-mix(in srgb, var(--letter-rule) 75%, transparent);
-}
-
-.letter-folio__prev a,
-.letter-folio__next a {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.55rem;
-  color: inherit;
-  text-decoration: none;
-  transition: color 0.15s ease;
-}
-
-.letter-folio__prev a:hover,
-.letter-folio__next a:hover {
-  color: var(--letter-accent);
-}
-
-.letter-folio__prev a:focus-visible,
-.letter-folio__next a:focus-visible {
-  outline: 2px solid var(--letter-accent);
-  outline-offset: 3px;
-}
-
-.letter-folio__mark {
-  font-size: 0.78rem;
-  letter-spacing: 0.12em;
-  color: var(--letter-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.letter-folio__label {
-  display: none;
-}
-
-.letter-folio__dir {
-  writing-mode: vertical-rl;
-  font-size: 0.82rem;
-  letter-spacing: 0.18em;
-  line-height: 1;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.letter-folio__chevron {
-  order: -1;
-  font-size: 1.25rem;
-  line-height: 1;
-}
-
 /* ── Collection index ─────────────────────────────────────── */
 
 .letter-list {
@@ -883,7 +886,7 @@ body.letter:has(.letter-folio__next a) :is(.letter-page, .letter-folio) {
 
 @media print {
   .app-menubar,
-  .letter-folio {
+  .letter-nav {
     display: none;
   }
 

@@ -23,6 +23,10 @@ All notable changes to this project are documented here. The format follows
 - `--strict` on `opm transform`, `opm chunk` and `opm index` exits with an
   error when an XPath expression fails at run time.
 - `opm.runtime.collect_xpath_errors()` collects the same information from Python.
+- Chunk page templates receive `document`, the source file's name, and
+  `documents`, the names of every document in the run, so they can link only
+  to pages that exist. The Serafin example uses it
+  for its previous/next letter toolbar, ported from the Astro edition.
 
 ### Changed
 

@@ -1149,6 +1149,38 @@ def test_no_stylesheets_written_when_there_are_none(tmp_path: Path) -> None:
     assert not (tmp_path / 'inline' / 'css').exists()
 
 
+def test_page_template_sees_the_documents_of_the_run(tmp_path: Path) -> None:
+    """``documents`` lets a template link only to documents that were chunked."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    template = tmp_path / 'page.html.j2'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+    template.write_text(
+        "DOC=[{{ document }}] "
+        "RUN=[{{ 'fixture.xml' in documents }}|{{ 'other.xml' in documents }}|"
+        "{{ documents | length }}]",
+        encoding='utf-8',
+    )
+
+    def _page(output_dir: str, **kwargs) -> str:
+        chunk_document(
+            module_path=module_path,
+            xml_path=xml_path,
+            config=ChunkingConfig(xpath="//body/div[@type='chunk']", output_dir=output_dir),
+            project_root=tmp_path,
+            template_path=template,
+            **kwargs,
+        )
+        return (tmp_path / output_dir / '001.html').read_text(encoding='utf-8')
+
+    # A single document knows only itself.
+    assert 'DOC=[fixture.xml] RUN=[True|False|1]' in _page('single')
+    # A directory run passes every file it chunks.
+    run = frozenset({'fixture.xml', 'other.xml'})
+    assert 'RUN=[True|True|2]' in _page('run', documents=run)
+
+
 def test_chunking_always_writes_stylesheets_as_files(tmp_path: Path) -> None:
     """Chunk output is multi-page, so the stylesheet is a cacheable file, never inlined."""
     module_path = tmp_path / 'chunk_fixture.py'

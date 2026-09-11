@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from collections.abc import Collection
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any, Callable
@@ -87,8 +88,20 @@ class ChunkProcessor:
         webcomponents: bool = False,
         xpath_env: XPathEnvironment | None = None,
         source_dir: Path | None = None,
+        documents: Collection[str] | None = None,
+        document: str | None = None,
     ):
         self.module = load_transform_module(module_path)
+        # The source file's name (`serafin01.xml`), handed to the page template
+        # as `document`.
+        self.document: str | None = document or config.link_doc or None
+        # Names of every document in the run, handed to the page template as
+        # `documents` so it can link only to pages that exist. One set is
+        # shared by all documents of a directory run.
+        self.documents: frozenset[str] = (
+            frozenset(documents) if documents is not None
+            else frozenset(filter(None, [self.document]))
+        )
         self._fragment_modules: dict[str, Any] = {}
         if config.fragments:
             for frag in config.fragments:
@@ -773,6 +786,8 @@ class ChunkProcessor:
                 # Add chunk-specific context
                 fragments=all_fragments,
                 chunk=chunk_result.metadata,
+                document=self.document,
+                documents=self.documents,
                 # Stylesheet URLs, plus an assets prefix when configured.
                 # The inline strings above stay available either way.
                 **self._shared_urls,
@@ -1268,8 +1283,15 @@ def chunk_document(
     xpath_extensions: tuple[str, ...] | None = None,
     output_format: str = 'html',
     doc_path: str | None = None,
+    documents: Collection[str] | None = None,
 ) -> None:
-    """Chunk a document using the specified configuration."""
+    """Chunk a document using the specified configuration.
+
+    The page template gets *xml_path*'s name as ``document``. *documents*
+    names every document of the run (``serafin01.xml``, …) and reaches the
+    template as ``documents``; pass the same set for each document of a
+    directory run. It defaults to just *xml_path*.
+    """
     resolved_module = module_path or config.module
     if resolved_module is None and config.odd is not None:
         from opm.config import resolve_base_css
@@ -1300,6 +1322,8 @@ def chunk_document(
         webcomponents=webcomponents,
         xpath_env=project_xpath_env(cfg, xml_path, extensions=xpath_extensions),
         source_dir=xml_path.parent,
+        documents=documents if documents is not None else (xml_path.name,),
+        document=xml_path.name,
     )
     if output_format == 'pb-view':
         processor.export_pb_view(doc_path=doc_path, on_progress=on_progress)

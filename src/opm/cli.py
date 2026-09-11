@@ -1199,6 +1199,8 @@ def chunk(
                 progress.update(chunk_task, completed=current, total=total)
 
             base_doc_path = doc_path or chunking_config.doc_path
+            # Built once and shared: templates test links against it.
+            run_documents = frozenset(path.name for path in input_files)
 
             for xml_file in input_files:
                 if per_file:
@@ -1239,6 +1241,7 @@ def chunk(
                     xpath_extensions=effective_extensions,
                     output_format=output_format,
                     doc_path=effective_doc_path,
+                    documents=run_documents,
                 )
                 if file_task is not None:
                     progress.advance(file_task)

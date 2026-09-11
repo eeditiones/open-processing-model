@@ -92,6 +92,15 @@ name = "letter_head"
 xpath = "./ancestor::TEI"
 parameters = { mode = "letter-head" }
 
+# Neighbouring letters for the toolbar above the letter, from correspContext:
+# previous/next in the edition and, where the TEI records them, in the same
+# correspondence. The ODD emits the stems as data-* attributes on a hidden
+# <nav>; templates/letter.html.j2 turns them into links.
+[[chunking.fragments]]
+name = "edition_navigation"
+xpath = "./ancestor::TEI"
+parameters = { mode = "edition-navigation" }
+
 [[chunking.fragments]]
 name = "register_people"
 xpath = "./ancestor::TEI"
