@@ -601,16 +601,24 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         return [f'#image("{href}")']
 
     def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
-        _ = label
         buf: list = []
         config.apply_children(config, node, content, buf)
         body = _join_buf(buf).strip()
         place_s = _param_str(place)
+        label_s = _param_str(label)
         # Trailing ';' ends the code expression so a following ".Word" is
         # markup, not field access (``#footnote[n].Sciatis``).
         if place_s and place_s.lower() == 'margin':
             # Document shells define ``#marginnote``; finish cleanup will not stub it.
+            if label_s:
+                return [f'#marginnote(marker: {_typst_string_literal(label_s)})[{body}];']
             return [f'#marginnote[{body}];']
+        if label_s:
+            # The source's own marker (`@n`: a, b, … for text-critical notes and
+            # 1, 2, … for commentary, say) instead of Typst's running number.
+            # The footnote entry at the page foot shows the same marker.
+            marker = _typst_string_literal(label_s)
+            return [f'#footnote(numbering: (..) => {marker})[{body}];']
         return [f'#footnote[{body}];']
 
     def cit(self, config, node, cls, content, source=None) -> PMResult:

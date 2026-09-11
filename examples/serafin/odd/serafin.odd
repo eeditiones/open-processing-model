@@ -128,6 +128,36 @@
                         standOff, but present in every whole-document output.</desc>
                     <model behaviour="omit"/>
                 </elementSpec>
+                <elementSpec ident="anchor" mode="change">
+                    <desc>SERAFIN: as in teipublisher.odd, except that in Typst the
+                        text-critical notes (type="transcription", marked a, b, …) go to
+                        the margin, leaving the footnotes to the commentary (1, 2, …).</desc>
+                    <model predicate="$parameters?mode=('toc', 'breadcrumb')" behaviour="omit"/>
+                    <model predicate="@corresp" behaviour="note">
+                        <param name="content" value="let $target := @corresp return root($parameters?root)/id($target)/node()"/>
+                        <param name="label" value="@n"/>
+                    </model>
+                    <model output="typst" predicate="@type='note' and (let $target := '#' || @xml:id return root($parameters?root)//listAnnotation/note[@target=$target]/@type = 'transcription')" behaviour="note">
+                        <param name="content" value="let $target := '#' || @xml:id return root($parameters?root)//listAnnotation/note[@target=$target]/node()"/>
+                        <param name="label" value="let $target := '#' || @xml:id return root($parameters?root)//listAnnotation/note[@target=$target]/@n/string()"/>
+                        <param name="place" value="'margin'"/>
+                    </model>
+                    <model predicate="@type='note'" behaviour="note">
+                        <param name="content" value="let $target := '#' || @xml:id return root($parameters?root)//listAnnotation/note[@target=$target]/node()"/>
+                        <param name="label" value="let $target := '#' || @xml:id return root($parameters?root)//listAnnotation/note[@target=$target]/@n/string()"/>
+                    </model>
+                    <model predicate="@xml:id" behaviour="anchor">
+                        <param name="id" value="@xml:id"/>
+                    </model>
+                </elementSpec>
+                <elementSpec ident="subst" mode="change">
+                    <desc>SERAFIN: as in teipublisher.odd, which lists the content
+                        explicitly to avoid whitespace issues, but also keeping a note
+                        anchor placed inside the subst (its note is lost otherwise).</desc>
+                    <model behaviour="inline">
+                        <param name="content" value="(del, add, anchor)"/>
+                    </model>
+                </elementSpec>
                 <elementSpec ident="lb" mode="change">
                     <!-- Print does not keep the manuscript lineation, so a line
                          beginning becomes an ordinary word space. Dropping it outright

@@ -79,7 +79,7 @@ def test_cli_asks_for_a_pdf_from_output_and_preview(
     (['--preview'], True),
 ])
 def test_transform_command_compiles_typst_output(
-    tmp_path: Path, monkeypatch, args: list[str], opened: bool,
+    tmp_path: Path, monkeypatch, capsys, args: list[str], opened: bool,
 ) -> None:
     import opm.cli as cli
 
@@ -102,5 +102,7 @@ def test_transform_command_compiles_typst_output(
     # Image paths in the output are the XML's own, so they resolve next to it.
     assert root == xml.resolve().parent
     assert open_viewer is opened
+    # The PDF goes to the viewer or the output file, never to the terminal.
+    assert '%PDF' not in capsys.readouterr().out
     if not opened:
         assert (tmp_path / 'out.pdf').read_bytes() == b'%PDF-fake'

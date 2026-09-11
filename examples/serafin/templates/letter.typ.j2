@@ -39,6 +39,20 @@
 #set text(font: ("New Computer Modern", "Times New Roman"), size: 9.5pt)
 #set par(justify: true, leading: 0.58em)
 
+// Footnote entries with a hanging marker. Typst's default sets the marker flush
+// against the note text; here it sits right-aligned in its own narrow column,
+// so the text starts a little after it and turned lines align under the text.
+#show footnote.entry: it => {
+  let loc = it.note.location()
+  let marker = numbering(it.note.numbering, ..counter(footnote).at(loc))
+  grid(
+    columns: (1.2em, 1fr),
+    column-gutter: 0.4em,
+    align(right, super(marker)),
+    it.note.body,
+  )
+}
+
 // One row of the parallel text. Consecutive calls are separate grids, but the
 // column widths are identical, so the two columns line up down the page and
 // Typst is free to break between segments — and inside one, if a segment runs
@@ -58,12 +72,12 @@
 )
 
 // marginalia sets the page margins, overriding the `#set page(margin: …)` above,
-// so these numbers decide the measure. The packaged defaults reserve ~5cm on the
-// outer edge for margin notes; this document uses none. The column is kept, only
-// narrowed, so a `note` with place="margin" still has somewhere to go.
+// so these numbers decide the measure. The outer column holds the text-critical
+// notes (a, b, …), which the ODD sends to the margin; the footnotes are left to
+// the commentary.
 #show: marginalia.setup.with(
-  inner: (far: 1.6cm),
-  outer: (far: 1.2cm, width: 1.2cm, sep: 0.4em),
+  inner: (far: 1.4cm),
+  outer: (far: 1cm, width: 3cm, sep: 0.8em),
   top: 2.4cm,
   bottom: 2.2cm,
 )
