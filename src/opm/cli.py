@@ -416,6 +416,13 @@ def _note(message: str) -> None:
     _stderr_message('note', 'bold yellow', message)
 
 
+def _load_config(path: Path | None) -> ProjectConfig:
+    """Load ``opm.toml`` and make its ``[project] pythonpath`` importable."""
+    cfg = load_project_config(path)
+    cfg.extend_sys_path()
+    return cfg
+
+
 def _preview_output(out: str | bytes, mode: OutputMode) -> None:
     """Show *out* the way ``--preview`` does for *mode* (see ``OutputMode.preview``)."""
     if mode.preview == 'app':
@@ -934,11 +941,7 @@ def transform_cmd(
 ) -> None:
     """Transform an XML document via an ODD with processing instructions and return the result (HTML, markdown, …)."""
     try:
-        cfg = load_project_config(config)
-        for p in cfg.pythonpath:
-            entry = str(p.resolve())
-            if entry not in sys.path:
-                sys.path.insert(0, entry)
+        cfg = _load_config(config)
 
         if input_xml is None:
             _die('input XML file is required.')
@@ -1119,11 +1122,7 @@ def chunk(
 ) -> None:
     """Chunk a large XML document into smaller HTML pages or JSON data files."""
     try:
-        cfg = load_project_config(config)
-        for p in cfg.pythonpath:
-            entry = str(p.resolve())
-            if entry not in sys.path:
-                sys.path.insert(0, entry)
+        cfg = _load_config(config)
 
         if input_xml is None:
             _die('input XML file or directory is required.')
@@ -1473,11 +1472,7 @@ def index_cmd(
     from opm.indexing import IndexOptions, index_document, write_jsonl
 
     try:
-        cfg = load_project_config(config)
-        for p in cfg.pythonpath:
-            entry = str(p.resolve())
-            if entry not in sys.path:
-                sys.path.insert(0, entry)
+        cfg = _load_config(config)
 
         input_files = _corpus_files(input_xml)
 
@@ -1758,11 +1753,7 @@ def coverage_cmd(
     from opm.coverage import analyze
 
     try:
-        cfg = load_project_config(config)
-        for p in cfg.pythonpath:
-            entry = str(p.resolve())
-            if entry not in sys.path:
-                sys.path.insert(0, entry)
+        cfg = _load_config(config)
 
         mode = _apply_json_channel('json', channel) or 'json'
         input_files = _corpus_files(input_xml)

@@ -11,6 +11,7 @@ directory.
 
 from __future__ import annotations
 
+import sys
 import tomllib
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -339,6 +340,19 @@ class ProjectConfig:
 
     Per-type ``[transform.<type>].odd`` entries override ``[transform].odd``.
     """
+
+    def extend_sys_path(self) -> None:
+        """Put the ``[project] pythonpath`` directories on ``sys.path``.
+
+        Project modules named in the config (XPath extensions, chunk
+        selectors) import from there. Each entry goes to the front, as
+        ``PYTHONPATH`` would put it; entries already present are left alone,
+        so calling this again is harmless.
+        """
+        for path in self.pythonpath:
+            entry = str(path.resolve())
+            if entry not in sys.path:
+                sys.path.insert(0, entry)
 
     def context_for(
         self,

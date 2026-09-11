@@ -267,7 +267,11 @@ def project_xpath_env(
     given. *xml_path* is the base URI ``doc()`` resolves against. *documents*
     is a :func:`load_project_documents` result to reuse instead of parsing the
     registers again.
+
+    The config's ``[project] pythonpath`` goes on ``sys.path`` first, so its
+    extension modules import from the Python API as they do from the CLI.
     """
+    config.extend_sys_path()
     docs, collections = (
         documents if documents is not None else load_project_documents(config)
     )
