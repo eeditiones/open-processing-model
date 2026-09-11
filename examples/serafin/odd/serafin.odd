@@ -321,6 +321,9 @@
                         </model>
                         <model behaviour="block" />
                     </modelSequence>
+                    <!-- DOCX: the HTML template of the final pass-through model below
+                         cannot be rendered into OOXML, which would drop the letter. -->
+                    <model output="docx" behaviour="block"/>
                     <model predicate="$parameters?mode = 'register' and $parameters?category = 'people'" behaviour="pass-through">
                         <param name="people" value="let $refs := (root(.)//persName[@key or @ref][not(ancestor::correspContext)], root(.)//rs[@type='person'][@key or @ref][not(ancestor::correspContext)]), $keys := for $i in ($refs/@key, $refs/@ref) return $i ! tokenize(., ' ')  return for $key in distinct-values($keys) return collection($global:register-root)/id($key)[self::person]"/>
                         <pb:template xml:space="preserve" xmlns=""><div class="register">

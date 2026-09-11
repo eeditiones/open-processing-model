@@ -1111,12 +1111,10 @@ class DocxOutputFunctions(ProcessingModelFunctions):
             if etree.QName(child).localname != 'sectPr':
                 body.remove(child)
 
-        body_elements = [
-            item for item in nodes
-            if isinstance(item, etree._Element)
-            and not callable(item.tag)
-            and etree.QName(item.tag).namespace in self._ALLOWED_NS
-        ]
+        # Inline content left at the top level (a page break's bare w:r, a
+        # sentinel, loose text) must sit inside a w:p: Word rejects the file
+        # when w:body holds runs directly.
+        body_elements = self._blockify(self._filter_ooxml(nodes))
         doc_nsmap = doc.element.nsmap
         self._replace_footnote_sentinels(body_elements, doc_nsmap)
         self._replace_hyperlink_sentinels(body_elements, doc, doc_nsmap)
