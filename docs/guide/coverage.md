@@ -60,7 +60,7 @@ order, with the first model that has **no** `@predicate` as the `else`. So:
 
 `<modelSequence>` is exempt: its children all contribute, none replaces another.
 -->
-### Expressions opm cannot run
+### Expressions OPM cannot run
 
 There could be predicates and params that use what only TEI Publisher's eXist-DB 
 runtime has, such as `util:document-name()` or XQuery's `try`/`catch`. The
@@ -132,7 +132,7 @@ opm coverage data/ -p mode=toc
 `--json` prints one object: `summary`, every model with its `hits`, `source`
 and `unreachable` verdict, the `unmatched` and `dropped` tables with an example
 location each, `behaviours`, `elements_seen`, `unused_specs`,
-`attribute_only_specs` and `unsupported`, the expressions opm cannot run.
+`attribute_only_specs` and `unsupported`, the expressions OPM cannot run.
 
 For the record shape the report is built from, see
 [Output formats](output-formats.md#json).

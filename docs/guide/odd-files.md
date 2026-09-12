@@ -23,7 +23,7 @@ projects under `examples/`, each of which ships its own ODD (for instance
 extending a copied stock ODD: it widens the static TOC and adds journal
 front-matter apparatus to `jats.odd`, each change described with a `<desc>`.
 
-opm supports ODD chaining, a technique of ordering individual ODD documents in such a way that it is possible for one document to re-use (and potentially modify) declarations and definitions from another document. A base ODD can be defined in the  `schemaSpec/@source` attribute or with the flag `source="<odd file>"`. For TEI edition projects, we recommend always having the `teipublisher.odd` as the base ODD of your first custom ODD.
+OPM supports ODD chaining, a technique of ordering individual ODD documents in such a way that it is possible for one document to re-use (and potentially modify) declarations and definitions from another document. A base ODD can be defined in the  `schemaSpec/@source` attribute or with the flag `source="<odd file>"`. For TEI edition projects, we recommend always having the `teipublisher.odd` as the base ODD of your first custom ODD.
 
 ## Compiling on demand
 
@@ -40,7 +40,7 @@ opm transform examples/tei-test.xml -t docx -o out.docx
 From Python, use [`opm.odd_cache.ensure_compiled_module`](../api/odd-compiler.md)
 or the lower-level [`opm.odd_compiler.compile_odd`](../api/odd-compiler.md).
 
-### Expressions opm cannot run
+### Expressions OPM cannot run
 
 ODDs are often shared with TEI Publisher, whose eXist-DB runtime evaluates XQuery
 and has functions of its own. An expression that uses those functions (e.g. 
@@ -51,7 +51,7 @@ the context node or to an empty value. The first compile prints one line saying
 how many there are; [`opm coverage`](coverage.md#expressions-opm-cannot-run)
 lists each one with its reason and ODD line.
 
-You can give opm its own version of such a model by using in
+You can give OPM its own version of such a model by using in
 `@output` the `opm-` prefix (e.g. `output="opm-web"`). This will be ignored by
 `tei-publisher-lib`.
 
