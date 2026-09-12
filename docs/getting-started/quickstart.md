@@ -14,7 +14,7 @@ opm init
 or pass the path as an argument: `opm init PATH`
 
 The terminal will prompt you a starting point: either an empty project for one of the
-supported vocabularies, or a copy of one of the worked example projects. Instead, you can bypass the selection and directly create the type of project you want. E.g:
+supported vocabularies, or a copy of one of the worked example projects. Instead, you can bypass the selection and directly create the type of project you want. E.g.:
 
 ```bash
 opm init --vocabulary docbook     # empty project for a specific vocabulary

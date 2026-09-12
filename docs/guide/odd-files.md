@@ -44,7 +44,7 @@ or the lower-level [`opm.odd_compiler.compile_odd`](../api/odd-compiler.md).
 
 ODDs are often shared with TEI Publisher, whose eXist-DB runtime evaluates XQuery
 and has functions of its own. An expression that uses those functions (e.g. 
-`util:document-name(.)`) — fails in opm for every document. The compiler
+`util:document-name(.)`) — fails in OPM for every document. The compiler
 recognises these and keeps the behaviour a failing evaluation always had: a
 predicate counts as false, so a later model is used, and a param falls back to
 the context node or to an empty value. The first compile prints one line saying

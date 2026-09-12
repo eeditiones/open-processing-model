@@ -41,7 +41,7 @@ opm chunk data/letters --format json -o output/chunks
 opm chunk data/letters --format pb-view --doc-path letters -o public
 ```
 
-Most settings come from the `[chunking]` section of `opm.toml`; which can be overriden by the CLI commands. See [Configuration](configuration.md) for the full schema.
+Most settings come from the `[chunking]` section of `opm.toml`; which can be overridden by the CLI commands. See [Configuration](configuration.md) for the full schema.
 
 ## Selecting chunks
 
@@ -194,7 +194,7 @@ output bigger and uncacheable. (`--format pb-view` has always written
 
 The file `css/<odd>.css` holds the ODD's own `<rendition>` rules, preceded by the base
 rules every ODD-rendered document needs (e.g. the `.alternate` / `.altcontent`
-popover behind the `choice` behaviour , `.tei-cb` for column breaks, etc.; these can still be overriden by the ODD's `outputRendition`). 
+popover behind the `choice` behaviour , `.tei-cb` for column breaks, etc.; these can still be overridden by the ODD's `outputRendition`). 
 
 `[transform] css` does not add a second stylesheet — it *replaces* those base
 rules, so a project can change the default style without losing the ODD's

@@ -1,7 +1,7 @@
 # Output formats
 
 A single ODD drives every output format. The format is chosen at **compile**
-time via `--type` / `-t` (or the matching configuration table, e.g `[transform.epub]`), which selects the ODD
+time via `--type` / `-t` (or the matching configuration table, e.g. `[transform.epub]`), which selects the ODD
 `@output` channel and the specific
 [`ProcessingModelFunctions`](../api/output-functions.md) implementation used to
 generate that output.
@@ -205,7 +205,7 @@ opm transform examples/tei-test.xml -t markdown --preview
 ## DOCX
 
 DOCX is binary, so it the `-o` flag is required to write the file (it cannot be previewed). A custom Word
-`.docx` can be supplied as a **style template** via the CLI `--template` flag or in the cofiguration file under
+`.docx` can be supplied as a **style template** via the CLI `--template` flag or in the configuration file under
 `[transform.docx] template`. Its paragraph and character styles are reused in
 the output. If none is given, the packaged `default.docx` is used. Missing built-in styles (`Hyperlink`,
 `footnote text`, `footnote reference`) are injected automatically.
