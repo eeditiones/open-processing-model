@@ -23,6 +23,9 @@
   {% if context.webcomponents_url %}
   <script type="module" src="{{ context.webcomponents_url }}"></script>
   {% endif %}
+  {% for src in context.scripts | default([], true) %}
+  <script type="module" src="{{ src }}"></script>
+  {% endfor %}
 </head>
 <body>
   <header class="border-bottom mb-4">

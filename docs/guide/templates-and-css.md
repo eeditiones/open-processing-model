@@ -209,10 +209,10 @@ paper = "a5"
 ## Web components
 
 With web components mode enabled (`--webcomponents` or
-`[transform.web.webcomponents] enabled`),
+`[transform.web] webcomponents = true`),
 `alternate` behaviours emit `<pb-alternate>` and `context.webcomponents_url` is
-set to the configured `cdn`, so the template can load the tei-publisher
-`pb-components` bundle:
+filled in with the pinned default bundle, so the template can load the
+tei-publisher `pb-components` bundle:
 
 ```jinja
 {% if context.webcomponents_url %}
@@ -221,9 +221,10 @@ set to the configured `cdn`, so the template can load the tei-publisher
 ```
 
 This integrates output with the [TEI Publisher](https://teipublisher.com/) web
-component ecosystem. Setting `webcomponents_url` in `[context]` yourself wins
-over the derived value — useful to serve the bundle from your own host instead
-of the CDN.
+component ecosystem. The URL is an ordinary template value with a default, not
+a setting of its own: give `webcomponents_url` in `[context]` or
+`[transform.web.context]` and yours wins — useful to serve the bundle from your
+own host, or to pin a different version.
 
 ## Typst and DOCX templates
 

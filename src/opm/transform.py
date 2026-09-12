@@ -539,7 +539,7 @@ def transform_file(
         xpath_extensions: Dotted module paths for custom XPath functions.
             ``None`` uses ``[transform] xpath_extensions`` from config.
         webcomponents: Enable web-component mode.
-            ``None`` uses ``[transform.web.webcomponents] enabled`` from config.
+            ``None`` uses ``[transform.web] webcomponents`` from config.
             Modes without web components (print, EPUB, JSON) ignore it.
         template: Template override (see [`template_arguments`][opm.transform.template_arguments]).
         config: Pre-loaded [`ProjectConfig`][opm.config.ProjectConfig].

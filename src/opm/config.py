@@ -20,11 +20,16 @@ from urllib.parse import urlsplit
 
 from opm.output_modes import CONFIG_SECTIONS, MODES
 
-DEFAULT_CDN_TEMPLATE = (
+DEFAULT_WEBCOMPONENTS_URL = (
     'https://cdn.jsdelivr.net/npm/@teipublisher/pb-components'
-    '@{version}/dist/pb-components-bundle.js'
+    '@3.6.8/dist/pb-components-bundle.js'
 )
-DEFAULT_VERSION = '3.6.7'
+"""Bundle loaded when web-component mode is on and the project names no URL.
+
+Pinned here so the version is bumped in one place rather than in every
+project; override it per project with ``[transform.web.context]``
+``webcomponents_url``.
+"""
 
 CONFIG_FILENAME = 'opm.toml'
 
@@ -271,7 +276,14 @@ class ProjectConfig:
     """
 
     webcomponents_enabled: bool | None = None
-    webcomponents_cdn: str | None = None
+    """Web-component mode, from ``[transform.web] webcomponents``.
+
+    ``None`` means the project said nothing, leaving ``--webcomponents`` /
+    ``--no-webcomponents`` to decide. The bundle URL is not configured here:
+    it is an ordinary template value, ``webcomponents_url``, defaulted by
+    [`context_for`][opm.config.ProjectConfig.context_for] and overridable in
+    ``[transform.web.context]``.
+    """
     template_context: dict[str, Any] = field(default_factory=dict)
     """Arbitrary values exposed to every Jinja2 template as ``context`` (``[context]``).
 
@@ -379,20 +391,21 @@ class ProjectConfig:
         """Return the template ``context`` for *transform_type*.
 
         ``[context]`` supplies the base; ``[transform.<type>.context]`` overlays
-        it. When *webcomponents* is on, ``webcomponents_url`` is derived from
-        ``[transform.web.webcomponents] cdn``/``version`` — unless the project
-        set that key itself, which then wins.
+        it. When *webcomponents* is on, ``webcomponents_url`` falls back to
+        [`DEFAULT_WEBCOMPONENTS_URL`][opm.config.DEFAULT_WEBCOMPONENTS_URL] —
+        unless the project set that key itself, which then wins.
+
+        Whether the mode is on is a parameter rather than a config lookup
+        because only the caller knows the effective mode for a run:
+        ``--webcomponents`` overrides the config and the ``json``/``pb-view``
+        formats force it on.
         """
         merged = dict(self.template_context)
         key = _section_for(transform_type)
         if key:
             merged.update(self.template_context_by_type.get(key, {}))
         if webcomponents:
-            merged.setdefault(
-                'webcomponents_url',
-                self.webcomponents_cdn
-                or DEFAULT_CDN_TEMPLATE.replace('{version}', DEFAULT_VERSION),
-            )
+            merged.setdefault('webcomponents_url', DEFAULT_WEBCOMPONENTS_URL)
         return merged
 
     @property
@@ -451,7 +464,9 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     print_data = type_sections['print']
     epub_data = type_sections['epub']
     web_data = type_sections['web']
-    wc = _section_table(web_data.get('webcomponents'))
+    webcomponents_enabled = web_data.get('webcomponents')
+    if webcomponents_enabled is not None and not isinstance(webcomponents_enabled, bool):
+        raise ValueError('opm.toml: transform.web.webcomponents must be a boolean')
 
     raw_context = data.get('context', {})
     if not isinstance(raw_context, dict):
@@ -464,10 +479,6 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         for type_name, section in type_sections.items()
         if _section_table(section.get('context'))
     }
-
-    cdn_template = wc.get('cdn', DEFAULT_CDN_TEMPLATE)
-    version = wc.get('version', DEFAULT_VERSION)
-    resolved_cdn = cdn_template.replace('{version}', version)
 
     # The HTML shell only wraps web output, so it lives with the other per-type
     # templates; the base CSS is compiled into every type's ODD stylesheet, so
@@ -671,8 +682,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         chunking = replace(chunking, odd=transform_odd)
 
     return ProjectConfig(
-        webcomponents_enabled=wc.get('enabled'),
-        webcomponents_cdn=resolved_cdn,
+        webcomponents_enabled=webcomponents_enabled,
         template_context=template_context,
         template_context_by_type=template_context_by_type,
         document_template=config_path.parent / str(template) if template else None,

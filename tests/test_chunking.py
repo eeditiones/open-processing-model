@@ -995,6 +995,27 @@ def test_build_index_falls_back_to_title_then_filename(tmp_path: Path) -> None:
     assert '1 section' in html
 
 
+def test_build_index_gets_the_webcomponents_url_in_web_component_mode(tmp_path: Path) -> None:
+    """The index shares the run's effective mode, so its template can load the bundle too."""
+    from opm.config import DEFAULT_WEBCOMPONENTS_URL
+
+    out = tmp_path / 'chunks'
+    _write_manifest(out, 'a.xml', fragments={'title': '<span>Letter One</span>'})
+    template = tmp_path / 'index.html.j2'
+    template.write_text(
+        '{% if context.webcomponents_url %}'
+        '<script src="{{ context.webcomponents_url }}"></script>{% endif %}',
+        encoding='utf-8',
+    )
+
+    # Off by default: an index for a run without web components stays plain HTML.
+    plain = build_index(out, template_path=template).read_text(encoding='utf-8')
+    assert '<script' not in plain
+
+    html = build_index(out, template_path=template, webcomponents=True).read_text(encoding='utf-8')
+    assert f'<script src="{DEFAULT_WEBCOMPONENTS_URL}"></script>' in html
+
+
 def test_build_index_skips_directories_without_a_manifest(tmp_path: Path) -> None:
     """Stray directories (css/, images/) are not listed, and an empty run writes nothing."""
     out = tmp_path / 'chunks'
@@ -1435,7 +1456,7 @@ def test_chunk_pages_and_index_receive_the_project_context(tmp_path: Path) -> No
 
     project_config = ProjectConfig(
         template_context={'site_name': 'My Edition'},
-        webcomponents_cdn='https://example.test/pb.js',
+        template_context_by_type={'web': {'webcomponents_url': 'https://example.test/pb.js'}},
     )
     config = replace(
         _chunking_config('ctx-chunks'),

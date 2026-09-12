@@ -322,16 +322,12 @@ def test_load_project_config_reads_webcomponents_under_transform_web(tmp_path: P
     (tmp_path / 'opm.toml').write_text(
         """[transform.web]
 odd = "web.odd"
-
-[transform.web.webcomponents]
-enabled = true
-cdn = "https://example.test/pb.js"
+webcomponents = true
 """,
         encoding='utf-8',
     )
     cfg = load_project_config(tmp_path / 'opm.toml')
     assert cfg.webcomponents_enabled is True
-    assert cfg.webcomponents_cdn == 'https://example.test/pb.js'
 
 
 def test_load_project_config_reads_template_context(tmp_path: Path) -> None:
@@ -384,21 +380,20 @@ paper = "a5"
     }
 
 
-def test_context_for_derives_webcomponents_url(tmp_path: Path) -> None:
-    from opm.config import load_project_config
+def test_context_for_defaults_the_webcomponents_url(tmp_path: Path) -> None:
+    from opm.config import DEFAULT_WEBCOMPONENTS_URL, load_project_config
 
     (tmp_path / 'opm.toml').write_text(
-        """[transform.web.webcomponents]
-enabled = true
-cdn = "https://example.test/pb-{version}.js"
-version = "1.2.3"
+        """[transform.web]
+webcomponents = true
 """,
         encoding='utf-8',
     )
     cfg = load_project_config(tmp_path / 'opm.toml')
     assert 'webcomponents_url' not in cfg.context_for('web')
-    assert cfg.context_for('web', webcomponents=True)['webcomponents_url'] == (
-        'https://example.test/pb-1.2.3.js'
+    assert (
+        cfg.context_for('web', webcomponents=True)['webcomponents_url']
+        == DEFAULT_WEBCOMPONENTS_URL
     )
 
 
@@ -409,14 +404,42 @@ def test_explicit_context_wins_over_the_derived_webcomponents_url(tmp_path: Path
         """[context]
 webcomponents_url = "/local/pb-components-bundle.js"
 
-[transform.web.webcomponents]
-enabled = true
+[transform.web]
+webcomponents = true
 """,
         encoding='utf-8',
     )
     cfg = load_project_config(tmp_path / 'opm.toml')
     ctx = cfg.context_for('web', webcomponents=True)
     assert ctx['webcomponents_url'] == '/local/pb-components-bundle.js'
+
+
+def test_web_context_overlay_wins_over_the_default_webcomponents_url(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    (tmp_path / 'opm.toml').write_text(
+        """[transform.web]
+webcomponents = true
+
+[transform.web.context]
+webcomponents_url = "https://example.test/pb.js"
+""",
+        encoding='utf-8',
+    )
+    cfg = load_project_config(tmp_path / 'opm.toml')
+    ctx = cfg.context_for('web', webcomponents=True)
+    assert ctx['webcomponents_url'] == 'https://example.test/pb.js'
+
+
+def test_load_project_config_rejects_a_non_boolean_webcomponents(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    (tmp_path / 'opm.toml').write_text(
+        '[transform.web]\nwebcomponents = "yes"\n',
+        encoding='utf-8',
+    )
+    with pytest.raises(ValueError, match='transform.web.webcomponents must be a boolean'):
+        load_project_config(tmp_path / 'opm.toml')
 
 
 def test_load_project_config_rejects_a_non_table_context(tmp_path: Path) -> None:

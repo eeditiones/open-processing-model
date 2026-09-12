@@ -66,16 +66,22 @@ lookup key a `pb-view` sends in that mode.
 
 ## Template context
 
-`[context]` carries project values to the Jinja2 templates, untouched by XPath:
+`[transform.web.context]` carries project values to the Jinja2 templates,
+untouched by XPath. It overlays `[context]`, so values only the HTML page needs
+stay out of the Typst and EPUB runs:
 
 ```toml
-[context]
-page_label = "Folio"
+[transform.web.context]
+scripts = [
+    "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.8/dist/pb-tify.js",
+]
+webcomponents_theme = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.8/css/components.css"
 ```
 
-The chapbook template reads it for the running header and the drop-cap opening,
-so the pages read *Folio 12* rather than the template's default *Cap. 12*.
-Nothing else needs changing to relabel the edition.
+`scripts` is the list every stock template renders as module scripts after the
+pb-components bundle; `webcomponents_theme` is the stylesheet `<pb-page>` loads.
+Both are read by `templates/chapbook.html.j2` alone. The Typst-only values sit
+in `[transform.typst.context]` for the same reason.
 
 ## Facsimiles
 
@@ -98,9 +104,13 @@ facsimile with it:
 ```
 
 `pb-tify` is published as its own entry point rather than inside
-`pb-components-bundle.js`, so the template loads a second module. Its URL is
-`[context] facsimile_viewer` — unset that and both the script and the whole
-facsimile column disappear, no template edit needed.
+`pb-components-bundle.js`, so the template loads a second module. Its URL is one
+entry in `[transform.web.context] scripts`, the list the template renders as
+module scripts after the bundle. That list is unconditional, so the module is
+requested on every HTML run; the viewer around it is not. The facsimile column
+and its `<pb-page>` wrapper follow web component mode, so `--no-webcomponents` —
+or a full-document transform, which has no page chunks — leaves the page as
+plain text.
 
 The page also needs a `<pb-page endpoint=".">` around the content. TEI
 Publisher components resolve relative URLs against the endpoint of an ancestor

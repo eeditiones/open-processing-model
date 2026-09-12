@@ -72,16 +72,13 @@ xpath_extensions = [
 # Optional override: odd = "odd/web-only.odd"
 # Jinja2 template used to wrap full-document HTML output.
 # template = "templates/default.html.j2"
-
-[transform.web.webcomponents]
 # Enable TEI Publisher web-component output mode by default.
-enabled = false
+webcomponents = false
 
-# CDN URL template for pb-components; {version} is replaced with the configured version.
-# cdn = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@{version}/dist/pb-components-bundle.js"
-
-# pb-components version used by the default CDN template.
-# version = "3.6.7"
+# The pb-components bundle URL is an ordinary template value with a pinned
+# default, not a setting of its own. Serve it yourself, or pin another version:
+# [transform.web.context]
+# webcomponents_url = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.8/dist/pb-components-bundle.js"
 
 # Free-form values handed to every Jinja2 template as `context`, e.g.
 # {{ context.site_name }}. TOML types are preserved, so booleans, numbers,

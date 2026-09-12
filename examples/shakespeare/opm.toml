@@ -10,24 +10,6 @@ xpath_extensions = [
     "opm.runtime.common_xpath_functions"
 ]
 
-# Values the chapbook template reads. Nothing here reaches XPath — that is what
-# [transform.parameters] is for — so TOML types survive untouched.
-[context]
-# The unit this edition is chunked into. Page chunking makes a folio page the
-# chunk, so the running header says "Folio 12", not "Cap. 12".
-page_label = "Folio"
-
-# pb-tify (a IIIF viewer wrapping Tify) is published as its own entry point
-# rather than inside pb-components-bundle.js, so the template loads it from a
-# second <script>. Declaring the URL here rather than hard-coding it in the
-# template keeps the version pinned next to webcomponents.version below, and
-# unsetting it drops both the script and the facsimile column.
-facsimile_viewer = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.7/dist/pb-tify.js"
-
-# <pb-page> loads a component theme stylesheet; left unset it looks for
-# components.css beside the page and 404s. Point it at the packaged one.
-webcomponents_theme = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.7/css/components.css"
-
 # The <pb> models build the facsimile link from the document's own path:
 # substring-after(document-uri(root($parameters?root)), $global:data-root || '/').
 # data-root names the directory that path is taken relative to, which is what
@@ -71,13 +53,25 @@ line_number_every = 5
 
 [transform.web]
 template = "templates/chapbook.html.j2"
-
-[transform.web.webcomponents]
 # The <pb> model emits <pb-facs-link>, which stays inert markup showing the
 # folio number until the pb-components bundle is loaded. With it on, each folio
 # announces its manifest and page index on the "transcription" channel and the
 # <pb-tify> viewer in the template turns to that page.
-enabled = true
+webcomponents = true
+
+# Read by the chapbook template only, so they overlay [context] here rather
+# than sitting in it: a Typst or EPUB run has no use for either.
+[transform.web.context]
+# Module scripts the page loads after the pb-components bundle. pb-tify (a IIIF
+# viewer wrapping Tify) is published as its own entry point rather than inside
+# pb-components-bundle.js, so the facsimile column needs it listed here.
+scripts = [
+    "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.8/dist/pb-tify.js",
+]
+
+# <pb-page> loads a component theme stylesheet; left unset it looks for
+# components.css beside the page and 404s. Point it at the packaged one.
+webcomponents_theme = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.8/css/components.css"
 
 # One chunk per <pb/> milestone rather than per division: `tei_pb_chunks`
 # reconstructs the page as a synthetic tree, carrying the intervening <div>,

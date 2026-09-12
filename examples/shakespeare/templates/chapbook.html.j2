@@ -4,7 +4,7 @@
 -#}
 <!doctype html>
 {% set is_chunk = chunk is defined and chunk %}
-{% set show_facsimile = is_chunk and context.webcomponents_url and context.facsimile_viewer %}
+{% set show_facsimile = is_chunk and context.webcomponents_url %}
 <html lang="{{ lang|default('en') }}">
 <head>
   <meta charset="utf-8">
@@ -30,10 +30,11 @@
   {% if context.webcomponents_url %}
   <script type="module" src="{{ context.webcomponents_url }}"></script>
   {% endif %}
-  {% if show_facsimile %}
-  <!-- pb-tify ships as its own entry point; the bundle above does not carry it -->
-  <script type="module" src="{{ context.facsimile_viewer }}"></script>
-  {% endif %}
+  {# context.scripts carries pb-tify here: it ships as its own entry point and
+     the bundle above does not include it. #}
+  {% for src in context.scripts | default([], true) %}
+  <script type="module" src="{{ src }}"></script>
+  {% endfor %}
 </head>
 <body class="chapbook">
   {% if show_facsimile %}

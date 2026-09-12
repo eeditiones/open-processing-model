@@ -32,9 +32,7 @@ register-root = "/db/apps/serafin/data/registers"
 
 [transform.web]
 template = "templates/letter.html.j2"
-
-[transform.web.webcomponents]
-enabled = true
+webcomponents = true
 
 [transform.epub]
 # [chunking] below selects only the source text: the reading view shows the

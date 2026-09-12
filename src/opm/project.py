@@ -506,6 +506,7 @@ class Project:
                 project_config=self.config,
                 project_root=self.root,
                 chunking_config=chunking,
+                webcomponents=enabled,
             )
         return ChunkRun(
             output_dir=out_dir,

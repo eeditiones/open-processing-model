@@ -14,9 +14,7 @@ xpath_extensions = [
 
 [transform.web]
 template = "templates/journal.html.j2"
-
-[transform.web.webcomponents]
-enabled = true
+webcomponents = true
 
 [transform.print]
 # Paged view: the same article surface as the web reading view, minus the

@@ -588,7 +588,10 @@ body.letter {
 }
 
 /* tippy's own theme stylesheet is injected at runtime, after this file, and
-   uses the same specificity — hence the leading `body` to win the cascade. */
+   uses the same specificity — hence the leading `body` to win the cascade.
+   Since pb-components 3.6.8 `pb-popover` resolves `--pb-popover-theme` when the
+   popup is first shown rather than as it upgrades, so every popover carries the
+   theme and the themed selector is all this page needs. */
 body .tippy-box[data-theme~="light-border"] {
   border-color: var(--letter-rule);
   background-color: var(--letter-paper);

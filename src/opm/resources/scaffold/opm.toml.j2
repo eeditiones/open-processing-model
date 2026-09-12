@@ -44,9 +44,10 @@ register-root = "urn:registers"
 
 [transform.web]
 template = "templates/{{ html_template }}.html.j2"
-
-[transform.web.webcomponents]
-enabled = {{ 'true' if webcomponents else 'false' }}
+# Emit TEI Publisher web components and let the template load the bundle.
+# Its URL is an ordinary template value, so serving it yourself is just
+# [transform.web.context] with webcomponents_url = "..." below.
+webcomponents = {{ 'true' if webcomponents else 'false' }}
 
 # Anything here reaches every Jinja2 template as `context` — templates only,
 # never XPath — so TOML types survive: booleans, numbers, arrays, sub-tables.

@@ -1430,6 +1430,7 @@ def build_index(
     project_config: ProjectConfig | None = None,
     project_root: Path | None = None,
     chunking_config: ChunkingConfig | None = None,
+    webcomponents: bool = False,
 ) -> Path | None:
     """Render ``<output_dir>/index.html`` listing every chunked document.
 
@@ -1438,7 +1439,9 @@ def build_index(
     landing page.
 
     *project_config* also supplies the template ``context``, so the index and
-    the chunk pages read the same ``[context]`` values.
+    the chunk pages read the same ``[context]`` values. Pass *webcomponents* to
+    match the run's effective mode, so the index page is given
+    ``webcomponents_url`` exactly when the chunk pages are.
 
     Pass *module_path* (and optionally *project_config*) to have the ODD's
     generated CSS and the project stylesheet resolved the same way chunk pages
@@ -1476,7 +1479,9 @@ def build_index(
         odd_css_url=odd_css_url,
         assets='assets' if chunk_cfg.assets else '',
         asset_styles=asset_styles,
-        context=(project_config or ProjectConfig()).context_for('web'),
+        context=(project_config or ProjectConfig()).context_for(
+            'web', webcomponents=webcomponents,
+        ),
     )
     index_file = output_dir / 'index.html'
     index_file.write_text(rendered, encoding='utf-8')

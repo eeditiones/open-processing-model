@@ -886,7 +886,7 @@ def transform_cmd(
             help=(
                 'Enable/disable tei-publisher web components mode: alternate behaviours emit '
                 '<pb-alternate> and the document template loads tei-publisher-components. '
-                'Falls back to transform.web.webcomponents.enabled in the project config.'
+                'Falls back to transform.web.webcomponents in the project config.'
             ),
         ),
     ] = None,
@@ -1014,7 +1014,7 @@ def chunk(
             '--webcomponents/--no-webcomponents',
             help=(
                 'Enable/disable tei-publisher web components mode. '
-                'Falls back to transform.web.webcomponents.enabled in the project config.'
+                'Falls back to transform.web.webcomponents in the project config.'
             ),
         ),
     ] = None,
