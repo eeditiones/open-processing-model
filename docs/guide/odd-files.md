@@ -14,15 +14,16 @@ The library packages three stock ODDs:
 - `docbook.odd` (+ `docbook.css`) — DocBook v5 model (`opm init --vocabulary docbook`)
 - `jats.odd` (+ `jats.css`) — JATS journal article model (`opm init --vocabulary jats`)
 
-`opm init` writes a short `odd/custom.odd` that inherits the packaged `teipublisher`,
-or copies `docbook.odd` / `jats.odd` into the project. For worked customisations, see the
+`opm init` writes a short `odd/custom.odd` that inherits the packaged `teipublisher.odd`,
+or copies `docbook.odd` / `jats.odd` into the project. For also copying the teipublisher.odd in the project can pass `--copy-base-odd`.
+
+For worked customisations, see the
 projects under `examples/`, each of which ships its own ODD (for instance
 `examples/shakespeare/odd/shakespeare.odd`). `examples/jats` is a good model for
 extending a copied stock ODD: it widens the static TOC and adds journal
 front-matter apparatus to `jats.odd`, each change described with a `<desc>`.
 
-<!-- TODO: review the last two sentences here-->
-opm supports ODD chaining, a technique of ordering individual ODD documents in such a way that it is possible for one document to re-use (and potentially modify) declarations and definitions from another document. A base ODD can be defined in the  `schemaSpec/@source` attribute or with the flag `source="<odd file>"`. In TEI edition projects, we recommend always having the `teipublisher.odd` as the base ODD, and you can pass `--copy-base-odd` to snapshot it into the project.
+opm supports ODD chaining, a technique of ordering individual ODD documents in such a way that it is possible for one document to re-use (and potentially modify) declarations and definitions from another document. A base ODD can be defined in the  `schemaSpec/@source` attribute or with the flag `source="<odd file>"`. For TEI edition projects, we recommend always having the `teipublisher.odd` as the base ODD of your first custom ODD.
 
 ## Compiling on demand
 
