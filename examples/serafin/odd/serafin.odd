@@ -150,14 +150,6 @@
                         <param name="id" value="@xml:id"/>
                     </model>
                 </elementSpec>
-                <elementSpec ident="subst" mode="change">
-                    <desc>SERAFIN: as in teipublisher.odd, which lists the content
-                        explicitly to avoid whitespace issues, but also keeping a note
-                        anchor placed inside the subst (its note is lost otherwise).</desc>
-                    <model behaviour="inline">
-                        <param name="content" value="(del, add, anchor)"/>
-                    </model>
-                </elementSpec>
                 <elementSpec ident="lb" mode="change">
                     <!-- Print does not keep the manuscript lineation, so a line
                          beginning becomes an ordinary word space. Dropping it outright
