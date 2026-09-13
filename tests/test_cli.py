@@ -925,15 +925,16 @@ def test_init_tei_creates_project(tmp_path: Path) -> None:
     from opm.config import load_project_config
 
     dest = tmp_path / 'edition'
-    rc = main(['init', str(dest), '--title', 'Test Edition'])
+    rc = main(['init', str(dest)])
     assert rc == 0
     assert (dest / 'opm.toml').is_file()
     assert (dest / 'odd' / 'custom.odd').is_file()
     assert not (dest / 'odd' / 'teipublisher.odd').exists()
     assert (dest / 'templates' / 'chapbook.html.j2').is_file()
     assert (dest / 'templates' / 'chapbook.css').is_file()
-    assert (dest / 'templates' / 'journal.html.j2').is_file()
-    assert (dest / 'templates' / 'journal.css').is_file()
+    # Only the shell opm.toml wires up: --templates asks for the alternatives.
+    assert not (dest / 'templates' / 'journal.html.j2').exists()
+    assert not (dest / 'templates' / 'tufte.html.j2').exists()
     assert (dest / 'templates' / 'book.typ.j2').is_file()
     assert (dest / 'templates' / 'default.docx').is_file()
     # The base rules ship inside the ODD stylesheet, so no copy is scaffolded.
@@ -955,7 +956,33 @@ def test_init_tei_creates_project(tmp_path: Path) -> None:
     assert cfg.transform_odd.name == 'custom.odd'
     assert cfg.document_docx_template is not None
     assert cfg.typst_template is not None
-    assert 'Test Edition' in (dest / 'README.md').read_text(encoding='utf-8')
+    # The README is headed with the project directory's name.
+    assert '# edition' in (dest / 'README.md').read_text(encoding='utf-8')
+
+
+def test_init_templates_copies_alternative_shells(tmp_path: Path) -> None:
+    """--templates adds the shells the project does not wire up."""
+    dest = tmp_path / 'edition'
+    assert main(['init', str(dest), '--templates']) == 0
+    for name in ('chapbook', 'journal', 'handbook'):
+        assert (dest / 'templates' / f'{name}.html.j2').is_file()
+        assert (dest / 'templates' / f'{name}.css').is_file()
+    # Both demo shells carry their styling inline, so they ship without a .css.
+    assert (dest / 'templates' / 'tufte.html.j2').is_file()
+    assert (dest / 'templates' / 'bootstrap.html.j2').is_file()
+    assert not (dest / 'templates' / 'tufte.css').exists()
+
+
+def test_init_example_templates_keep_the_examples_own_shell(tmp_path: Path) -> None:
+    """--templates adds shells beside an example's own, never over them."""
+    dest = tmp_path / 'folio'
+    assert main(['init', str(dest), '--example', 'shakespeare', '--templates']) == 0
+    # The example's chapbook is customised — it carries a facsimile column the
+    # packaged shell knows nothing about — so it must survive untouched.
+    shell = (dest / 'templates' / 'chapbook.html.j2').read_text(encoding='utf-8')
+    assert 'chap-facs' in shell
+    assert (dest / 'templates' / 'journal.html.j2').is_file()
+    assert (dest / 'templates' / 'handbook.html.j2').is_file()
 
 
 def test_init_preserves_existing_agent_files(tmp_path: Path) -> None:
@@ -1050,10 +1077,10 @@ def test_init_jats_wires_journal_shell(tmp_path: Path) -> None:
     assert cfg.chunking is not None
     assert cfg.chunking.template is not None
     assert cfg.chunking.template.name == 'journal.html.j2'
-    # The shell only styles what the ODD renders into .content, so the other
-    # shells are still copied alongside it.
+    # The wired shell travels with its stylesheet; the alternatives are only
+    # copied on --templates.
     assert (dest / 'templates' / 'journal.css').is_file()
-    assert (dest / 'templates' / 'chapbook.html.j2').is_file()
+    assert not (dest / 'templates' / 'chapbook.html.j2').exists()
 
 
 def test_init_jats_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
@@ -1198,17 +1225,57 @@ def test_examples_are_packaged_by_the_build_hook() -> None:
 def test_init_picker_only_prompts_on_a_terminal(tmp_path: Path, monkeypatch) -> None:
     from opm import cli
 
-    # Piped/scripted runs keep the old behaviour: an empty TEI project.
+    # Piped/scripted runs keep the old behaviour: an empty TEI project, and
+    # nothing asked about the alternative shells either.
     monkeypatch.setattr('sys.stdin.isatty', lambda: False)
     assert main(['init', str(tmp_path / 'piped')]) == 0
     assert (tmp_path / 'piped' / 'odd' / 'custom.odd').is_file()
+    assert not (tmp_path / 'piped' / 'templates' / 'journal.html.j2').exists()
 
     # On a terminal, the answer selects the row.
     monkeypatch.setattr('sys.stdin.isatty', lambda: True)
     monkeypatch.setattr(cli, '_choose_start', lambda: (None, 'jats'))
+    monkeypatch.setattr(cli, '_ask_extra_templates', lambda: False)
     assert main(['init', str(tmp_path / 'picked')]) == 0
     assert (tmp_path / 'picked' / 'templates' / 'journal.html.j2').is_file()
     assert (tmp_path / 'picked' / 'data' / 'article').is_dir()
+
+
+def test_ask_extra_templates_is_silent_when_piped(monkeypatch) -> None:
+    """The question is a terminal affordance; a script gets the lean default."""
+    from opm import cli
+
+    monkeypatch.setattr('sys.stdin.isatty', lambda: False)
+    assert cli._ask_extra_templates() is False
+
+
+def test_init_picker_asks_about_extra_templates(tmp_path: Path, monkeypatch) -> None:
+    """A bare interactive init settles the alternative shells in the same breath."""
+    from opm import cli
+
+    monkeypatch.setattr('sys.stdin.isatty', lambda: True)
+    monkeypatch.setattr(cli, '_choose_start', lambda: ('tei', None))
+    monkeypatch.setattr(cli, '_ask_extra_templates', lambda: True)
+    dest = tmp_path / 'asked'
+    assert main(['init', str(dest)]) == 0
+    assert (dest / 'templates' / 'chapbook.html.j2').is_file()
+    assert (dest / 'templates' / 'journal.html.j2').is_file()
+    assert (dest / 'templates' / 'handbook.html.j2').is_file()
+
+
+def test_init_templates_flag_skips_the_question(tmp_path: Path, monkeypatch) -> None:
+    """--templates has already answered it; asking again would be noise."""
+    from opm import cli
+
+    def _refuse() -> bool:
+        raise AssertionError('should not ask when --templates was passed')
+
+    monkeypatch.setattr('sys.stdin.isatty', lambda: True)
+    monkeypatch.setattr(cli, '_choose_start', lambda: ('tei', None))
+    monkeypatch.setattr(cli, '_ask_extra_templates', _refuse)
+    dest = tmp_path / 'flagged'
+    assert main(['init', str(dest), '--templates']) == 0
+    assert (dest / 'templates' / 'journal.html.j2').is_file()
 
 
 def test_init_copy_base_odd_tei(tmp_path: Path) -> None:

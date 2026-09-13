@@ -58,7 +58,7 @@ opm init [OPTIONS] [DIRECTORY]
 | `--example, -e TEXT` | Start from a bundled example project instead of an empty one: jats, docbook, serafin, shakespeare. |
 | `--list-examples` | List the bundled example projects and exit. |
 | `--copy-base-odd` | TEI only: also copy packaged teipublisher.odd and tp.css into odd/. |
-| `--title TEXT` | Edition title used in README (default: directory name). |
+| `--templates` | Also copy the alternative HTML shells (chapbook, journal, handbook, tufte, bootstrap) beside the one wired up. |
 | `--help` | Show this message and exit. |
 
 ### `opm transform`

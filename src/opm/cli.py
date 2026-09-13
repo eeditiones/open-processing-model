@@ -149,10 +149,16 @@ def init_cmd(
             help='TEI only: also copy packaged teipublisher.odd and tp.css into odd/.',
         ),
     ] = False,
-    title: Annotated[
-        Optional[str],
-        typer.Option('--title', help='Edition title used in README (default: directory name).'),
-    ] = None,
+    templates: Annotated[
+        bool,
+        typer.Option(
+            '--templates',
+            help=(
+                'Also copy the alternative HTML shells (chapbook, journal, '
+                'handbook, tufte, bootstrap) beside the one wired up.'
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Create a local project: an empty one, or a copy of a bundled example."""
     if list_examples:
@@ -164,14 +170,13 @@ def init_cmd(
 
     if vocabulary is None and example is None:
         vocabulary, example = _choose_start()
+        # A bare `opm init` settles the shells in the same breath as the
+        # starting point; --templates has already answered the question.
+        if not templates:
+            templates = _ask_extra_templates()
 
-    if example is not None:
-        for flag, given in (
-            ('--copy-base-odd', copy_base_odd),
-            ('--title', title is not None),
-        ):
-            if given:
-                _note(f'{flag} does not apply to --example; ignoring it.')
+    if example is not None and copy_base_odd:
+        _note('--copy-base-odd does not apply to --example; ignoring it.')
 
     vocab = (vocabulary or 'tei').strip().lower()
     if example is None and copy_base_odd and vocab != 'tei':
@@ -181,9 +186,9 @@ def init_cmd(
             InitOptions(
                 directory=directory,
                 force=force,
-                title=title,
                 vocabulary=vocab,
                 example=example,
+                templates=templates,
                 copy_base_odd=copy_base_odd and vocab == 'tei' and example is None,
             )
         )
@@ -352,6 +357,43 @@ def _choose_start() -> tuple[str | None, str | None]:
     except EOFError:
         _die('cancelled.')
     return rows[int(answer) - 1][2]
+
+
+def _ask_extra_templates() -> bool:
+    """Ask whether to copy the alternative HTML shells beside the wired one.
+
+    Only prompts on a terminal: a piped or scripted ``opm init`` keeps the lean
+    default of the one shell the project actually uses, and says so through
+    ``--templates`` when it wants the rest.
+    """
+    if not sys.stdin.isatty():
+        return False
+
+    question = 'Also copy the alternative HTML shells to swap in later?'
+    try:
+        import questionary
+    except ImportError:
+        # Editable installs whose dependencies were resolved before questionary
+        # was added still have to reach the plain prompt, not a traceback.
+        pass
+    else:
+        try:
+            return bool(
+                questionary.confirm(question, default=False, qmark='').unsafe_ask()
+            )
+        except KeyboardInterrupt:
+            _die('cancelled.')
+        except Exception:
+            # prompt_toolkit needs a full-screen capable terminal; a dumb TERM
+            # or an emulated console raises rather than degrading.
+            pass
+
+    from rich.prompt import Confirm
+
+    try:
+        return bool(Confirm.ask(question, default=False))
+    except (EOFError, KeyboardInterrupt):
+        _die('cancelled.')
 
 
 def _stderr_message(prefix: str, style: str, message: str) -> None:

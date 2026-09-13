@@ -26,6 +26,13 @@ html = run_transform(mod, root, xpath_env=env)
 
 ::: opm.runtime.xpath_env
 
+## XPath errors
+
+An expression that fails at run time counts as false or empty. Wrap a run in
+`collect_xpath_errors()` to see which ones failed.
+
+::: opm.runtime.xpath_diagnostics
+
 ## Processing-model runtime
 
 ::: opm.runtime.pm_runtime
