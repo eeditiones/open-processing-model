@@ -24,12 +24,16 @@ address-by-id = false
 
 # teipublisher.odd carries a <pb> model for exactly this case: a static export
 # with no api/iiif endpoint behind it. `static` selects it, and `context-path`
-# is the prefix it builds the manifest URL from — together they yield
-# facs="assets/F-ado.xml/manifest.json", which is where [chunking] assets puts
-# the manifest below. No ODD override involved.
+# is the prefix it builds the manifest URL from, pointing at what [chunking]
+# assets copies below. No ODD override involved.
+#
+# `{prefix}` is the path from a chunk page back to the output root, where the
+# shared assets/ live — "../", since chunk pages always sit in a per-document
+# subdirectory. Writing "assets" straight would point a page at a subdirectory
+# of its own, which is how the IIIF manifest goes missing.
 [transform.parameters]
 static = "1"
-context-path = "assets"
+context-path = "{prefix}assets"
 
 [transform.epub]
 # Cascades after the packaged EPUB baseline and odd/shakespeare.css, undoing
@@ -82,10 +86,12 @@ view = "page"
 selector = "opm.navigation.tei_pb_chunks"
 output_dir = "chunks"
 template = "templates/chapbook.html.j2"
-# Copied verbatim into <output-root>/assets/, keeping the directory name — so
-# iiif/F-ado.xml/manifest.json lands at assets/F-ado.xml/manifest.json, the URL
-# the <pb> model above emits.
-assets = ["iiif/F-ado.xml"]
+# Copied verbatim into <output-root>/assets/, keeping each directory name — so
+# iiif/F-ado.xml/manifest.json lands at assets/F-ado.xml/manifest.json. That is
+# where the <pb> model's facs="../assets/F-ado.xml/manifest.json" resolves to
+# from a chunk page; nothing serves the iiif/ directory itself. The glob copies
+# every play's manifest, so adding one needs no change here.
+assets = ["iiif/*"]
 
 [[chunking.fragments]]
 name = "title"

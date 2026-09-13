@@ -1083,6 +1083,63 @@ def test_global_fragments_receive_a_per_document_doc_parameter(tmp_path: Path) -
     assert proc._expand_document_params({'q': '{not-a-placeholder}'})['q'] == '{not-a-placeholder}'
 
 
+def test_prefix_placeholder_tracks_the_depth_chunks_are_written_at(tmp_path: Path) -> None:
+    """``{prefix}`` keeps a URL into assets/ correct in both output layouts."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    def _processor(config: ChunkingConfig) -> ChunkProcessor:
+        return ChunkProcessor(
+            module_path=module_path,
+            xml_root=etree.parse(str(xml_path)).getroot(),
+            config=config,
+            project_root=tmp_path,
+            project_config=ProjectConfig(parameters={'context-path': '{prefix}assets'}),
+        )
+
+    # Directory run: pages sit one level down, assets stay at the output root.
+    nested = _processor(ChunkingConfig(xpath="//body/div[@type='chunk']", link_doc='fixture.xml'))
+    assert nested._chunk_options()['context-path'] == '../assets'
+
+    # Single document: pages are written at the root, beside assets/.
+    flat = _processor(ChunkingConfig(xpath="//body/div[@type='chunk']"))
+    assert flat._chunk_options()['context-path'] == 'assets'
+
+
+def test_resolve_assets_expands_a_glob(tmp_path: Path) -> None:
+    """``iiif/*`` copies every match, so adding a document needs no config change."""
+    from opm.chunking import resolve_assets
+
+    (tmp_path / 'iiif' / 'a.xml').mkdir(parents=True)
+    (tmp_path / 'iiif' / 'b.xml').mkdir(parents=True)
+    (tmp_path / 'styles').mkdir()
+    (tmp_path / 'styles' / 'one.css').write_text('a', encoding='utf-8')
+
+    assert [p.name for p in resolve_assets(tmp_path, (Path('iiif/*'),))] == ['a.xml', 'b.xml']
+
+    # Literal entries still pass through, and declared order is kept.
+    mixed = resolve_assets(tmp_path, (Path('styles/one.css'), Path('iiif/*')))
+    assert [p.name for p in mixed] == ['one.css', 'a.xml', 'b.xml']
+
+
+def test_resolve_assets_rejects_a_pattern_matching_nothing(tmp_path: Path) -> None:
+    """An empty match is a typo, not a reason to publish output a file short.
+
+    The literal missing-path case is covered end to end by
+    ``test_missing_asset_is_reported``.
+    """
+    import pytest
+
+    from opm.chunking import resolve_assets
+
+    (tmp_path / 'iiif').mkdir()
+
+    with pytest.raises(FileNotFoundError, match='matched nothing'):
+        resolve_assets(tmp_path, (Path('iiif/*'),))
+
+
 def test_build_index_passes_the_stylesheet_to_the_template(tmp_path: Path) -> None:
     """An index template receives the same ODD stylesheet the chunk pages get.
 

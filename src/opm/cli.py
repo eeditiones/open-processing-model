@@ -1183,14 +1183,10 @@ def chunk(
             typer.echo(f'  - css/{odd_name}.css: ODD stylesheet')
         else:
             ext = 'json' if output_format == 'json' else 'html'
-            if input_xml.is_dir():
-                typer.echo('  - <document>.xml/manifest.json: metadata for page navigation and linking')
-                typer.echo(f'  - <document>.xml/*.{ext}: chunk files')
-                if run.index_file is not None:
-                    typer.echo('  - index.html: collection index served at the site root')
-            else:
-                typer.echo('  - manifest.json: metadata for page navigation and linking')
-                typer.echo(f'  - *.{ext}: chunk files')
+            typer.echo('  - <document>.xml/manifest.json: metadata for page navigation and linking')
+            typer.echo(f'  - <document>.xml/*.{ext}: chunk files')
+            if run.index_file is not None:
+                typer.echo('  - index.html: collection index served at the site root')
 
         _report_xpath_errors(xpath_log, strict=strict)
 
@@ -1232,9 +1228,9 @@ def _bind_http_server(handler: Any, port: int, tries: int = _SERVE_PORT_TRIES):
 def _preview_landing_url(root: Path, port: int) -> str:
     """URL to open for a served chunk directory.
 
-    A directory run writes ``index.html`` at the site root, but a single
-    document does not: its pages are ``001.html`` and up, so the first one
-    stands in for an index rather than sending the reader to a file listing.
+    An HTML run writes ``index.html`` at the site root, so that is the landing
+    page. The numbered-page fallback covers a directory holding pages written
+    some other way, so the browser never opens on a bare file listing.
     """
     base = f'http://localhost:{port}/'
     if (root / 'index.html').is_file():

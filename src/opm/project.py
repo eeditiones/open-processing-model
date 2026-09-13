@@ -67,7 +67,7 @@ class ChunkRun:
     """What [`Project.chunk`][opm.project.Project.chunk] wrote."""
 
     output_dir: Path
-    """Root of the output. A directory run writes one subdirectory per document."""
+    """Root of the output, holding one subdirectory per document."""
     documents: tuple[Path, ...]
     """The XML files that were chunked, in order."""
     format: str
@@ -75,7 +75,7 @@ class ChunkRun:
     modules: tuple[ResolvedTransform, ...]
     """The transform modules used: the main one first, then the fragment ones."""
     index_file: Path | None = None
-    """The ``index.html`` an HTML run over a directory writes at the output root."""
+    """The ``index.html`` an HTML run writes at the output root."""
 
 
 def chunk_input_files(source: Path) -> list[Path]:
@@ -460,17 +460,24 @@ class Project:
         for position, xml_file in enumerate(files):
             if on_document is not None:
                 on_document(position, xml_file)
-            if by_directory and format != 'pb-view':
+            if format == 'pb-view':
+                # pb-view keeps its own layout: the data is fetched by path
+                # rather than served as pages, and `doc_path` places it.
+                document_config = chunking
+            elif Path(chunking.output_dir).name == xml_file.name:
+                # The output directory already names the document (-o site/doc.xml),
+                # so take it as the per-document directory instead of nesting twice.
+                document_config = replace(chunking, link_doc=xml_file.name)
+            else:
+                # One document or many, pages go to <output>/<name>.xml/ with the
+                # stylesheets, assets and index shared at the root. Chunking a
+                # single file therefore publishes the same URLs it will still
+                # publish once a second document joins it.
                 document_config = replace(
                     chunking,
                     output_dir=f'{chunking.output_dir.rstrip("/")}/{xml_file.name}',
                     link_doc=xml_file.name,
                 )
-            elif Path(chunking.output_dir).name == xml_file.name:
-                # Single-file output into …/<name>.xml/ should still expand {doc}.
-                document_config = replace(chunking, link_doc=xml_file.name)
-            else:
-                document_config = chunking
             if by_directory and format == 'pb-view':
                 document_doc_path = (
                     f'{base_doc_path.rstrip("/")}/{xml_file.name}' if base_doc_path
@@ -494,10 +501,10 @@ class Project:
                 documents=names,
             )
 
-        # A directory run leaves one subdirectory per document, which a web
+        # Every HTML run leaves one subdirectory per document, which a web
         # server would otherwise show as a bare listing.
         index_file: Path | None = None
-        if by_directory and format == 'html':
+        if format == 'html':
             index_file = build_index(
                 out_dir,
                 template_path=chunking.index_template,

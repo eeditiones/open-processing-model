@@ -811,7 +811,7 @@ output_dir = "chunks"
 
     assert rc == 0
     assert not leftover.exists()
-    assert (tmp_path / 'chunks' / 'manifest.json').is_file()
+    assert (tmp_path / 'chunks' / 'doc.xml' / 'manifest.json').is_file()
 
 
 def test_chunk_preview_starts_serve(tmp_path: Path, monkeypatch) -> None:
@@ -844,7 +844,7 @@ output_dir = "chunks"
     assert called[0][1] == 9090
     # HTML output has a page to land on, so --preview opens the browser too.
     assert called[0][2] is True
-    assert (tmp_path / 'chunks' / 'manifest.json').is_file()
+    assert (tmp_path / 'chunks' / 'doc.xml' / 'manifest.json').is_file()
 
     # pb-view output is fetched by another tool; nothing to open.
     called.clear()
@@ -1081,7 +1081,8 @@ def test_init_jats_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
     assert main(['transform', 'data/sample.xml', '-t', 'docx', '-o', str(dest / 'out.docx')]) == 0
     assert (dest / 'out.docx').stat().st_size > 0
     assert main(['chunk', 'data/sample.xml', '--force']) == 0
-    chunks = sorted((dest / 'chunks').glob('[0-9]*.html'))
+    # Pages live under <output>/<document>.xml/, one directory per document.
+    chunks = sorted(next((dest / 'chunks').glob('*.xml')).glob('[0-9]*.html'))
     # front + two sections + back
     assert len(chunks) == 4
     # @id anchors resolve across chunks even though JATS has no xml:id.
@@ -1149,7 +1150,7 @@ def test_init_example_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
     assert main(['transform', sample, '-o', str(html)]) == 0
     assert 'Digital Editions at Bibliotheca Hertziana' in html.read_text(encoding='utf-8')
     assert main(['chunk', sample, '--force']) == 0
-    assert (dest / 'chunks' / 'manifest.json').is_file()
+    assert next((dest / 'chunks').glob('*.xml')).joinpath('manifest.json').is_file()
 
 
 def test_example_catalogue_matches_shipped_directories() -> None:
@@ -1232,7 +1233,7 @@ def test_init_tei_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
     assert main(['transform', 'data/sample.xml', '-t', 'docx', '-o', str(dest / 'out.docx')]) == 0
     assert (dest / 'out.docx').stat().st_size > 0
     assert main(['chunk', 'data/sample.xml', '--force']) == 0
-    chunk_files = list((dest / 'chunks').glob('*.html'))
+    chunk_files = list(next((dest / 'chunks').glob('*.xml')).glob('*.html'))
     assert len(chunk_files) >= 2
 
 
@@ -1248,4 +1249,4 @@ def test_init_docbook_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
     assert main(['transform', 'data/sample.xml', '-t', 'docx', '-o', str(dest / 'out.docx')]) == 0
     assert (dest / 'out.docx').stat().st_size > 0
     assert main(['chunk', 'data/sample.xml', '--force']) == 0
-    assert list((dest / 'chunks').glob('*.html'))
+    assert list(next((dest / 'chunks').glob('*.xml')).glob('*.html'))

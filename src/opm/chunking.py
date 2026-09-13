@@ -243,10 +243,10 @@ class ChunkProcessor:
     def shared_root(self) -> Path:
         """Return the directory holding output shared across documents.
 
-        Chunking a directory gives each document its own subdirectory, so
-        stylesheets and assets belong one level up, beside the collection
-        index — one copy for the whole edition. For a single document the
-        output directory is itself the root.
+        Each document gets its own subdirectory, so stylesheets and assets
+        belong one level up, beside the collection index — one copy for the
+        whole edition. Without ``link_doc`` the output directory is itself the
+        root.
         """
         return self.output_dir.parent if self.config.link_doc else self.output_dir
 
@@ -263,12 +263,11 @@ class ChunkProcessor:
         ``odd_css_url`` pointing at it, alongside the ``odd_css`` string, which
         stays available so a template that inlines it keeps working. Stylesheets
         among ``config.assets`` are listed in ``asset_styles``, in declared
-        order. ``index_url`` points back at the collection index a directory
-        run writes at [`shared_root`][opm.chunking.ChunkProcessor.shared_root] (see ``build_index``) — empty for a
-        single-document run, which has no such page to link to.
+        order. ``index_url`` points back at the collection index written at
+        [`shared_root`][opm.chunking.ChunkProcessor.shared_root] (see ``build_index``) — empty when the caller sets
+        no ``link_doc``, as there is then no such page to link to.
 
-        Safe to call once per document in a directory run — the writes are
-        idempotent.
+        Safe to call once per document — the writes are idempotent.
         """
         root = self.shared_root()
         prefix = self.url_prefix()
@@ -286,10 +285,8 @@ class ChunkProcessor:
         if self.config.assets:
             assets_dir = root / 'assets'
             assets_dir.mkdir(parents=True, exist_ok=True)
-            for asset in self.config.assets:
-                source = asset if asset.is_absolute() else self.project_root / asset
-                if not source.exists():
-                    raise FileNotFoundError(f'Asset not found: {source}')
+            sources = resolve_assets(self.project_root, self.config.assets)
+            for source in sources:
                 target = assets_dir / source.name
                 if source.is_dir():
                     shutil.copytree(source, target, dirs_exist_ok=True)
@@ -299,9 +296,9 @@ class ChunkProcessor:
             # Stylesheets among the assets, in the order they were declared —
             # that is the cascade order, so a template can link them blind.
             urls['asset_styles'] = [
-                f'{prefix}assets/{asset.name}'
-                for asset in self.config.assets
-                if asset.suffix.lower() == '.css'
+                f'{prefix}assets/{source.name}'
+                for source in sources
+                if source.suffix.lower() == '.css'
             ]
 
         return urls
@@ -348,9 +345,8 @@ class ChunkProcessor:
     def entry_href(self) -> str:
         """Return the link to this document's entry point, relative to the output root.
 
-        In directory mode ``config.link_doc`` names the per-document
-        subdirectory, giving ``quickstart.xml/001.html``; for a single document
-        there is no prefix.
+        ``config.link_doc`` names the per-document subdirectory, giving
+        ``quickstart.xml/001.html``; without it there is no prefix.
         """
         doc = (self.config.link_doc or '').strip('/')
         entry = self.entry_file()
@@ -367,11 +363,25 @@ class ChunkProcessor:
           ``display='browse'`` models in the stock ODDs build their link as
           ``<param name="uri" value="$parameters?doc"/>``, so declaring the
           fragment is enough to get a working href.
-        * ``{doc}``, ``{doc_stem}``, ``{file}`` and ``{stem}`` placeholders are
-          expanded in string values, using the same vocabulary as
-          [`ChunkingConfig.link_pattern`][opm.config.ChunkingConfig.link_pattern]. This is how an absolute or
-          TEI-Publisher-style scheme is configured, e.g.
-          ``parameters = { display = "browse", doc = "/exist/apps/x/{doc}/{stem}" }``.
+        * Placeholders in string values are expanded by ``_expand_placeholders``.
+          This is how an absolute or TEI-Publisher-style scheme is configured,
+          e.g. ``parameters = { display = "browse", doc = "/exist/apps/x/{doc}/{stem}" }``.
+        """
+        expanded = self._expand_placeholders(params)
+        expanded.setdefault('doc', self.entry_href())
+        return expanded
+
+    def _expand_placeholders(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Expand ``{…}`` placeholders in string parameter values.
+
+        ``{doc}``, ``{doc_stem}``, ``{file}`` and ``{stem}`` carry the same
+        vocabulary as [`ChunkingConfig.link_pattern`][opm.config.ChunkingConfig.link_pattern].
+        ``{prefix}`` is the path from a chunk page back to the output root,
+        where the shared ``css/`` and ``assets/`` live. ``opm chunk`` writes
+        every page into a per-document subdirectory, so it expands to ``../``;
+        it is empty only for a caller driving this class with no ``link_doc``.
+        A parameter holding a URL into ``assets/`` should use it rather than
+        hard-coding the hop: ``context-path = "{prefix}assets"``.
 
         Values with unknown placeholders are passed through untouched, so
         parameters that legitimately contain braces are unaffected.
@@ -387,11 +397,11 @@ class ChunkProcessor:
                         doc_stem=Path(doc).stem,
                         file=entry,
                         stem=Path(entry).stem,
+                        prefix=self.url_prefix(),
                     )
                 except (KeyError, IndexError, ValueError):
                     pass
             expanded[key] = value
-        expanded.setdefault('doc', self.entry_href())
         return expanded
 
     def generate_chunk_metadata(self, chunk: etree._Element, index: int) -> ChunkMetadata:
@@ -655,8 +665,13 @@ class ChunkProcessor:
             return str(fragment_content)
 
     def _chunk_options(self) -> dict[str, Any]:
-        """The ``transform()`` options every chunk runs with."""
-        options: dict[str, Any] = dict(self.parameters)
+        """The ``transform()`` options every chunk runs with.
+
+        Placeholders are expanded first, so a parameter pointing into
+        ``assets/`` (``context-path = "{prefix}assets"``) resolves from the
+        depth the chunk pages are actually written at.
+        """
+        options: dict[str, Any] = self._expand_placeholders(self.parameters)
         if self.webcomponents:
             options['webcomponents'] = True
         return options
@@ -801,7 +816,9 @@ class ChunkProcessor:
                 head_html=head_html,
                 content_html=content_html,
                 odd_css=self.odd_css,
-                parameters=self.parameters,
+                # Expanded the same way the transform sees them, so a template
+                # and XPath never disagree about a parameter's value.
+                parameters=self._expand_placeholders(self.parameters),
                 lang="",
                 context=self.template_context,
                 # Add chunk-specific context
@@ -1389,6 +1406,36 @@ def _humanise(stem: str) -> str:
     return text[:1].upper() + text[1:] if text else stem
 
 
+def resolve_assets(root: Path, assets: tuple[Path, ...]) -> list[Path]:
+    """Expand ``[chunking] assets`` entries to the paths to copy.
+
+    An entry holding ``*``, ``?`` or ``[`` is matched against the filesystem, so
+    ``iiif/*`` copies every document's directory in one line instead of naming
+    each one — and keeps working when a document is added. Matches are sorted,
+    which fixes the cascade order of any stylesheets among them. Every other
+    entry is taken literally.
+
+    A literal path that does not exist, or a pattern matching nothing, raises
+    ``FileNotFoundError``. The alternative is output quietly missing a file a
+    template or model expects, which surfaces much later as a 404.
+    """
+    resolved: list[Path] = []
+    for asset in assets:
+        source = asset if asset.is_absolute() else root / asset
+        text = str(source)
+        if any(char in text for char in '*?['):
+            pattern = str(source.relative_to(source.anchor))
+            matches = sorted(Path(source.anchor).glob(pattern))
+            if not matches:
+                raise FileNotFoundError(f'Asset pattern matched nothing: {source}')
+            resolved.extend(matches)
+        elif source.exists():
+            resolved.append(source)
+        else:
+            raise FileNotFoundError(f'Asset not found: {source}')
+    return resolved
+
+
 def collect_index_entries(output_dir: Path) -> list[IndexEntry]:
     """Collect one [`IndexEntry`][opm.chunking.IndexEntry] per chunked document under *output_dir*.
 
@@ -1464,9 +1511,9 @@ def build_index(
     odd_name = getattr(load_transform_module(module_path), 'ODD_NAME', '') if module_path else ''
     odd_css_url = f'css/{odd_name}.css' if odd_css and odd_name else ''
     asset_styles = [
-        f'assets/{asset.name}'
-        for asset in chunk_cfg.assets
-        if asset.suffix.lower() == '.css'
+        f'assets/{source.name}'
+        for source in resolve_assets(project_root or output_dir, chunk_cfg.assets)
+        if source.suffix.lower() == '.css'
     ]
 
     rendered = render_index_template(

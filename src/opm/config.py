@@ -136,6 +136,9 @@ class ChunkingConfig:
     assets: tuple[Path, ...] = ()
     """Files or directories copied into ``<output-root>/assets/``.
 
+    An entry may be a glob: ``iiif/*`` copies every directory under ``iiif/``,
+    so a project that adds a document does not have to add a line here.
+
     Chunk output directories are wiped on every rebuild, so anything a template
     references — a stylesheet, an image, a font — has to be placed there by the
     build. Templates receive ``assets`` as a relative URL prefix
@@ -151,8 +154,8 @@ class ChunkingConfig:
       ``{file}``   – full filename, e.g. ``002.html``
       ``{stem}``   – stem without extension, e.g. ``002``
       ``{anchor}`` – the fragment identifier, e.g. ``Pers``
-      ``{doc}``    – document subdirectory when directory-chunking, e.g.
-                     ``quickstart.xml`` (empty for a single-file output)
+      ``{doc}``    – the document's own subdirectory, e.g. ``quickstart.xml``
+                     (empty only when chunking with no ``link_doc``)
 
     When *None* (default) the rewriter falls back to the relative form
     ``{file}#{anchor}``.  Example values:

@@ -158,9 +158,8 @@ Chunking writes a manifest JSON describing every chunk: its file, anchors,
 fragment locations, and `prev`/`next` navigation links. Cross-chunk links follow
 `chunking.link_pattern` (placeholders `{file}`, `{stem}`, `{anchor}`, `{doc}`,
 `{doc_stem}`), so you can match your site's URL scheme. `{doc}` is the
-per-document subdirectory when chunking a directory of XML files (empty
-otherwise), and `{doc_stem}` is that name without the `.xml` suffix — which is
-what a framework route usually wants:
+per-document subdirectory every chunk run writes, and `{doc_stem}` is that name
+without the `.xml` suffix — which is what a framework route usually wants:
 
 ```toml
 [chunking]
@@ -210,18 +209,27 @@ rebuild and nothing else puts files there:
 assets = ["templates/letter.css", "templates/parchment.jpg", "templates/fonts"]
 ```
 
-Each entry is copied into `<output-root>/assets/`. Templates receive an
-`assets` URL prefix for referencing them by hand, and `asset_styles` — the
-stylesheets among them, as URLs, in the order declared — so a template links
-them without naming any file:
+Each entry is copied into `<output-root>/assets/`, keeping its own name. An
+entry may be a glob, which is how a project stops editing this list every time
+it gains a document:
+
+```toml
+assets = ["iiif/*"]     # every iiif/<document>.xml/ lands in assets/
+```
+
+Templates receive an `assets` URL prefix for referencing them by hand, and
+`asset_styles` — the stylesheets among them, as URLs, in the order declared —
+so a template links them without naming any file:
 
 ```jinja
 {% for href in asset_styles %}<link rel="stylesheet" href="{{ href }}">{% endfor %}
 ```
 
-Declaration order is cascade order. Only entries you list explicitly with a
-`.css` suffix are linked; a directory copied as an asset is not scanned, so
-adding `fonts/` does not start injecting stylesheets from inside it.
+Declaration order is cascade order, with a glob's own matches sorted by name.
+Only entries — or glob matches — whose suffix is `.css` are linked; a directory
+copied as an asset is not scanned, so adding `fonts/` does not start injecting
+stylesheets from inside it. A listed path that does not exist, or a pattern
+matching nothing, fails the run rather than leaving the output a file short.
 
 A stylesheet in `assets/` references a sibling by plain filename
 (`url("parchment.jpg")`), since CSS URLs resolve against the stylesheet's own
@@ -245,8 +253,8 @@ once and cached.
 
 ## Collection index
 
-Chunking a *directory* writes one subdirectory per document, plus an
-`index.html` at the output root listing them all. `http.server` serves
+Chunking writes one subdirectory per document, plus an `index.html` at the
+output root listing them all — one document or fifty. `http.server` serves
 `index.html` in preference to a directory listing, so `opm serve` shows a real
 landing page with no further configuration.
 
@@ -271,6 +279,17 @@ expand exactly as in `link_pattern`:
 
 ```toml
 parameters = { display = "browse", doc = "/exist/apps/edition/{doc}/{stem}" }
+```
+
+The same expansion applies to `[transform.parameters]`, with one placeholder
+more: `{prefix}` is the path from a chunk page back to the output root, where
+the shared `css/` and `assets/` live — `../` for the pages `opm chunk` writes.
+A parameter holding a URL into `assets/` should use it rather than hard-coding
+that hop:
+
+```toml
+[transform.parameters]
+context-path = "{prefix}assets"
 ```
 
 The index degrades gracefully when a project has no such models: it falls back
@@ -315,9 +334,9 @@ in a `<style>` block on the index — one place to change the design.
 ## Previewing
 
 Chunk and preview in one step. `--preview` serves the output directory and
-opens the first page in a browser — `index.html` for a directory run, `001.html`
-for a single document, which writes no index. Only HTML output is opened;
-`--format json` / `pb-view` is served for another tool to fetch.
+opens `index.html`, the collection index every HTML run writes. Only HTML
+output is opened; `--format json` / `pb-view` is served for another tool to
+fetch.
 
 ```bash
 opm chunk data/F-ado.xml -o chunks/ --force --preview

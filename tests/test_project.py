@@ -198,9 +198,10 @@ def test_chunk_writes_below_the_project_root(tmp_path: Path, monkeypatch) -> Non
     assert run.output_dir == site
     assert run.documents == (xml,)
     assert run.format == 'html'
-    assert run.index_file is None
+    # One document or many, an HTML run writes the collection index.
+    assert run.index_file == site / 'index.html'
     assert run.modules[0].source_odd == tmp_path / 'tiny.odd'
-    manifest = json.loads((site / 'manifest.json').read_text(encoding='utf-8'))
+    manifest = json.loads((site / 'doc.xml' / 'manifest.json').read_text(encoding='utf-8'))
     assert manifest['anchors'] == {'a': '001.html', 'b': '002.html'}
     assert not (elsewhere / 'site').exists()
 
@@ -218,7 +219,7 @@ def test_chunk_replaces_existing_output_only_when_asked(tmp_path: Path) -> None:
 
     project.chunk(xml, overwrite=True)
     assert not stale.exists()
-    assert (tmp_path / 'site' / '001.html').is_file()
+    assert (tmp_path / 'site' / 'doc.xml' / '001.html').is_file()
 
 
 def test_chunk_a_directory(tmp_path: Path) -> None:
@@ -247,7 +248,9 @@ def test_chunk_json_and_pb_view_formats(tmp_path: Path) -> None:
     xml = _doc(tmp_path / 'doc.xml')
 
     project.chunk(xml, format='json')
-    chunk = json.loads((tmp_path / 'site' / '001.json').read_text(encoding='utf-8'))
+    chunk = json.loads(
+        (tmp_path / 'site' / 'doc.xml' / '001.json').read_text(encoding='utf-8'),
+    )
     assert 'first chunk' in chunk['content']
 
     project.chunk(xml, format='pb-view', doc_path='letters', overwrite=True)
@@ -279,7 +282,9 @@ def test_chunk_compiles_fragment_odds(tmp_path: Path) -> None:
     run = project.chunk(_doc(tmp_path / 'doc.xml'))
 
     assert [m.source_odd for m in run.modules] == [tmp_path / 'tiny.odd', tmp_path / 'frag.odd']
-    manifest = json.loads((tmp_path / 'site' / 'manifest.json').read_text(encoding='utf-8'))
+    manifest = json.loads(
+        (tmp_path / 'site' / 'doc.xml' / 'manifest.json').read_text(encoding='utf-8'),
+    )
     assert 'from the fragment ODD' in manifest['fragments']['toc']
 
 

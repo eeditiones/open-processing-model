@@ -31,7 +31,7 @@ cd examples/shakespeare
 ```bash
 opm transform data/F-ado.xml --preview
 opm transform data/F-ado.xml -t markdown --preview
-opm transform data/F-ado.xml -t typst -o folio.typ
+opm transform data/F-ado.xml -t typst -o folio.pdf
 opm transform data/F-ado.xml -t docx -o folio.docx
 opm transform data/F-ado.xml -t epub -o folio.epub
 ```
@@ -43,8 +43,9 @@ opm chunk data/F-ado.xml --force --preview
 opm serve
 ```
 
-This writes 21 pages to `chunks/`, one per `<pb/>`. Serve them rather than
-opening the files directly: the facsimile viewer fetches its manifest over
+This writes 21 pages to `chunks/F-ado.xml/`, one per `<pb/>`, with the
+stylesheets, assets and an `index.html` shared at `chunks/`. Serve them rather
+than opening the files directly: the facsimile viewer fetches its manifest over
 HTTP.
 
 ## Page chunking
@@ -127,12 +128,14 @@ by `$parameters?static`, which builds the URL from `context-path` instead:
 ```toml
 [transform.parameters]
 static = "1"
-context-path = "assets"
+context-path = "{prefix}assets"
 ```
 
-That yields `facs="assets/F-ado.xml/manifest.json"`, and `[chunking] assets`
-copies `iiif/F-ado.xml/` to exactly that path in the output. So the viewer works
-straight from `opm serve`, with no ODD override anywhere.
+That yields `facs="../assets/F-ado.xml/manifest.json"`: the pages sit in a
+per-document subdirectory while `[chunking] assets` copies every
+`iiif/<document>.xml/` to the output root, and `{prefix}` supplies the hop
+between them. So the viewer works straight from `opm serve`, with no ODD
+override anywhere.
 
 `iiif/F-ado.xml/manifest.json` is checked in, built by
 `scripts/build_manifest.py` from the 21 `pb/@facs` values:
@@ -143,8 +146,10 @@ python scripts/build_manifest.py
 
 The script reads each image's IIIF `info.json` for its true dimensions — the
 folios differ, and Tify places deep-zoom tiles from them — and writes to
-`iiif/<document-name>/manifest.json`, the path the `<pb>` model above points at.
-Re-run it after changing the source document, or if the image server moves.
+`iiif/<document-name>/manifest.json` in the project. `[chunking] assets` is what
+puts it where the `<pb>` model looks, under `assets/` in the output. With no
+argument the script covers every document in `data/`; name one to rebuild just
+that. Re-run it after changing a source document, or if the image server moves.
 
 The images come from the same public server the TEI Publisher demo uses, so they
 are fetched over the network: that is the one part of this example that is not
@@ -200,7 +205,7 @@ opm transform data/F-ado.xml -t epub -o folio.epub
 - `templates/book.typ.j2` — Folger-style print edition (line numbers, running heads)
 - `templates/epub.css` — EPUB reading text (scene chapters, no page furniture)
 - `opm.toml` — page chunking, `[context]`, `$global:` settings, chunk fragments
-- `iiif/F-ado.xml/manifest.json` — IIIF manifest, copied to `chunks/assets/`
+- `iiif/<document>.xml/manifest.json` — IIIF manifests, copied to `chunks/assets/`
 - `scripts/build_manifest.py` — regenerates that manifest from `pb/@facs`
 - `data/F-ado.xml` — the Folio text
 
