@@ -2,22 +2,22 @@
 
 Large documents are awkward to serve as one giant HTML page. `opm chunk` splits a
 document into smaller pieces, transforms each one, and writes the results plus a
-manifest — ideal for static site generators and web components.
+manifest — this is ideal for static site generators and web components.
 
 Three different types of output are supported (use `--format` to switch between them):
 
 - **`html`** (default) — renders each chunk through a template
-  (`chunking.template`), generating in a series of HTML files. Use this for quick previews
+  (`chunking.template`), generating a series of HTML files. Use this for quick previews
   or to create a simple static edition which does not need a complex framework.
 - **`json`** — one JSON file per chunk, including the rendered content and optional fragments. Ideal for integration into 
 static site generators like [Eleventy](https://www.11ty.dev/), [Hugo](https://gohugo.io/), [Astro](https://astro.build/) and others 
 that consume data files.
 - **`pb-view`** — an index table plus part files to be consumed by TEI Publisher's
   viewer web component. Use this to pre-render content for fast display in an existing
-  TEI Publisher based website (see [Integration with TEI Publisher](tei-publisher.md)) for
-  uploading those files into an app and switching the webcomponent to static mode.
+  TEI Publisher-based website (see [Integration with TEI Publisher](tei-publisher.md)) for
+  uploading those files into an app, and switching the webcomponent to static mode.
 
-Example use for the Shakespeare sample:
+Example using the Shakespeare sample:
 
 ```bash
 opm init --example shakespeare shakespeare-demo
@@ -37,16 +37,15 @@ opm init --example serafin serafin-demo
 cd serafin-demo
 
 opm chunk data/letters -o chunks/ --force
-opm chunk data/letters --format json -o _data/chunks
+opm chunk data/letters --format json -o output/chunks
 opm chunk data/letters --format pb-view --doc-path letters -o public
 ```
 
-Most settings come from the `[chunking]` section of `opm.toml`; CLI options
-override them. See [Configuration](configuration.md) for the full schema.
+Most settings come from the `[chunking]` section of `opm.toml`; which can be overridden by the CLI commands. See [Configuration](configuration.md) for the full schema.
 
 ## Selecting chunks
 
-Chunk roots are selected by an XPath expression (default `//text/body/div`):
+Chunk roots are selected by an XPath expression (default `//text/body/div`), configured as:
 
 ```toml
 [chunking]
@@ -54,8 +53,8 @@ xpath = "//text/body/div"
 depth = 2          # maximum heading depth at which to split
 ```
 
-For logic that XPath can't express, point `selector` at a Python callable
-(dotted path) that returns the chunk elements. Built-ins:
+For logic that XPath can't express, you can use a `selector` (dotted path) to call Python objects
+ that return the chunk elements. Built-in selectors:
 
 | Selector | Use |
 | --- | --- |
@@ -64,6 +63,8 @@ For logic that XPath can't express, point `selector` at a Python callable
 | `opm.navigation.dbk_section_chunks` | DocBook by `section` |
 | `opm.navigation.jats_sec_chunks` | JATS by `sec`, with `front` and `back` as their own chunks |
 
+Configuration sample:
+
 ```toml
 [chunking]
 selector = "opm.navigation.tei_pb_chunks"
@@ -71,23 +72,39 @@ view = "page"
 ```
 
 The bundled `shakespeare` example (`opm init --example shakespeare`) is a
-page-chunked project: a First Folio play split at every `<pb/>`, where
-speeches spanning a page break stay intact on both pages. The `jats` example is
-the counterpart: a real journal article where `front` and `back` become chunks
+page-chunked project (`opm chunk data/F-ado.xml --force`): a First Folio play split at every `<pb/>`. The `jats` example is
+a counterpart in which chunks are done by semantic divisions instead of pages: a real journal article where `front` and `back` become chunks
 alongside the body sections.
 
 ## Fragments
 
 Alongside the main chunk content, you can extract **fragments** — secondary
 pieces pulled from the document or from each chunk, such as a table of contents,
-breadcrumbs, or the work title. They are configured under `[chunking]` as an
-array of tables and surface in the template as `fragments.<name>`, in each JSON
-chunk, and (for `scope = "global"`) in the manifest. With `--format pb-view`,
+breadcrumbs, or the work title. Each one of them is configured under `[chunking.fragments]` and there are two different scopes: `global` (document root as context) and `per-chunk` (chunk as context). They are listed in the manifest, and you can retrieve them in the templates with `fragments.<name>`.
+
+ With the flag `--format pb-view`,
 global fragments become `{name}.json` part files (e.g. `toc.json`) plus a
 sibling `{name}.html` with the same markup, and per-chunk fragments become
-`{name}-{xml:id}.json`; both JSON parts are registered in `index.json` under
-the fragment xpath and any `user.*` parameters so a second `pb-view` can load
-them in static mode.
+`{name}-{xml:id}.json`. All JSON parts are registered in `index.json` under
+the fragment XPath and any `user.*` parameters so a second `pb-view` can load
+them in static mode. Thus a fragment who is configured as:
+
+```toml
+[[chunking.fragments]]
+name = "title"
+scope = "global"
+xpath = "(//teiHeader/fileDesc/titleStmt/title)[1]"
+parameters = { mode = "title" }
+```
+
+... will be listed in the index as:
+
+```json
+"odd=shakespeare.odd&user.mode=title&view=page&xpath=(//teiHeader/fileDesc/titleStmt/title)[1]": "title.json"
+```
+
+
+More configuration examples:
 
 ```toml
 [[chunking.fragments]]
@@ -113,11 +130,11 @@ parameters = { mode = "breadcrumb" }
 | --- | --- |
 | `name` | Template / JSON key (`fragments.title`, `fragments.breadcrumbs`, …) |
 | `scope` | `global` — evaluate once against the document root; `per-chunk` — once per chunk with the chunk as context |
-| `xpath` | XPath 3.1 selecting the node(s) or string to emit (default `.`) |
-| `parameters` | Extra `$parameters` for that transform (e.g. `mode = "breadcrumb"`). DocBook `mode = "toc"` uses OPM's `opm-web` models (`details`/`pb-link`, matching `dapi:toc-div`) so a jinks `pb-load` of `toc.html` works with `toc.js`. Optional `target` overrides the pb-link emit channel (default `transcription`); `collapse = true` starts nested entries closed. |
+| `xpath` | XPath expression (XPath 3.1) selecting the node(s) or string to emit (default `.`) |
+| `parameters` | Extra `$parameters` for that transformation (e.g. `mode = "breadcrumb"`). <!-- TODO: add the specification of these other parameters somewhere else or in a clearly manner: DocBook `mode = "toc"` uses OPM's `opm-web` models (`details`/`pb-link`, matching `dapi:toc-div`) so a jinks `pb-load` of `toc.html` works with `toc.js`. Optional `target` overrides the pb-link emit channel (default `transcription`); `collapse = true` starts nested entries closed. -->| 
 | `odd` / `mode` | Rare. Use a different ODD for this fragment only (`odd`), compiled for output channel `mode` (`web` by default — not the same as `$parameters?mode` above). Omit to reuse the chunking ODD. |
 
-A string result (as with a bare `string(…)` xpath) is used as-is — fine inside a
+<!-- TODO: A string result (as with a bare `string(…)` xpath) is used as-is — fine inside a
 Jinja template, but not valid as a standalone `.html` file. Prefer selecting an
 element and transforming it (e.g. `parameters = { mode = "title" }`) when the
 fragment is also written to disk. In a Jinja template:
@@ -127,18 +144,32 @@ fragment is also written to disk. In a Jinja template:
 …
 {{ fragments.breadcrumbs | safe }}
 ```
+--> 
+## Manifest and navigation
+
+Chunking writes a manifest JSON describing every chunk: its file, anchors,
+fragment locations, and `prev`/`next` navigation links. Cross-chunk links follow the
+`chunking.link_pattern` configuration (placeholders `{file}`, `{stem}`, `{anchor}`, `{doc}`,
+`{doc_stem}`), so you can match your site's URL scheme. `{doc}` is the
+per-document subdirectory when chunking a directory of XML files (empty
+otherwise), and `{doc_stem}` is that name without the `.xml` suffix<!-- — which is
+what a framework route usually wants-->:
+
+```toml
+[chunking]
+link_pattern = "/{doc}/{file}"          # /serafin01.xml/001.html
+link_pattern = "/letters/{doc_stem}/{stem}/#{anchor}"   # /letters/serafin01/001/
+```
 
 ## `$parameters?root`
 
 While a chunk is transformed, `$parameters?root` is the **original node** that
-chunk was copied from — the tei-publisher-lib convention documented under
-[ODD files](odd-files.md#parametersroot). The document node is
+chunk was copied from (see [ODD files](odd-files.md#parametersroot)). The document node is
 `root($parameters?root)`.
 
-`dbk_section_chunks` and `tei_pb_chunks` sometimes yield a detached copy (a fill
-intro, a reconstructed page). The copy has no ancestors, but it keeps the
-source `xml:id`, so `opm` maps it back. ODD models that need the rest of the
-document should walk from `$parameters?root`, not from `.`:
+Chunks created by `dbk_section_chunks` and `tei_pb_chunks` sometimes yield a node detached from the original XML tree. Thus, this node has no ancestors, but it keeps the
+source `xml:id`, so `opm` is able to map it back. ODD models that need the rest of the
+document should walk from `$parameters?root`, and not from `.`. For example, to access the title of the document from a chunked article or section:
 
 ```xpath
 (($parameters?root)/ancestor::article/info/title,
@@ -146,11 +177,12 @@ document should walk from `$parameters?root`, not from `.`:
  title)
 ```
 
-`not($parameters?root is ..)` is then true only for ancestor titles, so the
+<!--`not($parameters?root is ..)` is then true only for ancestor titles, so the
 current chunk’s heading stays unlinked in a breadcrumb trail.
 
 `opm transform` (no chunking) binds `$parameters?root` to the document element,
 so `root($parameters?root)//…` still reaches the header.
+-->
 
 ## Manifest and navigation
 
@@ -170,27 +202,24 @@ link_pattern = "/letters/{doc_stem}/{stem}/#{anchor}"   # /letters/serafin01/001
 ## Stylesheets and static assets
 
 Chunking always writes the stylesheets as files under `<output-root>/css/` and
-hands templates `odd_css_url`. Chunk output is several pages
+hands templates the path to the CSS (`odd_css_url`). <!--Chunk output is several pages
 sharing one stylesheet, so embedding the same bytes in each page only makes the
 output bigger and uncacheable. (`--format pb-view` has always written
-`css/<odd>.css`; HTML output now matches it.)
+`css/<odd>.css`; HTML output now matches it.)-->
 
-`css/<odd>.css` holds the ODD's own `<rendition>` rules, preceded by the base
-rules every ODD-rendered document needs — the `.alternate` / `.altcontent`
-popover behind `choice`, `.tei-cb` column breaks, margin notes. Those describe
-markup the runtime emits rather than anything a project chose, so they travel
-with the ODD stylesheet wherever it goes, `--format pb-view` included, and an
-ODD's `outputRendition` can still override them.
+The file `css/<odd>.css` holds the ODD's own `<rendition>` rules, preceded by the base
+rules every ODD-rendered document needs (e.g. the `.alternate` / `.altcontent`
+popover behind the `choice` behaviour , `.tei-cb` for column breaks, etc.; these can still be overridden by the ODD's `outputRendition`). 
 
 `[transform] css` does not add a second stylesheet — it *replaces* those base
-rules, so a project can restyle what the runtime emits without losing the ODD's
-own renditions. Because it changes the compiled stylesheet it is part of the ODD
-cache key, so a project overriding it gets its own compiled module.
+rules, so a project can change the default style without losing the ODD's
+own renditions. <!--Because it changes the compiled stylesheet it is part of the ODD
+cache key, so a project overriding it gets its own compiled module.-->
 
 ```jinja
 <link rel="stylesheet" href="{{ odd_css_url }}">
 ```
-
+<!--
 The `odd_css` string is still passed, so a template that inlines it keeps
 working, and the URL is empty when the stylesheet turns out to be empty — hence
 the defensive form used by the packaged template:
@@ -199,10 +228,10 @@ the defensive form used by the packaged template:
 {% if odd_css_url %}<link rel="stylesheet" href="{{ odd_css_url }}">
 {% elif odd_css %}<style>{{ odd_css }}</style>{% endif %}
 ```
-
+-->
 Anything else a page needs — the template's own stylesheet, an image, a font —
-is listed under `assets`, because the output directory is wiped on every
-rebuild and nothing else puts files there:
+is listed under `assets`<!--, because the output directory is wiped on every
+rebuild and nothing else puts files there-->:
 
 ```toml
 [chunking]
@@ -231,7 +260,7 @@ copied as an asset is not scanned, so adding `fonts/` does not start injecting
 stylesheets from inside it. A listed path that does not exist, or a pattern
 matching nothing, fails the run rather than leaving the output a file short.
 
-A stylesheet in `assets/` references a sibling by plain filename
+<!--A stylesheet in `assets/` references a sibling by plain filename
 (`url("parchment.jpg")`), since CSS URLs resolve against the stylesheet's own
 location rather than the page's — so one texture file serves the whole edition
 instead of a base64 copy per page. That is why project design CSS belongs here
@@ -239,7 +268,7 @@ rather than in `[transform] css`: only assets can carry the files it depends on.
 
 All these URLs are relative to the page that uses them: bare from the index at
 the output root, `../`-prefixed from a chunk page in a per-document
-subdirectory.
+subdirectory.-->
 
 Images the document itself references need no entry. When a chunk page contains
 an `<img>` whose `src` is a relative path, the file is looked up next to the
@@ -247,9 +276,9 @@ source XML, then in a sibling `images/` directory — the same rule EPUB output
 follows — and copied to that path beside the chunk pages. Remote URLs, root-relative paths, and paths leading out of
 the output directory are left alone; images that cannot be found are skipped.
 
-The `serafin` example does exactly this. Its pages dropped from 168 KB to 96 KB
+<!--The `serafin` example does exactly this. Its pages dropped from 168 KB to 96 KB
 and its index from 91 KB to 19 KB, with 42 KB of shared CSS and imagery fetched
-once and cached.
+once and cached.-->
 
 ## Collection index
 
@@ -260,7 +289,7 @@ landing page with no further configuration.
 
 Each entry links to its document's first chunk. What the entry *shows* comes
 from the document's global fragments, so the index is built the same way TEI
-Publisher builds `browse.html` — through the ODD. Declare a fragment using the
+Publisher builds `browse.html` — through the ODD. This is thus done by declaring a fragment using the
 `display='browse'` models the stock ODDs already provide:
 
 ```toml
@@ -273,7 +302,7 @@ parameters = { display = "browse" }
 
 Those models emit the whole browse record — heading, author, description — and
 build their own link from `$parameters?doc`. That parameter is supplied
-automatically, per document, so no further wiring is needed. To use a different
+automatically, per document. To use a different
 URL scheme, set it explicitly; `{doc}`, `{doc_stem}`, `{file}` and `{stem}`
 expand exactly as in `link_pattern`:
 
@@ -296,7 +325,7 @@ The index degrades gracefully when a project has no such models: it falls back
 to a `title` fragment if one is declared, and to a readable form of the filename
 otherwise. Every entry stays clickable in all three cases.
 
-Override the page itself with `chunking.index_template`. The template receives
+You can override the page itself with `chunking.index_template`. The template receives
 `documents` — each with `name`, `stem`, `label`, `href`, `chunks` and
 `fragments` — plus `title`:
 
@@ -312,10 +341,8 @@ Override the page itself with `chunking.index_template`. The template receives
 Because `fragments` is passed whole, adding an author or date column needs no
 code — just another global fragment in `opm.toml` and a reference to it here.
 
-The template also receives `odd_css`, resolved exactly as for chunk pages, so a browse record's `tei-*` classes are styled the same way on the
-index as inside the edition. Since Jinja loads includes from the template's own
-directory, an index template sitting beside the chunk template can pull in the
-same stylesheets and share its page shell:
+The template also receives `odd_css`, resolved exactly as for chunk pages, so the  `tei-*` classes of a browse record are styled the same way on the
+index as inside the edition.
 
 ```jinja
 <style>{% include "letter.css" %}</style>
@@ -329,14 +356,14 @@ same stylesheets and share its page shell:
 `letter.css` as the chunk template and reuses its menubar, toolbar and page
 shell, so the landing page cannot drift from the letters it links to. The
 list's own rules live in that stylesheet too, under `.letter-list`, rather than
-in a `<style>` block on the index — one place to change the design.
+in a `<style>` block on the index — thus the design can be changed from just one place.
 
 ## Previewing
 
-Chunk and preview in one step. `--preview` serves the output directory and
-opens `index.html`, the collection index every HTML run writes. Only HTML
-output is opened; `--format json` / `pb-view` is served for another tool to
-fetch.
+Chunk and preview in one step with the `--preview` flag. It serves the output directory and
+opens the first page in a browser — `index.html` for a directory run, `001.html`
+for a single document. Only HTML output is opened;
+`--format json` / `pb-view` is served for another tool to fetch.
 
 ```bash
 opm chunk data/F-ado.xml -o chunks/ --force --preview

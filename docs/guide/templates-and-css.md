@@ -1,7 +1,7 @@
 # Templates & CSS
 
 When a transform returns a **full document** (the `document` behaviour), HTML and
-Typst output are wrapped in a Jinja2 template. Fragment output — for example when
+Typst output are wrapped in a [Jinja2 template](https://jinja.palletsprojects.com). Fragment output — for example when
 you select a single element with `--xpath`, or when `opm chunk` transforms a
 section — is **not** a complete HTML document; the template supplies the shell.
 
@@ -32,8 +32,8 @@ opm transform data/sample.xml \
 
 ### Print templates
 
-`-t print` uses its own shell so reading-view chrome (nav, web components) stays
-out of paged output:
+`-t print` uses its own shell<!-- so reading-view chrome (nav, web components) stays
+out of paged output-->:
 
 1. `--template`
 2. `[transform.print] template`
@@ -48,7 +48,7 @@ The DocBook example ships a worked print shell under
 `examples/docbook/templates/print.html.j2`.
 
 The same Jinja file can wrap both a full-document transform and chunked pages.
-What you put in `<head>` has to work for **both** pipelines, which differ in
+The contents of `<head>` have to work for **both** pipelines, which differ in
 how CSS arrives.
 
 ### Document vs fragment output
@@ -165,8 +165,7 @@ nav = [
 </nav>
 {% if context.show_downloads %}<a href="{{ chunk.file }}.pdf">PDF</a>{% endif %}
 ```
-
-This is how a project drives its own template without a code change. Two
+<!--This is how a project drives its own template without a code change. Two
 properties matter:
 
 - **TOML types survive.** Booleans stay booleans, numbers stay numbers, and
@@ -176,9 +175,10 @@ properties matter:
 - **Keys are namespaced.** They live under `context.` rather than at the top
   level, so a project key can never shadow `content_html` or `fragments`, and a
   template makes plain which values are the project's own.
+-->
 
-A missing key is falsy rather than an error, so `{% if context.foo %}` is safe
-for a value the project has not set.
+<!--A missing key is falsy rather than an error, so `{% if context.foo %}` is safe
+for a value the project has not set.-->
 
 The same `context` reaches document templates, chunk templates, the collection
 index template, and Typst templates. To vary it by output type, add a
@@ -200,13 +200,13 @@ paper = "a5"
   rules and linked stylesheets in the ODD (see [ODD files](odd-files.md)). It
   styles the classes the transform emits. How it reaches the page is described
   above: inside `head_html` for `document` output, via `odd_css` for fragments.
-
+<!--
     It opens with a packaged set of base rules for markup the runtime emits
     regardless of ODD — the `.alternate` / `.altcontent` popover behind
     `choice`, `.tei-cb` column breaks, margin notes. They come first, so an
     ODD's own `outputRendition` overrides them, and they travel with the ODD
     stylesheet everywhere it is used.
-
+-->
 - **Base override** (`--css` / `[transform] css`) — replaces those packaged base
   rules for every output mode. It is compiled into the ODD stylesheet rather
   than layered after it, and forms part of the ODD cache key. Use it to restyle

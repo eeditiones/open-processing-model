@@ -12,18 +12,13 @@ opm index -o corpus.jsonl                # no path: defaults to ./data
 
 ## Why index the processing model
 
-The obvious approach is to scrape text out of the source with XPath. The
-problem is that the source is not what your readers see — the ODD has already
-decided that, and those decisions are exactly the ones an index needs:
+While an obvious approach would be to retrieve text out of the source files with XPath, indexing the results of applying the processing model allows you to have better control of what it’s actually indexed. For example:
 
-- `omit` drops the apparatus, deleted readings and editorial matter the page
-  does not display. An XPath scrape indexes them, so searches match text that
-  appears nowhere on the site.
-- `alternate` picks a reading. `<choice><abbr>XML</abbr><expan>Extensible
-  Markup Language</expan></choice>` renders as the expansion; scraped naively
-  it becomes the string `XMLExtensible Markup Language`, which matches neither
-  query.
-- Templates expand abbreviations and inject generated text.
+- `omit` allows you to drop the apparatus, delete readings and editorial matter the page
+  does not display. 
+- `alternate` picks a reading. For example, if we were to naively scrape `<choice><abbr>XML</abbr><expan>Extensible
+  Markup Language</expan></choice>` we will retrieve the string `XMLExtensible Markup Language`, which wouldn’t match neither of the expected
+  queries.
 
 `opm index` runs the same processing model the site runs, so the index contains
 the reading text and nothing else. Changing the ODD changes the index with it.
@@ -52,28 +47,19 @@ the reading text and nothing else. Changing the ODD changes the index with it.
 }
 ```
 
-`metadata` holds **scalars only** — no lists, no nested objects. That is
-ChromaDB's constraint, and the strictest of the common ones; Elasticsearch and
-others accept the same shape.
+`metadata` holds **scalars only** — no lists, no nested objects, just single, atomic values. 
 
-Two more keys appear where the project declares
+Two more keys appear when the project declares
 [fields](#fields-notes-names-dates): `kind` and `parent` on a record extracted
-from a passage, plus one key per metadata field (`persons`, `dates`, whatever
+from a passage, plus one key per metadata field (e.g. `persons`, `dates`, whatever
 you name them).
 
 ### Stable ids
 
-Re-indexing has to upsert in place. A positional counter would mean that adding
-one paragraph reshuffles every id after it, so you either re-embed the whole
-corpus or accumulate orphaned rows.
-
-Ids are therefore derived from content: `{doc}#{xml:id}` where the passage has
+Ids are derived from content: `{doc}#{xml:id}` where the passage has
 an `xml:id`, otherwise `{doc}#{hash of chunk + xpath}`. The `xml:id` form is
 deliberately not scoped to a chunk, so a passage keeps its identity even when
 re-chunking moves it to a different page.
-
-`hash` is a digest of `document`, so an incremental load can skip passages whose
-text has not changed.
 
 ## How passages are chosen
 
@@ -140,9 +126,7 @@ under the field's name, and stays in the prose:
 ```
 
 Repeated values are reported once, and the joining string is `separator`
-(default `"; "`). Metadata is scalars only — ChromaDB's rule — which is why
-several values become one string; if you need them apart, make it a record
-instead.
+(default `"; "`). Metadata is scalars (atomic values). If several values that you would like to separate become one string, you need to create a new entry.
 
 With `metadata = false` each match becomes a record of its own, tagged
 `kind` and carrying the id of the passage it was taken from:
@@ -174,10 +158,10 @@ metadata = false
 inline = true           # keep it in the paragraph as well as extracting it
 ```
 
-Two more things worth knowing. Fields never see content the ODD suppressed —
-`omit`ted apparatus stays out of the index whatever you declare. And an
+Fields never see content the ODD suppressed — an apparatus with the `omit` behaviour
+will stay out of the index whatever you declare. An
 extracted record is a unit like any other, so `min_chars` applies: a two-word
-note is dropped as noise. Lower `[index] min_chars` if short notes matter to
+note could be dropped as noise, thus you need to lower `[index] min_chars` if short notes matter to
 you.
 
 An extracted record takes its own `xml:id` and `xpath` where the fragment has
@@ -188,11 +172,11 @@ less precise.
 ## Links back to the page
 
 A search hit is only useful if the reader can open the passage it came from.
-That is the job of `href`: it names the published page, and where possible the
+That is the job of `href`: it names the published page, and, where possible, the
 exact spot on it.
 
 If the project chunks its documents (a `[chunking]` section in `opm.toml`),
-`opm index` splits each document into the very same pages `opm chunk` publishes
+`opm index` splits each document into the very same pages `opm chunk` publishes,
 and indexes them one page at a time. Every record then knows which page it came
 from, and `href` is that page's filename, followed by `#` and the passage's
 `xml:id` where it has one:
@@ -232,18 +216,21 @@ Take the prefix from `source`, not from `doc`: `doc` is the bare filename stem
 
 ### When the fragment does not jump
 
-`#pi-first-steps` only lands on the passage if the published HTML really
-contains an element carrying that id. `opm index` appends the fragment whenever
+ `opm index` appends the fragment whenever
 the source passage has an `xml:id`, but the HTML only gets an `id` attribute
 where the ODD's behaviour writes one. An ODD that renders no ids gives you
 links that open the right page and leave the reader at the top of it. If deep
 links matter to you, search a chunk's HTML for the id before suspecting the
 index.
 
-## Loading into ChromaDB
+## Use the indexes
 
-`chromadb` is not an `opm` dependency; the JSONL is store-neutral. A worked
-script ships as `examples/index_chroma.py`:
+The JSONL generated by OPM is store-neutral so you need to install an additional library to actually exploit the indexes. See below some options. 
+
+
+### Loading into ChromaDB
+
+In the [source code repository of OPM](https://github.com/eeditiones/open-processing-model) you can find a worked example using [`chromadb`](https://www.trychroma.com/) (see `examples/index_chroma.py`):
 
 ```bash
 pip install chromadb
@@ -252,7 +239,7 @@ python examples/index_chroma.py records.jsonl
 ```
 
 It upserts by `id` and skips records whose `hash` is unchanged, so re-running
-after an edit re-embeds only what moved.
+after an edit re-embeds only what changed.
 
 ```python
 collection.upsert(
@@ -262,9 +249,9 @@ collection.upsert(
 )
 ```
 
-## Loading into Elasticsearch
+### Loading into Elasticsearch
 
-The same records go in through `_bulk` — index `document` as the analysed text
+You can also use [Elasticsearch](https://www.elastic.co/elasticsearch) to query the indexed records. The same records go in through `_bulk` — index `document` as the analysed text
 field and spread `metadata` alongside it:
 
 ```python
@@ -282,12 +269,11 @@ helpers.bulk(Elasticsearch('http://localhost:9200'), [
 ])
 ```
 
-`breadcrumb` and `heading` are worth boosting in a query; `href` and `chunk`
-carry the link you render with each hit.
+`breadcrumb` and `heading` are worth boosting in a query; and remember that `href` and `chunk` carry the link you render with each hit (see [Links back to the page](#links-back-to-the-page)).
 
-## Searching in the browser
+### Searching in the browser
 
-A documentation site does not need a search server at all. The JSONL is already
+The JSONL is already
 one passage per line with the link and the breadcrumb attached, so it can ship
 as a static asset beside the pages and be searched client-side with
 [MiniSearch](https://github.com/lucaong/minisearch) — no index server, no build
@@ -341,4 +327,4 @@ Three things are worth getting right:
 
 This scales to a few thousand passages. Past that the whole index still has to
 reach the browser on first search, and a tool that shards its index across
-fragments — Pagefind, say — starts to pay for itself.
+fragments — e.g. [Pagefind](https://pagefind.app/) — will be more adequate.

@@ -12,8 +12,8 @@ The same steps apply to your own edition.
 
 ## Before you start
 
-Every division that should appear as its own page must have an `xml:id`. In the
-documentation those are DocBook `section` elements; in a TEI edition they are
+Every division that should appear as its own page must have an `@xml:id`. In a DocBook
+documentation project, those are DocBook `section` elements; in a TEI edition they are
 usually `div`s:
 
 ```xml
@@ -23,19 +23,23 @@ usually `div`s:
 </section>
 ```
 
+```xml
+<div xml:id="introduction">
+    <head>Introduction</head>
+    …
+</div>
+```
+
 TEI Publisher can also address a section by an internal database identifier.
 `opm` works on files and has no access to those, so a stable `xml:id` is the
 only way to match a prepared page to what `pb-view` asks for. Identifiers must
 be unique within the document.
 
-You also need a TEI Publisher application — either one you generated with
-[Jinks](https://github.com/eeditiones/jinks) using the docs blueprint, or an
-app already installed under the name `tei-publisher`.
+This documentation will cover how to upload files to a [Jinks](https://github.com/eeditiones/jinks)-generated application. In this walkthrough we are using the Jinks documentation itself, written in Docbook, and a Jinks-generated application named `tei-publisher`.
 
 ## 1. Generate the pages
 
-From this repository, with the jinks sources checked out next to it, chunk every
-documentation file in one go:
+First chunk every source file. Example, using the Jinks documentation:
 
 ```bash
 opm chunk ../jinks/profiles/docs/data/doc \
@@ -49,8 +53,8 @@ document (`chunks/doc/quickstart.xml/`, `chunks/doc/documentation.xml/`, …).
 ## 2. Upload them into the app
 
 Copy the `chunks/` tree into a collection called `cached` inside the
-application. [`xst`](https://github.com/eXist-db/xst) is the command-line client
-for eXist-db:
+application. You can use [`xst`](https://github.com/eXist-db/xst), the command-line client
+for eXist-db, to do so:
 
 ```bash
 xst upload chunks/ /db/apps/tei-publisher/cached/ -v
@@ -59,12 +63,12 @@ xst upload chunks/ /db/apps/tei-publisher/cached/ -v
 Change `tei-publisher` if your application uses a different name (the
 `pkg.abbrev` value in Jinks).
 
-After this, a section of the Gentle Introduction lives at a path such as
+After this, a section of the *Gentle Introduction* lives at a path such as
 `/db/apps/tei-publisher/cached/doc/quickstart.xml/introduction.json`.
 
 ## 3. Point the app at the cache
 
-In Jinks, open the application's `config.json` and add a `view-static` default.
+In Jinks, open the application’s `config.json` and add a `view-static` default.
 The value is the name of the collection you uploaded to:
 
 ```json
@@ -72,9 +76,6 @@ The value is the name of the collection you uploaded to:
     "view-static": "cached"
 }
 ```
-
-If `defaults` is already there — for example with a `site-root` — add
-`view-static` next to the other keys, do not replace the whole object.
 
 Then regenerate the application so the page templates and URL routing pick up
 the new setting. From then on, `pb-view` loads prepared pages from `cached/`
@@ -91,11 +92,22 @@ up with how TEI Publisher already displays the documents.
 ### `depth`
 
 How far down the section hierarchy to split. This is the same number
-`pb-view` already uses for the document — typically in its
+`pb-view` already uses for the document and that is configured in `config.json` in the TEI Publisher-based application, and in the `opm.toml` configuration file in OPM.
+
+<!-- — typically in its
 `<?teipublisher?>` processing instruction:
 
 ```xml
 <?teipublisher odd="docbook.odd" template="documentation.html" fill="1" depth="2"?>
+```
+-->
+```json
+"defaults": {
+  "pagination" : {
+      "fill" : 5,
+      "depth" : 10
+    }
+}
 ```
 
 ```toml
@@ -113,7 +125,7 @@ should be chunked with that same number.
 ### `doc_path`
 
 `pb-view` looks up a document by its path relative to the app's data
-collection. The documentation lives in the `doc/` subcollection
+collection. In this example, the documentation lives in the `doc/` subcollection
 (`doc/quickstart.xml`, `doc/documentation.xml`, …), so:
 
 ```toml
@@ -147,4 +159,4 @@ The same three steps apply outside this repository: chunk your XML with
 `--format pb-view`, upload the output into `cached/` of your app, and set
 `defaults.view-static` to `cached` in that app's Jinks `config.json`. Point
 `odd`, `selector`, `depth`, and `doc_path` at the vocabulary, split, and
-collection you already use in TEI Publisher.
+collection you already use in your TEI Publisher-based application.
