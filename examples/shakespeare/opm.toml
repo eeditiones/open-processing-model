@@ -66,6 +66,10 @@ webcomponents = true
 # Read by the chapbook template only, so they overlay [context] here rather
 # than sitting in it: a Typst or EPUB run has no use for either.
 [transform.web.context]
+# Shown in the menu bar, as the template writes it. [chunking] assets copies
+# icon.png to <output-root>/assets/, and chunk pages sit one directory below
+# that — hence the "../".
+logo = "../assets/icon.png"
 # Module scripts the page loads after the pb-components bundle. pb-tify (a IIIF
 # viewer wrapping Tify) is published as its own entry point rather than inside
 # pb-components-bundle.js, so the facsimile column needs it listed here.
@@ -91,7 +95,7 @@ template = "templates/chapbook.html.j2"
 # where the <pb> model's facs="../assets/F-ado.xml/manifest.json" resolves to
 # from a chunk page; nothing serves the iiif/ directory itself. The glob copies
 # every play's manifest, so adding one needs no change here.
-assets = ["iiif/*"]
+assets = ["iiif/*", "icon.png"]
 
 [[chunking.fragments]]
 name = "title"
@@ -100,5 +104,6 @@ xpath = "(//teiHeader/fileDesc/titleStmt/title)[1]"
 parameters = { mode = "title" }
 
 # No breadcrumb fragment: a folio page is not a division, so there is no
-# heading trail to show. The template falls back to a drop-cap folio opening,
-# labelled from [context] above.
+# heading trail to show. The chapbook shell leaves the breadcrumb line out
+# when the fragment is absent; the folio number stays where the Folio put it,
+# in the text itself.

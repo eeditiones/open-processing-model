@@ -1,24 +1,51 @@
 /* SPDX-FileCopyrightText: 2026 e-editiones
    SPDX-License-Identifier: CC0-1.0 */
 
-/* Chapbook — multi-page, text-centric reading surface */
+/* ===========================================================================
+   Chapbook — a reading surface for a chunked edition.
+
+   A taupe menu bar over a white page, a cream contents rail on the left, and
+   page-turn cards pinned to the edges of the text block. The shell owns the
+   furniture only: everything the ODD renders lands in `.content`, and the
+   generated stylesheet styles it.
+
+   Type: a Renaissance serif for the text, a neutral grotesque for headings and
+   furniture. Headings stay light rather than bold — an editorial voice, not a
+   documentation one.
+   =========================================================================== */
 
 :root {
-  --chap-paper: #e4e8ec;
-  --chap-ink: #16181c;
-  --chap-muted: #5c6570;
-  --chap-rule: #aeb6c0;
-  --chap-accent: #2f5d50;
-  --chap-accent-soft: rgba(47, 93, 80, 0.12);
-  --chap-measure: 38rem;
-  --chap-measure-wide: 52rem;
-  --chap-toc-width: 14rem;
-  --chap-toc-gap: 2.25rem;
-  --chap-folio-rail: 2.5rem;
-  --chap-pad: clamp(1.25rem, 4vw, 2.5rem);
-  --chap-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", Palatino, serif;
-  --chap-body: "Literata", "Iowan Old Style", "Palatino Linotype", Palatino, serif;
-  --chap-meta: "Fraunces", Georgia, serif;
+  /* Palette — warm taupe and cream against a white page */
+  --chap-primary: #9d8d80;
+  --chap-dark: #6b5d53;
+  --chap-light: #c4b8ae;
+  --chap-cream: #f5f2ef;
+  --chap-warm: #faf8f6;
+  --chap-surface: #ffffff;
+  --chap-ink: #33302c;
+  --chap-muted: #77706a;
+  --chap-rule: rgba(201, 187, 173, 0.65);
+  --chap-bar-ink: #ffffff;
+
+  /* Type */
+  --chap-body: "EB Garamond", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --chap-meta: "Hanken Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Metrics */
+  --chap-shell: 80rem;
+  --chap-bar-h: 3.5rem;
+  --chap-sidebar-w: 16rem;
+  /* Widened to var(--chap-sidebar-w) by the body class below, so the page-turn
+     rails clear the contents column when there is one. */
+  --chap-sidebar-offset: 0rem;
+  --chap-pad: clamp(0.75rem, 3vw, 2.5rem);
+  --chap-rail-w: 3.5rem;
+  --chap-rail-gap: 5rem;
+
+  /* Entity popovers (pb-popover / tippy), when the ODD emits them */
+  --pb-popover-theme: "light-border";
+
+  color-scheme: light;
 }
 
 *,
@@ -28,7 +55,6 @@
 }
 
 html {
-  font-size: 112.5%;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -37,37 +63,70 @@ body.chapbook {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: var(--chap-warm);
   color: var(--chap-ink);
-  background:
-    radial-gradient(120% 80% at 50% -10%, #f2f4f7 0%, transparent 55%),
-    linear-gradient(180deg, #dde3e9 0%, var(--chap-paper) 18%, var(--chap-paper) 100%);
-  font-family: var(--chap-body);
-  font-weight: 400;
-  line-height: 1.7;
-  font-feature-settings: "kern" 1, "liga" 1, "onum" 1;
-  text-rendering: optimizeLegibility;
+  font-family: var(--chap-meta);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ── Running head ─────────────────────────────────────────── */
+body.chapbook--with-toc {
+  --chap-sidebar-offset: var(--chap-sidebar-w);
+}
+
+.chap-skip {
+  position: absolute;
+  left: -9999px;
+}
+
+.chap-skip:focus {
+  left: 1rem;
+  top: 1rem;
+  z-index: 60;
+  padding: 0.5rem 0.75rem;
+  background: var(--chap-surface);
+  color: var(--chap-ink);
+}
+
+/* ── Menu bar ─────────────────────────────────────────────── */
 
 .chap-running {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 50;
+  background: var(--chap-primary);
+  color: var(--chap-bar-ink);
+  box-shadow: 0 1px 3px rgb(97 78 55 / 0.12);
+}
+
+.chap-running__inner {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.75rem var(--chap-pad);
-  border-bottom: 1px solid color-mix(in srgb, var(--chap-rule) 70%, transparent);
-  background: color-mix(in srgb, var(--chap-paper) 88%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  font-family: var(--chap-meta);
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--chap-muted);
+  width: min(100%, var(--chap-shell));
+  min-height: var(--chap-bar-h);
+  margin: 0 auto;
+  padding: 0 var(--chap-pad);
+}
+
+.chap-running__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.chap-running__logo {
+  flex: none;
+  height: 2.25rem;
+  width: auto;
+  border-radius: 0.2rem;
+  /* A dark mark on the taupe bar needs an edge of its own to read as one. */
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.45);
 }
 
 .chap-running__work {
@@ -75,57 +134,96 @@ body.chapbook {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
-.chap-running__folio {
-  flex: none;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── Page / chapter opening ───────────────────────────────── */
-
-.chap-page {
-  flex: 1;
-  width: min(100%, calc(var(--chap-measure) + 2 * var(--chap-pad)));
-  margin: 0 auto;
-  padding: clamp(2rem, 6vh, 3.5rem) var(--chap-pad) 2rem;
-}
-
-/* Two-column pages (tei:cb) need a wider measure */
-.chap-page:has(.tei-cb) {
-  width: min(100%, calc(var(--chap-measure-wide) + 2 * var(--chap-pad)));
-}
-
-/* Room for a sidebar TOC beside the reading measure */
-.chap-page--with-toc {
-  width: min(
-    100%,
-    calc(var(--chap-measure) + var(--chap-toc-width) + var(--chap-toc-gap) + 2 * var(--chap-pad))
-  );
-}
-
-.chap-page--with-toc:has(.tei-cb) {
-  width: min(
-    100%,
-    calc(var(--chap-measure-wide) + var(--chap-toc-width) + var(--chap-toc-gap) + 2 * var(--chap-pad))
-  );
-}
-
-.chap-body {
+.chap-running__tools {
   display: flex;
-  flex-direction: column;
-  gap: 1.75rem;
+  align-items: center;
+  gap: 0.35rem;
+  flex: none;
 }
 
-/* ── Table of contents ────────────────────────────────────── */
+.chap-running__link {
+  padding: 0.35rem 0.6rem;
+  color: rgb(255 255 255 / 0.9);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  border-radius: 0.3rem;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
 
-.chap-toc {
-  min-width: 0;
-  font-family: var(--chap-meta);
+.chap-running__link:hover {
+  color: #fff;
+  background: rgb(255 255 255 / 0.12);
+}
+
+.chap-running__group {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.35rem;
+  padding-left: 0.6rem;
+  border-left: 1px solid rgb(255 255 255 / 0.3);
+}
+
+.chap-zoom {
+  padding: 0.15rem 0.5rem;
+  border: 0;
+  background: transparent;
+  color: rgb(255 255 255 / 0.85);
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  border-radius: 0.3rem;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.chap-zoom:hover {
+  color: #fff;
+  background: rgb(255 255 255 / 0.12);
+}
+
+.chap-step {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid rgb(255 255 255 / 0.7);
+  border-radius: 0.3rem;
+  color: #fff;
   font-size: 0.78rem;
-  line-height: 1.45;
-  color: var(--chap-muted);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
 }
+
+.chap-step:hover {
+  background: rgb(255 255 255 / 0.12);
+}
+
+.chap-zoom:focus-visible,
+.chap-step:focus-visible,
+.chap-running__link:focus-visible,
+.chap-toc__open:focus-visible,
+.chap-toc__close:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* ── Shell ────────────────────────────────────────────────── */
+
+.chap-shell {
+  display: flex;
+  flex: 1;
+  width: min(100%, var(--chap-shell));
+  margin: 0 auto;
+  background: var(--chap-surface);
+}
+
+/* ── Contents rail ────────────────────────────────────────── */
 
 .chap-toc__toggle {
   position: absolute;
@@ -142,92 +240,34 @@ body.chapbook {
 .chap-toc__open {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.4rem 0.75rem;
-  border: 1px solid var(--chap-rule);
-  background: color-mix(in srgb, var(--chap-paper) 70%, #fff);
-  color: var(--chap-ink);
-  font-family: var(--chap-meta);
-  font-size: 0.72rem;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid rgb(255 255 255 / 0.7);
+  border-radius: 0.3rem;
+  color: #fff;
+  font-size: 0.78rem;
   font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
   cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
-}
-
-.chap-toc__open::before {
-  content: "";
-  width: 0.55rem;
-  height: 0.55rem;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: rotate(45deg) translateY(-0.1rem);
 }
 
 .chap-toc__open:hover {
-  color: var(--chap-accent);
-  border-color: color-mix(in srgb, var(--chap-accent) 45%, var(--chap-rule));
+  background: rgb(255 255 255 / 0.12);
 }
 
-.chap-toc__open:focus-visible {
-  outline: 2px solid var(--chap-accent);
-  outline-offset: 2px;
-}
-
-.chap-toc__overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: flex;
-  align-items: stretch;
-  justify-content: flex-start;
-  padding: 0;
-  visibility: hidden;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
-}
-
-.chap-toc__toggle:checked ~ .chap-toc__overlay {
-  visibility: visible;
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.chap-toc__toggle:checked ~ .chap-toc__open {
-  color: var(--chap-accent);
-  border-color: var(--chap-accent);
-  background: var(--chap-accent-soft);
-}
-
-.chap-toc__backdrop {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  background: color-mix(in srgb, var(--chap-ink) 42%, transparent);
-  cursor: pointer;
+.chap-toc {
+  flex: none;
+  width: var(--chap-sidebar-w);
+  background: var(--chap-cream);
+  border-right: 1px solid var(--chap-rule);
+  font-family: var(--chap-meta);
 }
 
 .chap-toc__drawer {
-  position: relative;
-  z-index: 1;
-  width: min(100%, 22rem);
-  height: 100%;
-  max-height: none;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 0;
-  border-right: 1px solid var(--chap-rule);
-  background: #f7f8fa;
-  box-shadow: 8px 0 28px rgba(22, 24, 28, 0.18);
-  transform: translateX(-100%);
-  transition: transform 0.25s ease;
-}
-
-.chap-toc__toggle:checked ~ .chap-toc__overlay .chap-toc__drawer {
-  transform: translateX(0);
+  position: sticky;
+  top: var(--chap-bar-h);
+  max-height: calc(100vh - var(--chap-bar-h));
+  overflow-y: auto;
+  padding: 1.5rem 1rem;
 }
 
 .chap-toc__drawer-head {
@@ -235,275 +275,182 @@ body.chapbook {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  flex: none;
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--chap-rule);
+  margin-bottom: 1rem;
 }
 
 .chap-toc__drawer-title {
   font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--chap-ink);
+  color: var(--chap-dark);
 }
 
 .chap-toc__close {
-  flex: none;
   color: var(--chap-muted);
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 0.78rem;
   cursor: pointer;
 }
 
-.chap-toc__close:hover {
-  color: var(--chap-accent);
-}
-
-.chap-toc__close:focus-visible {
-  outline: 2px solid var(--chap-accent);
-  outline-offset: 2px;
-}
-
 .chap-toc__body {
-  flex: 1;
-  overflow: auto;
-  padding: 0.9rem 1rem 1.15rem;
-  -webkit-overflow-scrolling: touch;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--chap-muted);
 }
 
-.chap-toc .toc,
-.chap-toc nav {
-  margin: 0;
-}
-
-.chap-toc ul {
+.chap-toc__body ul,
+.chap-toc__body ol {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.chap-toc li {
-  margin: 0 0 0.35em;
+.chap-toc__body li {
+  margin: 0 0 0.45em;
 }
 
-.chap-toc li > ul {
-  margin: 0.35em 0 0.55em;
-  padding-left: 0.85em;
-  border-left: 1px solid color-mix(in srgb, var(--chap-rule) 80%, transparent);
+.chap-toc__body li > ul,
+.chap-toc__body li > ol {
+  margin: 0.4em 0 0.6em;
+  padding-left: 0.8em;
+  border-left: 1px solid var(--chap-rule);
 }
 
-.chap-toc a {
+/* A TOC fragment is ODD output: it may arrive as headings and divs rather
+   than a list, so the rail neutralises heading sizes rather than assuming. */
+.chap-toc__body :is(h1, h2, h3, h4, h5, h6) {
+  margin: 1.1em 0 0.5em;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--chap-dark);
+}
+
+.chap-toc__body :is(h1, h2, h3, h4, h5, h6):first-child {
+  margin-top: 0;
+}
+
+.chap-toc__body a {
   color: inherit;
   text-decoration: none;
   border-bottom: 1px solid transparent;
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
-.chap-toc a:hover {
-  color: var(--chap-accent);
-  border-bottom-color: color-mix(in srgb, var(--chap-accent) 55%, transparent);
+.chap-toc__body a:hover {
+  color: var(--chap-dark);
+  border-bottom-color: var(--chap-light);
 }
 
-.chap-toc a:focus-visible {
-  outline: 2px solid var(--chap-accent);
+.chap-toc__body a:focus-visible {
+  outline: 2px solid var(--chap-dark);
   outline-offset: 2px;
 }
 
-.chap-toc .tei-title,
-.chap-toc span {
-  font-weight: 500;
-  letter-spacing: 0.02em;
+/* ── Page ─────────────────────────────────────────────────── */
+
+.chap-page {
+  flex: 1;
+  min-width: 0;
+  padding: 2rem var(--chap-pad) 3rem;
+  background: var(--chap-surface);
 }
 
-.chap-page .content {
+.chap-crumbs {
+  margin-bottom: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--chap-dark);
+}
+
+/* An ODD stylesheet may set the breadcrumb nav to `white-space: nowrap`
+   (docbook.css does, on the lowercase aria-label the ODD itself emits). On a
+   narrow screen an unbreakable trail is wider than the viewport and drags the
+   whole page with it, clipping every line of text — so the crumb bar overrides
+   it and wraps instead. */
+.chap-crumbs,
+.chap-crumbs [aria-label="breadcrumb"],
+.chap-crumbs [aria-label="Breadcrumb"] {
+  white-space: normal;
   min-width: 0;
 }
 
-@media (min-width: 56em) {
-  .chap-page--with-toc .chap-body {
-    display: grid;
-    grid-template-columns: var(--chap-toc-width) minmax(0, 1fr);
-    column-gap: var(--chap-toc-gap);
-    align-items: start;
-  }
-
-  .chap-toc__toggle,
-  .chap-toc__open,
-  .chap-toc__backdrop,
-  .chap-toc__drawer-head {
-    display: none;
-  }
-
-  .chap-toc__overlay {
-    position: static;
-    inset: auto;
-    display: block;
-    padding: 0;
-    visibility: visible;
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .chap-toc__drawer {
-    width: auto;
-    max-height: none;
-    overflow: visible;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-    transform: none;
-  }
-
-  .chap-toc__toggle:checked ~ .chap-toc__overlay .chap-toc__drawer {
-    transform: none;
-  }
-
-  .chap-toc__body {
-    overflow: visible;
-    padding: 0;
-  }
-
-  .chap-page--with-toc .chap-toc {
-    position: sticky;
-    top: 3.25rem;
-    max-height: calc(100vh - 4rem);
-    overflow: auto;
-    padding: 0.15rem 0.85rem 0.15rem 0;
-    border-right: 1px solid var(--chap-rule);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chap-toc__overlay,
-  .chap-toc__drawer {
-    transition: none;
-  }
-}
-
-.chap-opening {
-  margin: 0 0 2.25rem;
-  padding-bottom: 1.75rem;
-  border-bottom: 1px solid var(--chap-rule);
-}
-
-.chap-opening__numeral {
-  display: block;
-  margin: 0 0 0.35rem;
-  margin-left: -0.06em;
-  font-family: var(--chap-display);
-  font-size: clamp(3.75rem, 12vw, 5.5rem);
-  font-weight: 400;
-  font-variation-settings: "SOFT" 40, "WONK" 0.4, "opsz" 144;
-  line-height: 0.9;
-  letter-spacing: -0.03em;
-  color: var(--chap-accent);
-}
-
-.chap-opening__label {
-  display: block;
-  margin: 0;
-  font-family: var(--chap-meta);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--chap-muted);
-}
-
-.chap-opening [aria-label="breadcrumb"] {
-  white-space: normal;
-}
-
-.chap-opening [aria-label="breadcrumb"] ul {
+.chap-crumbs ul,
+.chap-crumbs ol {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.15rem 0;
   margin: 0;
   padding: 0;
-  font-family: var(--chap-meta);
-  font-size: 0.78rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  color: var(--chap-muted);
 }
 
-.chap-opening [aria-label="breadcrumb"] li {
-  display: inline;
+.chap-crumbs li:not(:last-child)::after {
+  content: "›";
+  margin: 0 0.5rem;
+  color: var(--chap-light);
 }
 
-.chap-opening [aria-label="breadcrumb"] li:not(:last-child)::after {
-  content: "/";
-  display: inline-block;
-  margin: 0 0.55rem;
-  color: var(--chap-rule);
-}
-
-.chap-opening [aria-label="breadcrumb"] a {
+.chap-crumbs a {
   color: inherit;
   text-decoration: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--chap-rule) 70%, transparent);
+  border-bottom: 1px solid var(--chap-light);
 }
 
-.chap-opening [aria-label="breadcrumb"] a:hover {
-  color: var(--chap-accent);
-  border-bottom-color: var(--chap-accent);
+.chap-crumbs a:hover {
+  color: var(--chap-primary);
 }
 
-.chap-opening [aria-label="breadcrumb"] li:last-child {
-  color: var(--chap-ink);
+.chap-body {
+  position: relative;
 }
 
 /* ── Content typography ───────────────────────────────────── */
+
+.chap-page .content {
+  font-family: var(--chap-body);
+  font-size: 1.125rem;
+  line-height: 1.65;
+  color: var(--chap-ink);
+  hyphens: auto;
+}
 
 .chap-page .content > :first-child {
   margin-top: 0;
 }
 
-.chap-page .content h1,
-.chap-page .content h2,
-.chap-page .content h3,
-.chap-page .content h4,
-.chap-page .content h5,
-.chap-page .content h6 {
-  font-family: var(--chap-display);
-  font-weight: 500;
-  font-variation-settings: "SOFT" 30, "WONK" 0.2, "opsz" 72;
-  line-height: 1.25;
-  letter-spacing: -0.015em;
-  color: var(--chap-ink);
+/* Headings keep the grotesque and stay light: the edition's voice is in the
+   text, and a bold sans heading would shout over it. */
+.chap-page .content :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--chap-meta);
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--chap-dark);
   text-wrap: balance;
 }
 
 .chap-page .content h1 {
   margin: 0 0 1.25rem;
-  font-size: clamp(1.65rem, 3.5vw, 2.15rem);
-  font-weight: 450;
+  font-size: clamp(1.7rem, 3.5vw, 2.15rem);
 }
 
 .chap-page .content h2 {
-  margin: 2.4rem 0 0.85rem;
-  font-size: 1.45rem;
+  margin: 2.2rem 0 0.9rem;
+  font-size: 1.5rem;
 }
 
 .chap-page .content h3 {
-  margin: 2rem 0 0.7rem;
-  font-size: 1.2rem;
+  margin: 1.9rem 0 0.7rem;
+  font-size: 1.25rem;
 }
 
-.chap-page .content h4,
-.chap-page .content h5,
-.chap-page .content h6 {
+.chap-page .content :is(h4, h5, h6) {
   margin: 1.6rem 0 0.55rem;
   font-size: 1.05rem;
 }
 
-/* Opening heading of a chunk: no extra space above (may sit
-   inside section / pb-observable wrappers). */
+/* Opening heading of a chunk: no space above, whatever wrappers the ODD put
+   around it (section, pb-observable, …). */
 .chap-page--chunk .content > :is(h1, h2, h3, h4, h5, h6):first-child,
 .chap-page--chunk .content > :first-child > :is(h1, h2, h3, h4, h5, h6):first-child,
 .chap-page--chunk .content > :first-child > :first-child > :is(h1, h2, h3, h4, h5, h6):first-child {
@@ -512,43 +459,31 @@ body.chapbook {
 
 .chap-page .content p {
   margin: 0 0 1em;
-  hyphens: auto;
 }
 
 .chap-page .content a {
-  color: var(--chap-accent);
+  color: var(--chap-primary);
   text-decoration-thickness: 1px;
-  text-underline-offset: 0.18em;
-  text-decoration-color: color-mix(in srgb, var(--chap-accent) 45%, transparent);
-  transition: text-decoration-color 0.15s ease, background-color 0.15s ease;
+  text-underline-offset: 0.16em;
+  text-decoration-color: var(--chap-light);
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
 
 .chap-page .content a:hover {
-  text-decoration-color: var(--chap-accent);
-  background-color: var(--chap-accent-soft);
+  color: var(--chap-dark);
+  text-decoration-color: currentColor;
 }
 
 .chap-page .content a:focus-visible {
-  outline: 2px solid var(--chap-accent);
+  outline: 2px solid var(--chap-dark);
   outline-offset: 2px;
 }
 
 .chap-page .content blockquote {
   margin: 1.4em 0;
   padding: 0.15em 0 0.15em 1.15em;
-  border-left: 2px solid var(--chap-accent);
+  border-left: 2px solid var(--chap-light);
   color: var(--chap-muted);
-  font-style: italic;
-}
-
-.chap-page .content em,
-.chap-page .content i {
-  font-style: italic;
-}
-
-.chap-page .content strong,
-.chap-page .content b {
-  font-weight: 600;
 }
 
 .chap-page .content hr {
@@ -558,8 +493,7 @@ body.chapbook {
   border-top: 1px solid var(--chap-rule);
 }
 
-.chap-page .content ul,
-.chap-page .content ol {
+.chap-page .content :is(ul, ol) {
   margin: 0 0 1em;
   padding-left: 1.35em;
 }
@@ -572,8 +506,12 @@ body.chapbook {
   margin: 1.75em 0;
 }
 
-.chap-page .content figcaption,
-.chap-page .content .tei-figDesc {
+.chap-page .content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.chap-page .content :is(figcaption, .tei-figDesc) {
   margin-top: 0.5em;
   font-family: var(--chap-meta);
   font-size: 0.82rem;
@@ -581,20 +519,14 @@ body.chapbook {
   color: var(--chap-muted);
 }
 
-.chap-page .content img {
-  max-width: 100%;
-  height: auto;
-}
-
 .chap-page .content table {
   width: 100%;
   margin: 1.5em 0;
   border-collapse: collapse;
-  font-size: 0.92em;
+  font-size: 0.95em;
 }
 
-.chap-page .content th,
-.chap-page .content td {
+.chap-page .content :is(th, td) {
   padding: 0.4em 0.55em;
   border-bottom: 1px solid var(--chap-rule);
   text-align: left;
@@ -603,16 +535,14 @@ body.chapbook {
 
 .chap-page .content th {
   font-family: var(--chap-meta);
-  font-size: 0.85em;
-  font-weight: 500;
+  font-size: 0.82em;
+  font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--chap-muted);
 }
 
-/* TEI notes / speakers kept readable in the measure */
-.chap-page .content .tei-note,
-.chap-page .content note {
+.chap-page .content :is(.tei-note, note) {
   font-size: 0.9em;
   color: var(--chap-muted);
 }
@@ -625,16 +555,17 @@ body.chapbook {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--chap-accent);
+  color: var(--chap-dark);
 }
 
-/* Alternate readings: default visible, altcontent as hover/focus popover */
+/* Alternate readings: the default stays in the text, the variant appears on
+   hover or focus. Only used when web components are off; with them on,
+   <pb-popover> does this itself. */
 .chap-page .content .alternate {
   position: relative;
   display: inline;
   cursor: help;
-  border-bottom: 1px dotted color-mix(in srgb, var(--chap-accent) 55%, transparent);
-  text-decoration: none;
+  border-bottom: 1px dotted var(--chap-light);
 }
 
 .chap-page .content .alternate .altcontent {
@@ -648,28 +579,14 @@ body.chapbook {
   padding: 0.45rem 0.65rem;
   transform: translateX(-50%);
   border: 1px solid var(--chap-rule);
-  border-radius: 2px;
-  background: #f7f8fa;
-  box-shadow: 0 6px 18px rgba(22, 24, 28, 0.12);
+  border-radius: 0.25rem;
+  background: var(--chap-warm);
+  box-shadow: 0 6px 18px rgb(97 78 55 / 0.14);
   color: var(--chap-ink);
-  font-family: var(--chap-body);
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-style: normal;
-  font-weight: 400;
-  letter-spacing: normal;
   line-height: 1.45;
-  text-transform: none;
   white-space: normal;
-}
-
-.chap-page .content .alternate .altcontent::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: 100%;
-  margin-left: -5px;
-  border: 5px solid transparent;
-  border-bottom-color: var(--chap-rule);
 }
 
 .chap-page .content .alternate:hover .altcontent,
@@ -677,129 +594,257 @@ body.chapbook {
   display: block;
 }
 
-.chap-page .content pb-popover {
-  --pb-popover-theme: "light-border";
-}
+/* ── Page-turn rails ──────────────────────────────────────── */
 
-/* ── Folio navigation ─────────────────────────────────────── */
-
-.chap-folio-nav {
-  width: min(100%, calc(var(--chap-measure) + 2 * var(--chap-pad)));
-  margin: 0 auto;
-  padding: 1.5rem var(--chap-pad) 2.75rem;
-  display: flex;
-  justify-content: center;
-  border-top: 1px solid var(--chap-rule);
-  font-family: var(--chap-meta);
-}
-
-/* Fixed vertical spine rails; mark stays as page-end folio.
-   Gutters keep the reading measure clear of the rails. */
-body.chapbook:has(.chap-folio-nav__prev a) .chap-page,
-body.chapbook:has(.chap-folio-nav__prev a) .chap-running,
-body.chapbook:has(.chap-folio-nav__prev a) .chap-folio-nav {
-  padding-left: calc(var(--chap-pad) + var(--chap-folio-rail));
-}
-
-body.chapbook:has(.chap-folio-nav__next a) .chap-page,
-body.chapbook:has(.chap-folio-nav__next a) .chap-running,
-body.chapbook:has(.chap-folio-nav__next a) .chap-folio-nav {
-  padding-right: calc(var(--chap-pad) + var(--chap-folio-rail));
-}
-
-.chap-folio-nav__prev:has(a),
-.chap-folio-nav__next:has(a) {
-  position: fixed;
-  top: 50%;
-  z-index: 3;
-  transform: translateY(-50%);
-  padding: 0.75rem 0.28rem;
-  color: var(--chap-ink);
-  font-size: 0.92rem;
-  letter-spacing: 0.02em;
-  background: color-mix(in srgb, var(--chap-paper) 82%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-.chap-folio-nav__prev:has(a) {
-  left: 0;
-  border-right: 1px solid color-mix(in srgb, var(--chap-rule) 75%, transparent);
-}
-
-.chap-folio-nav__next:has(a) {
-  right: 0;
-  text-align: center;
-  border-left: 1px solid color-mix(in srgb, var(--chap-rule) 75%, transparent);
-}
-
-.chap-folio-nav__prev a,
-.chap-folio-nav__next a {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.55rem;
-  color: inherit;
-  text-decoration: none;
-  transition: color 0.15s ease;
-}
-
-.chap-folio-nav__prev a:hover,
-.chap-folio-nav__next a:hover {
-  color: var(--chap-accent);
-}
-
-.chap-folio-nav__prev a:focus-visible,
-.chap-folio-nav__next a:focus-visible {
-  outline: 2px solid var(--chap-accent);
-  outline-offset: 3px;
-}
-
-.chap-folio-nav__mark {
-  font-size: 0.78rem;
-  letter-spacing: 0.12em;
-  color: var(--chap-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.chap-folio-nav__label {
+.chap-folio-nav__rail {
   display: none;
 }
 
-.chap-folio-nav__dir {
-  writing-mode: vertical-rl;
-  font-size: 0.82rem;
-  letter-spacing: 0.18em;
-  line-height: 1;
-  text-transform: uppercase;
-  white-space: nowrap;
+.chap-folio-nav__rail a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: var(--chap-rail-w);
+  height: 10rem;
+  border: 1px solid var(--chap-rule);
+  background: rgb(255 255 255 / 0.95);
+  color: var(--chap-primary);
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgb(97 78 55 / 0.08);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.chap-folio-nav__rail a:hover {
+  background: var(--chap-cream);
+  color: var(--chap-dark);
+  box-shadow: 0 6px 16px rgb(97 78 55 / 0.12);
+}
+
+.chap-folio-nav__rail a:focus-visible {
+  outline: 2px solid var(--chap-dark);
+  outline-offset: 3px;
+}
+
+.chap-folio-nav__rail--prev a {
+  border-left: 0;
+  border-radius: 0 0.75rem 0.75rem 0;
+}
+
+.chap-folio-nav__rail--next a {
+  border-right: 0;
+  border-radius: 0.75rem 0 0 0.75rem;
 }
 
 .chap-folio-nav__chevron {
-  order: -1;
-  font-size: 1.25rem;
+  font-size: 1.75rem;
   line-height: 1;
 }
 
-/* ── Motion ───────────────────────────────────────────────── */
+.chap-folio-nav__dir {
+  margin-top: 0.5rem;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--chap-muted);
+}
 
-@keyframes chap-rise {
-  from {
-    transform: translateY(0.55rem);
+/* Foot of the page: the same two links, in reach on a narrow screen. */
+.chap-folio-nav__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--chap-rule);
+}
+
+.chap-folio-nav__foot a {
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--chap-light);
+  border-radius: 0.3rem;
+  color: var(--chap-dark);
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.chap-folio-nav__foot a:hover {
+  background: var(--chap-primary);
+  border-color: var(--chap-primary);
+  color: #fff;
+}
+
+/* ── Footer ───────────────────────────────────────────────── */
+
+.chap-footer {
+  padding: 1.5rem var(--chap-pad);
+  background: var(--chap-dark);
+  color: rgb(255 255 255 / 0.85);
+  font-size: 0.82rem;
+}
+
+.chap-footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: min(100%, var(--chap-shell));
+  margin: 0 auto;
+}
+
+.chap-footer a {
+  color: inherit;
+}
+
+/* ── Narrow screens: the rail becomes a drawer ────────────── */
+
+@media (max-width: 47.999em) {
+  .chap-toc {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 55;
+    width: min(100%, 20rem);
+    height: 100%;
+    border-right: 1px solid var(--chap-rule);
+    box-shadow: 8px 0 28px rgb(51 48 44 / 0.18);
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
   }
-  to {
-    transform: translateY(0);
+
+  body.chapbook:has(.chap-toc__toggle:checked) .chap-toc {
+    transform: translateX(0);
+  }
+
+  .chap-toc__drawer {
+    top: 0;
+    max-height: 100vh;
+    height: 100%;
+  }
+
+  /* Tapping outside the drawer closes it. */
+  body.chapbook:has(.chap-toc__toggle:checked) .chap-page::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 54;
+    background: rgb(51 48 44 / 0.4);
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .chap-opening__numeral {
-    animation: chap-rise 0.75s ease-out;
+@media (min-width: 48em) {
+  .chap-toc__open {
+    display: none;
+  }
+
+  .chap-toc__close {
+    display: none;
+  }
+
+  .chap-page {
+    padding: 2.5rem 2.5rem 3.5rem;
   }
 }
 
-@media (max-width: 480px) {
-  html {
-    font-size: 100%;
+@media (prefers-reduced-motion: reduce) {
+  .chap-toc {
+    transition: none;
+  }
+}
+
+/* ── Wide screens: rails flank the text block ─────────────── */
+
+@media (min-width: 64em) {
+  .chap-shell {
+    border-left: 1px solid var(--chap-rule);
+    border-right: 1px solid var(--chap-rule);
+  }
+
+  .chap-page {
+    padding: 2.5rem var(--chap-rail-gap) 3.5rem;
+  }
+
+  .chap-folio-nav__rail {
+    display: block;
+    position: fixed;
+    top: 50%;
+    z-index: 40;
+    transform: translateY(-50%);
+  }
+
+  /* Pinned to the edges of the text block: the shell is centred and capped at
+     --chap-shell, and the contents rail (when present) shifts the left edge. */
+  .chap-folio-nav__rail--prev {
+    left: calc(max(0px, (100vw - var(--chap-shell)) / 2) + var(--chap-sidebar-offset));
+  }
+
+  .chap-folio-nav__rail--next {
+    right: max(0px, calc((100vw - var(--chap-shell)) / 2));
+  }
+
+  .chap-folio-nav__foot {
+    display: none;
+  }
+}
+
+@media (max-width: 48em) {
+  /* The bar carries a work title of unknown length beside several controls.
+     Let the controls wrap under the title: left to themselves they widen the
+     document instead, and the page scrolls sideways. */
+  .chap-running__inner {
+    flex-wrap: wrap;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .chap-running__brand,
+  .chap-running__tools {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .chap-running__tools {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .chap-running__work {
+    font-size: 0.95rem;
+  }
+
+  /* The foot of the page carries the same two links. */
+  .chap-running__tools .chap-step {
+    display: none;
+  }
+
+  .chap-running__tools > .chap-running__group:first-of-type {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+@media print {
+  .chap-running,
+  .chap-toc,
+  .chap-folio-nav__rail,
+  .chap-folio-nav__foot,
+  .chap-footer {
+    display: none;
+  }
+
+  .chap-shell,
+  .chap-page {
+    display: block;
+    width: auto;
+    padding: 0;
+    border: 0;
   }
 }
