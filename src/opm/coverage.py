@@ -18,7 +18,7 @@ itself, to answer the two questions an ODD author keeps asking:
 Models inherited from an extended ODD are reported separately and never counted
 as the author's problem: a local ``elementSpec`` replaces the inherited one
 wholesale, so an inherited model is only changeable by redeclaring the element.
-The locality split comes from :func:`opm.odd_compiler.parse_odd.spec_origin`,
+The locality split comes from `opm.odd_compiler.parse_odd.spec_origin`,
 surfaced in the compiled ``ODD_MODELS`` table as ``source``.
 
 Coverage transforms whole documents; it ignores ``[chunking]``, since a chunk
@@ -149,7 +149,7 @@ class CoverageReport:
     #: Local specs that declare no model at all (attribute-only ODD changes).
     attribute_only_specs: list[str] = field(default_factory=list)
     #: ODD expressions opm can never evaluate, as the compiler recorded them in
-    #: ``ODD_UNSUPPORTED`` (see :mod:`opm.odd_compiler.expression_check`).
+    #: ``ODD_UNSUPPORTED`` (see `opm.odd_compiler.expression_check`).
     unsupported: list[dict] = field(default_factory=list)
 
     # ── slices the CLI and callers ask for ────────────────────────────────────
@@ -239,7 +239,7 @@ def iter_element_paths(root):
     """Yield ``(element, xpath)`` for the whole tree, top-down.
 
     The paths are the ones ``-t json`` records
-    (:func:`opm.runtime.json_output_functions._element_path`), which is what
+    (`opm.runtime.json_output_functions._element_path`), which is what
     makes "this element produced no record" answerable by set difference. They
     are built once on the way down rather than reconstructed per element: the
     bottom-up version rescans the siblings at every step, which turns a big
@@ -437,12 +437,14 @@ def analyze(
     odd: Path | None = None,
     output_mode: str = 'json',
     parameters: dict | None = None,
+    base_css: str | None = None,
 ) -> CoverageReport:
     """Run *paths* through the ODD in JSON mode and report on the outcome.
 
     *output_mode* is a JSON mode (``json``, ``json-typst``, …); the channel it
     inspects decides which ``@output``-tagged models participate, so a coverage
-    run is always about one channel.
+    run is always about one channel. *base_css* is passed on to the compiler
+    (see [`resolve_transform_module`][opm.odd_cache.resolve_transform_module]).
     """
     from opm.config import ProjectConfig
     from opm.odd_cache import resolve_transform_module
@@ -458,6 +460,7 @@ def analyze(
         odd=resolved_odd,
         output_mode=output_mode,
         use_packaged_default=resolved_odd is None,
+        base_css=base_css,
     )
     module = load_transform_module(resolved.module_path)
     odd_path = Path(resolved.source_odd) if resolved.source_odd else Path('(module)')

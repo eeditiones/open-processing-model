@@ -41,7 +41,8 @@ translation, letter head, breadcrumbs, and register fragments:
 opm chunk data/letters/serafin01.xml --force --preview
 ```
 
-Or chunk both sample letters (writes `chunks/<file>/`):
+Pages go to `chunks/<file>/`, with the stylesheets, assets and an `index.html`
+shared at `chunks/`. Or chunk both sample letters at once:
 
 ```bash
 opm chunk data/letters --force --preview

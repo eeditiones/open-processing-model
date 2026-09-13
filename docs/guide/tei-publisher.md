@@ -148,7 +148,7 @@ A few more keys in `examples/docbook/opm.toml` matter for this workflow:
 | --- | --- |
 | `[transform] odd` | `odd/docbook.odd` — the documentation is written in DocBook, not TEI (the example ships its own copy) |
 | `selector` | `opm.navigation.dbk_section_chunks` — split on DocBook `section` (use `tei_div_chunks` for TEI `div`) |
-| `[transform.web.webcomponents] enabled` | `true` — emit TEI Publisher web components so the cached HTML works inside `pb-view` |
+| `[transform.web] webcomponents` | `true` — emit TEI Publisher web components so the cached HTML works inside `pb-view` |
 | `[[chunking.fragments]]` | Extra pieces the documentation page also needs: title, table of contents, breadcrumbs |
 
 The full set of chunking options is in [Chunking](chunking.md).

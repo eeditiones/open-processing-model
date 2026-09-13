@@ -3,60 +3,69 @@
 
 """Core transform API — import this to drive transforms from your own Python scripts.
 
-Three entry points at increasing levels of abstraction:
+Most callers want [`opm.Project.transform`][opm.project.Project.transform], which also compiles the
+ODD and keeps the loaded module and registers between calls. The functions
+here are the layer below it, at increasing levels of abstraction.
 
-``run_transform(mod, element, ...)``
-    Lowest level. Caller supplies an already-loaded module and an already-selected
-    lxml element; the function serializes and optionally wraps the result in the
-    Jinja2 document template::
+[`run_transform(mod, element, ...)`][opm.transform.run_transform] is the lowest
+level. The caller supplies an already-loaded module and an already-selected
+lxml element; the function serializes and optionally wraps the result in the
+Jinja2 document template:
 
-        from opm.odd_cache import ensure_compiled_module
-        from opm.resources import packaged_odd
-        from opm.transform import load_transform_module, run_transform
-        from lxml import etree
+```python
+from opm.odd_cache import ensure_compiled_module
+from opm.resources import packaged_odd
+from opm.transform import load_transform_module, run_transform
+from lxml import etree
 
-        path, _ = ensure_compiled_module(packaged_odd('teipublisher'))
-        mod = load_transform_module(path)
-        root = etree.parse('document.xml').getroot()
+path, _ = ensure_compiled_module(packaged_odd('teipublisher'))
+mod = load_transform_module(path)
+root = etree.parse('document.xml').getroot()
 
-        html     = run_transform(mod, root)                 # full document
-        fragment = run_transform(mod, root.find('.//{*}div'))  # single element
+html     = run_transform(mod, root)                 # full document
+fragment = run_transform(mod, root.find('.//{*}div'))  # single element
+```
 
-``transform_node(script_path, root, *, xpath=None, ...)``
-    Mid level. Loads the module from *script_path* and, if *xpath* is given,
-    selects the target element before transforming::
+[`transform_node(script_path, root, *, xpath=None, ...)`][opm.transform.transform_node]
+is the mid level. It loads the module from *script_path* and, if *xpath* is
+given, selects the target element before transforming:
 
-        from opm.odd_cache import ensure_compiled_module
-        from opm.resources import packaged_odd
-        from opm.transform import transform_node
-        from lxml import etree
+```python
+from opm.odd_cache import ensure_compiled_module
+from opm.resources import packaged_odd
+from opm.transform import transform_node
+from lxml import etree
 
-        path, _ = ensure_compiled_module(packaged_odd('teipublisher'))
-        root = etree.parse('document.xml').getroot()
-        html = transform_node(path, root, xpath='//body/div[1]')
+path, _ = ensure_compiled_module(packaged_odd('teipublisher'))
+root = etree.parse('document.xml').getroot()
+html = transform_node(path, root, xpath='//body/div[1]')
+```
 
-``transform_file(module, xml_path, *, xpath=None, ...)``
-    Highest level, and what ``opm transform`` runs. Also parses the XML file
-    and takes everything else from ``opm.toml``: parameters, registers,
-    extensions, web components, template::
+[`transform_file(module, xml_path, *, xpath=None, ...)`][opm.transform.transform_file]
+is the highest level, and what ``opm transform`` runs. It also parses the XML
+file and takes everything else from ``opm.toml``: parameters, registers,
+extensions, web components, template:
 
-        from opm.odd_cache import ensure_compiled_module
-        from opm.resources import packaged_odd
-        from opm.transform import transform_file
+```python
+from opm.odd_cache import ensure_compiled_module
+from opm.resources import packaged_odd
+from opm.transform import transform_file
 
-        path, _ = ensure_compiled_module(packaged_odd('teipublisher'))
-        html = transform_file(path, Path('document.xml'), xpath='//body/div[1]')
+path, _ = ensure_compiled_module(packaged_odd('teipublisher'))
+html = transform_file(path, Path('document.xml'), xpath='//body/div[1]')
+```
 
-``xpath_select(root, expr, ...)``
-    Utility for evaluating XPath against a parsed document without any
-    namespace bookkeeping — unprefixed names automatically match the
-    document's namespace::
+[`xpath_select(root, expr, ...)`][opm.transform.xpath_select] evaluates XPath
+against a parsed document without any namespace bookkeeping: unprefixed names
+automatically match the document's namespace:
 
-        from opm.transform import xpath_select
-        from lxml import etree
+```python
+from opm.transform import xpath_select
+from lxml import etree
 
-        root = etree.parse('document.xml').getroot()
-        chapters = xpath_select(root, '//body/div')
+root = etree.parse('document.xml').getroot()
+chapters = xpath_select(root, '//body/div')
+```
 """
 
 from __future__ import annotations
@@ -64,7 +73,7 @@ from __future__ import annotations
 import importlib.util
 from types import ModuleType
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Sequence, TypedDict
 
 from elementpath.tree_builders import get_node_tree
 from lxml import etree
@@ -79,39 +88,45 @@ from opm.output_modes import OutputMode, module_mode
 from opm.runtime.pm_runtime import serialize as _default_serialize
 from opm.runtime.xpath_env import XPathEnvironment
 from opm.template_rendering import (
+    DEFAULT_TEMPLATE_NAME,
+    DEFAULT_TYPST_TEMPLATE_NAME,
     render_document_template,
     render_typst_document_template,
     resolve_template_path,
 )
 
-# The run_transform() argument each kind of template goes to.
-_TEMPLATE_ARGUMENT = {
-    'html': 'template_path',
-    'typst': 'typst_template_path',
-    'docx': 'docx_template',
-}
+class TemplateArguments(TypedDict, total=False):
+    """The [`run_transform`][opm.transform.run_transform] argument each kind of template goes to."""
+
+    template_path: Path | None
+    typst_template_path: Path | None
+    docx_template: Path | None
 
 
 def template_arguments(
     mode: OutputMode,
     config: ProjectConfig,
     override: Path | None = None,
-) -> dict[str, Path | None]:
-    """The template argument :func:`run_transform` takes for a run in *mode*.
+) -> TemplateArguments:
+    """The template argument [`run_transform`][opm.transform.run_transform] takes for a run in *mode*.
 
     *override* (``--template``) wins over the project's
     ``[transform.<type>] template``. Without either, an HTML or Typst shell
-    falls back to its packaged default inside :func:`run_transform`, and DOCX
+    falls back to its packaged default inside [`run_transform`][opm.transform.run_transform], and DOCX
     to the packaged Word style template. Modes that take no template get none.
     """
-    if mode.template is None:
+    if mode.template is None or mode.template_setting is None:
         return {}
     chosen = override if override is not None else getattr(config, mode.template_setting)
     if chosen is None and mode.template == 'docx':
         from opm.resources import packaged_default_docx
 
         chosen = packaged_default_docx()
-    return {_TEMPLATE_ARGUMENT[mode.template]: chosen}
+    if mode.template == 'typst':
+        return {'typst_template_path': chosen}
+    if mode.template == 'docx':
+        return {'docx_template': chosen}
+    return {'template_path': chosen}
 
 
 def load_transform_module(script_path: Path) -> ModuleType:
@@ -153,12 +168,14 @@ def xpath_select(
 
     The document's default namespace URI (taken from *root*'s ``nsmap``) is set
     as the XPath default element namespace, so unprefixed element names match
-    without any prefix mapping::
+    without any prefix mapping:
 
-        chapters = xpath_select(root, '//body/div')          # TEI, DocBook, …
-        titles   = xpath_select(root, '//div/head/string()')  # atomic results
+    ```python
+    chapters = xpath_select(root, '//body/div')          # TEI, DocBook, …
+    titles   = xpath_select(root, '//div/head/string()')  # atomic results
+    ```
 
-    Element results are returned as lxml :class:`~lxml.etree._Element` objects.
+    Element results are returned as lxml `_Element` objects.
     Atomic expressions (``count(…)``, ``string(…)``) return the corresponding
     Python scalar.
 
@@ -194,7 +211,7 @@ def load_xpath_documents(paths: Sequence[Path]) -> dict[str, Any]:
     ``doc()``-using predicate, the register documents were being re-wrapped
     thousands of times per chunked file. ``get_node_tree()`` short-circuits on
     an already-wrapped ``DocumentNode``, so pre-wrapping turns that back into a
-    dict lookup. Mirrors what :meth:`~opm.runtime.xpath_env.XPathEnvironment.wrapped`
+    dict lookup. Mirrors what [`wrapped`][opm.runtime.xpath_env.XPathEnvironment.wrapped]
     does for the main document.
     """
     documents: dict[str, Any] = {}
@@ -212,7 +229,7 @@ def load_xpath_collections(
     """Return ``(collections, documents)`` maps for the XPath dynamic context.
 
     Each member document is parsed and wrapped once (see
-    :func:`load_xpath_documents`) and registered in *both* returned maps. The
+    [`load_xpath_documents`][opm.transform.load_xpath_documents]) and registered in *both* returned maps. The
     second registration is not redundant: ``fn:id`` resolves its target document
     through ``XPathContext.get_root()``, which searches ``root`` and
     ``documents`` but never ``collections``. Without it,
@@ -245,7 +262,7 @@ def load_project_documents(
     """``(documents, collections)`` for the XPath dynamic context, from *config*.
 
     Parses ``[transform] documents`` and every ``[[transform.collections]]``
-    member once. Pass the result to :func:`project_xpath_env` to share the
+    member once. Pass the result to [`project_xpath_env`][opm.transform.project_xpath_env] to share the
     parsed registers across several documents.
     """
     documents = load_xpath_documents(config.xpath_documents)
@@ -265,9 +282,13 @@ def project_xpath_env(
     Registers, collections, variables, namespaces and extension modules all
     come from *config*; *extensions* replaces the configured modules when
     given. *xml_path* is the base URI ``doc()`` resolves against. *documents*
-    is a :func:`load_project_documents` result to reuse instead of parsing the
+    is a [`load_project_documents`][opm.transform.load_project_documents] result to reuse instead of parsing the
     registers again.
+
+    The config's ``[project] pythonpath`` goes on ``sys.path`` first, so its
+    extension modules import from the Python API as they do from the CLI.
     """
+    config.extend_sys_path()
     docs, collections = (
         documents if documents is not None else load_project_documents(config)
     )
@@ -289,7 +310,7 @@ def _print_base_css() -> str:
     the packaged baseline is what actually declares that rule (plus
     ``::footnote-call``/``::footnote-marker``). Kept separate from the ODD's
     own generated CSS (rather than concatenated into it) so
-    :func:`~opm.template_rendering.render_document_template`'s de-dup check —
+    [`render_document_template`][opm.template_rendering.render_document_template]'s de-dup check —
     which drops ``odd_css`` when it is already embedded in the document's own
     ``<head>`` — still recognises an exact match instead of seeing a combined
     string it has never encountered before and emitting the ODD CSS twice.
@@ -327,7 +348,7 @@ def run_transform(
     For DOCX / EPUB output, returns raw ``bytes`` (the package file content).
 
     Args:
-        mod: A loaded transform module (from :func:`load_transform_module`).
+        mod: A loaded transform module (from [`load_transform_module`][opm.transform.load_transform_module]).
         root: The lxml element to transform.
         parameters: XPath ``$parameters`` map passed to the transform.
         webcomponents: Enable TEI Publisher web-component mode.
@@ -335,14 +356,14 @@ def run_transform(
         template_path: Override Jinja2 template (default: packaged template).
         template_context: Project ``[context]`` values exposed to the Jinja2
             template as ``context`` (see
-            :meth:`~opm.config.ProjectConfig.context_for`).
+            [`context_for`][opm.config.ProjectConfig.context_for]).
         docx_template: Path to a ``.docx`` file used as the Word style template.
         typst_template_path: Jinja2 template for Typst document shell.
         epub_chunking: Chapter selection for ``-t epub`` (defaults from TEI/DocBook).
         epub_css: Stylesheet appended last to the EPUB package.
         epub_skip_title: Omit the generated EPUB title page.
         xpath_env: The XPath environment to evaluate in (see
-            :func:`project_xpath_env`); an empty one when omitted.
+            [`project_xpath_env`][opm.transform.project_xpath_env]); an empty one when omitted.
     """
     serialize = getattr(mod, 'serialize', _default_serialize)
 
@@ -392,7 +413,8 @@ def run_transform(
 
     if apply_template and mode.template == 'typst':
         tpl = resolve_template_path(
-            typst_template_path, default_name=mode.default_template
+            typst_template_path,
+            default_name=mode.default_template or DEFAULT_TYPST_TEMPLATE_NAME,
         )
         out = render_typst_document_template(
             content_typst=out,
@@ -404,7 +426,7 @@ def run_transform(
         )
     elif apply_template and is_document and mode.template == 'html':
         tpl = resolve_template_path(
-            template_path, default_name=mode.default_template
+            template_path, default_name=mode.default_template or DEFAULT_TEMPLATE_NAME,
         )
         out = render_document_template(
             serialized_html=out,
@@ -438,7 +460,7 @@ def transform_node(
     """Load *script_path* as a transform module and apply it to *root*.
 
     If *xpath* is given it is evaluated against *root* via
-    :meth:`~opm.runtime.xpath_env.XPathEnvironment.resolve_element` to select the
+    [`resolve_element`][opm.runtime.xpath_env.XPathEnvironment.resolve_element] to select the
     actual element to transform; unprefixed names use the document's default
     namespace.  Without *xpath*, *root* itself is the transform target.
 
@@ -458,7 +480,7 @@ def transform_node(
         template_context: Project ``[context]`` values exposed to the Jinja2
             template as ``context``.
         xpath_env: The XPath environment to evaluate in (see
-            :func:`project_xpath_env`); an empty one when omitted.
+            [`project_xpath_env`][opm.transform.project_xpath_env]); an empty one when omitted.
     """
     mod = (
         script_path
@@ -498,6 +520,7 @@ def transform_file(
     webcomponents: bool | None = None,
     template: Path | None = None,
     config: ProjectConfig | None = None,
+    documents: tuple[dict[str, Any], dict[str, list]] | None = None,
 ) -> str | bytes:
     """Transform *xml_path* (or an XPath-selected element within it) with the project's settings.
 
@@ -516,35 +539,73 @@ def transform_file(
         xpath_extensions: Dotted module paths for custom XPath functions.
             ``None`` uses ``[transform] xpath_extensions`` from config.
         webcomponents: Enable web-component mode.
-            ``None`` uses ``[transform.web.webcomponents] enabled`` from config.
+            ``None`` uses ``[transform.web] webcomponents`` from config.
             Modes without web components (print, EPUB, JSON) ignore it.
-        template: Template override (see :func:`template_arguments`).
-        config: Pre-loaded :class:`~opm.config.ProjectConfig`.
+        template: Template override (see [`template_arguments`][opm.transform.template_arguments]).
+        config: Pre-loaded [`ProjectConfig`][opm.config.ProjectConfig].
             When ``None``, ``opm.toml`` is loaded from the CWD.
+        documents: A [`load_project_documents`][opm.transform.load_project_documents] result to reuse instead
+            of parsing the registers again.
 
-    Returns ``str`` for text output modes (HTML, Markdown) and ``bytes`` for
-    binary modes (DOCX, EPUB).
+    Returns ``str`` for text output modes (HTML, Markdown, Typst) and ``bytes``
+    for binary ones (DOCX, EPUB). To get a PDF, pass Typst output to
+    [`opm.typst_compile.compile_pdf`][opm.typst_compile.compile_pdf].
     """
-    cfg = config if config is not None else load_project_config()
-    mod = module if isinstance(module, ModuleType) else load_transform_module(module)
+    return transform_with_config(
+        module if isinstance(module, ModuleType) else load_transform_module(module),
+        etree.parse(str(xml_path)).getroot(),
+        xml_path,
+        config if config is not None else load_project_config(),
+        xpath=xpath,
+        parameters=parameters,
+        xpath_extensions=xpath_extensions,
+        webcomponents=webcomponents,
+        template=template,
+        documents=documents,
+    )
+
+
+def transform_with_config(
+    mod: ModuleType,
+    root: etree._Element,
+    xml_path: Path | None,
+    config: ProjectConfig,
+    *,
+    xpath: str | None = None,
+    parameters: dict[str, str] | None = None,
+    xpath_extensions: Sequence[str] | None = None,
+    webcomponents: bool | None = None,
+    template: Path | None = None,
+    documents: tuple[dict[str, Any], dict[str, list]] | None = None,
+) -> str | bytes:
+    """Transform the already parsed *root* with *config*'s settings.
+
+    The part of [`transform_file`][opm.transform.transform_file] after parsing, shared with
+    [`opm.project.Project.transform`][opm.project.Project.transform]. *xml_path* is the file *root* was
+    read from, if any: ``doc()`` resolves against it and it becomes
+    ``$parameters?input_path``.
+    """
     mode = module_mode(mod)
 
-    enabled = webcomponents if webcomponents is not None else bool(cfg.webcomponents_enabled)
+    enabled = webcomponents if webcomponents is not None else bool(config.webcomponents_enabled)
     effective_webcomponents = enabled and mode.webcomponents
-    merged_parameters = dict(cfg.parameters)
+    merged_parameters = dict(config.parameters)
     merged_parameters.update(parameters or {})
-    merged_parameters.setdefault('input_path', str(xml_path))
+    if xml_path is not None:
+        merged_parameters.setdefault('input_path', str(xml_path))
 
     return transform_node(
         mod,
-        etree.parse(str(xml_path)).getroot(),
+        root,
         xpath=xpath,
         parameters=merged_parameters,
         webcomponents=effective_webcomponents,
-        template_context=cfg.context_for(mode.name, webcomponents=effective_webcomponents),
-        **template_arguments(mode, cfg, template),
-        xpath_env=project_xpath_env(cfg, xml_path, extensions=xpath_extensions),
-        epub_chunking=cfg.epub_chunking,
-        epub_css=cfg.epub_css,
-        epub_skip_title=cfg.epub_skip_title,
+        template_context=config.context_for(mode.name, webcomponents=effective_webcomponents),
+        **template_arguments(mode, config, template),
+        xpath_env=project_xpath_env(
+            config, xml_path, extensions=xpath_extensions, documents=documents,
+        ),
+        epub_chunking=config.epub_chunking,
+        epub_css=config.epub_css,
+        epub_skip_title=config.epub_skip_title,
     )

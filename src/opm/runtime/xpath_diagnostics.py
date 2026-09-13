@@ -6,7 +6,7 @@
 A predicate that raises is treated as false and a param as empty: the processing
 model has to carry on, and an ODD shared with TEI Publisher may hold expressions
 only one of the two runtimes can evaluate. The ones the compiler can recognise
-never reach the runtime (:mod:`opm.odd_compiler.expression_check`). What is
+never reach the runtime (`opm.odd_compiler.expression_check`). What is
 recorded here is what is left, in two kinds:
 
 * **Hints** — the project configuration is missing something the expression
@@ -62,7 +62,7 @@ class XPathFailure:
 
 @dataclass
 class XPathErrorLog:
-    """Everything :func:`collect_xpath_errors` saw."""
+    """Everything [`collect_xpath_errors`][opm.runtime.xpath_diagnostics.collect_xpath_errors] saw."""
 
     failures: dict[tuple[str, str], XPathFailure] = field(default_factory=dict)
     #: Missing project configuration, keyed so each is reported once.

@@ -12,7 +12,7 @@ start tag *ends*, so an element whose attributes wrap across lines is reported
 one or more lines below its ``<`` — on ``examples/serafin`` that is 24 of 260
 elements. It also has no column at all, and dense TEI puts many elements on one
 line (53% of the elements in ``examples/tei-test.xml`` share a line with
-another). So positions come from a second pass with :mod:`xml.parsers.expat`,
+another). So positions come from a second pass with `xml.parsers.expat`,
 which reports the exact ``<``.
 
 Correlation is by document order: expat fires ``StartElementHandler`` once per
@@ -31,7 +31,7 @@ from lxml import etree
 from opm.runtime import source_map
 
 # Keyed by the element object, never by ``id()``: lxml recycles proxy objects,
-# so ids collide across nodes (see :mod:`opm.runtime.source_map`).
+# so ids collide across nodes (see `opm.runtime.source_map`).
 PositionMap = dict[etree._Element, tuple[int, int]]
 
 

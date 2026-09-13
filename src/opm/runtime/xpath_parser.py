@@ -14,8 +14,8 @@ The index is built from the same node tree with the same ``is_id`` test, and
 the first element in document order wins for each value, exactly as in
 elementpath: the same nodes come back in the same order, only faster. It is
 built once per document and run and kept in the running
-:class:`~opm.runtime.xpath_env.XPathEnvironment`'s cache. Finding which
-document a lookup targets is done by :func:`root_of` rather than by scanning
+[`XPathEnvironment`][opm.runtime.xpath_env.XPathEnvironment]'s cache. Finding which
+document a lookup targets is done by [`root_of`][opm.runtime.xpath_parser.root_of] rather than by scanning
 the documents for the node.
 """
 
@@ -87,7 +87,7 @@ class OpmXPathParser(XPath31Parser):
 
 
 class _IndexedIdFunction(XPath31Parser.symbol_table['id']):  # type: ignore[misc,valid-type]
-    """``fn:id()`` over :func:`build_id_index`; argument handling as in elementpath."""
+    """``fn:id()`` over `build_id_index`; argument handling as in elementpath."""
 
     def select(self, context: Any = None) -> Iterator[EtreeElementNode]:
         if self.context is not None:

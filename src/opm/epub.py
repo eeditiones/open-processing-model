@@ -313,7 +313,7 @@ def _build_chapter_list(
                 element=el,
                 file_id=file_id,
                 # Provisional: the transform may name the chapter better than
-                # the source does. Resolved in :func:`build_epub`.
+                # the source does. Resolved in [`build_epub`][opm.epub.build_epub].
                 title=_chapter_heading_text(el) or '',
                 anchor_id=anchor,
             )

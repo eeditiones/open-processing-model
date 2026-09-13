@@ -6,13 +6,13 @@ Output format abstraction for TEI transformation.
 
 Equivalent to html-functions.xql (and sibling format modules) in
 tei-publisher-lib/content.  Each concrete subclass of
-:class:`ProcessingModelFunctions` implements a specific serialisation
+[`ProcessingModelFunctions`][opm.runtime.output_functions.ProcessingModelFunctions] implements a specific serialisation
 target (HTML, Markdown, …).  The generated transformation module
 calls methods on ``config.pmf`` and never imports a format-specific
 module directly.
 
-HTML and Markdown implementations live in :mod:`opm.html_output_functions` and
-:mod:`opm.markdown_output_functions`; they are re-exported here for convenience.
+HTML and Markdown implementations live in `opm.html_output_functions` and
+`opm.markdown_output_functions`; they are re-exported here for convenience.
 """
 
 import re
@@ -355,7 +355,7 @@ def apply_pb_template(template_str: str, params: dict, config: dict | None = Non
     *config* is accepted for API symmetry but not currently used; element-valued params that
     appear in text positions are inserted directly into the result tree. The ODD compiler is
     expected to pass already-rendered output nodes (see
-    :func:`~opm.pm_runtime.apply_template_param_value`, which expands a context node
+    [`apply_template_param_value`][opm.runtime.pm_runtime.apply_template_param_value], which expands a context node
     to processed children instead of raw TEI).
     """
     wrapped = f'<__w__>{template_str}</__w__>'
@@ -387,7 +387,7 @@ class ProcessingModelFunctions(ABC):
     only the *config* construction needs to change
     when a different output format is required.
 
-    Every method receives *config*, a :class:`~opm.runtime.context.RenderContext`,
+    Every method receives *config*, a [`RenderContext`][opm.runtime.context.RenderContext],
     as its first argument. Output functions delegate recursive processing
     through it without importing the dispatch module:
 
@@ -509,7 +509,7 @@ class ProcessingModelFunctions(ABC):
         return config.apply(config, child_nodes(node))
 
     def finish(self, config, nodes: list) -> list:
-        """Post-process output after :func:`~opm.pm_runtime.apply`, before footnotes.
+        """Post-process output after [`apply`][opm.runtime.pm_runtime.apply], before footnotes.
 
         Equivalent to ``pmf:finish`` in ``markdown-functions.xql`` / HTML siblings.
         Default: return *nodes* unchanged.

@@ -48,7 +48,8 @@ processing instruction). The handbook shell fills title, TOC, and breadcrumbs:
 opm chunk data/doc/quickstart.xml --force --preview
 ```
 
-Or chunk both sample articles (writes `chunks/<file>/`):
+Pages go to `chunks/<file>/`, with the stylesheets, assets and an `index.html`
+shared at `chunks/`. Or chunk both sample articles at once:
 
 ```bash
 opm chunk data/doc --force --preview

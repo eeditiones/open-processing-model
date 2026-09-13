@@ -28,6 +28,9 @@
   {% if context.webcomponents_url %}
   <script type="module" src="{{ context.webcomponents_url }}"></script>
   {% endif %}
+  {% for src in context.scripts | default([], true) %}
+  <script type="module" src="{{ src }}"></script>
+  {% endfor %}
 </head>
 {% set is_chunk = chunk is defined and chunk %}
 {% set has_toc = fragments is defined and fragments.toc %}

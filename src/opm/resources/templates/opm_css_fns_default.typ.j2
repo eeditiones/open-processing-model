@@ -22,10 +22,20 @@
   shift: false,
   side: "outer",
   text-style: (size: 0.75em, fill: luma(80)),
-  block-style: (
-    inset: (left: 0.45em),
-    stroke: (left: 0.4pt + luma(170)),
-  ),
+  // A column this narrow justifies into wide gaps; set it ragged.
+  par-style: (justify: false),
+)
+
+// A marked note shows the source's marker (@n) before its text and at its
+// anchor. marginalia only prints markers for a note with a counter; the
+// counter's value is ignored. Marked notes sit close together (a, b, … on
+// neighbouring lines), so they may shift to avoid one another.
+#let opm-marginnote-marked(marker, body) = opm-marginnote(
+  counter: marginalia.notecounter,
+  numbering: (..) => [#super(marker)#h(0.25em)],
+  anchor-numbering: (..) => super(marker),
+  shift: true,
+  body,
 )
 
 #let opm-css-fns = (
@@ -33,7 +43,11 @@
     pagebreak(weak: true)
     body
   },
-  marginnote: (body) => opm-marginnote(body),
+  marginnote: (body, marker: none) => if marker == none {
+    opm-marginnote(body)
+  } else {
+    opm-marginnote-marked(marker, body)
+  },
 )
 
 // Missing image files abort `typst compile`. Shadow `image` with a layout-retry

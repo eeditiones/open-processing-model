@@ -52,3 +52,31 @@ def test_epub_uses_the_epub_chapter_selection(tmp_path: Path, monkeypatch) -> No
     transform_file(_module(tmp_path, 'epub'), xml, config=cfg)
 
     assert [c.xpath for c in seen] == ['//body/div']
+
+
+def test_project_extensions_import_through_the_configured_pythonpath(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    import sys
+
+    from lxml import etree
+
+    from opm.transform import project_xpath_env
+
+    monkeypatch.setattr(sys, 'path', list(sys.path))
+    project = tmp_path / 'project'
+    (project / 'extensions').mkdir(parents=True)
+    (project / 'extensions' / 'opm_pythonpath_probe.py').write_text(
+        'def shout(text):\n    return str(text).upper()\n', encoding='utf-8',
+    )
+    cfg = ProjectConfig(
+        pythonpath=(project / 'extensions',),
+        xpath_extensions=('opm_pythonpath_probe',),
+    )
+
+    env = project_xpath_env(cfg)
+
+    assert env.select(etree.fromstring('<doc/>'), "tp:shout('hi')") == 'HI'
+    # Calling it again adds nothing.
+    project_xpath_env(cfg)
+    assert sys.path.count(str((project / 'extensions').resolve())) == 1

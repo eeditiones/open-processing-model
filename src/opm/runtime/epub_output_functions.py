@@ -59,7 +59,7 @@ class EpubOutputFunctions(HtmlOutputFunctions):
     """Serialise to HTML with EPUB 3 structural semantics.
 
     Equivalent to the ``pmf:*`` overrides in ``ext-epub.xql``. Packaging into a
-    ``.epub`` ZIP is handled separately by :mod:`opm.epub`.
+    ``.epub`` ZIP is handled separately by `opm.epub`.
     """
 
     def block(self, config, node, cls, content) -> PMResult:

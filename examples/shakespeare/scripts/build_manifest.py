@@ -9,13 +9,18 @@ once, here, and shipped as a chunking asset. See the Facsimiles section of the
 README for how ``[transform.parameters] static`` makes ``<pb-facs-link>`` point
 at it.
 
-Run it from the example root after changing the source document, or if the
-image server ever moves::
+Run it from the example root after changing a source document, or if the image
+server ever moves. With no argument it builds a manifest for every document in
+``data/``; name one to rebuild just that::
 
     uv run python scripts/build_manifest.py
+    uv run python scripts/build_manifest.py data/F-ado.xml
 
-The output path mirrors what the ODD emits: ``iiif/<document-name>/manifest.json``,
-which ``[chunking] assets`` copies to ``chunks/assets/<document-name>/manifest.json``.
+The manifest is written into the project as ``iiif/<document-name>/manifest.json``.
+Nothing serves it from there: ``[chunking] assets`` copies those directories into
+the output, where each becomes ``<output>/assets/<document-name>/manifest.json`` —
+the URL ``[transform.parameters] context-path`` builds and ``<pb-facs-link>`` asks
+for. That list globs ``iiif/*``, so adding a document needs no change to it.
 
 Dimensions are read from each image's IIIF ``info.json`` rather than assumed —
 the folios differ (1320, 1380, 1384, …) and Tify places tiles from them, so a
@@ -43,7 +48,14 @@ IMAGE_BASE = 'https://apps.existsolutions.com/cantaloupe/iiif/2'
 CANVAS_BASE = 'https://e-editiones.org/canvas'
 MANIFEST_BASE = 'https://e-editiones.org/manifest'
 
-DEFAULT_SOURCE = Path('data/F-ado.xml')
+DEFAULT_SOURCE = Path('data')
+
+
+def documents(source: Path) -> list[Path]:
+    """The documents to build for: every ``*.xml`` in a directory, or one file."""
+    if source.is_dir():
+        return sorted(source.glob('*.xml'))
+    return [source]
 
 
 def first(result: list):
@@ -112,7 +124,9 @@ def build(source: Path) -> dict:
         })
 
     if not canvases:
-        raise SystemExit(f'{source}: no <pb facs="…"/> found, nothing to build')
+        # Raised rather than exiting: a directory run skips such a document and
+        # carries on, while naming one explicitly is worth failing over.
+        raise ValueError(f'{source}: no <pb facs="…"/> found, nothing to build')
 
     return {
         '@context': 'http://iiif.io/api/presentation/2/context.json',
@@ -130,21 +144,40 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
         'source', nargs='?', type=Path, default=DEFAULT_SOURCE,
-        help=f'TEI document to read pb/@facs from (default: {DEFAULT_SOURCE})',
+        help=(
+            'TEI document to read pb/@facs from, or a directory of them '
+            f'(default: {DEFAULT_SOURCE})'
+        ),
     )
     parser.add_argument(
         '-o', '--output', type=Path, default=None,
-        help='manifest path (default: iiif/<document-name>/manifest.json)',
+        help='manifest path for a single document (default: iiif/<name>/manifest.json)',
     )
     args = parser.parse_args()
 
-    out = args.output or Path('iiif') / args.source.name / 'manifest.json'
-    manifest = build(args.source)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(manifest, indent=1) + '\n', encoding='utf-8')
+    if not args.source.exists():
+        raise SystemExit(f'{args.source}: no such file or directory')
 
-    count = len(manifest['sequences'][0]['canvases'])
-    print(f'{count} canvases -> {out}', file=sys.stderr)
+    sources = documents(args.source)
+    if not sources:
+        raise SystemExit(f'{args.source}: holds no .xml documents')
+    if args.output and len(sources) > 1:
+        raise SystemExit('--output names one manifest, so it takes a single document')
+
+    for source in sources:
+        try:
+            manifest = build(source)
+        except ValueError as e:
+            if len(sources) == 1:
+                raise SystemExit(str(e)) from e
+            print(f'skipped {e}', file=sys.stderr)
+            continue
+        out = args.output or Path('iiif') / source.name / 'manifest.json'
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(manifest, indent=1) + '\n', encoding='utf-8')
+
+        count = len(manifest['sequences'][0]['canvases'])
+        print(f'{count} canvases -> {out}', file=sys.stderr)
 
 
 if __name__ == '__main__':

@@ -41,6 +41,10 @@ _HTML_TEMPLATE = {
     'docbook': 'chapbook',
     'jats': 'journal',
 }
+#: Reading shells ``--templates`` copies beside the one the project wires up.
+#: Without the flag a project gets only the shell it actually uses, so the
+#: templates/ directory says what the project is rather than what it could be.
+_EXTRA_SHELLS = ('chapbook', 'journal', 'handbook', 'tufte', 'bootstrap')
 # Elements the commented-out [[index.fields]] examples point at, per vocabulary:
 # (footnote-like element, person-name element).
 _INDEX_FIELD_ELEMENTS = {
@@ -121,7 +125,6 @@ class InitOptions:
 
     directory: Path
     force: bool = False
-    title: str | None = None
     vocabulary: str = 'tei'
     html_template: str = ''  # empty: pick the shell that suits the vocabulary
     example: str | None = None  # copy a bundled example instead of scaffolding
@@ -130,6 +133,9 @@ class InitOptions:
     chunk_depth: int = 2
     webcomponents: bool = False
     copy_base_odd: bool = False
+    #: Also copy the alternative HTML shells, beside the one wired up (or, with
+    #: ``example``, beside the ones the example ships).
+    templates: bool = False
 
 
 #: Sample document written into an empty project, relative to its root.
@@ -183,6 +189,30 @@ def _copy_file(src: Path, dest: Path, *, force: bool) -> bool:
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dest)
     return True
+
+
+def _shell_copies(names: tuple[str, ...], dest_dir: Path) -> list[tuple[str, Path]]:
+    """Return ``(packaged resource, destination)`` pairs for the HTML shells *names*.
+
+    A shell is a ``.html.j2`` plus the ``.css`` beside it, when it has one:
+    ``tufte`` and ``bootstrap`` carry their styling inline and ship alone.
+    """
+    copies: list[tuple[str, Path]] = []
+    for name in names:
+        copies.append(
+            (
+                f'scaffold/templates/{name}.html.j2',
+                dest_dir / 'templates' / f'{name}.html.j2',
+            )
+        )
+        if _resource_root().joinpath('scaffold', 'templates', f'{name}.css').is_file():
+            copies.append(
+                (
+                    f'scaffold/templates/{name}.css',
+                    dest_dir / 'templates' / f'{name}.css',
+                )
+            )
+    return copies
 
 
 def strip_repo_only(text: str) -> str:
@@ -246,6 +276,7 @@ def _agent_guidance(
     odd_path: str,
     html_template: str,
     sample: str,
+    extra_templates: bool,
     written: list[Path],
     skipped: list[Path],
 ) -> None:
@@ -255,6 +286,7 @@ def _agent_guidance(
         'odd_path': odd_path,
         'sample': sample,
         'html_template': html_template,
+        'extra_templates': extra_templates,
     }
     template = env.get_template('agent_guidance.md.j2')
     for name, heading, intro in (
@@ -319,6 +351,13 @@ def _scaffold_example(options: InitOptions) -> ScaffoldResult:
         _copy_packaged('scaffold/gitignore', dest_dir / '.gitignore', force=force),
     )
 
+    if options.templates:
+        # Never overwrite a shell the example ships, even with --force: the
+        # example's own copy may be customised (the Shakespeare chapbook
+        # carries a facsimile column the packaged one knows nothing about).
+        for src_rel, dest in _shell_copies(_EXTRA_SHELLS, dest_dir):
+            _record(dest, written, skipped, _copy_packaged(src_rel, dest, force=False))
+
     # The ODD and reading shell the example actually wires up, so its agent
     # guidance points at the right files.
     cfg = load_project_config(config_path)
@@ -341,6 +380,7 @@ def _scaffold_example(options: InitOptions) -> ScaffoldResult:
         # The example's own document — an example has no data/sample.xml, and
         # guidance that told an agent to transform one would simply be wrong.
         sample=example.sample,
+        extra_templates=options.templates,
         written=written,
         skipped=skipped,
     )
@@ -376,7 +416,7 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
             f'{config_path} already exists. Pass --force to overwrite.'
         )
 
-    title = (options.title or dest_dir.name).strip() or dest_dir.name
+    title = dest_dir.name
     is_tei = vocab == 'tei'
     odd_path = _ODD_PATH[vocab]
     typst_template = _TYPST_TEMPLATE[vocab]
@@ -410,6 +450,7 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         odd_path=odd_path,
         sample=SAMPLE_PATH,
         html_template=html_template,
+        extra_templates=options.templates,
     )
     _record(
         dest_dir / 'README.md',
@@ -425,6 +466,7 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         odd_path=odd_path,
         html_template=html_template,
         sample=SAMPLE_PATH,
+        extra_templates=options.templates,
         written=written,
         skipped=skipped,
     )
@@ -455,16 +497,11 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         ),
     )
 
-    copies: list[tuple[str, Path]] = [
-        ('scaffold/templates/chapbook.html.j2', dest_dir / 'templates' / 'chapbook.html.j2'),
-        ('scaffold/templates/chapbook.css', dest_dir / 'templates' / 'chapbook.css'),
-        ('scaffold/templates/handbook.html.j2', dest_dir / 'templates' / 'handbook.html.j2'),
-        ('scaffold/templates/handbook.css', dest_dir / 'templates' / 'handbook.css'),
-        ('scaffold/templates/journal.html.j2', dest_dir / 'templates' / 'journal.html.j2'),
-        ('scaffold/templates/journal.css', dest_dir / 'templates' / 'journal.css'),
-        ('scaffold/templates/tufte.html.j2', dest_dir / 'templates' / 'tufte.html.j2'),
-        ('scaffold/templates/bootstrap.html.j2', dest_dir / 'templates' / 'bootstrap.html.j2'),
-    ]
+    # The shell opm.toml wires up; --templates adds the alternatives beside it.
+    shells: tuple[str, ...] = (html_template,)
+    if options.templates:
+        shells += tuple(name for name in _EXTRA_SHELLS if name != html_template)
+    copies: list[tuple[str, Path]] = _shell_copies(shells, dest_dir)
     if 'typst' in options.outputs:
         copies.append(
             (

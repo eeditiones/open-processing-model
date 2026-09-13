@@ -22,7 +22,7 @@ bug and folding its text into the parent would hide it.  Suppressing
 behaviours (``omit``, ``index``, ``metadata``) emit a childless record marked
 ``suppressed`` rather than vanishing, so "the ODD dropped this" and "it was
 never in the source" stay distinguishable.  Elements no model matched arrive
-via :meth:`unmatched` with ``behaviour`` set to ``None``.
+via [`JsonOutputFunctions.unmatched`][opm.runtime.json_output_functions.JsonOutputFunctions.unmatched] with ``behaviour`` set to ``None``.
 """
 
 from __future__ import annotations
@@ -120,7 +120,7 @@ def _prune(children: list) -> list:
 class JsonOutputFunctions(ProcessingModelFunctions):
     """Emit the processing model's decisions as JSON records."""
 
-    #: Source positions of the run's document, filled in by :func:`_positions`.
+    #: Source positions of the run's document, filled in by `_positions`.
     _positions_cache: dict | None = None
 
     # ── record construction ───────────────────────────────────────────────────

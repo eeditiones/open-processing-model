@@ -3,8 +3,6 @@
   SPDX-License-Identifier: CC0-1.0
 -#}
 <!doctype html>
-{% set is_chunk = chunk is defined and chunk %}
-{% set show_facsimile = is_chunk and context.webcomponents_url and context.facsimile_viewer %}
 <html lang="{{ lang|default('en') }}">
 <head>
   <meta charset="utf-8">
@@ -15,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Literata:ital,opsz,wght@0,7..72,400..700;1,7..72,400..700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..700;1,400..600&family=Hanken+Grotesk:wght@400;500;600&display=swap"
     rel="stylesheet"
   >
   {{ head_html | safe }}
@@ -30,12 +28,20 @@
   {% if context.webcomponents_url %}
   <script type="module" src="{{ context.webcomponents_url }}"></script>
   {% endif %}
-  {% if show_facsimile %}
-  <!-- pb-tify ships as its own entry point; the bundle above does not carry it -->
-  <script type="module" src="{{ context.facsimile_viewer }}"></script>
-  {% endif %}
+  {# context.scripts carries pb-tify here: it ships as its own entry point and
+     the bundle above does not include it. #}
+  {% for src in context.scripts | default([], true) %}
+  <script type="module" src="{{ src }}"></script>
+  {% endfor %}
 </head>
-<body class="chapbook">
+{% set is_chunk = chunk is defined and chunk %}
+{% set has_toc = fragments is defined and fragments.toc %}
+{% set show_facsimile = is_chunk and context.webcomponents_url %}
+{# `index_url` is the collection index at the output root, already carrying the
+   hop back from a chunk page. #}
+{% set home_href = context.home_url or (index_url if index_url is defined and index_url else 'index.html') %}
+<body class="chapbook{% if has_toc %} chapbook--with-toc{% endif %}">
+  <a class="chap-skip" href="#chap-content">Skip to content</a>
   {% if show_facsimile %}
   <!-- pb-components resolve relative URLs against the endpoint of an ancestor
        <pb-page>; without one getEndpoint() is undefined and pb-tify asks for
@@ -43,66 +49,151 @@
        api-version is pinned so pb-page does not probe ./api/version. -->
   <pb-page endpoint="." api-version="1.0.0" theme="{{ context.webcomponents_theme }}">
   {% endif %}
+  {% if has_toc %}
+  <input type="checkbox" id="chap-toc-toggle" class="chap-toc__toggle" autocomplete="off">
+  {% endif %}
+
   <header class="chap-running">
-    <span class="chap-running__work">{{ work_title or 'Chapbook' }}</span>
+    <div class="chap-running__inner">
+      <a class="chap-running__brand" href="{{ home_href }}">
+        {% if context.logo %}<img class="chap-running__logo" src="{{ context.logo }}" alt="">{% endif %}
+        <span class="chap-running__work">{{ work_title or 'Chapbook' }}</span>
+      </a>
+
+      <div class="chap-running__tools">
+        {% for item in context.nav | default([], true) %}
+        <a class="chap-running__link" href="{{ item.url }}">{{ item.label }}</a>
+        {% endfor %}
+
+        {# Reader-set text size, remembered per browser. #}
+        <div class="chap-running__group">
+          <button type="button" class="chap-zoom" data-chap-zoom="-0.1" title="Smaller text" aria-label="Smaller text">A&minus;</button>
+          <button type="button" class="chap-zoom" data-chap-zoom="0.1" title="Larger text" aria-label="Larger text">A+</button>
+        </div>
+
+        {% if has_toc %}
+        <div class="chap-running__group">
+          <label for="chap-toc-toggle" class="chap-toc__open">Contents</label>
+        </div>
+        {% endif %}
+
+        {% if is_chunk and (chunk.prev or chunk.next) %}
+        <div class="chap-running__group">
+          {% if chunk.prev %}<a class="chap-step" href="{{ chunk.prev }}.html" rel="prev">&#8592; Previous</a>{% endif %}
+          {% if chunk.next %}<a class="chap-step" href="{{ chunk.next }}.html" rel="next">Next &#8594;</a>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
   </header>
 
-  <main class="chap-page{% if is_chunk %} chap-page--chunk{% endif %}{% if fragments is defined and fragments.toc %} chap-page--with-toc{% endif %}{% if show_facsimile %} chap-page--with-facs{% endif %}">
-    <div class="chap-body">
-      {% if fragments is defined and fragments.toc %}
-      <aside class="chap-toc">
-        <input type="checkbox" id="chap-toc-toggle" class="chap-toc__toggle" autocomplete="off">
-        <label for="chap-toc-toggle" class="chap-toc__open">
-          <span class="chap-toc__open-label">Contents</span>
-        </label>
-        <div class="chap-toc__overlay">
-          <label for="chap-toc-toggle" class="chap-toc__backdrop" aria-hidden="true"></label>
-          <div class="chap-toc__drawer" role="dialog" aria-label="Contents" aria-modal="true">
-            <header class="chap-toc__drawer-head">
-              <span class="chap-toc__drawer-title">Contents</span>
-              <label for="chap-toc-toggle" class="chap-toc__close">Close</label>
-            </header>
-            <div class="chap-toc__body">
-              {{ fragments.toc | safe }}
-            </div>
-          </div>
-        </div>
-      </aside>
-      {% endif %}
-      <article class="content">
-        {{ content_html | safe }}
-      </article>
-      {% if show_facsimile %}
-      <!-- pb-facs-link emits the manifest URL and page index on the
-           "transcription" channel; pb-tify subscribes and turns to that page. -->
-      <aside class="chap-facs" aria-label="Facsimile">
-        <pb-tify subscribe="transcription" emit="transcription"></pb-tify>
-      </aside>
-      {% endif %}
-    </div>
-  </main>
+  <div class="chap-shell">
+    {% if has_toc %}
+    <aside class="chap-toc" aria-label="Contents">
+      <div class="chap-toc__drawer">
+        <header class="chap-toc__drawer-head">
+          <span class="chap-toc__drawer-title">Contents</span>
+          <label for="chap-toc-toggle" class="chap-toc__close">Close</label>
+        </header>
+        <nav class="chap-toc__body">
+          {{ fragments.toc | safe }}
+        </nav>
+      </div>
+    </aside>
+    {% endif %}
 
-  {% if is_chunk and (chunk.prev or chunk.next) %}
-  <nav class="chap-folio-nav" aria-label="Chapter navigation">
-    <div class="chap-folio-nav__prev">
-      {% if chunk.prev %}
-      <a href="{{ chunk.prev }}.html">
-        <span class="chap-folio-nav__label">Verso</span>
-        <span class="chap-folio-nav__chevron" aria-hidden="true">&lsaquo;</span>
-        <span class="chap-folio-nav__dir">Previous</span>
-      </a>
+    <main class="chap-page{% if is_chunk %} chap-page--chunk{% endif %}{% if has_toc %} chap-page--with-toc{% endif %}{% if show_facsimile %} chap-page--with-facs{% endif %}">
+      {% if fragments is defined and fragments.breadcrumbs %}
+      <nav class="chap-crumbs" aria-label="Breadcrumb">
+        {{ fragments.breadcrumbs | safe }}
+      </nav>
       {% endif %}
-    </div>
-    <div class="chap-folio-nav__next">
-      {% if chunk.next %}
-      <a href="{{ chunk.next }}.html">
-        <span class="chap-folio-nav__label">Recto</span>
-        <span class="chap-folio-nav__dir">Next</span>
-        <span class="chap-folio-nav__chevron" aria-hidden="true">&rsaquo;</span>
-      </a>
+
+      <div class="chap-body">
+        <article class="content" id="chap-content">
+          {{ content_html | safe }}
+        </article>
+        {% if show_facsimile %}
+        <!-- pb-facs-link emits the manifest URL and page index on the
+             "transcription" channel; pb-tify subscribes and turns to that page. -->
+        <aside class="chap-facs" aria-label="Facsimile">
+          <pb-tify subscribe="transcription" emit="transcription"></pb-tify>
+        </aside>
+        {% endif %}
+      </div>
+
+      {% if is_chunk and (chunk.prev or chunk.next) %}
+      <nav class="chap-folio-nav__foot" aria-label="Page navigation">
+        <div>
+          {% if chunk.prev %}<a href="{{ chunk.prev }}.html" rel="prev">&#8592; Previous</a>{% endif %}
+        </div>
+        <div>
+          {% if chunk.next %}<a href="{{ chunk.next }}.html" rel="next">Next &#8594;</a>{% endif %}
+        </div>
+      </nav>
       {% endif %}
-    </div>
-  </nav>
+    </main>
+  </div>
+
+  {% if is_chunk and chunk.prev %}
+  <div class="chap-folio-nav__rail chap-folio-nav__rail--prev">
+    <a href="{{ chunk.prev }}.html" rel="prev" title="Previous page (left arrow key)">
+      <span class="chap-folio-nav__chevron" aria-hidden="true">&#8592;</span>
+      <span class="chap-folio-nav__dir">Previous</span>
+    </a>
+  </div>
+  {% endif %}
+  {% if is_chunk and chunk.next %}
+  <div class="chap-folio-nav__rail chap-folio-nav__rail--next">
+    <a href="{{ chunk.next }}.html" rel="next" title="Next page (right arrow key)">
+      <span class="chap-folio-nav__chevron" aria-hidden="true">&#8594;</span>
+      <span class="chap-folio-nav__dir">Next</span>
+    </a>
+  </div>
+  {% endif %}
+
+  {% if context.footer %}
+  <footer class="chap-footer">
+    <div class="chap-footer__inner">{{ context.footer | safe }}</div>
+  </footer>
+  {% endif %}
+
+  <script>
+  (function () {
+    var content = document.getElementById('chap-content');
+    if (content) {
+      var KEY = 'opm-chapbook-font-size';
+      try {
+        var saved = localStorage.getItem(KEY);
+        if (saved) content.style.fontSize = saved + 'rem';
+      } catch (e) { /* private mode: text stays at its default size */ }
+
+      document.querySelectorAll('[data-chap-zoom]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          var step = parseFloat(button.getAttribute('data-chap-zoom'));
+          var current = parseFloat(getComputedStyle(content).fontSize) / 16;
+          var next = Math.max(0.8, Math.min(2, current + step)).toFixed(2);
+          content.style.fontSize = next + 'rem';
+          try { localStorage.setItem(KEY, next); } catch (e) { /* not remembered */ }
+        });
+      });
+    }
+
+    {# Arrow keys turn the page, as the rails do. #}
+    var prev = document.querySelector('.chap-folio-nav__rail--prev a');
+    var next = document.querySelector('.chap-folio-nav__rail--next a');
+    if (!prev && !next) return;
+    document.addEventListener('keydown', function (event) {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+      var active = document.activeElement;
+      if (active && (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(active.tagName))) return;
+      if (event.key === 'ArrowLeft' && prev) window.location.assign(prev.getAttribute('href'));
+      else if (event.key === 'ArrowRight' && next) window.location.assign(next.getAttribute('href'));
+    });
+  })();
+  </script>
+  {% if show_facsimile %}
+  </pb-page>
   {% endif %}
 </body>
 </html>

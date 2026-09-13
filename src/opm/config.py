@@ -11,6 +11,7 @@ directory.
 
 from __future__ import annotations
 
+import sys
 import tomllib
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -19,11 +20,16 @@ from urllib.parse import urlsplit
 
 from opm.output_modes import CONFIG_SECTIONS, MODES
 
-DEFAULT_CDN_TEMPLATE = (
+DEFAULT_WEBCOMPONENTS_URL = (
     'https://cdn.jsdelivr.net/npm/@teipublisher/pb-components'
-    '@{version}/dist/pb-components-bundle.js'
+    '@3.6.8/dist/pb-components-bundle.js'
 )
-DEFAULT_VERSION = '3.6.7'
+"""Bundle loaded when web-component mode is on and the project names no URL.
+
+Pinned here so the version is bumped in one place rather than in every
+project; override it per project with ``[transform.web.context]``
+``webcomponents_url``.
+"""
 
 CONFIG_FILENAME = 'opm.toml'
 
@@ -81,7 +87,7 @@ class FragmentConfig:
     """The ``xpath`` the consuming ``pb-view`` sends, when it differs from *xpath*.
 
     Used only to build ``--format pb-view`` index keys. See
-    :attr:`ChunkingConfig.xpath_dynamic`.
+    [`ChunkingConfig.xpath_dynamic`][opm.config.ChunkingConfig.xpath_dynamic].
     """
     parameters: dict[str, Any] | None = None
     module: Path | None = None
@@ -94,6 +100,12 @@ class FragmentConfig:
 
 @dataclass
 class ChunkingConfig:
+    """The ``[chunking]`` section: how ``opm chunk`` splits a document into pages.
+
+    Relative paths are resolved against the config file's directory, except
+    ``output_dir``, which is relative to the project root.
+    """
+
     xpath: str | None = None
     xpath_dynamic: str | None = None
     """The ``xpath`` the consuming ``pb-view`` sends, when it differs from *xpath*.
@@ -124,6 +136,9 @@ class ChunkingConfig:
     assets: tuple[Path, ...] = ()
     """Files or directories copied into ``<output-root>/assets/``.
 
+    An entry may be a glob: ``iiif/*`` copies every directory under ``iiif/``,
+    so a project that adds a document does not have to add a line here.
+
     Chunk output directories are wiped on every rebuild, so anything a template
     references — a stylesheet, an image, a font — has to be placed there by the
     build. Templates receive ``assets`` as a relative URL prefix
@@ -139,16 +154,18 @@ class ChunkingConfig:
       ``{file}``   – full filename, e.g. ``002.html``
       ``{stem}``   – stem without extension, e.g. ``002``
       ``{anchor}`` – the fragment identifier, e.g. ``Pers``
-      ``{doc}``    – document subdirectory when directory-chunking, e.g.
-                     ``quickstart.xml`` (empty for a single-file output)
+      ``{doc}``    – the document's own subdirectory, e.g. ``quickstart.xml``
+                     (empty only when chunking with no ``link_doc``)
 
     When *None* (default) the rewriter falls back to the relative form
-    ``{file}#{anchor}``.  Example values::
+    ``{file}#{anchor}``.  Example values:
 
-        link_pattern = "/{doc}/{file}"              # per-document absolute paths
-        link_pattern = "/{doc}/{stem}/"             # clean URLs under the doc dir
-        link_pattern = "/{stem}#{anchor}"           # site-root absolute (single doc)
-        link_pattern = "http://localhost:8080/{stem}#{anchor}"
+    ```toml
+    link_pattern = "/{doc}/{file}"              # per-document absolute paths
+    link_pattern = "/{doc}/{stem}/"             # clean URLs under the doc dir
+    link_pattern = "/{stem}#{anchor}"           # site-root absolute (single doc)
+    link_pattern = "http://localhost:8080/{stem}#{anchor}"
+    ```
     """
     link_doc: str | None = None
     """Document path segment for ``{doc}`` in ``link_pattern`` (not from TOML).
@@ -197,11 +214,11 @@ class CollectionConfig:
 
 
 def _index_fields(index_data: dict) -> tuple:
-    """Parse ``[[index.fields]]`` into :class:`opm.indexing.FieldSpec`s.
+    """Parse ``[[index.fields]]`` into [`opm.indexing.FieldSpec`][opm.indexing.FieldSpec]s.
 
     A field names records by behaviour, element or model — the three handles a
     JSON record carries — and says where their text goes; see
-    :class:`opm.indexing.FieldSpec`.
+    [`opm.indexing.FieldSpec`][opm.indexing.FieldSpec].
     """
     from opm.indexing import FieldSpec
 
@@ -253,12 +270,27 @@ def _string_list(value, label: str) -> list[str]:
 
 @dataclass
 class ProjectConfig:
+    """The settings in ``opm.toml``, as [`load_project_config`][opm.config.load_project_config] reads them.
+
+    Every field has a default, so ``ProjectConfig()`` is a project with no
+    config file. Paths are already resolved against the config file's
+    directory. To run anything with these settings, pass them to
+    [`opm.project.Project`][opm.project.Project].
+    """
+
     webcomponents_enabled: bool | None = None
-    webcomponents_cdn: str | None = None
+    """Web-component mode, from ``[transform.web] webcomponents``.
+
+    ``None`` means the project said nothing, leaving ``--webcomponents`` /
+    ``--no-webcomponents`` to decide. The bundle URL is not configured here:
+    it is an ordinary template value, ``webcomponents_url``, defaulted by
+    [`context_for`][opm.config.ProjectConfig.context_for] and overridable in
+    ``[transform.web.context]``.
+    """
     template_context: dict[str, Any] = field(default_factory=dict)
     """Arbitrary values exposed to every Jinja2 template as ``context`` (``[context]``).
 
-    Unlike :attr:`parameters`, which is bound to XPath ``$parameters`` and so
+    Unlike [`parameters`][opm.config.ProjectConfig.parameters], which is bound to XPath ``$parameters`` and so
     must be a flat map of strings, this keeps TOML types intact — booleans,
     numbers, arrays and nested tables all survive — because nothing but the
     template ever reads it. It is how a project drives its own template
@@ -267,7 +299,7 @@ class ProjectConfig:
     template_context_by_type: dict[str, dict[str, Any]] = field(default_factory=dict)
     """Per-output-type context overlays from ``[transform.<type>.context]``.
 
-    Merged over :attr:`template_context` by :meth:`context_for`, so a value the
+    Merged over [`template_context`][opm.config.ProjectConfig.template_context] by [`context_for`][opm.config.ProjectConfig.context_for], so a value the
     web template needs never leaks into the Typst one.
     """
     document_template: Path | None = None
@@ -282,7 +314,7 @@ class ProjectConfig:
     print_template: Path | None = None
     """Jinja2 HTML shell for ``-t print`` from ``[transform.print] template``.
 
-    Print does not fall back to :attr:`document_template` — web shells usually
+    Print does not fall back to [`document_template`][opm.config.ProjectConfig.document_template] — web shells usually
     include nav and web components that do not belong on a paged-media page.
     When unset, the packaged ``default_print.html.j2`` is used.
     """
@@ -330,7 +362,7 @@ class ProjectConfig:
     index_overlap: int = 1
     """``[index] overlap`` — records of context carried into the next part on a split."""
     index_fields: tuple = ()
-    """``[[index.fields]]`` — :class:`opm.indexing.FieldSpec`s pulled out of a passage."""
+    """``[[index.fields]]`` — [`opm.indexing.FieldSpec`][opm.indexing.FieldSpec]s pulled out of a passage."""
     pythonpath: tuple[Path, ...] = ()
     transform_odd: Path | None = None
     """Default transform ODD from ``[transform].odd`` or ``[transform.web].odd``."""
@@ -339,6 +371,19 @@ class ProjectConfig:
 
     Per-type ``[transform.<type>].odd`` entries override ``[transform].odd``.
     """
+
+    def extend_sys_path(self) -> None:
+        """Put the ``[project] pythonpath`` directories on ``sys.path``.
+
+        Project modules named in the config (XPath extensions, chunk
+        selectors) import from there. Each entry goes to the front, as
+        ``PYTHONPATH`` would put it; entries already present are left alone,
+        so calling this again is harmless.
+        """
+        for path in self.pythonpath:
+            entry = str(path.resolve())
+            if entry not in sys.path:
+                sys.path.insert(0, entry)
 
     def context_for(
         self,
@@ -349,20 +394,21 @@ class ProjectConfig:
         """Return the template ``context`` for *transform_type*.
 
         ``[context]`` supplies the base; ``[transform.<type>.context]`` overlays
-        it. When *webcomponents* is on, ``webcomponents_url`` is derived from
-        ``[transform.web.webcomponents] cdn``/``version`` — unless the project
-        set that key itself, which then wins.
+        it. When *webcomponents* is on, ``webcomponents_url`` falls back to
+        [`DEFAULT_WEBCOMPONENTS_URL`][opm.config.DEFAULT_WEBCOMPONENTS_URL] —
+        unless the project set that key itself, which then wins.
+
+        Whether the mode is on is a parameter rather than a config lookup
+        because only the caller knows the effective mode for a run:
+        ``--webcomponents`` overrides the config and the ``json``/``pb-view``
+        formats force it on.
         """
         merged = dict(self.template_context)
         key = _section_for(transform_type)
         if key:
             merged.update(self.template_context_by_type.get(key, {}))
         if webcomponents:
-            merged.setdefault(
-                'webcomponents_url',
-                self.webcomponents_cdn
-                or DEFAULT_CDN_TEMPLATE.replace('{version}', DEFAULT_VERSION),
-            )
+            merged.setdefault('webcomponents_url', DEFAULT_WEBCOMPONENTS_URL)
         return merged
 
     @property
@@ -421,7 +467,9 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     print_data = type_sections['print']
     epub_data = type_sections['epub']
     web_data = type_sections['web']
-    wc = _section_table(web_data.get('webcomponents'))
+    webcomponents_enabled = web_data.get('webcomponents')
+    if webcomponents_enabled is not None and not isinstance(webcomponents_enabled, bool):
+        raise ValueError('opm.toml: transform.web.webcomponents must be a boolean')
 
     raw_context = data.get('context', {})
     if not isinstance(raw_context, dict):
@@ -434,10 +482,6 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         for type_name, section in type_sections.items()
         if _section_table(section.get('context'))
     }
-
-    cdn_template = wc.get('cdn', DEFAULT_CDN_TEMPLATE)
-    version = wc.get('version', DEFAULT_VERSION)
-    resolved_cdn = cdn_template.replace('{version}', version)
 
     # The HTML shell only wraps web output, so it lives with the other per-type
     # templates; the base CSS is compiled into every type's ODD stylesheet, so
@@ -641,8 +685,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         chunking = replace(chunking, odd=transform_odd)
 
     return ProjectConfig(
-        webcomponents_enabled=wc.get('enabled'),
-        webcomponents_cdn=resolved_cdn,
+        webcomponents_enabled=webcomponents_enabled,
         template_context=template_context,
         template_context_by_type=template_context_by_type,
         document_template=config_path.parent / str(template) if template else None,

@@ -5,18 +5,22 @@
 large XML document is split into smaller sections to be viewed on one page.
 
 Functions here can be referenced in ``opm.toml`` via the
-``chunking.selector`` key, e.g.::
+``chunking.selector`` key, e.g.:
 
-    [chunking]
-    selector = "opm.navigation.tei_div_chunks"
-    depth = 2
+```toml
+[chunking]
+selector = "opm.navigation.tei_div_chunks"
+depth = 2
 
-    # Or page-break milestones (Shakespeare plays, facsimiles, …):
-    # selector = "opm.navigation.tei_pb_chunks"
+# Or page-break milestones (Shakespeare plays, facsimiles, …):
+# selector = "opm.navigation.tei_pb_chunks"
+```
 
-Each selector callable has the signature::
+Each selector callable has the signature:
 
-    def my_selector(root: etree._Element, config: ChunkingConfig) -> list[etree._Element]
+```python
+def my_selector(root: etree._Element, config: ChunkingConfig) -> list[etree._Element]
+```
 """
 
 from __future__ import annotations
@@ -341,7 +345,7 @@ def jats_sec_chunks(root: etree._Element, config: ChunkingConfig) -> list[etree.
     """Return chunk elements for a JATS article: ``front``, then ``sec``, then ``back``.
 
     ``sec`` nests exactly like DocBook ``section``, so the same depth walk and
-    intro-carving applies (see :func:`dbk_section_chunks`).  A journal article
+    intro-carving applies (see [`dbk_section_chunks`][opm.navigation.dbk_section_chunks]).  A journal article
     keeps its scholarly apparatus outside ``body``, so the front matter (title,
     contributors, abstract) becomes the landing chunk and ``back`` (reference
     list, appendices) the closing one — otherwise chunking would drop both.

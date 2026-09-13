@@ -3,18 +3,18 @@
 
 """The context one transform run passes to every output function as ``config``.
 
-A :class:`RenderContext` replaces the plain dict the runtime used to thread
+A [`RenderContext`][opm.runtime.context.RenderContext] replaces the plain dict the runtime used to thread
 through ``apply``, the generated ``_dispatch`` and every ``pmf`` method. It has
 three kinds of content, kept apart:
 
 * **Run settings** — output functions, dispatch, stylesheet, templates, the
-  ``$parameters`` dict, the :class:`~opm.runtime.xpath_env.XPathEnvironment`.
+  ``$parameters`` dict, the [`XPathEnvironment`][opm.runtime.xpath_env.XPathEnvironment].
   Fixed for the run.
 * **Shared run state** — footnotes, collected metadata, counters — in one
-  :class:`RunState` that every view of the run holds by reference, so nothing
+  [`RunState`][opm.runtime.context.RunState] that every view of the run holds by reference, so nothing
   is lost when a view is derived.
 * **Per-call settings** — ``indent``, ``list_type``, ``template`` and the like,
-  which a behaviour changes for its children only. :meth:`RenderContext.derive`
+  which a behaviour changes for its children only. [`RenderContext.derive`][opm.runtime.context.RenderContext.derive]
   returns a new view for that; a context is never mutated in place.
 
 Backend-private caches (DOCX images and numbering, JSON source positions) live
@@ -75,7 +75,7 @@ class RenderContext:
     output: str = 'web'
     pmf: ProcessingModelFunctions | None = None
     dispatch: Callable = _hand_on
-    #: ``apply(config, nodes)``; defaults to the runtime's, with :attr:`dispatch`.
+    #: ``apply(config, nodes)``; defaults to the runtime's, with [`dispatch`][opm.runtime.context.RenderContext.dispatch].
     apply: Callable = _apply
     #: ``apply_children(config, node, content, parent)``; ``None`` means the runtime's.
     apply_children: Callable | None = None
@@ -115,7 +115,7 @@ class RenderContext:
             self.xpath = XPathEnvironment(parameters=self.parameters)
 
     def derive(self, **changes) -> RenderContext:
-        """A view with *changes* applied; the :class:`RunState` stays shared."""
+        """A view with *changes* applied; the [`RunState`][opm.runtime.context.RunState] stays shared."""
         return replace(self, **changes)
 
 
@@ -130,11 +130,11 @@ def build_context(
 ) -> RenderContext:
     """The context a generated module's ``transform()`` runs with.
 
-    *mode* names the output mode; its entry in :mod:`opm.output_modes`
+    *mode* names the output mode; its entry in [`opm.output_modes`][opm.output_modes]
     supplies the output functions and the text handling. *options* holds the
-    ``$parameters`` plus the run options in :data:`RUN_OPTIONS`. *xpath_env*
+    ``$parameters`` plus the run options in `RUN_OPTIONS`. *xpath_env*
     supplies everything else XPath can see; an empty environment when omitted.
-    *settings* are :class:`RenderContext` fields the module fixes: dispatch,
+    *settings* are [`RenderContext`][opm.runtime.context.RenderContext] fields the module fixes: dispatch,
     stylesheet and the like.
     """
     from opm.output_modes import output_mode  # noqa: PLC0415

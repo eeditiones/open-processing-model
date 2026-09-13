@@ -12,9 +12,7 @@ xpath_extensions = [
 
 [transform.web]
 template = "templates/handbook.html.j2"
-
-[transform.web.webcomponents]
-enabled = true
+webcomponents = true
 
 [transform.print]
 template = "templates/print.html.j2"

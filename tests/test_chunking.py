@@ -995,6 +995,27 @@ def test_build_index_falls_back_to_title_then_filename(tmp_path: Path) -> None:
     assert '1 section' in html
 
 
+def test_build_index_gets_the_webcomponents_url_in_web_component_mode(tmp_path: Path) -> None:
+    """The index shares the run's effective mode, so its template can load the bundle too."""
+    from opm.config import DEFAULT_WEBCOMPONENTS_URL
+
+    out = tmp_path / 'chunks'
+    _write_manifest(out, 'a.xml', fragments={'title': '<span>Letter One</span>'})
+    template = tmp_path / 'index.html.j2'
+    template.write_text(
+        '{% if context.webcomponents_url %}'
+        '<script src="{{ context.webcomponents_url }}"></script>{% endif %}',
+        encoding='utf-8',
+    )
+
+    # Off by default: an index for a run without web components stays plain HTML.
+    plain = build_index(out, template_path=template).read_text(encoding='utf-8')
+    assert '<script' not in plain
+
+    html = build_index(out, template_path=template, webcomponents=True).read_text(encoding='utf-8')
+    assert f'<script src="{DEFAULT_WEBCOMPONENTS_URL}"></script>' in html
+
+
 def test_build_index_skips_directories_without_a_manifest(tmp_path: Path) -> None:
     """Stray directories (css/, images/) are not listed, and an empty run writes nothing."""
     out = tmp_path / 'chunks'
@@ -1060,6 +1081,63 @@ def test_global_fragments_receive_a_per_document_doc_parameter(tmp_path: Path) -
 
     # Values with unknown placeholders are left untouched rather than raising.
     assert proc._expand_document_params({'q': '{not-a-placeholder}'})['q'] == '{not-a-placeholder}'
+
+
+def test_prefix_placeholder_tracks_the_depth_chunks_are_written_at(tmp_path: Path) -> None:
+    """``{prefix}`` keeps a URL into assets/ correct in both output layouts."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    def _processor(config: ChunkingConfig) -> ChunkProcessor:
+        return ChunkProcessor(
+            module_path=module_path,
+            xml_root=etree.parse(str(xml_path)).getroot(),
+            config=config,
+            project_root=tmp_path,
+            project_config=ProjectConfig(parameters={'context-path': '{prefix}assets'}),
+        )
+
+    # Directory run: pages sit one level down, assets stay at the output root.
+    nested = _processor(ChunkingConfig(xpath="//body/div[@type='chunk']", link_doc='fixture.xml'))
+    assert nested._chunk_options()['context-path'] == '../assets'
+
+    # Single document: pages are written at the root, beside assets/.
+    flat = _processor(ChunkingConfig(xpath="//body/div[@type='chunk']"))
+    assert flat._chunk_options()['context-path'] == 'assets'
+
+
+def test_resolve_assets_expands_a_glob(tmp_path: Path) -> None:
+    """``iiif/*`` copies every match, so adding a document needs no config change."""
+    from opm.chunking import resolve_assets
+
+    (tmp_path / 'iiif' / 'a.xml').mkdir(parents=True)
+    (tmp_path / 'iiif' / 'b.xml').mkdir(parents=True)
+    (tmp_path / 'styles').mkdir()
+    (tmp_path / 'styles' / 'one.css').write_text('a', encoding='utf-8')
+
+    assert [p.name for p in resolve_assets(tmp_path, (Path('iiif/*'),))] == ['a.xml', 'b.xml']
+
+    # Literal entries still pass through, and declared order is kept.
+    mixed = resolve_assets(tmp_path, (Path('styles/one.css'), Path('iiif/*')))
+    assert [p.name for p in mixed] == ['one.css', 'a.xml', 'b.xml']
+
+
+def test_resolve_assets_rejects_a_pattern_matching_nothing(tmp_path: Path) -> None:
+    """An empty match is a typo, not a reason to publish output a file short.
+
+    The literal missing-path case is covered end to end by
+    ``test_missing_asset_is_reported``.
+    """
+    import pytest
+
+    from opm.chunking import resolve_assets
+
+    (tmp_path / 'iiif').mkdir()
+
+    with pytest.raises(FileNotFoundError, match='matched nothing'):
+        resolve_assets(tmp_path, (Path('iiif/*'),))
 
 
 def test_build_index_passes_the_stylesheet_to_the_template(tmp_path: Path) -> None:
@@ -1147,6 +1225,38 @@ def test_no_stylesheets_written_when_there_are_none(tmp_path: Path) -> None:
     # No ODD stylesheet: the template's inline fallback is used instead.
     assert '<style></style>' in page
     assert not (tmp_path / 'inline' / 'css').exists()
+
+
+def test_page_template_sees_the_documents_of_the_run(tmp_path: Path) -> None:
+    """``documents`` lets a template link only to documents that were chunked."""
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    template = tmp_path / 'page.html.j2'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+    template.write_text(
+        "DOC=[{{ document }}] "
+        "RUN=[{{ 'fixture.xml' in documents }}|{{ 'other.xml' in documents }}|"
+        "{{ documents | length }}]",
+        encoding='utf-8',
+    )
+
+    def _page(output_dir: str, **kwargs) -> str:
+        chunk_document(
+            module_path=module_path,
+            xml_path=xml_path,
+            config=ChunkingConfig(xpath="//body/div[@type='chunk']", output_dir=output_dir),
+            project_root=tmp_path,
+            template_path=template,
+            **kwargs,
+        )
+        return (tmp_path / output_dir / '001.html').read_text(encoding='utf-8')
+
+    # A single document knows only itself.
+    assert 'DOC=[fixture.xml] RUN=[True|False|1]' in _page('single')
+    # A directory run passes every file it chunks.
+    run = frozenset({'fixture.xml', 'other.xml'})
+    assert 'RUN=[True|True|2]' in _page('run', documents=run)
 
 
 def test_chunking_always_writes_stylesheets_as_files(tmp_path: Path) -> None:
@@ -1403,7 +1513,7 @@ def test_chunk_pages_and_index_receive_the_project_context(tmp_path: Path) -> No
 
     project_config = ProjectConfig(
         template_context={'site_name': 'My Edition'},
-        webcomponents_cdn='https://example.test/pb.js',
+        template_context_by_type={'web': {'webcomponents_url': 'https://example.test/pb.js'}},
     )
     config = replace(
         _chunking_config('ctx-chunks'),

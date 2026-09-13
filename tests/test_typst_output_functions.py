@@ -339,6 +339,26 @@ def test_typst_note_emits_inline_footnote() -> None:
     assert config.state.footnotes == []
 
 
+def test_typst_note_keeps_the_source_marker() -> None:
+    """A note's ``label`` (its ``@n``) is the marker, not Typst's running number."""
+
+    class Node:
+        def get(self, key):
+            return None
+
+    pmf = TypstOutputFunctions()
+    config = RenderContext(
+        apply_children=lambda cfg, node, content, buf: buf.extend(content),
+    )
+    assert pmf.note(config, Node(), [], ['struck out'], None, 'a') == [
+        '#footnote(numbering: (..) => "a")[struck out];',
+    ]
+    # A label from an XPath param arrives as a one-item sequence.
+    assert pmf.note(config, Node(), [], ['commentary'], None, ['12']) == [
+        '#footnote(numbering: (..) => "12")[commentary];',
+    ]
+
+
 def test_typst_note_margin_emits_marginnote() -> None:
     class Node:
         def get(self, key):
@@ -353,6 +373,9 @@ def test_typst_note_margin_emits_marginnote() -> None:
     # ODD XPath often yields a singleton sequence for string params.
     result_seq = pmf.note(config, Node(), [], ['42'], ['margin'], None)
     assert result_seq == ['#marginnote[42];']
+    # A label becomes the marker shown at the note and at its anchor.
+    result_marked = pmf.note(config, Node(), [], ['struck out'], 'margin', ['a'])
+    assert result_marked == ['#marginnote(marker: "a")[struck out];']
 
 
 def test_apply_typst_finish_cleanup_preserves_marginnote() -> None:

@@ -27,7 +27,7 @@ class ResolvedTransform:
     module_path: Path
     source_odd: Path | None = None
     freshly_compiled: bool = False
-    #: Expressions the compiler skipped (see :mod:`opm.odd_compiler.expression_check`).
+    #: Expressions the compiler skipped (see `opm.odd_compiler.expression_check`).
     #: Only filled in on a fresh compile, so the CLI mentions them once.
     unsupported: tuple = ()
 
@@ -135,7 +135,7 @@ def ensure_compiled_module(
     the new path. On a hit, returns the existing cached module unchanged.
 
     *diagnostics*, when given, receives the expressions a fresh compile skipped
-    (see :func:`~opm.odd_compiler.compile_odd`); a cache hit leaves it empty.
+    (see [`compile_odd`][opm.odd_compiler.compile_odd]); a cache hit leaves it empty.
     """
     odd_path = Path(odd_path).resolve()
     if not odd_path.is_file():

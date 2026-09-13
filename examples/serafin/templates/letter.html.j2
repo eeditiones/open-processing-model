@@ -32,6 +32,9 @@
   {% if context.webcomponents_url %}
   <script type="module" src="{{ context.webcomponents_url }}"></script>
   {% endif %}
+  {% for src in context.scripts | default([], true) %}
+  <script type="module" src="{{ src }}"></script>
+  {% endfor %}
 </head>
 {% set is_chunk = chunk is defined and chunk %}
 {% if is_chunk %}
@@ -42,6 +45,39 @@
 {% set has_people = fragments is defined and fragments.register_people %}
 {% set has_places = fragments is defined and fragments.register_places %}
 {% set has_register = has_people or has_places %}
+{# The edition_navigation fragment is a hidden <nav> whose data-* attributes
+   carry the neighbouring letters' stems (see correspContext in the ODD). #}
+{% macro nav_target(nav, name) -%}
+  {%- set marker = 'data-' ~ name ~ '="' -%}
+  {%- if marker in nav %}{{ nav.split(marker, 1)[1].split('"', 1)[0] }}{% endif -%}
+{%- endmacro %}
+{# Every letter is chunked into its own directory, named after the source file. #}
+{% macro letter_href(stem) %}../{{ stem }}.xml/001.html{% endmacro %}
+{% macro nav_icon(path) -%}
+<svg class="letter-nav__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="{{ path }}"></path></svg>
+{%- endmacro %}
+{% if is_chunk %}
+  {% set nav = fragments.edition_navigation if fragments is defined and fragments.edition_navigation else '' %}
+  {# Only letters chunked in this run have a page to link to; the example
+     holds two letters of a larger correspondence. #}
+  {% set run = documents if documents is defined else [] %}
+  {% set prev_letter = nav_target(nav, 'previous') | trim %}
+  {% set prev_letter = prev_letter if (prev_letter ~ '.xml') in run else '' %}
+  {% set next_letter = nav_target(nav, 'next') | trim %}
+  {% set next_letter = next_letter if (next_letter ~ '.xml') in run else '' %}
+  {% set prev_corr = nav_target(nav, 'previous-in-correspondence') | trim %}
+  {% set prev_corr = prev_corr if (prev_corr ~ '.xml') in run else '' %}
+  {% set next_corr = nav_target(nav, 'next-in-correspondence') | trim %}
+  {% set next_corr = next_corr if (next_corr ~ '.xml') in run else '' %}
+  {# Within a letter first, then across letters — a Serafin letter is a single
+     chunk, so in practice this is always the cross-letter case. #}
+  {% set prev_href = (chunk.prev ~ '.html') if chunk.prev else (letter_href(prev_letter) if prev_letter else '') %}
+  {% set next_href = (chunk.next ~ '.html') if chunk.next else (letter_href(next_letter) if next_letter else '') %}
+  {% set prev_label = 'Verso' if chunk.prev else prev_letter %}
+  {% set next_label = 'Recto' if chunk.next else next_letter %}
+  {% set has_edition_nav = prev_href or next_href %}
+  {% set has_thread_nav = prev_corr or next_corr %}
+{% endif %}
 <body class="letter">
   <nav class="app-menubar" aria-label="Edition">
     <a class="app-logo" href="../index.html">{% include "logo-textmark.svg" %}</a>
@@ -59,14 +95,74 @@
 
   <main class="letter-page{% if is_chunk %} letter-page--chunk{% endif %}{% if has_translation %} letter-page--parallel{% endif %}{% if has_register %} letter-page--with-register{% endif %}">
     <div class="letter-body">
-      {% if fragments is defined and fragments.letter_head %}
-      <header class="letter-head">
-        {{ fragments.letter_head | safe }}
-      </header>
-      {% elif is_chunk %}
-      <header class="letter-head letter-head--plain">
-        <h1>Letter {{ letter_num }}</h1>
-      </header>
+      {% if is_chunk or (fragments is defined and fragments.letter_head) %}
+      <div class="letter-intro">
+        {% if is_chunk and (has_edition_nav or has_thread_nav) %}
+        {# Correspondence toolbar: previous / next in the edition, plus the
+           same-correspondent thread when the TEI records it. #}
+        <nav class="letter-nav" aria-label="Letter navigation">
+          <div class="letter-nav__side letter-nav__side--prev">
+            <div class="letter-nav__group">
+              {% if prev_href %}
+              <a class="letter-nav__link" href="{{ prev_href }}" title="{{ prev_label }}">
+                {{ nav_icon('M15 6 9 12l6 6') }}
+                <span class="letter-nav__dir">Previous</span>
+              </a>
+              {% elif has_edition_nav %}
+              <span class="letter-nav__link letter-nav__link--disabled" aria-hidden="true">
+                {{ nav_icon('M15 6 9 12l6 6') }}
+                <span class="letter-nav__dir">Previous</span>
+              </span>
+              {% endif %}
+              {% if prev_corr %}
+              <a class="letter-nav__link letter-nav__link--thread" href="{{ letter_href(prev_corr) }}" title="Previous in correspondence: {{ prev_corr }}">
+                {{ nav_icon('M13 6 7 12l6 6M18 6l-6 6 6 6') }}
+                <span class="letter-nav__dir">Correspondence</span>
+              </a>
+              {% endif %}
+            </div>
+          </div>
+
+          {# The letter, as in the Astro edition; its folio only when it has several. #}
+          <div class="letter-nav__mark">
+            {{- (document | replace('.xml', '')) if document is defined and document else folio -}}
+            {%- if chunk.prev or chunk.next %} · {{ folio }}{% endif -%}
+          </div>
+
+          <div class="letter-nav__side letter-nav__side--next">
+            <div class="letter-nav__group letter-nav__group--end">
+              {% if next_corr %}
+              <a class="letter-nav__link letter-nav__link--thread" href="{{ letter_href(next_corr) }}" title="Next in correspondence: {{ next_corr }}">
+                <span class="letter-nav__dir">Correspondence</span>
+                {{ nav_icon('m6 6 6 6-6 6M11 6l6 6-6 6') }}
+              </a>
+              {% endif %}
+              {% if next_href %}
+              <a class="letter-nav__link" href="{{ next_href }}" title="{{ next_label }}">
+                <span class="letter-nav__dir">Next</span>
+                {{ nav_icon('m9 6 6 6-6 6') }}
+              </a>
+              {% elif has_edition_nav %}
+              <span class="letter-nav__link letter-nav__link--disabled" aria-hidden="true">
+                <span class="letter-nav__dir">Next</span>
+                {{ nav_icon('m9 6 6 6-6 6') }}
+              </span>
+              {% endif %}
+            </div>
+          </div>
+        </nav>
+        {% endif %}
+
+        {% if fragments is defined and fragments.letter_head %}
+        <header class="letter-head">
+          {{ fragments.letter_head | safe }}
+        </header>
+        {% elif is_chunk %}
+        <header class="letter-head letter-head--plain">
+          <h1>Letter {{ letter_num }}</h1>
+        </header>
+        {% endif %}
+      </div>
       {% endif %}
 
       <div class="letter-parallel{% if not has_translation %} letter-parallel--single{% endif %}">
@@ -117,29 +213,5 @@
       {% endif %}
     </div>
   </main>
-
-  {% if is_chunk and (chunk.prev or chunk.next) %}
-  <nav class="letter-folio" aria-label="Letter navigation">
-    <div class="letter-folio__prev">
-      {% if chunk.prev %}
-      <a href="{{ chunk.prev }}.html">
-        <span class="letter-folio__label">Verso</span>
-        <span class="letter-folio__chevron" aria-hidden="true">&lsaquo;</span>
-        <span class="letter-folio__dir">Previous</span>
-      </a>
-      {% endif %}
-    </div>
-    <div class="letter-folio__mark" aria-hidden="true">— {{ folio }} —</div>
-    <div class="letter-folio__next">
-      {% if chunk.next %}
-      <a href="{{ chunk.next }}.html">
-        <span class="letter-folio__label">Recto</span>
-        <span class="letter-folio__dir">Next</span>
-        <span class="letter-folio__chevron" aria-hidden="true">&rsaquo;</span>
-      </a>
-      {% endif %}
-    </div>
-  </nav>
-  {% endif %}
 </body>
 </html>

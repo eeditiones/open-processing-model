@@ -128,6 +128,28 @@
                         standOff, but present in every whole-document output.</desc>
                     <model behaviour="omit"/>
                 </elementSpec>
+                <elementSpec ident="anchor" mode="change">
+                    <desc>SERAFIN: as in teipublisher.odd, except that in Typst the
+                        text-critical notes (type="transcription", marked a, b, …) go to
+                        the margin, leaving the footnotes to the commentary (1, 2, …).</desc>
+                    <model predicate="$parameters?mode=('toc', 'breadcrumb')" behaviour="omit"/>
+                    <model predicate="@corresp" behaviour="note">
+                        <param name="content" value="let $target := @corresp return root($parameters?root)/id($target)/node()"/>
+                        <param name="label" value="@n"/>
+                    </model>
+                    <model output="typst" predicate="@type='note' and (let $target := '#' || @xml:id return root($parameters?root)//listAnnotation/note[@target=$target]/@type = 'transcription')" behaviour="note">
+                        <param name="content" value="let $target := '#' || @xml:id return root($parameters?root)//listAnnotation/note[@target=$target]/node()"/>
+                        <param name="label" value="let $target := '#' || @xml:id return root($parameters?root)//listAnnotation/note[@target=$target]/@n/string()"/>
+                        <param name="place" value="'margin'"/>
+                    </model>
+                    <model predicate="@type='note'" behaviour="note">
+                        <param name="content" value="let $target := '#' || @xml:id return root($parameters?root)//listAnnotation/note[@target=$target]/node()"/>
+                        <param name="label" value="let $target := '#' || @xml:id return root($parameters?root)//listAnnotation/note[@target=$target]/@n/string()"/>
+                    </model>
+                    <model predicate="@xml:id" behaviour="anchor">
+                        <param name="id" value="@xml:id"/>
+                    </model>
+                </elementSpec>
                 <elementSpec ident="lb" mode="change">
                     <!-- Print does not keep the manuscript lineation, so a line
                          beginning becomes an ordinary word space. Dropping it outright
@@ -232,9 +254,12 @@
                             move between documents</desc>
                         <param name="content" value="descendant::correspContext"/>
                     </model>
+                    <!-- The registers list the people and places of the letter itself.
+                         correspContext only describes the neighbouring letters, so the
+                         names in it are left out here and in the div models below. -->
                     <model predicate="$parameters?mode = 'register' and $parameters?category = 'people'" behaviour="pass-through">
                         <desc>Output people register only (for a dedicated tab)</desc>
-                        <param name="people" value="for $key in distinct-values((root(.)//persName/@key, root(.)//persName/@ref)) return collection($global:register-root)/id($key)[self::person]"/>
+                        <param name="people" value="for $key in distinct-values((root(.)//persName[not(ancestor::correspContext)]/@key, root(.)//persName[not(ancestor::correspContext)]/@ref)) return collection($global:register-root)/id($key)[self::person]"/>
                         <pb:template xml:space="preserve" xmlns=""><div class="register">
 <ul>
 [[people]]
@@ -243,7 +268,7 @@
                     </model>
                     <model predicate="$parameters?mode = 'register' and $parameters?category = 'places'" behaviour="pass-through">
                         <desc>Output places register only (for a dedicated tab)</desc>
-                        <param name="places" value="for $key in distinct-values((root(.)//placeName/@key, root(.)//placeName/@ref)) return collection($global:register-root)/id($key)[self::place]"/>
+                        <param name="places" value="for $key in distinct-values((root(.)//placeName[not(ancestor::correspContext)]/@key, root(.)//placeName[not(ancestor::correspContext)]/@ref)) return collection($global:register-root)/id($key)[self::place]"/>
                         <pb:template xml:space="preserve" xmlns=""><div class="register">
 <ul>
 [[places]]
@@ -252,8 +277,8 @@
                     </model>
                     <model predicate="$parameters?mode = 'register'" behaviour="pass-through">
                         <desc>Output register data if register profile is enabled</desc>
-                        <param name="people" value="for $key in distinct-values((root(.)//persName/@key, root(.)//persName/@ref)) return collection($global:register-root)/id($key)[self::person]"/>
-                        <param name="places" value="for $key in distinct-values((root(.)//placeName/@key, root(.)//placeName/@ref)) return collection($global:register-root)/id($key)[self::place]"/>
+                        <param name="people" value="for $key in distinct-values((root(.)//persName[not(ancestor::correspContext)]/@key, root(.)//persName[not(ancestor::correspContext)]/@ref)) return collection($global:register-root)/id($key)[self::person]"/>
+                        <param name="places" value="for $key in distinct-values((root(.)//placeName[not(ancestor::correspContext)]/@key, root(.)//placeName[not(ancestor::correspContext)]/@ref)) return collection($global:register-root)/id($key)[self::place]"/>
                         <pb:template xml:space="preserve" xmlns=""><div class="register">
 <h3>People</h3>
 <ul>
@@ -288,8 +313,11 @@
                         </model>
                         <model behaviour="block" />
                     </modelSequence>
+                    <!-- DOCX: the HTML template of the final pass-through model below
+                         cannot be rendered into OOXML, which would drop the letter. -->
+                    <model output="docx" behaviour="block"/>
                     <model predicate="$parameters?mode = 'register' and $parameters?category = 'people'" behaviour="pass-through">
-                        <param name="people" value="let $refs := (root(.)//persName[@key or @ref], root(.)//rs[@type='person'][@key or @ref]), $keys := for $i in ($refs/@key, $refs/@ref) return $i ! tokenize(., ' ')  return for $key in distinct-values($keys) return collection($global:register-root)/id($key)[self::person]"/>
+                        <param name="people" value="let $refs := (root(.)//persName[@key or @ref][not(ancestor::correspContext)], root(.)//rs[@type='person'][@key or @ref][not(ancestor::correspContext)]), $keys := for $i in ($refs/@key, $refs/@ref) return $i ! tokenize(., ' ')  return for $key in distinct-values($keys) return collection($global:register-root)/id($key)[self::person]"/>
                         <pb:template xml:space="preserve" xmlns=""><div class="register">
 <ul>
 [[people]]
@@ -297,7 +325,7 @@
 </div></pb:template>
                     </model>
                     <model predicate="$parameters?mode = 'register' and $parameters?category = 'places'" behaviour="pass-through">
-                        <param name="places" value="let $refs := (root(.)//placeName[@key or @ref], root(.)//rs[@type='place'][@key or @ref]), $keys := for $i in ($refs/@key, $refs/@ref) return $i ! tokenize(., ' ')  return for $key in distinct-values($keys) return collection($global:register-root)/id($key)[self::place]"/>
+                        <param name="places" value="let $refs := (root(.)//placeName[@key or @ref][not(ancestor::correspContext)], root(.)//rs[@type='place'][@key or @ref][not(ancestor::correspContext)]), $keys := for $i in ($refs/@key, $refs/@ref) return $i ! tokenize(., ' ')  return for $key in distinct-values($keys) return collection($global:register-root)/id($key)[self::place]"/>
                         <pb:template xml:space="preserve" xmlns=""><div class="register">
 <ul>
 [[places]]
@@ -305,8 +333,8 @@
 </div></pb:template>
                     </model>
                     <model predicate="$parameters?mode = 'register'" behaviour="pass-through">
-                        <param name="people" value="let $refs := (root(.)//persName[@key or @ref], root(.)//rs[@type='person'][@key or @ref]), $keys := for $i in ($refs/@key, $refs/@ref) return $i ! tokenize(., ' ')  return for $key in distinct-values($keys) return collection($global:register-root)/id($key)[self::person]"/>
-                        <param name="places" value="let $refs := (root(.)//placeName[@key or @ref], root(.)//rs[@type='place'][@key or @ref]), $keys := for $i in ($refs/@key, $refs/@ref) return $i ! tokenize(., ' ')  return for $key in distinct-values($keys) return collection($global:register-root)/id($key)[self::place]"/>
+                        <param name="people" value="let $refs := (root(.)//persName[@key or @ref][not(ancestor::correspContext)], root(.)//rs[@type='person'][@key or @ref][not(ancestor::correspContext)]), $keys := for $i in ($refs/@key, $refs/@ref) return $i ! tokenize(., ' ')  return for $key in distinct-values($keys) return collection($global:register-root)/id($key)[self::person]"/>
+                        <param name="places" value="let $refs := (root(.)//placeName[@key or @ref][not(ancestor::correspContext)], root(.)//rs[@type='place'][@key or @ref][not(ancestor::correspContext)]), $keys := for $i in ($refs/@key, $refs/@ref) return $i ! tokenize(., ' ')  return for $key in distinct-values($keys) return collection($global:register-root)/id($key)[self::place]"/>
                         <pb:template xml:space="preserve" xmlns=""><div class="register">
 <h3><pb-i18n key="register-details.people">ppl</pb-i18n></h3>
 <ul>
@@ -473,6 +501,21 @@
                         <param name="default" value="."/>
                     </model>
                     <model behaviour="inline"/>
+                </elementSpec>
+                <elementSpec ident="correspContext" mode="change">
+                    <desc>Emit machine-readable stems for the letter toolbar (letter.html.j2,
+                        Astro FolioNav). Overwrites the base teipublisher.odd correspContext
+                        models (pb-popover icon toolbar).</desc>
+                    <model predicate="$parameters?mode='edition-navigation'" behaviour="pass-through">
+                        <param name="previous" value="let $t := (ref[@type = ('previous', 'prev')]/@target)[1] return if ($t) then replace($t, '\.xml$', '') else ()"/>
+                        <param name="next" value="let $t := (ref[@type = 'next']/@target)[1] return if ($t) then replace($t, '\.xml$', '') else ()"/>
+                        <param name="previous-in-correspondence" value="let $t := (ref[@type = 'previous-in-correspondence']/@target)[1] return if ($t) then replace($t, '\.xml$', '') else ()"/>
+                        <param name="next-in-correspondence" value="let $t := (ref[@type = 'next-in-correspondence']/@target)[1] return if ($t) then replace($t, '\.xml$', '') else ()"/>
+                        <pb:template xmlns="" xml:space="preserve"><nav class="corresp-nav" hidden="hidden" data-previous="[[previous]]" data-next="[[next]]" data-previous-in-correspondence="[[previous-in-correspondence]]" data-next-in-correspondence="[[next-in-correspondence]]"></nav></pb:template>
+                    </model>
+                    <model behaviour="omit">
+                        <desc>Correspondence nav is only produced via mode=edition-navigation.</desc>
+                    </model>
                 </elementSpec>
                 <elementSpec ident="publicationStmt" mode="change">
                     <model predicate="$parameters?display='browse'" behaviour="omit"/>

@@ -91,6 +91,7 @@ nav:
   - CLI Reference: cli.md
   - API Reference:
       - Overview: api/index.md
+      - Project: api/project.md
       - transform: api/transform.md
       - chunking: api/chunking.md
       - indexing: api/indexing.md
@@ -99,5 +100,6 @@ nav:
       - odd_compiler: api/odd-compiler.md
       - output functions: api/output-functions.md
       - output modes: api/output-modes.md
+      - typst_compile: api/typst-compile.md
       - runtime: api/runtime.md
   - License: license.md

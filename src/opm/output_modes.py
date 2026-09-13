@@ -43,7 +43,7 @@ class OutputMode:
     accepts: tuple[str, ...]
     #: The ``ProcessingModelFunctions`` subclass rendering this mode, as a dotted path.
     functions: str
-    #: :class:`~opm.runtime.context.RenderContext` fields the mode sets, each
+    #: [`RenderContext`][opm.runtime.context.RenderContext] fields the mode sets, each
     #: naming a callable by dotted path.
     settings: tuple[tuple[str, str], ...] = ()
     #: How the ODD's renditions are compiled: ``'css'`` or ``'typst'``.
@@ -57,7 +57,7 @@ class OutputMode:
     #: shell (``'html'``), a Typst shell (``'typst'``), a Word style template
     #: (``'docx'``), or nothing.
     template: str | None = None
-    #: The :class:`~opm.config.ProjectConfig` attribute holding the project's template.
+    #: The [`ProjectConfig`][opm.config.ProjectConfig] attribute holding the project's template.
     template_setting: str | None = None
     #: The packaged template used when the project sets none.
     default_template: str | None = None
@@ -65,7 +65,7 @@ class OutputMode:
     print_css: bool = False
     #: Collect ``metadata`` behaviour values for the template.
     collects_metadata: bool = False
-    #: The output is packaged into chapters by :func:`opm.epub.build_epub`.
+    #: The output is packaged into chapters by [`opm.epub.build_epub`][opm.epub.build_epub].
     packaged: bool = False
     #: The output is ``bytes``, not text.
     binary: bool = False
@@ -73,11 +73,17 @@ class OutputMode:
     extension: str = ''
     #: How ``--preview`` shows the output: ``'browser'``, ``'markdown'``,
     #: ``'json'``, ``'app'`` (the platform's default application) or ``'text'``.
+    #: A mode with a [`compiler`][opm.output_modes.OutputMode.compiler] previews the compiled PDF instead, when
+    #: the compiler is installed.
     preview: str = 'text'
     #: Configured by ``opm init`` unless the user picks otherwise.
     scaffold: bool = False
     #: For a JSON mode, the rendering channel it records.
     channel: str | None = None
+    #: A program that can compile the output to PDF: ``'typst'`` runs
+    #: ``typst compile`` (see [`opm.typst_compile`][opm.typst_compile]). ``opm transform``
+    #: compiles for a ``.pdf`` output file and for ``--preview``.
+    compiler: str | None = None
 
     @property
     def section(self) -> str:
@@ -89,7 +95,7 @@ class OutputMode:
         return _import(self.functions)
 
     def context_settings(self) -> dict[str, Callable]:
-        """The :attr:`settings` resolved to their callables."""
+        """The `settings` resolved to their callables."""
         return {name: _import(path) for name, path in self.settings}
 
 
@@ -181,6 +187,7 @@ RENDER_MODES: dict[str, OutputMode] = {
             collects_metadata=True,
             extension='.typ',
             scaffold=True,
+            compiler='typst',
         ),
     )
 }
@@ -214,12 +221,12 @@ CONFIG_SECTIONS: tuple[str, ...] = (*RENDER_MODES, JSON)
 
 
 def output_mode(name: str | None) -> OutputMode:
-    """The mode called *name* (case-insensitive; empty means :data:`DEFAULT_MODE`)."""
+    """The mode called *name* (case-insensitive; empty means `DEFAULT_MODE`)."""
     key = (name or '').strip().lower() or DEFAULT_MODE
     try:
         return MODES[key]
     except KeyError:
-        known = ', '.join((*RENDER_MODES, JSON))
+        known = ', '.join(CONFIG_SECTIONS)
         raise ValueError(f'Unknown output mode {name!r}; expected one of {known}.') from None
 
 

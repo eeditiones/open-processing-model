@@ -29,6 +29,10 @@ css = "styles/default-styles.css"
 [transform.web]
 # Default Jinja2 template for full-document HTML output (overridable with --template)
 template = "templates/default.html.j2"
+# Emit tei-publisher web components (overridable with --webcomponents/--no-webcomponents).
+# The bundle URL is a template value: set webcomponents_url in [transform.web.context]
+# to serve it yourself or pin another version.
+webcomponents = false
 
 [transform.docx]
 # Optional per-mode ODD override; omit to use [transform].odd
@@ -39,12 +43,6 @@ template = "templates/corporate.docx"
 [transform.typst]
 # Default Typst (.typ.j2) template for Typst output
 template = "templates/book.typ.j2"
-
-[transform.web.webcomponents]
-# Enable tei-publisher web components mode by default
-enabled = false
-# CDN URL template for pb-components (use {version} placeholder)
-# cdn = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@{version}/dist/pb-components-bundle.js"
 
 [context]
 # Free-form values handed to every Jinja2 template as `context`. TOML types are
@@ -90,7 +88,7 @@ assets = ["templates/edition.css", "templates/parchment.jpg"]
 | `[transform.typst]` | Optional Typst `odd` override and Typst `template` | [Output formats](output-formats.md#typst) |
 | `[transform.json]` | Optional `odd` override for the JSON data output | [Output formats](output-formats.md#json) |
 | `[transform.markdown]`, … | Other optional per-type `odd` (and `template`) overrides | [Output formats](output-formats.md) |
-| `[transform.web.webcomponents]` | Web-only `enabled` flag and `cdn` URL for pb-components | [Templates & CSS](templates-and-css.md#web-components) |
+| `[transform.web] webcomponents` | Web-only flag enabling TEI Publisher web components | [Templates & CSS](templates-and-css.md#web-components) |
 | `[context]` | Free-form values exposed to every template as `context` | [Templates & CSS](templates-and-css.md#template-context) |
 | `[transform.<type>.context]` | Per-output-type overlay on `[context]` | [Templates & CSS](templates-and-css.md#template-context) |
 | `[chunking]` | Splitting rules, output, templates, fragments | [Chunking](chunking.md) |

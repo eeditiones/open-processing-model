@@ -17,8 +17,8 @@ looks it up.
 
 The registry is held in a context variable, so each thread (and each task that
 sets its own) has its own and concurrent runs cannot see one another's copies.
-It holds strong references to both trees, so :func:`clear` is called per
-document (see :meth:`opm.chunking.ChunkProcessor.select_chunks`). Selectors
+It holds strong references to both trees, so [`clear`][opm.runtime.source_map.clear] is called per
+document (see [`opm.chunking.ChunkProcessor.select_chunks`][opm.chunking.ChunkProcessor.select_chunks]). Selectors
 that return live document nodes, such as ``tei_div_chunks``, record nothing:
 their chunks *are* the source nodes, and lookups fall through to identity.
 """

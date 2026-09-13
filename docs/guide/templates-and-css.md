@@ -9,12 +9,21 @@ section — is **not** a complete HTML document; the template supplies the shell
 
 Pass a template with `--template`, or set a default with `[transform.web]
 template` in `opm.toml`. Chunk pages use `chunking.template` instead. If none is given, a
-packaged default template is used. `opm init` copies editable shells into
-`templates/`: the `chapbook` (reading), `journal` (scholarly article: masthead,
-TOC rail, one measure) and `handbook` (docs) HTML shells, the `tufte` and
-`bootstrap` demo shells, plus the Typst and Word templates. `opm.toml` wires up
-whichever suits the vocabulary — `journal` for JATS, `chapbook` otherwise — and
-swapping is a one-line edit. Edit them in place: they are yours once copied.
+packaged default template is used. `opm init` copies one editable shell into
+`templates/` — whichever suits the vocabulary, `journal` for JATS and
+`chapbook` otherwise — plus the Typst and Word templates. Pass `--templates`
+for the alternatives as well: the `chapbook` (reading), `journal` (scholarly
+article: masthead, TOC rail, one measure) and `handbook` (docs) HTML shells,
+and the `tufte` and `bootstrap` demo shells. Swapping one in is a one-line edit
+to `opm.toml`. Edit them in place: they are yours once copied.
+
+With `--example`, `--templates` adds those shells beside the ones the example
+already ships, and never overwrites a shell of its own — an example's copy is
+often customised.
+
+A bare `opm init` on a terminal asks about them after the starting point, so
+the flag is mostly for scripted runs. A piped or scripted `opm init` is never
+asked anything and gets the one shell it wires up.
 
 ```bash
 opm transform data/sample.xml \
@@ -209,10 +218,10 @@ paper = "a5"
 ## Web components
 
 With web components mode enabled (`--webcomponents` or
-`[transform.web.webcomponents] enabled`),
+`[transform.web] webcomponents = true`),
 `alternate` behaviours emit `<pb-alternate>` and `context.webcomponents_url` is
-set to the configured `cdn`, so the template can load the tei-publisher
-`pb-components` bundle:
+filled in with the pinned default bundle, so the template can load the
+tei-publisher `pb-components` bundle:
 
 ```jinja
 {% if context.webcomponents_url %}
@@ -221,9 +230,10 @@ set to the configured `cdn`, so the template can load the tei-publisher
 ```
 
 This integrates output with the [TEI Publisher](https://teipublisher.com/) web
-component ecosystem. Setting `webcomponents_url` in `[context]` yourself wins
-over the derived value — useful to serve the bundle from your own host instead
-of the CDN.
+component ecosystem. The URL is an ordinary template value with a default, not
+a setting of its own: give `webcomponents_url` in `[context]` or
+`[transform.web.context]` and yours wins — useful to serve the bundle from your
+own host, or to pin a different version.
 
 ## Typst and DOCX templates
 
