@@ -68,12 +68,27 @@ After this, a section of the *Gentle Introduction* lives at a path such as
 
 ## 3. Point the app at the cache
 
-In Jinks, open the application’s `config.json` and add a `view-static` default.
-The value is the name of the collection you uploaded to:
+In Jinks, open the application’s `config.json` and add a `data-static` default.
+The value is the name of the collection you uploaded to. 
 
 ```json
 "defaults": {
-    "view-static": "cached"
+    "data-static": "cached",
+    "view-static": true
+}
+```
+
+To activate static rendering for all pages, set `view-static` to `true` as well. If you would 
+like to just enable it for a distinct part of the application, skip or leave this setting `false` in the defaults.
+Instead, enable it in the frontmatter of the HTML template displaying the corresponding content, or create an
+entry in the `collection-config` section of `config.json`, targeting just the collection for which you would like to enable
+static rendering (the TEI Publisher website uses this for the documentation pages):
+
+```
+"collection-config": {
+    "doc": {
+        "view-static": true
+    }
 }
 ```
 
@@ -82,7 +97,7 @@ the new setting. From then on, `pb-view` loads prepared pages from `cached/`
 instead of calling the live transform. If a page is missing from the cache, TEI
 Publisher falls back to transforming on the fly.
 
-## Matching the split to TEI Publisher
+## Keeping OPM and TEI Publisher in sync
 
 The example command reads its settings from
 [`examples/docbook/opm.toml`](../../examples/docbook), a self-contained DocBook
