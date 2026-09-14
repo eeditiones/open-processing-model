@@ -49,7 +49,7 @@ that page. In the configuration these are *fields*.
 Units define passages. Fields annotate them, lift a nested piece out as an
 extra hit, or copy a piece of page furniture the ODD already produces.
 
-## What a record looks like
+## Output record shape
 
 Each line of the JSONL file is one passage:
 
@@ -75,20 +75,10 @@ Each line of the JSONL file is one passage:
 }
 ```
 
-`document` is the text that will be searched or embedded. `metadata` is a
-flat map of labels: a heading is a string, a character count is a number,
-the people mentioned in a passage are a list of names. Nested objects are
-left out, so a record loads into a search engine without reshaping.
-
-Ids are stable across re-indexing: `{document}#{xml:id}` when the passage has
-an `xml:id`, otherwise a hash of its path. The `xml:id` form is not tied to a
-page filename, so a passage keeps its identity if you later split the edition
-into different pages.
-
 `heading` is the local title of a titled division. `breadcrumb` appears only
 if you declare a field for it (see [Referencing fragments](#referencing-fragments)
 below). `kind` names a declared unit or an extracted field; `parent` points
-an extracted hit back at the passage it came from.
+an extracted hit (e.g. a note) back at the passage it came from.
 
 ## Choosing passages
 
@@ -143,11 +133,6 @@ the passage as a list, in document order:
 }
 ```
 
-That is the shape a facet wants: each name is a value of its own, not a
-string the engine would have to split. Meilisearch, Elasticsearch, and
-Chroma all filter an array of strings as they stand. A store that still
-wants one string can join the list when the records are loaded.
-
 ### Extracting into separate records 
 
 A long note in the middle of a paragraph blurs what the paragraph is about,
@@ -176,11 +161,6 @@ metadata = false
 The paragraph remains a paragraph. The note is extra. Whether notes appear
 next to prose in the search interface is then a filter on `kind`, not a
 decision baked into the file.
-
-This is also why notes should not be declared as units. A unit *is* a passage:
-opening one in the middle of a paragraph would close that paragraph and lose
-the sentences after the note. A field with `metadata = false` lifts the note
-out while the paragraph continues.
 
 ### Referencing fragments
 

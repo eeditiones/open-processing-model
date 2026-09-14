@@ -10,8 +10,8 @@ parallel Latin source and Polish translation, with people/place registers.
 
 The tree is self-contained. `odd/serafin.odd` inherits the packaged
 `teipublisher` model (`schemaSpec/@source="teipublisher.odd"`). Two letters and
-the full registers ship here; the rest of the corpus lives in the TEI Publisher
-jinks profile.
+the full registers ship here; the rest of the corpus lives in the [TEI Publisher
+jinks profile](https://github.com/eeditiones/jinks/tree/main/profiles/serafin/data/letters).
 
 <!-- opm:repo-only -->
 The commands below call `opm` directly, as an installed copy would. From a clone
@@ -28,9 +28,12 @@ cd examples/serafin
 ## Transform
 
 ```bash
-opm transform data/letters/serafin01.xml --preview
+opm transform data/letters/serafin01.xml -t typst -o letter.pdf
 opm transform data/letters/serafin01.xml -t epub -o letter.epub
 ```
+
+Styling was optimized for chunked HTML and other output formats. For preview in the browser,
+use `chunk` instead of `transform`.
 
 ## Chunk and preview
 

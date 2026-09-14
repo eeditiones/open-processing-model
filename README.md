@@ -8,6 +8,8 @@
 
 `opm` does not require a database, runs entirely on the command line, is very fast for batch processing and has very slim dependencies.
 
+👉 **Documentation:** [Read the full documentation here.](https://opm.e-editiones.org)
+
 ## Quick start
 
 Python ≥ 3.12. Install the package, then scaffold a project:
