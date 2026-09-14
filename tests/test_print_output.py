@@ -48,6 +48,25 @@ def test_print_note_footnote_place() -> None:
     assert el.tag == 'span'
     assert 'footnote' in el.get('class', '').split()
     assert 'margin-note' not in el.get('class', '').split()
+    assert el.get('data-n') is None
+
+
+def test_print_note_preserves_label() -> None:
+    """Port of ts-ext-printcss:tpc:note-preserves-label."""
+    pmf = PrintOutputFunctions()
+    node = etree.Element('n')
+    res = pmf.note(_config(), node, ['c'], 'X', place='footnote', label='a')
+    assert 'footnote' in res[0].get('class', '').split()
+    assert res[0].get('data-n') == 'a'
+
+
+def test_print_note_preserves_attribute_label() -> None:
+    """Port of ts-ext-printcss:tpc:note-preserves-attribute-label."""
+    pmf = PrintOutputFunctions()
+    node = etree.Element('note', n=' 1 ')
+    label = node.xpath('@n')
+    res = pmf.note(_config(), node, ['c'], 'X', place='footnote', label=label)
+    assert res[0].get('data-n') == '1'
 
 
 def test_print_note_default_place_is_footnote() -> None:

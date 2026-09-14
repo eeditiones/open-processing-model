@@ -80,9 +80,28 @@
            proven correct: it's what `::footnote-call` uses for the in-text
            reference number), so reusing it here keeps call and marker
            numbers in step. */
-        content: counter(footnote, decimal) ". ";
+        content: counter(footnote, decimal) ".";
         font-size: var(--opm-footnote-font-size);
         vertical-align: super;
+        /* Prince drops a trailing space in `content`, so the gap between
+           marker and note text comes from a margin instead. */
+        margin-right: 0.3em;
+    }
+
+    /* A note with its own label (TEI @n, passed as the ODD `label` param)
+       shows that label instead of the running number, so text-critical
+       notes can read a, b, … next to commentary notes 1, 2, …. It does not
+       advance the counter, so unlabelled footnotes keep counting from 1. */
+    .footnote[data-n] {
+        counter-increment: none;
+    }
+
+    .footnote[data-n]::footnote-call {
+        content: attr(data-n);
+    }
+
+    .footnote[data-n]::footnote-marker {
+        content: attr(data-n) ".";
     }
 
     /* Margin notes (behaviour="note" place="margin") are not footnotes —

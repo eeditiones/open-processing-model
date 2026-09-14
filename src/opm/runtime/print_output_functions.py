@@ -24,11 +24,16 @@ class PrintOutputFunctions(HtmlOutputFunctions):
         """Emit note as an inline span for CSS ``float: footnote`` / margin notes.
 
         Unlike [`HtmlOutputFunctions.note`][opm.runtime.html_output_functions.HtmlOutputFunctions.note], does not build callout links or
-        append bodies to ``config.state.footnotes``.
+        append bodies to ``config.state.footnotes``. A label (TEI ``@n``) is kept
+        as ``data-n`` so print CSS can show a, b, … instead of the running number.
         """
-        _ = label
         fn_class = 'margin-note' if place == 'margin' else 'footnote'
         el = self._el('span', list(cls) + [fn_class], node)
+        if label is not None:
+            items = label if isinstance(label, (list, tuple)) else [label]
+            n = ' '.join(''.join(str(item) for item in items).split())
+            if n:
+                el.set('data-n', n)
         config.apply_children(config, node, content, el)
         return [el]
 
