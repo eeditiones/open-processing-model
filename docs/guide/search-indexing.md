@@ -31,11 +31,12 @@ to the ODD.
 Content the ODD suppresses (`omit`, and similar) never reaches the index,
 whatever else you configure.
 
-## Two questions to settle first
+## Basic concepts
 
-Two questions are easy to mix up.
+The `index` command distinguishes between __units__ and __fields__, which correspond
+to two different conceptual questions:
 
-The first is **how large a passage should be**. A chapter, a letter, a
+The first is **how large should a passage be**. A chapter, a letter, a
 paragraph? That is the size of the index: each passage becomes one retrievable
 item. In the configuration this is a *unit*.
 
