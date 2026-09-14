@@ -4,6 +4,8 @@ This walkthrough scaffolds a local project, transforms a sample document, and
 builds a chunked static site. After [installation](installation.md), you only
 need the `opm` command-line interface.
 
+> **Note:** If you cloned the repository, you'll find all example projects directly in the `/examples/` folder, so you can skip the scaffolding step. See the section [below](#running-from-the-repository).
+
 ## 1. Create a project
 
 You might want to start by creating the directory where you want to store the project files, then open the terminal, go to that directory (`cd`) and run:
@@ -13,13 +15,14 @@ opm init
 ```
 or pass the path as an argument: `opm init PATH`
 
-The terminal will prompt you a starting point: either an empty project for one of the
-supported vocabularies, or a copy of one of the worked example projects. Instead, you can bypass the selection and directly create the type of project you want. E.g.:
+Without additional arguments you'll be prompted to select the type of project: either an empty project for one of the
+supported vocabularies, or a copy of one of the example projects. You can bypass interactive mode and directly create the type of project you want. E.g.:
 
 ```bash
-opm init --vocabulary docbook     # empty project for a specific vocabulary
-opm init --example jats           # copy of the JATS journal-article project
-opm init --list-examples          # list all available worked projects
+opm init --vocabulary docbook        # empty project for a specific vocabulary
+opm init --example jats              # copy of the JATS journal-article project
+opm init --example jats --templates  # include all available templates into `/templates/`
+opm init --list-examples             # list all available worked projects
 ```
 
 An **empty project** writes a configuration file (`opm.toml`), templating and CSS files (`/templates/`), an ODD (`/odd/`), sample data (`/data/sample.xml`), agent guidance (`AGENTS.md` and `CLAUDE.md`; existing copies are left untouched) and  `.gitignore`. The ODD will depend on the selected vocabulary, TEI being the default one, and it .
@@ -34,6 +37,13 @@ it demonstrates,`.gitignore` and agent guidance.
 | `docbook` | Software handbook: section chunking, global TOC, breadcrumbs, PDF print and EPUB |
 | `serafin` | Correspondence (TEI): transcription and translation, with person/place registers |
 | `shakespeare` | Shakespeare play (TEI): chunked by page rather than division, with IIIF facsimiles |
+
+The client distinguishes two modes of processing: `transform` and `chunk`.
+
+* `transform` is meant to transform a single input file into a single output. It's mainly used for generating a quick HTML preview or
+for media formats not targetting the web, like PDF, epub or markdown.
+* `chunk` can process entire collections of document. It also paginates large documents into smaller units and provides different formats
+for the generated output. In the simplest case, `chunk` can be used to generate a simple static website for your data.
 
 ## 2. Transform a document
 
@@ -96,13 +106,9 @@ opm serve
 Most options have defaults in `opm.toml` — see
 [Configuration](../guide/configuration.md).
 For driving these steps from Python instead of the CLI, see the
-[transform API](../api/transform.md) and [chunking API](../api/chunking.md).
+[Project API](../api/project.md).
 
-<!--
-
-Maybe this section could be included in the Quickstart under the heading "For developers"
-
-## From this repository
+## Running from the repository
 
 Developers working in the git clone can still use the demo tree without `opm init`:
 
@@ -122,5 +128,3 @@ uv run opm chunk data/letters/serafin01.xml --force --preview
 cd ../docbook
 uv run opm chunk data/doc/quickstart.xml --force --preview
 ```
-
--->

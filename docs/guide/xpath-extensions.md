@@ -53,27 +53,6 @@ ships reusable functions you can register directly or copy:
 - `heading_number(div)` — dotted outline number such as `1.2.3` for a TEI `div`
 - `roman_fn(n)` — alphabetic apparatus labels
 
-## `tp:source-node()` and `$get()`
-
-One `tp:` function is always available and needs no registration:
-`tp:source-node(x)` returns the node `x` was copied from in the source
-document, or `x` itself when it was not copied.
-
-It exists for chunking. `tei_pb_chunks` and the DocBook intro chunker rebuild a
-region of the document as a detached tree, so document-order axes evaluated on a
-chunk see only that chunk — `preceding::pb` finds nothing, and every page would
-call itself page 1. Stepping back to the source node first fixes that:
-
-```xml
-<param name="order" value="count($get(.)/preceding::pb) + 1"/>
-```
-
-`$get()` is tei-publisher-lib's indirection for the same idea and is what tei-publisher
-ODDs are written against, so for compatibility, the compiler rewrites `$get(x)` to
-`tp:source-node(x)`. Either spelling works in an ODD. On a whole document, and
-for chunkers that return live nodes such as `tei_div_chunks`, nothing is
-recorded and both are identity.
-
 ## Registering extensions
 
 Per transform on the command line (repeatable):

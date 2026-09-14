@@ -1,8 +1,12 @@
 # Search indexing
 
-`opm index` turns a document into JSONL records sized for an embedding model or
-a full-text index — one line per retrievable passage, with flat metadata and a
-link back to the published page.
+A published edition is only as findable as its index. `opm index` prepares
+that index from the same processing model that produces the reading view, so
+what a reader sees on the page is also what a search can retrieve.
+
+Each passage becomes one line of JSON: the text to search or embed, a handful
+of labels, and — where the project is split into pages — a link back to the
+spot in the edition.
 
 ```bash
 opm index examples/tei-test.xml -o records.jsonl
@@ -10,20 +14,43 @@ opm index data/ -o corpus.jsonl          # a directory, subdirectories included
 opm index -o corpus.jsonl                # no path: defaults to ./data
 ```
 
-## Why index the processing model
+The file is not tied to a particular search engine. You load it into a vector
+database, Elasticsearch, or even a small in-browser search. What `opm` takes
+on is editorial: how the source is sliced into passages, and which labels and
+extra hits those passages should carry.
 
-While an obvious approach would be to retrieve text out of the source files with XPath, indexing the results of applying the processing model allows you to have better control of what it’s actually indexed. For example:
+## Why the processing model
 
-- `omit` allows you to drop the apparatus, delete readings and editorial matter the page
-  does not display. 
-- `alternate` picks a reading. For example, if we were to naively scrape `<choice><abbr>XML</abbr><expan>Extensible
-  Markup Language</expan></choice>` we will retrieve the string `XMLExtensible Markup Language`, which wouldn’t match neither of the expected
-  queries.
+Indexing the TEI as raw XML would copy every abbreviation twice (`Mr` and
+`Mister`), keep apparatus the ODD had omitted, and miss expansions a template
+had written out. `opm index` runs the ODD instead, in
+[JSON output mode](output-formats.md#json). Change the processing model and
+the index changes with it — the same relationship the HTML view already has
+to the ODD.
 
-`opm index` runs the same processing model the site runs, so the index contains
-the reading text and nothing else. Changing the ODD changes the index with it.
+Content the ODD suppresses (`omit`, and similar) never reaches the index,
+whatever else you configure.
 
-## Record shape
+## Two questions to settle first
+
+Two questions are easy to mix up.
+
+The first is **how large a passage should be**. A chapter, a letter, a
+paragraph? That is the size of the index: each passage becomes one retrievable
+item. In the configuration this is a *unit*.
+
+The second is **what to attach to a passage** without changing that size. A
+person name should stay in the sentence, yet you may want to filter results by
+who is mentioned. A footnote sits inside a paragraph, but readers often search
+for the note. The trail in the page navigation should appear on every hit from
+that page. In the configuration these are *fields*.
+
+Units define passages. Fields annotate them, lift a nested piece out as an
+extra hit, or copy a piece of page furniture the ODD already produces.
+
+## What a record looks like
+
+Each line of the JSONL file is one passage:
 
 ```json
 {
@@ -47,35 +74,143 @@ the reading text and nothing else. Changing the ODD changes the index with it.
 }
 ```
 
-`metadata` holds **scalars only** — no lists, no nested objects, just single, atomic values. 
+`document` is the text that will be searched or embedded. `metadata` is a
+flat map of labels: a heading is a string, a character count is a number,
+the people mentioned in a passage are a list of names. Nested objects are
+left out, so a record loads into a search engine without reshaping.
 
-Two more keys appear when the project declares
-[fields](#fields-notes-names-dates): `kind` and `parent` on a record extracted
-from a passage, plus one key per metadata field (e.g. `persons`, `dates`, whatever
-you name them).
+Ids are stable across re-indexing: `{document}#{xml:id}` when the passage has
+an `xml:id`, otherwise a hash of its path. The `xml:id` form is not tied to a
+page filename, so a passage keeps its identity if you later split the edition
+into different pages.
 
-### Stable ids
+`heading` is the local title of a titled division. `breadcrumb` appears only
+if you declare a field for it (see [Referencing fragments](#referencing-fragments)
+below). `kind` names a declared unit or an extracted field; `parent` points
+an extracted hit back at the passage it came from.
 
-Ids are derived from content: `{doc}#{xml:id}` where the passage has
-an `xml:id`, otherwise `{doc}#{hash of chunk + xpath}`. The `xml:id` form is
-deliberately not scoped to a chunk, so a passage keeps its identity even when
-re-chunking moves it to a different page.
+## Choosing passages
 
-## How passages are chosen
+With no extra configuration, `opm index` treats **titled divisions** as
+passages: a chapter, a section, a `div` that carries a heading. That is a
+sensible default for a handbook or a monograph. Nested divisions with their
+own headings become nested passages. A heading with no body to speak of is
+dropped as noise (see [Controlling the length of passages](#controlling-the-length-of-passages)
+below).
 
-The rollup walks the [`-t json`](output-formats.md#json) record tree — the web
-channel, since that is the reading view a search hit links to — and opens a new
-unit at each **titled division** — a `section` behaviour, or any record
-carrying a heading. Keying on the behaviour name alone is not enough: ODDs
-differ on whether a chapter or an act gets `section` or plain `block`, and
-missing that collapses a whole work into one unit.
+You do not have to think in XML element names here. The indexer follows the
+*behaviour* the ODD assigned — `section`, or any block that opens with a
+heading — so a TEI `div` and a DocBook `section` land in the same kind of
+passage if the processing model presented them that way.
 
-Text is gathered from the `children` runs in document order, so each passage
-enters a unit exactly once. Units longer than `--max-chars` are split at record
-boundaries with
-`--overlap` records of context carried into the next part; units shorter than
-`--min-chars` are dropped, since a bare heading is retrieval noise rather than
-a passage. Records marked `suppressed` and their contents are skipped.
+### Smaller passages
+
+Correspondence, drama, or a lexicon often want a smaller item than a chapter.
+`[[index.units]]` *replaces* the default. Each entry names the behaviours (or,
+if you must, the elements or models) that should open a passage.
+
+```toml
+[[index.units]]
+name = "paragraph"
+behaviours = ["paragraph"]
+```
+
+Note that you can configure more than one `[[index.units]]`, each defining a certain type 
+of passage to index.
+
+## Extracting metadata
+
+Metadata fields are attached to the passage, they stay connected to it. A full 
+text search engine can use a metadata entry either as a facet or a field.
+
+In the simplest case, a metadata field is directly copied from the text. It is not
+removed from the passage. This would apply, for example, if you index people or places
+mentioned:
+
+```toml
+[[index.fields]]
+name = "persons"
+elements = ["persName"]
+```
+
+The name remains in `document`. Distinct occurrences are also copied onto
+the passage as a list, in document order:
+
+```json
+"metadata": {
+  "persons": ["Aldo Manuzio", "Serafino"]
+}
+```
+
+That is the shape a facet wants: each name is a value of its own, not a
+string the engine would have to split. Meilisearch, Elasticsearch, and
+Chroma all filter an array of strings as they stand. A store that still
+wants one string can join the list when the records are loaded.
+
+### Extracting into separate records 
+
+A long note in the middle of a paragraph blurs what the paragraph is about,
+and it is often the thing a reader is searching for. Here you want a second
+record, tagged so you can include or exclude notes at query time, and linked
+back to the paragraph it annotates.
+
+The `metadata = false` setting does this: instead of attaching the field to its parent,
+it generates a separate entry, but keeps the link back to the passage it came from.
+
+```toml
+[[index.fields]]
+name = "note"
+elements = ["note"]
+metadata = false
+```
+
+```json
+{
+  "id": "letters01#n7",
+  "document": "Serafino writes from Kraków, where he had been since March.",
+  "metadata": { "kind": "note", "parent": "letters01#pi-1450-03" }
+}
+```
+
+The paragraph remains a paragraph. The note is extra. Whether notes appear
+next to prose in the search interface is then a filter on `kind`, not a
+decision baked into the file.
+
+This is also why notes should not be declared as units. A unit *is* a passage:
+opening one in the middle of a paragraph would close that paragraph and lose
+the sentences after the note. A field with `metadata = false` lifts the note
+out while the paragraph continues.
+
+### Referencing fragments
+
+When indexing a document, `opm` uses the rules you defined in the `chunking`
+sections of `opm.toml` to paginate the text. This is necessary because you later 
+want to link search hits back to the page on which they appear.
+
+However, each chunk may consist of multiple fragments. For example, `title`
+or `breadcrumbs` are distinct fragments, computed for each chunk separately.
+
+A field may reference one of those fragments to include its plain text into every record:
+
+```toml
+[[chunking.fragments]]
+name = "breadcrumbs"
+scope = "per-chunk"
+xpath = "."
+parameters = { mode = "breadcrumb" }
+
+[[index.fields]]
+name = "breadcrumb"
+fragment = "breadcrumbs"
+```
+
+## Controlling the length of passages
+
+A unit longer than `--max-chars` is split at natural boundaries (paragraphs,
+blocks, list items, and the like), with `--overlap` pieces of context carried
+into the next part so a sentence is not cut off mid-thought. Units shorter
+than `--min-chars` are dropped: a heading with no body is retrieval noise, not
+a passage.
 
 | Option | Config key | Default |
 | --- | --- | --- |
@@ -90,95 +225,19 @@ min_chars = 60
 overlap = 1
 ```
 
-## Fields: notes, names, dates
+A unit entry may set its own `min_chars` when the global floor would be wrong
+for that kind of passage — headings you do intend to retrieve, for example.
 
-By default a passage is indexed as one block of text, and everything inside it —
-a footnote, a person name, a date — is part of that block. Often that is not
-what you want. A long footnote in the middle of a paragraph blurs what the
-paragraph is *about*, and it is frequently the thing a reader is searching for
-in its own right. A person name, by contrast, should stay in the sentence, but
-you would also like to filter a search by it.
-
-`[[index.fields]]` covers both. A field names the records to pick out — by
-`elements`, `behaviours` or `models`, the three handles a JSON record carries —
-and says where their text goes:
-
-```toml
-[[index.fields]]
-name = "note"
-elements = ["note"]
-metadata = false        # its own record
-
-[[index.fields]]
-name = "persons"
-elements = ["persName"]
-metadata = true         # a facet on the passage (the default)
-```
-
-With `metadata = true` the text is joined onto the passage that contains it,
-under the field's name, and stays in the prose:
-
-```json
-"metadata": {
-  "persons": "Aldo Manuzio; Serafino",
-  ...
-}
-```
-
-Repeated values are reported once, and the joining string is `separator`
-(default `"; "`). Metadata is scalars (atomic values). If several values that you would like to separate become one string, you need to create a new entry.
-
-With `metadata = false` each match becomes a record of its own, tagged
-`kind` and carrying the id of the passage it was taken from:
-
-```json
-{
-  "id": "letters01#n7",
-  "document": "Serafino writes from Kraków, where he had been since March.",
-  "metadata": { "kind": "note", "parent": "letters01#pi-1450-03", ... }
-}
-```
-
-Nothing is decided for you there: whether notes are embedded alongside the prose
-is a filter on `kind` in your load script, or a `where` clause at query time. The
-same file serves both choices.
-
-### What `inline` decides
-
-One thing cannot be deferred: whether the text stays inside the passage's
-`document` string, because that string is what gets embedded. `inline` controls
-it, and defaults to whatever `metadata` is — a name reads as part of the
-sentence, an extracted note does not:
-
-```toml
-[[index.fields]]
-name = "note"
-elements = ["note"]
-metadata = false
-inline = true           # keep it in the paragraph as well as extracting it
-```
-
-Fields never see content the ODD suppressed — an apparatus with the `omit` behaviour
-will stay out of the index whatever you declare. An
-extracted record is a unit like any other, so `min_chars` applies: a two-word
-note could be dropped as noise, thus you need to lower `[index] min_chars` if short notes matter to
-you.
-
-An extracted record takes its own `xml:id` and `xpath` where the fragment has
-them, and otherwise inherits the page link of the passage around it — a note
-sits on the same page as the text it annotates, so the link is never wrong, only
-less precise.
-
-## Links back to the page
+## Opening the passage from a hit
 
 A search hit is only useful if the reader can open the passage it came from.
-That is the job of `href`: it names the published page, and, where possible, the
-exact spot on it.
+That is the job of `href`: it names the published page and, where possible,
+the exact spot on it.
 
 If the project chunks its documents (a `[chunking]` section in `opm.toml`),
-`opm index` splits each document into the very same pages `opm chunk` publishes,
-and indexes them one page at a time. Every record then knows which page it came
-from, and `href` is that page's filename, followed by `#` and the passage's
+`opm index` splits each document into the same pages `opm chunk` publishes,
+and indexes them one page at a time. Every record then knows which page it
+came from. `href` is that page’s filename, followed by `#` and the passage’s
 `xml:id` where it has one:
 
 ```json
@@ -186,51 +245,21 @@ from, and `href` is that page's filename, followed by `#` and the passage's
 "href": "002.html#pi-first-steps"
 ```
 
-`opm index` also notes which page each `xml:id` in the document ended up on, and
-prefers that page when it builds the link. So a passage whose id lives on a
-different page than the one being indexed still links where a reader will
-actually find it.
-
 Without a `[chunking]` section there are no pages to point at: the document is
-indexed as a whole and records carry no `href` at all. The `xml_id` and `xpath`
-fields are still there, so you can build your own links to wherever you publish.
+indexed as a whole and records carry no `href`. The `xml_id` and `xpath`
+fields are still there, so you can build your own links to wherever you
+publish.
 
-### Turning `href` into a URL
+## Using the index
 
-`href` is relative to the document's own pages, not to the site root, because
-each document is chunked into a directory of its own. Chunking a whole
-directory, `opm chunk` names that directory after the source *file*, extension
-included — `data/doc/quickstart.xml` becomes `chunks/quickstart.xml/001.html`.
-A search interface covering several documents therefore has to put the two
-halves together:
-
-```python
-# 'data/doc/quickstart.xml' and '002.html#pi-first-steps'
-# give 'quickstart.xml/002.html#pi-first-steps'
-url = metadata['source'].split('/')[-1] + '/' + metadata['href']
-```
-
-Take the prefix from `source`, not from `doc`: `doc` is the bare filename stem
-(`quickstart`), while the published directory keeps the extension
-(`quickstart.xml`).
-
-### When the fragment does not jump
-
- `opm index` appends the fragment whenever
-the source passage has an `xml:id`, but the HTML only gets an `id` attribute
-where the ODD's behaviour writes one. An ODD that renders no ids gives you
-links that open the right page and leave the reader at the top of it. If deep
-links matter to you, search a chunk's HTML for the id before suspecting the
-index.
-
-## Use the indexes
-
-The JSONL generated by OPM is store-neutral so you need to install an additional library to actually exploit the indexes. See below some options. 
-
+Load the JSONL into a store that matches how
+you want to query — vectors, full text, or a script that runs in the browser.
 
 ### Loading into ChromaDB
 
-In the [source code repository of OPM](https://github.com/eeditiones/open-processing-model) you can find a worked example using [`chromadb`](https://www.trychroma.com/) (see `examples/index_chroma.py`):
+The [source repository](https://github.com/eeditiones/open-processing-model)
+includes a worked example using [`chromadb`](https://www.trychroma.com/)
+(`examples/index_chroma.py`):
 
 ```bash
 pip install chromadb
@@ -251,7 +280,7 @@ collection.upsert(
 
 ### Loading into Elasticsearch
 
-You can also use [Elasticsearch](https://www.elastic.co/elasticsearch) to query the indexed records. The same records go in through `_bulk` — index `document` as the analysed text
+The same records go in through `_bulk`. Index `document` as the analysed text
 field and spread `metadata` alongside it:
 
 ```python
@@ -269,19 +298,22 @@ helpers.bulk(Elasticsearch('http://localhost:9200'), [
 ])
 ```
 
-`breadcrumb` and `heading` are worth boosting in a query; and remember that `href` and `chunk` carry the link you render with each hit (see [Links back to the page](#links-back-to-the-page)).
+`heading` and, if you declared it, `breadcrumb` are worth boosting in a query.
+Array fields such as `persons` are keyword arrays; they facet without further
+mapping. `href` and `chunk` are the link you render with each hit (see
+[Opening the passage from a hit](#opening-the-passage-from-a-hit)).
 
 ### Searching in the browser
 
-The JSONL is already
-one passage per line with the link and the breadcrumb attached, so it can ship
-as a static asset beside the pages and be searched client-side with
-[MiniSearch](https://github.com/lucaong/minisearch) — no index server, no build
-step, and the site stays deployable to any static host.
+The JSONL is already one passage per line with the link (and, if you declared
+it, the breadcrumb) attached, so it can ship as a static asset beside the
+pages and be searched with [MiniSearch](https://github.com/lucaong/minisearch)
+— no index server, no build step, and the site stays deployable to any static
+host.
 
 Copy the records in with the rest of the site. Under `[chunking]`, `assets`
-lands files in `<output>/assets/`, and templates receive an `assets` URL prefix
-(`assets` from the collection index, `../assets` from a chunk page):
+lands files in `<output>/assets/`, and templates receive an `assets` URL
+prefix (`assets` from the collection index, `../assets` from a chunk page):
 
 ```toml
 [chunking]
@@ -290,7 +322,7 @@ assets = ["assets/search.js", "index.jsonl"]
 
 Run `opm index` **before** `opm chunk`, or the site ships the previous index.
 
-The client is small, because the records carry everything a result needs:
+The client can be small, because the records carry everything a result needs:
 
 ```js
 import MiniSearch from 'https://cdn.jsdelivr.net/npm/minisearch@7.2.0/dist/es/index.js';
@@ -315,16 +347,16 @@ const hits = index.search(query, {
 
 Three things are worth getting right:
 
-- **Load lazily.** Build the index on the first keystroke, not on page load — a
-  few hundred passages is comfortably under a megabyte, but it should never sit
-  in front of first paint.
-- **Collapse `part` splits.** A unit longer than `--max-chars` becomes several
-  records sharing one `href`, which otherwise fill the result list with the same
-  heading. Results come back score-ordered, so keeping the first record per
-  `href` keeps the best one.
-- **Group by `title`.** It turns a flat ranking into "where in the corpus this
-  is", which is what `breadcrumb` and `title` are there for.
+- **Load lazily.** Build the index on the first keystroke, not on page load —
+  a few hundred passages is comfortably under a megabyte, but it should never
+  sit in front of first paint.
+- **Collapse splits of one passage.** A unit longer than `--max-chars` becomes
+  several records sharing one `href`, which otherwise fill the result list
+  with the same heading. Results come back score-ordered, so keeping the first
+  record per `href` keeps the best one.
+- **Group by `title`.** It turns a flat ranking into “where in the corpus this
+  is”, which is what `breadcrumb` and `title` are there for.
 
 This scales to a few thousand passages. Past that the whole index still has to
 reach the browser on first search, and a tool that shards its index across
-fragments — e.g. [Pagefind](https://pagefind.app/) — will be more adequate.
+files — e.g. [Pagefind](https://pagefind.app/) — will be more adequate.

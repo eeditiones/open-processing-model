@@ -1,10 +1,9 @@
 # Output formats
 
-A single ODD drives every output format. The format is chosen at **compile**
-time via `--type` / `-t` (or the matching configuration table, e.g. `[transform.epub]`), which selects the ODD
-`@output` channel and the specific
-[`ProcessingModelFunctions`](../api/output-functions.md) implementation used to
-generate that output.
+`opm` can transform XML to a number of output formats. The format is chosen (at **compile**
+time) via the `--type` / `-t` parameter. This selects the ODD
+`@output` channel and the specific [`ProcessingModelFunctions`](../api/output-functions.md) 
+implementation used to generate that output.
 
 | Mode | Output | Implementation |
 | --- | --- | --- |
@@ -16,9 +15,7 @@ generate that output.
 | `typst` | Typst markup | `TypstOutputFunctions` |
 | `json` | The processing model's decisions as data | `JsonOutputFunctions` |
 
-`print`, `epub` and `json` also accept ODD models tagged `@output="web"`, matching
-tei-publisher-lib’s `output: ["print"|"epub", "web"]` fallback. Models without `@output`
-still apply to every mode.
+`print`, `epub` and `json` extend `web`, which means they will also accept ODD models tagged `@output="web"`. Models without `@output` apply always.
 
 Models may use an optional `opm-` prefix on `@output` (e.g. `opm-web`) for rules
 that apply only when compiling with this Python implementation. tei-publisher-lib
@@ -35,23 +32,10 @@ opm transform examples/tei-test.xml -t typst -o out.typ
 opm transform examples/tei-test.xml -t json -o out.json
 ```
 
-<!--Each compile writes (or reuses) a cached module under the user cache directory;
-the path is printed on stderr. -->
-
 ## Choosing an ODD at transform time
 
-Pass an ODD with `--odd`/`-d`, or select from your TOML config with `--type`/`-t`
-(and `-c` if the config is not `opm.toml`):
-
-| `--type` | Config key (override) | Falls back to |
-| --- | --- | --- |
-| `web` | `[transform.web].odd` | `[transform].odd` |
-| `print` | `[transform.print].odd` | `[transform].odd` |
-| `epub` | `[transform.epub].odd` | `[transform].odd` |
-| `docx` | `[transform.docx].odd` | `[transform].odd` |
-| `typst` | `[transform.typst].odd` | `[transform].odd` |
-| `json` | `[transform.json].odd` | `[transform].odd` |
-| `markdown`, … | `[transform.<type>].odd` | `[transform].odd` |
+All commands above will use the default configured in the `opm.toml`. You can change
+the ODD with parameter `--odd`/`-d`.
 
 ```bash
 # Explicit ODD (compiled on demand)
@@ -60,20 +44,14 @@ opm transform examples/tei-test.xml --preview
 # Looked up from config (see Configuration)
 opm transform examples/tei-test.xml -t web --preview
 opm transform examples/tei-test.xml -t print --preview
-opm transform examples/tei-test.xml -t typst -o out.typ
+opm transform examples/tei-test.xml -t typst -o out.pdf
 opm transform examples/tei-test.xml -t docx -o out.docx
 ```
-
-The CLI command `--odd`/`-d` overrides the configuration. Omitting both falls back to
-`[transform.<type>].odd`, then `[transform].odd`, then the packaged stock
-TEI Publisher ODD. Details are in
-[Configuration](configuration.md#selecting-an-odd-by-type).
 
 ## HTML (`web`)
 
 Full-document output is wrapped in a Jinja2 template and can include
-ODD-generated CSS, a user stylesheet, and optional [tei-publisher web components](https://unpkg.com/@teipublisher/pb-components@latest/dist/api.html).
-See [Templates & CSS](templates-and-css.md).
+ODD-generated CSS, a user stylesheet, and optional [tei-publisher web components](https://unpkg.com/@teipublisher/pb-components@latest/dist/api.html). See [Templates & CSS](templates-and-css.md).
 
 ```bash
 opm transform data/sample.xml \
@@ -82,39 +60,22 @@ opm transform data/sample.xml \
 
 ## Print (paged media)
 
-`print` emits HTML like `web`, but notes and alternates are inline
-spans so that CSS paged media can apply the appropriate style
-`float: footnote` (Prince, Paged.js, browser print). Interactive callouts and
-web components are disabled. ODD models with `@output="print"` apply in addition
-to `@output="web"` and unscoped models.
-
-<!-->
-The Jinja shell is separate from the web reading view. Resolution:
-
-1. `--template` / `-t` override
-2. `[transform.print] template`
-3. Packaged `default_print.html.j2` (minimal; **not** the `[transform.web] template`)
--->
-
-Paged layout itself comes from the ODD’s CSS. OPM only produces the markup; PDF rendering is external (which means that there might be differences depending on the browser used).
+`print` emits HTML like `web`, but targets a print processor rather than a web browser. Therefore you would
+use CSS Paged Media for the styling, which allows you to set page size, margins, footnotes etc. On the command
+line, [PrinceXML](https://www.princexml.com/) works well for converting the resulting HTML to PDF.
 
 ```bash
-opm transform examples/tei-test.xml -t print --preview
 opm transform examples/tei-test.xml -t print -o print.html
+prince print.html -o print.pdf
 ```
 
-
-The DocBook example launches a dedicated shell:
+`print` output mode wraps the generated content into an HTML template, which can be customized. For example,
+the docbook example does that:
 
 ```bash
 cd examples/docbook
 opm transform data/doc/quickstart.xml -t print --preview
 ```
-
-See `examples/docbook/templates/print.html.j2` and `[transform.print]` in that
-project’s `opm.toml` configuration file. `examples/jats` does the same the other way round: its
-print shell includes the web view’s `journal.css`, so the paged article keeps
-the reading view’s typography and only loses the masthead and TOC rail.
 
 ## EPUB
 
@@ -125,7 +86,7 @@ selected with the same `[chunking]` rules used by `opm chunk` (default:
 TEI `tei_div_chunks` / DocBook `dbk_section_chunks` at depth 1).
 
 `[transform.epub]` may override that selection with its own `xpath`, `selector`
-or `depth`: the EPUB contents might be very different form the browser-based reading view. For example, `examples/serafin` chunks only the source text and fills the
+or `depth`: the EPUB contents might be very different from the browser-based reading view. For example, `examples/serafin` chunks only the source text and fills the
 translation into a second panel in the HTML preview, but not in the EPUB. A page-milestone
 selector (`tei_pb_chunks`) is always replaced by divisions, since a EPUB readers repaginate anyway.
 
@@ -148,14 +109,6 @@ skip_title = false           # omit the generated title page when true
 selector = "opm.navigation.tei_div_chunks"
 depth = 1
 ```
-
-Just like the DOCX output, the result is binary and it needs to be written down with the `-o` flag (terminal preview is not
-supported). <!--Packaging uses stdlib `zipfile` + lxml (no ebooklib).-->
-
-<!--A chapter is named in the table of contents by the heading it opens with once
-transformed, consecutive headings joined (*Act 2, Scene 1*) — so the ODD can
-name a chapter the source does not. Failing that: the chunk's own `head` /
-`title`, then the page number of a `pb` it opens on. -->
 
 ### Styling
 
@@ -199,21 +152,18 @@ manifest, since an EPUB OPF entry without a file makes the package invalid.
 opm transform examples/tei-test.xml -t markdown --preview
 ```
 
-`--preview` renders the Markdown in the terminal with
-[Rich](https://rich.readthedocs.io/).
+`--preview` renders the Markdown in the terminal with [Rich](https://rich.readthedocs.io/).
 
 ## DOCX
 
-DOCX is binary, so it the `-o` flag is required to write the file (it cannot be previewed). A custom Word
+DOCX is binary, so the `-o` flag is required to write the file (it cannot be previewed). A custom Word
 `.docx` can be supplied as a **style template** via the CLI `--template` flag or in the configuration file under
 `[transform.docx] template`. Its paragraph and character styles are reused in
 the output. If none is given, the packaged `default.docx` is used. Missing built-in styles (`Hyperlink`,
 `footnote text`, `footnote reference`) are injected automatically.
 
 ```bash
-opm transform examples/tei-test.xml -t docx -o report.docx \
-  --template templates/corporate.docx
-# Or: -t docx -o report.docx
+opm transform examples/tei-test.xml -t docx -o report.docx
 ```
 
 ## Typst
@@ -236,16 +186,12 @@ typst compile out.typ --open
 ### PDF
 
 With the [`typst`](https://typst.app/open-source/) command on your `PATH`,
-`opm` runs `typst compile` for you. Name a `.pdf` output file, or preview:
+`opm` can run `typst compile` for you. Name a `.pdf` output file, or preview:
 
 ```bash
 opm transform examples/tei-test.xml -t typst -o out.pdf
 opm transform examples/tei-test.xml -t typst --preview   # Typst opens the PDF
 ```
-
-`--preview` passes `--open` to Typst, which opens the PDF in your default
-viewer; without `typst` installed it shows the Typst source in the terminal
-instead. `-o out.typ`, or no `-o`, still gives the source.
 
 Image paths in the output are taken from the XML as they are and resolve
 against the document's directory; Typst refuses a path that leaves it (`../`).
@@ -318,36 +264,6 @@ opened directly:
 opm transform doc.xml -t json -o out.json
 # then, for any record:  $EDITOR +84 doc.xml   /   code -g doc.xml:84:7
 ```
-
-<!--They come from a second pass with expat rather than from lxml's `sourceline`,
-which reports where a start tag *ends* — an element whose attributes wrap onto
-another line is reported below its own `<`. Columns matter because dense TEI
-puts many elements on one line: 53% of the elements in `examples/tei-test.xml`
-share a line with another.
-
-Positions need the source file, which the CLI passes automatically. A caller
-transforming a tree it built in memory gets records without `line`/`col` rather
-than an error, and if the file does not match the tree the whole map is dropped
-— a position pointing at the wrong element is worse than none. Elements from a
-chunk selector that rebuilt its region are resolved back to the originals they
-were copied from.
-
-**Text lives in `children` and nowhere else.** Each run appears once, on the
-record that produced it, interleaved with child records in source order. Join
-`children` recursively when you want the full text of a subtree.
-
-There is deliberately no rolled-up `text` field. It would be pure duplication,
-and for mixed content it reads as corrupt — a paragraph containing a link would
-report its own runs as a sentence with a hole in it:
-
-```json
-"text": "Numerous projects realized with  prove that it is:"
-```
-
-with the link's words on the nested record instead. Rolling up *descendant*
-text avoids the hole but stores every passage once per tree level, which is
-worse: an embedding store would then hold the same sentences at three
-granularities. -->
 
 There are two things that this output format makes visible that no other output can:
 

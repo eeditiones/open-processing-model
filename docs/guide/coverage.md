@@ -66,7 +66,7 @@ There could be predicates and params that use what only TEI Publisher's eXist-DB
 runtime has, such as `util:document-name()` or XQuery's `try`/`catch`. The
 compiler skips them — a predicate counts as false, a param falls back — and
 this table lists each with the reason and its line in the ODD. See
-[ODD files](odd-files.md#expressions-opm-cannot-run).
+[ODD files](odd-files.md#reusing-odds-between-tei-publisher-and-opm).
 
 Errors raised while the documents were transformed are listed after the report,
 as for `opm transform`: a predicate that fails counts as false, which can make

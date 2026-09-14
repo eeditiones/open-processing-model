@@ -14,7 +14,15 @@ pip install open-processing-model
 # or: uv add open-processing-model
 ```
 
-Then you can start by either scaffolding a project or running a one-off transformation. To scaffold a project run:
+Then you can start by either scaffolding a project or running a one-off transformation. The latter uses
+the packaged stock ODD (`teipublisher.odd`), templates, CSS, and Word styles. Try it out with:
+
+```bash
+opm transform my.xml --preview
+opm transform my.xml --preview --odd myodd.odd # provide your own ODD
+```
+
+To scaffold a project run:
 
 ```bash
 opm init
@@ -22,14 +30,6 @@ opm init
 
 and in the terminal select what to start from: an empty project, or a copy of
 one of the worked examples that ship with the package. 
-
-A one-off transformation does not need project files. You can try it out with:
-
-```bash
-opm transform my.xml --preview
-```
-
-which uses the packaged stock ODD, HTML/Typst templates, CSS, and Word style template.
 
 See the [Quickstart](quickstart.md) for more details.
 
@@ -41,7 +41,8 @@ See the [Quickstart](quickstart.md) for more details.
 The quickest way to check the Python version on a system is via the command line or terminal.
 
 * open your command line interface (type `cmd` in the Windows search bar or open terminal on macOS/Linux)
-* type `python --version` and press Enter (or `python3 --version` if you get a `command not found` error)
+* type `python --version` and press Enter
+* on some systems (Mac) you may need to use `python3 --version` if you get a `command not found` error
 * if you see a version number higher than **3.12** you can directly install the package.
 
 If you need to install or upgrade Python, go to [python.org](https://www.python.org/)’s Download page, select the pertinent installer for your operating system, download it and run it. During installation, make sure to check the box that says *Add Python to PATH* so you can run Python from the command line. 
@@ -50,7 +51,11 @@ To verify the installation, follow the steps above to check the installed versio
 
 #### Installing the package
 
-If `pip install open-processing-model` returns an error similar to `command not found`, it usually means `pip` isn’t added to your system's PATH variable. Use `python3 -m pip install open-processing-model` (macOS/Linux) or `py -m pip install open-processing-model` (in Windows).
+```bash
+pip install open-processing-model # or pip3 on some systems
+```
+
+If this returns an error similar to `command not found`, it usually means `pip` isn’t added to your system's PATH variable. Use `python3 -m pip install open-processing-model` (macOS/Linux) or `py -m pip install open-processing-model` (in Windows).
 
 ## Contributors
 

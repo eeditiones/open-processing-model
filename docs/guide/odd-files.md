@@ -14,16 +14,14 @@ The library packages three stock ODDs:
 - `docbook.odd` (+ `docbook.css`) — DocBook v5 model (`opm init --vocabulary docbook`)
 - `jats.odd` (+ `jats.css`) — JATS journal article model (`opm init --vocabulary jats`)
 
-`opm init` writes a short `odd/custom.odd` that inherits the packaged `teipublisher.odd`,
-or copies `docbook.odd` / `jats.odd` into the project. For also copying the teipublisher.odd in the project can pass `--copy-base-odd`.
+`opm init` writes a short `odd/custom.odd`. For TEI projects, it inherits the packaged `teipublisher.odd`,
+or otherwise copies `docbook.odd` / `jats.odd`. To also include a copy of the base `teipublisher.odd`, pass `--copy-base-odd`.
 
-For worked customisations, see the
+For example customisations, see the
 projects under `examples/`, each of which ships its own ODD (for instance
-`examples/shakespeare/odd/shakespeare.odd`). `examples/jats` is a good model for
-extending a copied stock ODD: it widens the static TOC and adds journal
-front-matter apparatus to `jats.odd`, each change described with a `<desc>`.
+`examples/shakespeare/odd/shakespeare.odd`).
 
-OPM supports ODD chaining, a technique of ordering individual ODD documents in such a way that it is possible for one document to re-use (and potentially modify) declarations and definitions from another document. A base ODD can be defined in the  `schemaSpec/@source` attribute or with the flag `source="<odd file>"`. For TEI edition projects, we recommend always having the `teipublisher.odd` as the base ODD of your first custom ODD.
+OPM supports ODD chaining, a technique of ordering individual ODD documents in such a way that it is possible for one document to re-use (and potentially modify) declarations and definitions from another ODD. A base ODD can be defined in the  `schemaSpec/@source` attribute or with the flag `source="<odd file>"`. For TEI edition projects, we recommend always having the `teipublisher.odd` as the base of your custom ODD. It includes default renditions for the most common TEI elements.
 
 ## Compiling on demand
 
@@ -37,74 +35,64 @@ opm transform examples/tei-test.xml --preview
 opm transform examples/tei-test.xml -t docx -o out.docx
 ```
 
-From Python, use [`opm.odd_cache.ensure_compiled_module`](../api/odd-compiler.md)
-or the lower-level [`opm.odd_compiler.compile_odd`](../api/odd-compiler.md).
+## Reusing ODDs between TEI Publisher and `opm`
 
-### Expressions OPM cannot run
+The shipped ODDs are shared between TEI Publisher and opm to make it easy to switch
+between implementations. However, TEI Publisher runs within a database and has the
+full power of XQuery at its disposal. Consequently, not every expression that works in
+TEI Publisher will work in `opm`, which is limited to XPath 3.1.
 
-ODDs are often shared with TEI Publisher, whose eXist-DB runtime evaluates XQuery
-and has functions of its own. An expression that uses those functions (e.g. 
-`util:document-name(.)`) — fails in OPM for every document. The compiler
-recognises these and keeps the behaviour a failing evaluation always had: a
-predicate counts as false, so a later model is used, and a param falls back to
-the context node or to an empty value. The first compile prints one line saying
-how many there are; [`opm coverage`](coverage.md#expressions-opm-cannot-run)
-lists each one with its reason and ODD line.
+To cope with this, two mechanisms are implemented:
 
-You can give OPM its own version of such a model by using in
-`@output` the `opm-` prefix (e.g. `output="opm-web"`). This will be ignored by
-`tei-publisher-lib`.
+1. `<model>` which target `opm` can have an `@output` attribute value prefixed with `opm-`
+(e.g. `output="opm-web"`). TEI Publisher will simply skip over those. If you put the prefixed model
+before the unprefixed one, `opm` will use it while TEI Publisher ignores it and selects the next
+matching model instead.
+2. `opm`'s compiler tests each XPath expression and recognises the ones it cannot execute. If such
+an expression occurs inside a predicate, it will evaluate to `false` and the processor consequently skips it.
+Parameter expressions will return the context node instead of failing. The client prints a count of
+ignored expressions to the console. To get a full report for an ODD, see [`opm coverage`](coverage.md#expressions-opm-cannot-run). 
 
-<!-- Only XPath the compiler cannot judge alone is left to run time. Namespace
-prefixes the ODD does not declare, `$prefix:name` variables and `tp:` functions
-come from `opm.toml`, which a cached module knows nothing about.-->
+## Supported extensions
 
+`opm` implements the same extensions to the TEI processing model as TEI Publisher.
 
-## `$parameters`
+### `$parameters`
 
-ODD predicates and `param/@value` expressions are passed as a `$parameters` map (XPath 3.1
-lookup: `$parameters?mode`). Values come from `[transform.parameters]` in the `opm.toml` configuration file, the command line passed as `-p key=value`, and per-fragment `parameters` in
-[chunking](chunking.md#fragments).
+External parameters are passed to the ODD in a `$parameters` map. Values come from `[transform.parameters]` in the `opm.toml` configuration file, 
+the command line passed as `-p key=value`, and per-fragment `parameters` in [chunking](chunking.md#fragments).
 
 ### `$parameters?root`
 
-Following the same convention as in [tei-publisher-lib](https://github.com/eeditiones/tei-publisher-lib):
-`$parameters?root` is a **node**, the currently viewed element in the original
-document.
+The special parameter, `$parameters?root`, always contains a reference to the root node being processed. This is mainly relevant in `chunk` mode:
+it splits the document into fragments, and each fragment becomes a document of its own. The link to the source document therefore gets lost. Use `$parameters?root`
+to get it back.
 
-| Command | Bound to |
-| --- | --- |
-| `opm transform` | Document element |
-| `opm chunk` | The original node this chunk was copied from |
-
-`root($parameters?root)` is therefore the document node. The TEI Publisher ODD
+`root($parameters?root)` always points to the document node. `teipublisher.odd`
  uses that, for example, to reach the `teiHeader` from a `div` or page:
 
 ```xpath
 root($parameters?root)//teiHeader/fileDesc/titleStmt
 ```
 
-Some chunk selectors retrieve a **copy** (DocBook fill intros, TEI `pb` pages). On
-that copy, the root node is not attached to the original document root. However. `$parameters?root` still points at the
-original node, so, for example, ancestor titles and `id()` lookups do work:
+### `$get()` and `tp:source-node()`
+
+While `$parameters?root` returns the root node, the special function pointer `$get($n)` in TEI
+Publisher gives you the source node corresponding to its argument. `opm` implements the same for backwards compatibility, e.g. to be used in:
 
 ```xml
-<param name="content"
-    value="($parameters?root/ancestor::article/info/title,
-            $parameters?root/ancestor::section/title,
-            title)"/>
+<param name="order" value="count($get(.)/preceding::pb) + 1"/>
 ```
 
-As mentioned above, stock ODDs contain many examples in which this node is wrapped in the `root()` function when they need the document
-node rather than the viewed element (`root($parameters?root)//teiHeader/…`). 
+Inside `opm`, `$get()` is an alias for the function `tp:source-node($n)`, which you can use alternatively.
 
-<!--opm’s XPath engine (elementpath) currently rejects `/` immediately after `?`.
-Parenthesize the lookup until that is fixed: `($parameters?root)/ancestor::section`.-->
+### `<pb:template>`
 
-<!--Do not set a string `root` in `[transform.parameters]` if you want this node
-binding. An explicit string `root` is left as a string, matching a user-supplied
-parameter of that name.-->
+A model in TEI Publisher may provide a custom markup template in a [`<pb:template>`](https://teipublisher.org/doc/documentation.xml?id=pb-template#pb-template). 
+Without it, producing more complex output for a single element
+would not be possible. Markup templates also help with plain-text markup languages like LaTeX or typst.
 
+`opm` processes `<pb:template>` in the same way as TEI Publisher does.
 
 ## XPath errors at run time
 
@@ -131,14 +119,3 @@ namespace prefix (`[transform.namespaces]`), an unset variable
 (`[transform.variables]`), a `tp:` function that no configured module provides
 (`[transform] xpath_extensions`), or an unknown collection
 (`[[transform.collections]]`).
-
-From Python, wrap the transform in `opm.runtime.collect_xpath_errors()`:
-
-```python
-from opm.runtime import collect_xpath_errors
-
-with collect_xpath_errors() as log:
-    html = run_transform(mod, root)
-for failure in log.ordered_failures():
-    print(failure.expression, failure.code, failure.count)
-```
