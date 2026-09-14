@@ -52,6 +52,7 @@ docs = [
 
 [project.urls]
 Homepage = "https://github.com/eeditiones/open-processing-model"
+Documentation = "https://eeditiones.github.io/open-processing-model/"
 Repository = "https://github.com/eeditiones/open-processing-model"
 Issues = "https://github.com/eeditiones/open-processing-model/issues"
 Changelog = "https://github.com/eeditiones/open-processing-model/blob/main/CHANGELOG.md"

@@ -1,5 +1,6 @@
 site_name: Open Processing Model
 site_description: Transform XML (TEI, DocBook, …) via ODD processing models — HTML, Markdown, DOCX, Typst.
+site_url: https://eeditiones.github.io/open-processing-model/
 repo_url: https://github.com/eeditiones/open-processing-model
 repo_name: eeditiones/open-processing-model
 edit_uri: edit/main/docs/
