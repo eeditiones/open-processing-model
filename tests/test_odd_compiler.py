@@ -665,6 +665,33 @@ def test_rights_statement_cannot_break_out_of_the_docstring(tmp_path: Path) -> N
     assert "The '''so-called''' licence" in src.split('"""')[1]
 
 
+def test_source_odd_path_with_windows_backslashes_is_docstring_safe(
+    tmp_path: Path,
+) -> None:
+    """``C:\\Users\\…`` in the docstring must not become a ``\\U`` unicode escape."""
+    from dataclasses import replace
+
+    from opm.odd_compiler.codegen.python_generator import PythonGenerator
+    from opm.odd_compiler.parse_odd import load_odd
+
+    odd = _odd_with_availability(
+        tmp_path / 'winpath.odd',
+        title='Windows path',
+        availability='',
+    )
+    parsed = replace(
+        load_odd(str(odd)),
+        odd_path=r'C:\Users\alice\opm\odd\custom.odd',
+    )
+    src = PythonGenerator().generate_module(parsed, 'm', output_mode='web')
+    out = tmp_path / 'winpath_gen.py'
+    out.write_text(src, encoding='utf-8')
+    py_compile.compile(str(out), doraise=True)
+    docstring = src.split('"""')[1]
+    assert 'Source ODD: C:/Users/alice/opm/odd/custom.odd' in docstring
+    assert '\\Users' not in docstring
+
+
 def test_read_licence_ignores_a_teiheader_quoted_inside_the_odd_body(tmp_path: Path) -> None:
     """An example header in the body documents TEI; it claims nothing about this file."""
     from opm.odd_compiler.parse_odd import read_licence

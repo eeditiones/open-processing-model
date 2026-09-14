@@ -646,7 +646,7 @@ def _report_resolved_module(resolved: ResolvedTransform) -> None:
         plural = count != 1
         _note(
             f'{count} ODD expression{"s" if plural else ""} use{"" if plural else "s"} '
-            'features opm does not support (eXist functions or XQuery syntax) and '
+            'features opm does not support (probably for TEI Publisher compatibility) and '
             f'{"are" if plural else "is"} skipped; opm coverage lists them.'
         )
 

@@ -101,10 +101,13 @@ class PythonGenerator(CodeGenerator):
 
     @staticmethod
     def _docstring_safe(text: str) -> str:
-        """Neutralise anything in ODD-supplied text that could break out of the docstring.
+        """Neutralise anything that could break or mis-parse the module docstring.
 
-        A quote run would close it and a trailing backslash would escape the
-        closing quotes; neither loses anything that matters in a licence line.
+        A quote run would close it; a trailing backslash would escape the
+        closing quotes; and a Windows path such as ``C:\\Users\\…`` would be
+        read as a ``\\U`` unicode escape. Forward-slash paths stay valid and
+        readable; neither transform loses anything that matters in a licence
+        or provenance line.
         """
         return text.replace('\\', '/').replace('"', "'")
 
@@ -236,11 +239,15 @@ class PythonGenerator(CodeGenerator):
         unsupported_literal = self._python_unsupported_literal()
         settings_src = ''.join(f'\n        {setting},' for setting in module_settings)
 
+        # odd_path is absolute; on Windows it contains backslashes that Python
+        # would treat as escapes inside the docstring (notably ``\Users`` → ``\U``).
+        safe_odd_path = self._docstring_safe(odd_path or '')
+        safe_schema_ns = self._docstring_safe(schema_ns or '')
         return f'''#!/usr/bin/env python3
 """Auto-generated TEI processing model ({output_mode} output).
 
-Source ODD: {odd_path}
-schema namespace: {schema_ns}
+Source ODD: {safe_odd_path}
+schema namespace: {safe_schema_ns}
 {self._rights_block(parsed)}"""
 
 from lxml import etree
