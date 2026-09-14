@@ -108,3 +108,7 @@ parameters = { mode = "register", category = "people" }
 name = "register_places"
 xpath = "./ancestor::TEI"
 parameters = { mode = "register", category = "places" }
+
+[[index.fields]]
+name = "breadcrumb"
+fragment = "breadcrumbs"

@@ -59,3 +59,7 @@ name = "breadcrumbs"
 scope = "per-chunk"
 xpath = "."
 parameters = { mode = "breadcrumb" }
+
+[[index.fields]]
+name = "breadcrumb"
+fragment = "breadcrumbs"

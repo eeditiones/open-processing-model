@@ -7,7 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from opm.indexing import FieldSpec, IndexOptions, build_records, write_jsonl
+from opm.indexing import (
+    FieldSpec, IndexOptions, UnitSpec, _fragment_plain_text, build_records, write_jsonl,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 DEMO_TEI_TEST_XML = ROOT / 'examples' / 'tei-test.xml'
@@ -53,25 +55,41 @@ def _build(document, **kwargs) -> list[dict]:
 
 # ── shape ────────────────────────────────────────────────────────────────────
 
-def test_metadata_values_are_scalars_only() -> None:
-    """ChromaDB rejects lists and nested dicts in metadata."""
+def test_metadata_values_are_scalars_or_string_lists() -> None:
+    """Built-in labels are scalars; extracted fields are arrays of strings."""
     doc = [_section('s1', 'A heading', _para('Some prose that is long enough to keep.'))]
     records = _build(doc)
 
     assert records
     for record in records:
         for value in record['metadata'].values():
-            assert isinstance(value, (str, int, float, bool)), value
+            if isinstance(value, list):
+                assert value
+                assert all(isinstance(item, str) for item in value)
+            else:
+                assert isinstance(value, (str, int, float, bool)), value
 
 
-def test_breadcrumb_is_a_joined_string_not_a_list() -> None:
+def test_breadcrumb_is_absent_unless_a_fragment_field_supplies_it() -> None:
+    """The indexer does not invent a trail from headings."""
     inner = _section('s2', 'Inner', _para('Prose inside the nested section here.'),
                      xpath='/*/div/div')
     doc = [_section('s1', 'Outer', inner)]
     records = _build(doc)
 
+    assert all('breadcrumb' not in r['metadata'] for r in records)
+
+
+def test_page_metadata_is_copied_onto_every_record() -> None:
+    inner = _section('s2', 'Inner', _para('Prose inside the nested section here.'),
+                     xpath='/*/div/div')
+    doc = [_section('s1', 'Outer', inner)]
+    records = _build(doc, page_metadata={'breadcrumb': 'Outer > Inner'})
+
     crumbs = {r['metadata'].get('breadcrumb') for r in records}
-    assert 'Outer > Inner' in crumbs
+    assert crumbs == {'Outer > Inner'}
+    for record in records:
+        assert isinstance(record['metadata']['breadcrumb'], str)
 
 
 def test_unit_opens_at_each_section() -> None:
@@ -83,6 +101,97 @@ def test_unit_opens_at_each_section() -> None:
     records = _build(doc)
 
     assert {r['metadata']['heading'] for r in records} == {'First', 'Second'}
+
+
+def _heading(text: str, xpath: str = '/*/div/head') -> dict:
+    return {
+        'xpath': xpath,
+        'element': 'head',
+        'behaviour': 'heading',
+        'model': 'tei-head1',
+        'children': [text],
+    }
+
+
+def _units(*specs: UnitSpec, **tuning) -> IndexOptions:
+    tuning.setdefault('min_chars', 1)
+    return IndexOptions(units=specs, **tuning)
+
+
+def test_declared_units_replace_titled_divisions() -> None:
+    """``[[index.units]]`` is a replacement, so a wrapping section is not a passage."""
+    doc = [_section(
+        's1', 'Chapter',
+        _para('The first paragraph, long enough to keep around.'),
+        _para('The second paragraph, also long enough to keep.', xpath='/*/div/p[2]'),
+    )]
+    records = _build(doc, options=_units(
+        UnitSpec(name='paragraph', behaviours=frozenset({'paragraph'})),
+    ))
+
+    assert [r['document'] for r in records] == [
+        'The first paragraph, long enough to keep around.',
+        'The second paragraph, also long enough to keep.',
+    ]
+    assert {r['metadata']['kind'] for r in records} == {'paragraph'}
+
+
+def test_heading_unit_can_label_the_next_paragraph_without_emitting() -> None:
+    doc = [{
+        'xpath': '/*/div', 'element': 'div', 'behaviour': 'block', 'model': 'tei-div1',
+        'children': [
+            _heading('First steps'),
+            _para('Click the visual editor to open it from here.'),
+        ],
+    }]
+    records = _build(doc, options=_units(
+        UnitSpec(name='heading', behaviours=frozenset({'heading'}), emit=False),
+        UnitSpec(name='paragraph', behaviours=frozenset({'paragraph'})),
+    ))
+
+    assert len(records) == 1
+    assert records[0]['metadata']['kind'] == 'paragraph'
+    assert records[0]['metadata']['heading'] == 'First steps'
+    assert 'breadcrumb' not in records[0]['metadata']
+    assert 'First steps' not in records[0]['document']
+
+
+def test_heading_unit_can_emit_its_own_record() -> None:
+    doc = [{
+        'xpath': '/*/div', 'element': 'div', 'behaviour': 'block', 'model': 'tei-div1',
+        'children': [
+            _heading('First steps'),
+            _para('Click the visual editor to open it from here.'),
+        ],
+    }]
+    records = _build(doc, options=_units(
+        UnitSpec(name='heading', behaviours=frozenset({'heading'}), min_chars=1),
+        UnitSpec(name='paragraph', behaviours=frozenset({'paragraph'})),
+        min_chars=40,
+    ))
+
+    kinds = [r['metadata']['kind'] for r in records]
+    assert kinds == ['heading', 'paragraph']
+    assert records[0]['document'] == 'First steps'
+    assert records[1]['metadata']['heading'] == 'First steps'
+
+
+def test_fields_still_extract_from_declared_units() -> None:
+    doc = [_section(
+        's1', 'Heading',
+        _para_with('Prose that carries a note', _note('The note text itself.'), '.'),
+    )]
+    records = _build(doc, options=IndexOptions(
+        min_chars=1,
+        units=(UnitSpec(name='paragraph', behaviours=frozenset({'paragraph'})),),
+        fields=(FieldSpec(name='note', elements=frozenset({'note'}), metadata=False),),
+    ))
+
+    passage, note = records
+    assert passage['metadata']['kind'] == 'paragraph'
+    assert note['metadata']['kind'] == 'note'
+    assert note['metadata']['parent'] == passage['id']
+    assert 'note text itself' not in passage['document']
 
 
 # ── ids ──────────────────────────────────────────────────────────────────────
@@ -255,9 +364,13 @@ def test_write_jsonl_emits_one_object_per_line(tmp_path: Path) -> None:
 @pytest.mark.skipif(
     not DEMO_TEI_TEST_XML.is_file(), reason='Fixture examples/tei-test.xml not found',
 )
-def test_index_document_on_the_demo_corpus() -> None:
+def test_index_document_on_the_demo_corpus(tmp_path: Path, monkeypatch) -> None:
     from opm.config import ProjectConfig
     from opm.indexing import index_document
+
+    cache = tmp_path / 'cache'
+    monkeypatch.setattr('opm.odd_cache.modules_cache_dir', lambda: cache / 'modules')
+    monkeypatch.setattr('opm.resources.user_opm_cache_dir', lambda: cache)
 
     records = index_document(DEMO_TEI_TEST_XML, cfg=ProjectConfig())
 
@@ -271,6 +384,73 @@ def test_index_document_on_the_demo_corpus() -> None:
     assert 'XMLExtensible' not in corpus
     # teiHeader carries the `metadata` behaviour, so it is suppressed.
     assert 'Very Tremendous Texts' in corpus  # body content survives
+    assert all('breadcrumb' not in r['metadata'] for r in records)
+
+
+def test_index_copies_a_breadcrumb_fragment_onto_chunk_records(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """The same fragment the page renders is copied onto every record from that chunk."""
+    from opm.config import ChunkingConfig, FragmentConfig, ProjectConfig
+    from opm.indexing import index_document
+    from opm.resources import packaged_odd
+
+    cache = tmp_path / 'cache'
+    monkeypatch.setattr('opm.odd_cache.modules_cache_dir', lambda: cache / 'modules')
+    monkeypatch.setattr('opm.resources.user_opm_cache_dir', lambda: cache)
+
+    xml_path = tmp_path / 'guide.xml'
+    xml_path.write_text(
+        """<article xmlns="http://docbook.org/ns/docbook" version="5.0">
+  <info><title>Guide</title></info>
+  <section xml:id="install">
+    <title>Install</title>
+    <para>Intro prose long enough to keep as a passage.</para>
+    <section xml:id="pip">
+      <title>Using pip</title>
+      <para>pip stuff long enough to keep as a passage.</para>
+    </section>
+  </section>
+  <section xml:id="usage">
+    <title>Usage</title>
+    <para>use it, with enough characters to survive min_chars.</para>
+  </section>
+</article>
+""",
+        encoding='utf-8',
+    )
+    fields = (FieldSpec(name='breadcrumb', fragment='breadcrumbs'),)
+    cfg = ProjectConfig(
+        chunking=ChunkingConfig(
+            selector='opm.navigation.dbk_section_chunks',
+            depth=2,
+            output_dir='chunks',
+            fragments=[
+                FragmentConfig(
+                    name='breadcrumbs',
+                    scope='per-chunk',
+                    xpath='.',
+                    parameters={'mode': 'breadcrumb'},
+                ),
+            ],
+        ),
+        xpath_extensions=('opm.runtime.common_xpath_functions',),
+        index_fields=fields,
+    )
+    records = index_document(
+        xml_path,
+        cfg=cfg,
+        odd=packaged_odd('docbook'),
+        project_root=tmp_path,
+        options=IndexOptions(min_chars=1, fields=fields),
+    )
+
+    crumbs = {r['metadata'].get('breadcrumb') for r in records}
+    assert all(isinstance(c, str) for c in crumbs)
+    assert any(c is not None and 'Guide' in c and 'Install' in c for c in crumbs)
+    assert any(c is not None and 'Using pip' in c for c in crumbs)
+    pip = next(r for r in records if r['metadata'].get('heading') == 'Using pip')
+    assert pip['metadata']['breadcrumb'] == 'Guide > Install > Using pip'
 
 
 # ── chunk integration ────────────────────────────────────────────────────────
@@ -320,19 +500,12 @@ def test_xml_id_keeps_one_id_across_rechunking() -> None:
         _build(doc, chunk_file='009.html')[0]['id']
 
 
-def test_base_breadcrumb_supplies_the_title_to_later_chunks() -> None:
-    """Only the first chunk contains the document heading."""
+def test_page_metadata_is_the_same_on_later_chunks() -> None:
+    """A fragment field is evaluated per page, not reconstructed from headings."""
     doc = [_section('s2', 'Chapter Two', _para('Prose long enough to be kept here.'))]
-    records = _build(doc, base_breadcrumb=['The Whole Book'])
+    records = _build(doc, page_metadata={'breadcrumb': 'The Whole Book > Chapter Two'})
 
     assert records[0]['metadata']['breadcrumb'] == 'The Whole Book > Chapter Two'
-
-
-def test_base_breadcrumb_does_not_double_the_heading() -> None:
-    doc = [_section('s1', 'The Whole Book', _para('Prose long enough to be kept.'))]
-    records = _build(doc, base_breadcrumb=['The Whole Book'])
-
-    assert records[0]['metadata']['breadcrumb'] == 'The Whole Book'
 
 
 # ── unit boundaries ──────────────────────────────────────────────────────────
@@ -354,7 +527,8 @@ def test_a_titled_block_opens_a_unit() -> None:
     doc = [_section('act1', 'Act One', inner)]
     records = _build(doc)
 
-    assert 'Act One > Scene One' in {r['metadata'].get('breadcrumb') for r in records}
+    assert any(r['metadata'].get('heading') == 'Scene One' for r in records)
+    assert all('breadcrumb' not in r['metadata'] for r in records)
 
 
 def test_nested_boundaries_do_not_collide_on_one_id() -> None:
@@ -422,8 +596,8 @@ def _para_with(*children, xpath: str = '/*/p') -> dict:
     }
 
 
-def test_metadata_field_joins_values_onto_the_passage() -> None:
-    """A facet: the name stays in the prose and is repeated as metadata."""
+def test_metadata_field_copies_values_onto_the_passage() -> None:
+    """A facet: the name stays in the prose and is repeated as a list."""
     name = {
         'xpath': '/*/p/persName', 'element': 'persName', 'behaviour': 'inline',
         'model': 'tei-persName1', 'children': ['Aldo Manuzio'],
@@ -435,7 +609,7 @@ def test_metadata_field_joins_values_onto_the_passage() -> None:
         FieldSpec(name='persons', elements=frozenset({'persName'})),
     ))
 
-    assert records[0]['metadata']['persons'] == 'Aldo Manuzio; Serafino'
+    assert records[0]['metadata']['persons'] == ['Aldo Manuzio', 'Serafino']
     assert 'Aldo Manuzio' in records[0]['document']
 
 
@@ -447,10 +621,10 @@ def test_metadata_field_reports_each_value_once() -> None:
     doc = [_section('s1', 'A heading', _para_with('A ', name, ' and again ', dict(name), '.'))]
 
     records = _build(doc, options=_fields(
-        FieldSpec(name='persons', elements=frozenset({'persName'}), separator=' | '),
+        FieldSpec(name='persons', elements=frozenset({'persName'})),
     ))
 
-    assert records[0]['metadata']['persons'] == 'Serafino'
+    assert records[0]['metadata']['persons'] == ['Serafino']
 
 
 def test_extracted_field_becomes_its_own_record() -> None:
@@ -537,6 +711,20 @@ def test_field_specs_default_inline_to_the_metadata_flag() -> None:
     assert not FieldSpec(name='note', metadata=False).keeps_text_inline
     assert FieldSpec(name='note', metadata=False, inline=True).keeps_text_inline
 
+
+def test_fragment_plain_text_joins_list_items() -> None:
+    html = (
+        '<nav aria-label="breadcrumb"><ul>'
+        '<li>Guide</li><li><a href="001.html">Install</a></li>'
+        '<li>Using pip</li></ul></nav>'
+    )
+    assert _fragment_plain_text(html) == 'Guide > Install > Using pip'
+
+
+def test_fragment_plain_text_collapses_non_list_markup() -> None:
+    assert _fragment_plain_text('<span>  A   letter </span>') == 'A letter'
+    assert _fragment_plain_text('already plain') == 'already plain'
+
 # ── config ───────────────────────────────────────────────────────────────────
 
 def _config(tmp_path: Path, body: str):
@@ -557,7 +745,6 @@ metadata = false
 [[index.fields]]
 name = "persons"
 elements = "persName"
-separator = " | "
 """)
 
     note, persons = cfg.index_fields
@@ -567,7 +754,6 @@ separator = " | "
     # A single string is accepted where a list would do.
     assert persons.elements == frozenset({'persName'})
     assert persons.metadata
-    assert persons.separator == ' | '
 
 
 def test_a_field_must_select_something(tmp_path: Path) -> None:
@@ -575,9 +761,102 @@ def test_a_field_must_select_something(tmp_path: Path) -> None:
         _config(tmp_path, '[[index.fields]]\nname = "note"\n')
 
 
+def test_a_fragment_field_is_read_from_the_config(tmp_path: Path) -> None:
+    cfg = _config(tmp_path, """
+[chunking]
+selector = "opm.navigation.dbk_section_chunks"
+
+[[chunking.fragments]]
+name = "breadcrumbs"
+scope = "per-chunk"
+xpath = "."
+parameters = { mode = "breadcrumb" }
+
+[[index.fields]]
+name = "breadcrumb"
+fragment = "breadcrumbs"
+""")
+
+    spec, = cfg.index_fields
+    assert spec.name == 'breadcrumb'
+    assert spec.fragment == 'breadcrumbs'
+    assert spec.metadata
+    assert not spec.behaviours
+    assert not spec.elements
+    assert not spec.models
+
+
+def test_a_fragment_field_cannot_mix_selectors(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match='cannot mix'):
+        _config(tmp_path, """
+[[index.fields]]
+name = "breadcrumb"
+fragment = "breadcrumbs"
+elements = ["title"]
+""")
+
+
+def test_a_fragment_field_must_name_an_existing_fragment(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match='no such entry'):
+        _config(tmp_path, """
+[chunking]
+selector = "opm.navigation.dbk_section_chunks"
+
+[[index.fields]]
+name = "breadcrumb"
+fragment = "breadcrumbs"
+""")
+
+
+def test_a_fragment_field_cannot_be_a_child_record(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match='metadata cannot be false'):
+        _config(tmp_path, """
+[[chunking.fragments]]
+name = "breadcrumbs"
+xpath = "."
+
+[[index.fields]]
+name = "breadcrumb"
+fragment = "breadcrumbs"
+metadata = false
+""")
+
+
 def test_a_field_must_be_named(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match='missing "name"'):
         _config(tmp_path, '[[index.fields]]\nelements = ["note"]\n')
+
+
+def test_index_units_are_read_from_the_config(tmp_path: Path) -> None:
+    cfg = _config(tmp_path, """
+[[index.units]]
+name = "heading"
+behaviours = ["heading"]
+emit = false
+
+[[index.units]]
+name = "paragraph"
+behaviours = "paragraph"
+min_chars = 1
+""")
+
+    heading, paragraph = cfg.index_units
+    assert heading.behaviours == frozenset({'heading'})
+    assert not heading.emit
+    assert heading.min_chars is None
+    assert paragraph.behaviours == frozenset({'paragraph'})
+    assert paragraph.emit
+    assert paragraph.min_chars == 1
+
+
+def test_a_unit_must_select_something(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match='selects nothing'):
+        _config(tmp_path, '[[index.units]]\nname = "paragraph"\n')
+
+
+def test_a_unit_must_be_named(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match='missing "name"'):
+        _config(tmp_path, '[[index.units]]\nbehaviours = ["paragraph"]\n')
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
 

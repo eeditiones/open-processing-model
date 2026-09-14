@@ -9,8 +9,9 @@ index: one record per table cell is not something you embed, and a nested tree
 has no stable identity to upsert against.
 
 This module bridges the two. It walks the record tree, groups it at section
-boundaries, and emits one JSONL line per retrievable unit with flat scalar
-metadata — the shape ChromaDB accepts and Elasticsearch is happy with.
+boundaries, and emits one JSONL line per retrievable unit with a flat
+metadata map: scalars for labels, arrays of strings for extracted names
+and the like.
 
 Indexing the processing model rather than the source is the whole point: the
 ODD has already decided what the reader sees. ``omit`` drops the apparatus,
@@ -53,41 +54,83 @@ _WS_RE = re.compile(r'\s+')
 
 @dataclass(frozen=True)
 class FieldSpec:
-    """Material to pull out of a passage: a facet, or a passage of its own.
+    """Material to pull out of a passage: a facet, a passage of its own, or page chrome.
 
     A note and a person name are the same operation — recognise a record, take
-    its text — differing only in where the text goes. ``metadata=True`` joins it
-    onto the passage that contains it, for filtering; ``metadata=False`` emits it
-    as its own retrievable record tagged ``kind`` and linked to its parent, and
-    whether a search engine indexes those is then a filter at load time rather
-    than a decision baked into the file.
+    its text — differing only in where the text goes. ``metadata=True`` copies
+    it onto the passage as a list of distinct strings, for filtering;
+    ``metadata=False`` emits it as its own retrievable record tagged ``kind``
+    and linked to its parent, and whether a search engine indexes those is
+    then a filter at load time rather than a decision baked into the file.
 
     ``inline`` is the one choice that cannot be deferred: it decides whether the
     text stays in the containing passage's embedded ``document`` string. It
     defaults to *metadata*, which is what each case usually wants — a name reads
     as part of the sentence, an extracted note does not — and can be set
     explicitly to keep a fragment in both places.
+
+    ``fragment`` is a different source: the name of a ``[[chunking.fragments]]``
+    entry. That HTML is transformed once per page (or once per document when
+    the fragment is global), stripped to a scalar, and copied onto every
+    record from that page. It cannot be mixed with a JSON selector, and it is
+    always metadata — never a hit of its own.
     """
 
     name: str
     behaviours: frozenset[str] = frozenset()
     elements: frozenset[str] = frozenset()
     models: frozenset[str] = frozenset()
+    fragment: str | None = None
+    """``[[chunking.fragments]]`` name; when set, the other selectors stay empty."""
     metadata: bool = True
     inline: bool | None = None
-    separator: str = '; '
-    """Joins several values of a metadata field: Chroma takes scalars, not lists."""
 
     @property
     def keeps_text_inline(self) -> bool:
         return self.metadata if self.inline is None else self.inline
 
     def matches(self, record: dict) -> bool:
-        return (
-            record.get('behaviour') in self.behaviours
-            or record.get('element') in self.elements
-            or record.get('model') in self.models
-        )
+        if self.fragment:
+            return False
+        return _matches(record, self.behaviours, self.elements, self.models)
+
+
+@dataclass(frozen=True)
+class UnitSpec:
+    """A JSON record that opens a retrievable passage.
+
+    When ``[[index.units]]`` is present it *replaces* the default titled-division
+    walk: only matching records become units, and unmatched structure is walked
+    through so nested paragraphs (or whatever you selected) can still be found.
+
+    ``name`` is stored as ``metadata.kind``. ``emit=False`` uses the match only
+    as context — typically a heading that labels the following paragraph — and
+    writes no JSONL line of its own. ``min_chars`` overrides the global floor
+    for records this spec emits.
+    """
+
+    name: str
+    behaviours: frozenset[str] = frozenset()
+    elements: frozenset[str] = frozenset()
+    models: frozenset[str] = frozenset()
+    emit: bool = True
+    min_chars: int | None = None
+
+    def matches(self, record: dict) -> bool:
+        return _matches(record, self.behaviours, self.elements, self.models)
+
+
+def _matches(
+    record: dict,
+    behaviours: frozenset[str],
+    elements: frozenset[str],
+    models: frozenset[str],
+) -> bool:
+    return (
+        record.get('behaviour') in behaviours
+        or record.get('element') in elements
+        or record.get('model') in models
+    )
 
 
 @dataclass
@@ -99,7 +142,9 @@ class IndexOptions:
     overlap: int = 1
     """Trailing split-boundary records carried into the next part, for context."""
     fields: tuple[FieldSpec, ...] = ()
-    """``[[index.fields]]`` — material extracted as a facet or as its own record."""
+    """``[[index.fields]]`` — a JSON-record facet, a child record, or a chunking fragment."""
+    units: tuple[UnitSpec, ...] = ()
+    """``[[index.units]]`` — records that open a passage; empty keeps titled divisions."""
 
 
 @dataclass
@@ -109,17 +154,18 @@ class _Unit:
     xml_id: str | None
     xpath: str | None
     heading: str | None
-    breadcrumb: list[str]
     entry_anchor: str | None = None
     """Last ``xml:id`` seen before this unit opened — the page it starts on."""
     parts: list[tuple[str, str | None, str | None]] = field(default_factory=list)
     """``(text, xml_id, xpath)`` per contributing record, so a split keeps its anchor."""
     kind: str | None = None
-    """Name of the [`FieldSpec`][opm.indexing.FieldSpec] this unit was extracted by, if any."""
+    """Name of the [`FieldSpec`][opm.indexing.FieldSpec] or [`UnitSpec`][opm.indexing.UnitSpec] this unit came from."""
     parent: '_Unit | None' = None
     """The passage an extracted unit was taken out of."""
     fields: dict[str, list[str]] = field(default_factory=dict)
     """Extracted values destined for this unit's metadata, in document order."""
+    min_chars: int | None = None
+    """Per-unit floor; ``None`` uses [`IndexOptions.min_chars`][opm.indexing.IndexOptions.min_chars]."""
 
     @property
     def text(self) -> str:
@@ -179,8 +225,13 @@ class _Walker:
     collided their ids.
     """
 
-    def __init__(self, fields: tuple[FieldSpec, ...] = ()) -> None:
-        self.fields = fields
+    def __init__(
+        self,
+        fields: tuple[FieldSpec, ...] = (),
+        unit_specs: tuple[UnitSpec, ...] = (),
+    ) -> None:
+        self.fields = tuple(f for f in fields if not f.fragment)
+        self.unit_specs = unit_specs
         self.units: list[_Unit] = []
         self.extracted: list[_Unit] = []
         """Units lifted out by a ``metadata=False`` field, parents first at emit time."""
@@ -192,13 +243,15 @@ class _Walker:
         contribute no text and so never anchor a unit of their own. Remembering
         the last one lets a passage link to the page it starts on.
         """
+        self.running_heading: str | None = None
+        """Heading last seen from a unit spec — labels following paragraphs."""
 
     def finish(self) -> list[_Unit]:
         if self.current is not None and self.current.parts:
             self.units.append(self.current)
         return self.units
 
-    def collect(self, record: dict, breadcrumb: list[str]) -> None:
+    def collect(self, record: dict) -> None:
         # Suppressed content is what the ODD decided the reader does not see;
         # it is exactly what must not reach the index.
         if record.get('suppressed'):
@@ -211,19 +264,30 @@ class _Walker:
         if specs:
             keep_inline = False
             for spec in specs:
-                self.extract(record, spec, breadcrumb)
+                self.extract(record, spec)
                 keep_inline = keep_inline or spec.keeps_text_inline
             if not keep_inline:
                 # The text belongs to the facet or the extracted record only;
                 # walking on would embed it in the containing passage as well.
                 return
 
+        spec = next((u for u in self.unit_specs if u.matches(record)), None)
+        if spec is not None:
+            self.open_specified(record, spec)
+            return
+
+        if self.unit_specs:
+            # Custom units replace the default walk: unmatched records are
+            # structure to look through, not a catch-all passage.
+            self.descend(record)
+            return
+
         heading = _first_heading(record)
         # A named behaviour is not enough on its own: ODDs differ on whether an
         # act or a chapter gets `section` or plain `block`, but a division that
         # carries a heading is a retrievable unit in either.
         if record.get('behaviour') in _UNIT_BOUNDARIES or heading is not None:
-            self.open(record, breadcrumb, heading)
+            self.open(record, heading)
             return
 
         if self.current is None:
@@ -231,12 +295,11 @@ class _Walker:
                 xml_id=record.get('id'),
                 xpath=record.get('xpath'),
                 heading=None,
-                breadcrumb=list(breadcrumb),
                 entry_anchor=self.last_anchor,
             )
-        self.descend(record, breadcrumb)
+        self.descend(record)
 
-    def extract(self, record: dict, spec: FieldSpec, breadcrumb: list[str]) -> None:
+    def extract(self, record: dict, spec: FieldSpec) -> None:
         """Take a record's text out as a facet value or as a unit of its own."""
         text = _record_text(record)
         if not text:
@@ -251,7 +314,6 @@ class _Walker:
             xml_id=record.get('id'),
             xpath=record.get('xpath'),
             heading=None,
-            breadcrumb=list(breadcrumb),
             entry_anchor=self.last_anchor,
             kind=spec.name,
             parent=self.current,
@@ -259,26 +321,63 @@ class _Walker:
         unit.parts.append((text, record.get('id'), record.get('xpath')))
         self.extracted.append(unit)
 
-    def open(self, record: dict, breadcrumb: list[str], heading: str | None) -> None:
+    def open_specified(self, record: dict, spec: UnitSpec) -> None:
+        """Open (or remember) a unit declared in ``[[index.units]]``."""
+        own_heading = (
+            _record_text(record)
+            if record.get('behaviour') in _HEADING_BEHAVIOURS
+            else _first_heading(record)
+        )
+        self._remember_heading(own_heading)
+        if not spec.emit:
+            if self.current is not None and self.current.parts:
+                self.units.append(self.current)
+            self.current = None
+            return
+        self.open(
+            record,
+            own_heading or self.running_heading,
+            kind=spec.name,
+            min_chars=spec.min_chars,
+        )
+        # A specified unit is exactly this record's subtree, so close it before
+        # a sibling (a block that is not itself a unit) can leak into it.
+        if self.current is not None:
+            if self.current.parts:
+                self.units.append(self.current)
+            self.current = None
+
+    def _remember_heading(self, heading: str | None) -> None:
+        if heading:
+            self.running_heading = heading
+
+    def open(
+        self,
+        record: dict,
+        heading: str | None,
+        *,
+        kind: str | None = None,
+        min_chars: int | None = None,
+    ) -> None:
         if self.current is not None and self.current.parts:
             self.units.append(self.current)
-        inner = breadcrumb + [heading] if heading else list(breadcrumb)
         self.current = _Unit(
             xml_id=record.get('id'),
             xpath=record.get('xpath'),
             heading=heading,
-            breadcrumb=inner,
             entry_anchor=self.last_anchor,
+            kind=kind,
+            min_chars=min_chars,
         )
-        self.descend(record, inner)
+        self.descend(record)
 
-    def descend(self, record: dict, breadcrumb: list[str]) -> None:
+    def descend(self, record: dict) -> None:
         # `children` interleaves this record's own text runs with its child
         # records in source order, and is the only place text lives. A record
         # with no children produced no text, so it contributes nothing.
         for child in record.get('children', ()):
             if isinstance(child, dict):
-                self.collect(child, breadcrumb)
+                self.collect(child)
             elif isinstance(child, str):
                 self.add(child, record)
 
@@ -296,10 +395,10 @@ def _iter_units(document: list, options: IndexOptions) -> tuple[list[_Unit], lis
     One walker spans every root so an open unit and the running anchor survive
     the boundary between them.
     """
-    walker = _Walker(options.fields)
+    walker = _Walker(options.fields, options.units)
     for root in document:
         if isinstance(root, dict):
-            walker.collect(root, [])
+            walker.collect(root)
     return walker.finish(), walker.extracted
 
 
@@ -384,15 +483,18 @@ def build_records(
     title: str | None = None,
     anchors: dict[str, str] | None = None,
     chunk_file: str | None = None,
-    base_breadcrumb: list[str] | None = None,
+    page_metadata: dict[str, str] | None = None,
     options: IndexOptions | None = None,
 ) -> list[dict]:
-    """Turn one document's (or one chunk's) JSON-mode records into index records."""
+    """Turn one document's (or one chunk's) JSON-mode records into index records.
+
+    *page_metadata* is copied onto every record — values already stripped to
+    scalars, typically from ``fragment`` fields evaluated once for the page.
+    """
     options = options or IndexOptions()
     anchors = anchors or {}
 
     units, extracted = _iter_units(document, options)
-    separators = {spec.name: spec.separator for spec in options.fields}
 
     records: list[dict] = []
     seen: dict[str, int] = {}
@@ -401,7 +503,8 @@ def build_records(
     # an id to point at.
     for unit in units + extracted:
         pieces = _split(unit, options)
-        kept = [p for p in pieces if len(p[0]) >= options.min_chars]
+        floor = options.min_chars if unit.min_chars is None else unit.min_chars
+        kept = [p for p in pieces if len(p[0]) >= floor]
         if not kept:
             continue
         for position, (text, anchor, anchor_path) in enumerate(kept):
@@ -430,10 +533,6 @@ def build_records(
                 metadata['title'] = title
             if unit.heading:
                 metadata['heading'] = unit.heading
-            crumbs = _crumbs(base_breadcrumb, unit.breadcrumb)
-            if crumbs:
-                # Chroma metadata takes scalars only — never a list.
-                metadata['breadcrumb'] = ' > '.join(crumbs)
             if anchor:
                 metadata['xml_id'] = anchor
             if chunk_file:
@@ -447,26 +546,15 @@ def build_records(
                 if parent_id:
                     metadata['parent'] = parent_id
             for name, values in unit.fields.items():
-                metadata[name] = separators.get(name, '; ').join(values)
+                metadata[name] = list(values)
+            if page_metadata:
+                metadata.update(page_metadata)
             records.append({
                 'id': record_id,
                 'document': text,
                 'metadata': metadata,
             })
     return records
-
-
-def _crumbs(base: list[str] | None, inner: list[str]) -> list[str]:
-    """Join the caller's breadcrumb root to the unit's own, without repeats.
-
-    Each chunk is transformed on its own, so only the first one contains the
-    document-level heading; the rest need the title supplied from outside.
-    """
-    out: list[str] = []
-    for crumb in list(base or []) + list(inner):
-        if crumb and (not out or out[-1] != crumb):
-            out.append(crumb)
-    return out
 
 
 def _href(
@@ -491,27 +579,121 @@ def _href(
 
 # ── driver ───────────────────────────────────────────────────────────────────
 
-def _chunk_processor(root, module_path: Path, cfg, project_root: Path):
+def _chunk_processor(
+    root,
+    module_path: Path,
+    cfg,
+    project_root: Path,
+    *,
+    chunking=None,
+    xpath_env=None,
+    webcomponents: bool = False,
+):
     """Build the chunker for *root*, or ``None`` when the project has no chunking.
 
     ``ChunkProcessor`` derives chunk filenames from position and neither
-    ``select_chunks`` nor ``build_anchor_index`` transforms anything, so the
-    filenames and anchors match what ``opm chunk`` publishes even though the
-    module loaded here is the JSON one.
+    ``select_chunks`` nor ``build_anchor_index`` transforms the body, so the
+    filenames and anchors match what ``opm chunk`` publishes. When fragment
+    fields are evaluated, *module_path* is the web module those fragments use.
     """
-    if cfg.chunking is None or not (cfg.chunking.xpath or cfg.chunking.selector):
+    chunking = cfg.chunking if chunking is None else chunking
+    if chunking is None or not (chunking.xpath or chunking.selector):
         return None
     from opm.chunking import ChunkProcessor
 
     processor = ChunkProcessor(
         module_path,
         root,
-        cfg.chunking,
+        chunking,
         project_root,
         project_config=cfg,
+        webcomponents=webcomponents,
+        xpath_env=xpath_env,
     )
     processor.select_chunks()
     return processor
+
+
+def _web_chunking(cfg: ProjectConfig, odd: Path | None, base_css: str | None):
+    """Compile the web (and per-fragment) modules ``opm chunk`` would use."""
+    from dataclasses import replace
+
+    from opm.odd_cache import resolve_transform_module
+
+    chunking = cfg.chunking
+    web_odd = odd if odd is not None else (
+        chunking.odd if chunking is not None and chunking.odd is not None
+        else cfg.odd_for_type('web')
+    )
+    web = resolve_transform_module(
+        odd=web_odd,
+        output_mode='web',
+        use_packaged_default=web_odd is None,
+        base_css=base_css,
+    )
+    if chunking is None or not chunking.fragments:
+        return web.module_path, chunking
+    compiled = []
+    for fragment in chunking.fragments:
+        if fragment.odd is not None:
+            resolved = resolve_transform_module(
+                odd=fragment.odd,
+                output_mode=fragment.mode,
+                use_packaged_default=False,
+                base_css=base_css,
+            )
+            compiled.append(replace(fragment, module=resolved.module_path))
+        else:
+            compiled.append(fragment)
+    return web.module_path, replace(
+        chunking, module=web.module_path, fragments=compiled,
+    )
+
+
+def _fragment_plain_text(html: str) -> str:
+    """Strip a chunking fragment to a scalar: list items joined with `` > ``."""
+    from lxml import html as lxml_html
+
+    text = (html or '').strip()
+    if not text:
+        return ''
+    if '<' not in text:
+        return _clean(text)
+    try:
+        tree = lxml_html.fromstring(text)
+    except Exception:  # noqa: BLE001 — fall back to tag-stripped text
+        return _clean(text)
+    items = [tree] if getattr(tree, 'tag', None) == 'li' else tree.xpath('.//li')
+    if items:
+        parts = [_clean(''.join(item.itertext())) for item in items]
+        return ' > '.join(part for part in parts if part)
+    return _clean(''.join(tree.itertext()))
+
+
+def _page_metadata(processor, fields: tuple[FieldSpec, ...], chunk, position: int, cache: dict) -> dict[str, str]:
+    """Evaluate ``fragment`` fields once for this page."""
+    specs = [spec for spec in fields if spec.fragment]
+    if not specs:
+        return {}
+    if processor is None:
+        raise ValueError(
+            'index.fields names a chunking fragment, but the project has no '
+            '[chunking] section',
+        )
+    available = {frag.name: frag for frag in (processor.config.fragments or [])}
+    values: dict[str, str] = {}
+    for spec in specs:
+        fragment = available.get(spec.fragment)
+        if fragment is None:
+            raise ValueError(
+                f'index.fields["{spec.name}"] names fragment {spec.fragment!r}, '
+                'but [chunking.fragments] has no such entry',
+            )
+        html = processor.process_fragment(fragment, chunk, cache, position)
+        text = _fragment_plain_text(html)
+        if text:
+            values[spec.name] = text
+    return values
 
 
 def index_document(
@@ -549,6 +731,7 @@ def index_document(
         min_chars=cfg.index_min_chars,
         overlap=cfg.index_overlap,
         fields=cfg.index_fields,
+        units=cfg.index_units,
     )
     resolved_odd = odd if odd is not None else cfg.odd_for_type('json')
     resolved = resolve_transform_module(
@@ -573,14 +756,42 @@ def index_document(
         payload = module.transform(node, dict(transform_opts) or None, xpath_env=xpath_env)[0]
         return json.loads(payload).get('document', [])
 
-    processor = _chunk_processor(root, resolved.module_path, cfg, project_root)
-    if processor is None or not processor.chunks:
+    fragment_fields = any(spec.fragment for spec in options.fields)
+    chunking = cfg.chunking
+    processor_module = resolved.module_path
+    webcomponents = False
+    if fragment_fields:
+        processor_module, chunking = _web_chunking(cfg, odd, base_css)
+        webcomponents = bool(cfg.webcomponents_enabled)
+
+    processor = _chunk_processor(
+        root,
+        processor_module,
+        cfg,
+        project_root,
+        chunking=chunking,
+        xpath_env=xpath_env,
+        webcomponents=webcomponents,
+    )
+    cache: dict = {}
+
+    def records_for(node, *, chunk_file: str | None, anchors: dict | None, position: int, context) -> list[dict]:
         return build_records(
-            transform(root),
+            transform(node),
             doc_stem=xml_path.stem,
             source=str(xml_path),
             title=title,
+            anchors=anchors,
+            chunk_file=chunk_file,
+            page_metadata=_page_metadata(
+                processor, options.fields, context, position, cache,
+            ) if fragment_fields else None,
             options=options,
+        )
+
+    if processor is None or not processor.chunks:
+        return records_for(
+            root, chunk_file=None, anchors=None, position=0, context=root,
         )
 
     anchors = processor.build_anchor_index()
@@ -588,15 +799,12 @@ def index_document(
     for position, chunk in enumerate(processor.chunks):
         metadata = processor.generate_chunk_metadata(chunk, position)
         records.extend(
-            build_records(
-                transform(chunk),
-                doc_stem=xml_path.stem,
-                source=str(xml_path),
-                title=title,
-                anchors=anchors,
+            records_for(
+                chunk,
                 chunk_file=metadata.file,
-                base_breadcrumb=[title] if title else None,
-                options=options,
+                anchors=anchors,
+                position=position,
+                context=chunk,
             ),
         )
     return records

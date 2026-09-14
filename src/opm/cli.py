@@ -1427,6 +1427,7 @@ def index_cmd(
             min_chars=min_chars if min_chars is not None else cfg.index_min_chars,
             overlap=overlap if overlap is not None else cfg.index_overlap,
             fields=cfg.index_fields,
+            units=cfg.index_units,
         )
         with collect_xpath_errors() as xpath_log:
             records = project.index(input_files, odd=odd, options=options)

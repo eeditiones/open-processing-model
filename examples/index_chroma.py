@@ -16,8 +16,9 @@ accumulating orphans.
 
 The same records go into Elasticsearch with a ``_bulk`` request — index
 ``document`` as ``text`` and spread ``metadata`` into sibling fields.  Nothing
-in the record shape is Chroma-specific; metadata is flat scalars only, which
-is the strictest of the common constraints.
+in the record shape is Chroma-specific. Metadata is a flat map: scalars for
+labels, arrays of strings for extracted names. Chroma 1.5+ accepts those
+arrays; join them yourself if you are loading an older server.
 """
 
 from __future__ import annotations

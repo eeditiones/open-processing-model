@@ -213,50 +213,124 @@ class CollectionConfig:
     documents: tuple[Path, ...]
 
 
+def _index_selector_lists(entry: dict, where: str) -> dict[str, list[str]]:
+    selectors = {
+        key: _string_list(entry.get(key, []), f'{where}.{key}')
+        for key in ('behaviours', 'elements', 'models')
+    }
+    if not any(selectors.values()):
+        raise ValueError(
+            f'opm.toml: {where} selects nothing — give it '
+            '"behaviours", "elements" or "models"',
+        )
+    return selectors
+
+
 def _index_fields(index_data: dict) -> tuple:
     """Parse ``[[index.fields]]`` into [`opm.indexing.FieldSpec`][opm.indexing.FieldSpec]s.
 
-    A field names records by behaviour, element or model — the three handles a
-    JSON record carries — and says where their text goes; see
-    [`opm.indexing.FieldSpec`][opm.indexing.FieldSpec].
+    A field is either a JSON-record selector (`behaviours`, `elements`,
+    `models`) or a `fragment` naming a [`FragmentConfig`][opm.config.FragmentConfig];
+    see [`opm.indexing.FieldSpec`][opm.indexing.FieldSpec].
     """
     from opm.indexing import FieldSpec
 
-    raw = index_data.get('fields', [])
-    if isinstance(raw, dict):
-        raw = [raw]
-    elif not isinstance(raw, list):
-        raise ValueError('opm.toml: index.fields must be an array of tables')
-
     specs: list[FieldSpec] = []
-    for entry in raw:
-        if not isinstance(entry, dict):
-            raise ValueError('opm.toml: each index.fields entry must be a table')
-        name = str(entry.get('name', '')).strip()
-        if not name:
-            raise ValueError('opm.toml: index.fields entry is missing "name"')
+    for entry, name, where in _index_named_tables(index_data, 'fields'):
+        fragment = str(entry.get('fragment', '')).strip() or None
+        inline = entry.get('inline')
         selectors = {
-            key: _string_list(entry.get(key, []), f'index.fields["{name}"].{key}')
+            key: _string_list(entry.get(key, []), f'{where}.{key}')
             for key in ('behaviours', 'elements', 'models')
         }
-        if not any(selectors.values()):
+        if fragment:
+            if any(selectors.values()):
+                raise ValueError(
+                    f'opm.toml: {where} cannot mix "fragment" with '
+                    '"behaviours", "elements" or "models"',
+                )
+            if 'metadata' in entry and not bool(entry.get('metadata')):
+                raise ValueError(
+                    f'opm.toml: {where} copies a chunking fragment onto every '
+                    'passage, so metadata cannot be false',
+                )
+            if inline is not None:
+                raise ValueError(
+                    f'opm.toml: {where} copies a chunking fragment; "inline" '
+                    'applies only to JSON-record fields',
+                )
+        elif not any(selectors.values()):
             raise ValueError(
-                f'opm.toml: index.fields["{name}"] selects nothing — give it '
+                f'opm.toml: {where} selects nothing — give it "fragment", '
                 '"behaviours", "elements" or "models"',
             )
-        inline = entry.get('inline')
         specs.append(
             FieldSpec(
                 name=name,
                 behaviours=frozenset(selectors['behaviours']),
                 elements=frozenset(selectors['elements']),
                 models=frozenset(selectors['models']),
+                fragment=fragment,
                 metadata=bool(entry.get('metadata', True)),
                 inline=None if inline is None else bool(inline),
-                separator=str(entry.get('separator', '; ')),
             ),
         )
     return tuple(specs)
+
+
+def _check_index_fragment_fields(fields: tuple, chunking: ChunkingConfig | None) -> None:
+    """A `fragment` field must name an existing ``[[chunking.fragments]]`` entry."""
+    wanted = [spec for spec in fields if spec.fragment]
+    if not wanted:
+        return
+    available = {frag.name for frag in (chunking.fragments or [])} if chunking else set()
+    for spec in wanted:
+        if spec.fragment not in available:
+            raise ValueError(
+                f'opm.toml: index.fields["{spec.name}"] names fragment '
+                f'{spec.fragment!r}, but [chunking.fragments] has no such entry',
+            )
+
+
+def _index_units(index_data: dict) -> tuple:
+    """Parse ``[[index.units]]`` into [`opm.indexing.UnitSpec`][opm.indexing.UnitSpec]s.
+
+    Declaring any unit replaces the default titled-division walk; see
+    [`opm.indexing.UnitSpec`][opm.indexing.UnitSpec].
+    """
+    from opm.indexing import UnitSpec
+
+    specs: list[UnitSpec] = []
+    for entry, name, where in _index_named_tables(index_data, 'units'):
+        selectors = _index_selector_lists(entry, where)
+        raw_min = entry.get('min_chars')
+        specs.append(
+            UnitSpec(
+                name=name,
+                behaviours=frozenset(selectors['behaviours']),
+                elements=frozenset(selectors['elements']),
+                models=frozenset(selectors['models']),
+                emit=bool(entry.get('emit', True)),
+                min_chars=None if raw_min is None else int(raw_min),
+            ),
+        )
+    return tuple(specs)
+
+
+def _index_named_tables(index_data: dict, key: str):
+    """Yield ``(entry, name, where)`` for each table in ``index.<key>``."""
+    raw = index_data.get(key, [])
+    if isinstance(raw, dict):
+        raw = [raw]
+    elif not isinstance(raw, list):
+        raise ValueError(f'opm.toml: index.{key} must be an array of tables')
+    for entry in raw:
+        if not isinstance(entry, dict):
+            raise ValueError(f'opm.toml: each index.{key} entry must be a table')
+        name = str(entry.get('name', '')).strip()
+        if not name:
+            raise ValueError(f'opm.toml: index.{key} entry is missing "name"')
+        yield entry, name, f'index.{key}["{name}"]'
 
 
 def _string_list(value, label: str) -> list[str]:
@@ -362,7 +436,9 @@ class ProjectConfig:
     index_overlap: int = 1
     """``[index] overlap`` — records of context carried into the next part on a split."""
     index_fields: tuple = ()
-    """``[[index.fields]]`` — [`opm.indexing.FieldSpec`][opm.indexing.FieldSpec]s pulled out of a passage."""
+    """``[[index.fields]]`` — [`opm.indexing.FieldSpec`][opm.indexing.FieldSpec]s from a passage or a chunking fragment."""
+    index_units: tuple = ()
+    """``[[index.units]]`` — [`opm.indexing.UnitSpec`][opm.indexing.UnitSpec]s that open a passage."""
     pythonpath: tuple[Path, ...] = ()
     transform_odd: Path | None = None
     """Default transform ODD from ``[transform].odd`` or ``[transform.web].odd``."""
@@ -684,6 +760,9 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     if chunking is not None and chunking.odd is None and transform_odd is not None:
         chunking = replace(chunking, odd=transform_odd)
 
+    index_fields = _index_fields(index_data)
+    _check_index_fragment_fields(index_fields, chunking)
+
     return ProjectConfig(
         webcomponents_enabled=webcomponents_enabled,
         template_context=template_context,
@@ -712,7 +791,8 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         index_max_chars=int(index_data.get('max_chars', 1500)),
         index_min_chars=int(index_data.get('min_chars', 40)),
         index_overlap=int(index_data.get('overlap', 1)),
-        index_fields=_index_fields(index_data),
+        index_fields=index_fields,
+        index_units=_index_units(index_data),
         pythonpath=pythonpath,
         transform_odd=transform_odd,
         transform_odds=transform_odds,

@@ -166,16 +166,36 @@ output_dir = "chunks"
 # min_chars = 40     # drop units shorter than this; a bare heading is noise
 # overlap = 1        # records of context carried into the next part on a split
 
-# Material pulled out of a passage. Records are selected by `elements`,
-# `behaviours` or `models` — the three handles a JSON record carries.
+# Which JSON records open a passage. Omit this to keep the default: titled
+# divisions (a `section` behaviour, or any record that carries a heading).
+# Declaring any unit *replaces* that walk.
 #
-# metadata = true (the default) joins the matched text onto the passage that
-# contains it, as a facet to filter on, and leaves it in the prose:
+# [[index.units]]
+# name = "heading"
+# behaviours = ["heading"]
+# emit = false       # label the next passage; do not emit a record
+# min_chars = 1
+#
+# [[index.units]]
+# name = "paragraph"
+# behaviours = ["paragraph"]
+
+
+# Material pulled out of a passage. Records are selected by `elements`,
+# `behaviours` or `models` — the three handles a JSON record carries — or by
+# `fragment`, which names a [[chunking.fragments]] entry and copies that
+# page chrome onto every record (stripped to a scalar).
+#
+# metadata = true (the default) copies the matched text onto the passage as
+# a list of strings you can facet on, and leaves it in the prose:
 #
 # [[index.fields]]
 # name = "persons"
 # elements = ["persName"]
-# separator = "; "   # several values join into one string: metadata is scalars only
+#
+# [[index.fields]]
+# name = "breadcrumb"
+# fragment = "breadcrumbs"
 #
 # metadata = false makes each match a record of its own, tagged kind = "note"
 # and carrying the id of the passage it came from — so whether notes reach the

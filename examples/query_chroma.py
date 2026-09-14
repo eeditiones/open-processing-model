@@ -10,8 +10,9 @@ embedded the passages embeds the question::
 Point ``--path``/``--collection`` at whatever ``index_chroma.py`` wrote, and
 narrow with metadata: ``--doc quickstart`` or a raw ``--where`` filter.  The
 metadata fields available are the ones ``opm index`` emits — ``doc``, ``source``,
-``xpath``, ``title``, ``heading``, ``breadcrumb``, ``xml_id``, ``chunk``,
-``href``, ``part``, ``n_parts``, ``chars``, ``hash``.
+``xpath``, ``title``, ``heading``, ``xml_id``, ``chunk``, ``href``, ``part``,
+``n_parts``, ``chars``, ``hash``, plus any ``[[index.fields]]`` you declared
+(for example ``breadcrumb`` from a chunking fragment).
 
 ``href`` is the reason to index at all: it points at the chunk file and anchor
 that ``opm chunk`` produced, so a hit can be turned straight into a link.

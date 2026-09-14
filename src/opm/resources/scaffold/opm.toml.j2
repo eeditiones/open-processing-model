@@ -104,17 +104,38 @@ parameters = { mode = "breadcrumb" }
 # min_chars = 40     # drop units shorter than this; a bare heading is noise
 # overlap = 1        # records of context carried into the next part on a split
 
-# Material pulled out of a passage, selected by `elements`, `behaviours` or
-# `models`. A facet stays in the prose and is repeated as metadata you can
-# filter on:
+# Which JSON records open a passage. Omit this to keep the default: titled
+# divisions (a `section` behaviour, or any record that carries a heading).
+# Declaring any unit *replaces* that walk.
+#
+# [[index.units]]
+# name = "heading"
+# behaviours = ["heading"]
+# emit = false       # label the next passage; do not emit a record
+#
+# [[index.units]]
+# name = "paragraph"
+# behaviours = ["paragraph"]
+
+# Material pulled out of a passage, or copied from a chunking fragment.
+# JSON records are selected by `elements`, `behaviours` or `models`. A facet
+# stays in the prose and is repeated as a list of strings you can filter on:
 #
 # [[index.fields]]
 # name = "persons"
 # elements = ["{{ index_name_element }}"]
 #
-# With metadata = false each match becomes a record of its own instead, tagged
-# kind = "note" and linked to the passage it came from, and it leaves that
-# passage's text (inline = true keeps it in both places):
+# A `fragment` field is the other source: it names a [[chunking.fragments]]
+# entry (the same HTML the page template already renders), strips it to a
+# scalar, and copies it onto every record from that page:
+#
+# [[index.fields]]
+# name = "breadcrumb"
+# fragment = "breadcrumbs"
+#
+# With metadata = false each JSON match becomes a record of its own instead,
+# tagged kind = "note" and linked to the passage it came from, and it leaves
+# that passage's text (inline = true keeps it in both places):
 #
 # [[index.fields]]
 # name = "note"
