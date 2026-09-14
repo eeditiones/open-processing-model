@@ -921,6 +921,64 @@ def test_bind_http_server_skips_busy_port() -> None:
         occupied.server_close()
 
 
+def test_serve_directory_stops_on_keyboard_interrupt(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """Ctrl-C must shut the server down and release the port (Windows-safe path)."""
+    import http.server
+    import threading
+    import time
+    import urllib.error
+    import urllib.request
+
+    from opm.cli import _bind_http_server, _serve_directory
+
+    (tmp_path / 'index.html').write_text('<p>ok</p>', encoding='utf-8')
+    # Pick a free port, then release it so _serve_directory can bind the same one.
+    probe, port = _bind_http_server(http.server.SimpleHTTPRequestHandler, 0)
+    probe.server_close()
+
+    ready = threading.Event()
+    interrupted = False
+    original_wait = threading.Event.wait
+
+    def wait_then_interrupt(self, timeout=None):
+        nonlocal interrupted
+        # Untimed waits: Thread.start()'s _started and httpd.shutdown().
+        if timeout is None or interrupted:
+            return original_wait(self, timeout)
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                with urllib.request.urlopen(
+                    f'http://127.0.0.1:{port}/', timeout=0.2,
+                ) as resp:
+                    if resp.status == 200:
+                        break
+            except (urllib.error.URLError, TimeoutError, OSError):
+                time.sleep(0.05)
+        else:
+            raise AssertionError('server did not become ready')
+        interrupted = True
+        ready.set()
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(threading.Event, 'wait', wait_then_interrupt)
+    monkeypatch.setattr('rich.console.Console.print', lambda *a, **k: None)
+
+    _serve_directory(tmp_path, port)
+
+    assert ready.is_set()
+    # Port must be free again after shutdown + server_close.
+    rebound, chosen = _bind_http_server(
+        http.server.SimpleHTTPRequestHandler, port,
+    )
+    try:
+        assert chosen == port
+    finally:
+        rebound.server_close()
+
+
 def test_init_tei_creates_project(tmp_path: Path) -> None:
     from opm.config import load_project_config
 

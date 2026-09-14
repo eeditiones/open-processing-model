@@ -1286,10 +1286,14 @@ def _serve_directory(root: Path, port: int, *, open_browser: bool = False) -> No
 
     With *open_browser*, the landing page is opened once the socket is bound —
     the request waits in the listen backlog until ``serve_forever`` picks it up.
+
+    ``serve_forever`` runs on a daemon thread so Ctrl-C can interrupt the main
+    thread on Windows, where Winsock waits do not deliver ``KeyboardInterrupt``.
     """
     import errno
     import functools
     import http.server
+    import threading
 
     root = root.resolve()
     if not root.is_dir():
@@ -1330,10 +1334,19 @@ def _serve_directory(root: Path, port: int, *, open_browser: bool = False) -> No
         )
         if open_browser:
             webbrowser.open(_preview_landing_url(root, bound_port))
+        thread = threading.Thread(
+            target=httpd.serve_forever,
+            name='opm-serve',
+            daemon=True,
+        )
+        thread.start()
+        stop = threading.Event()
         try:
-            httpd.serve_forever()
+            while thread.is_alive():
+                stop.wait(0.5)
         except KeyboardInterrupt:
-            pass
+            httpd.shutdown()
+            thread.join(timeout=5)
 
 
 @app.command('index')
