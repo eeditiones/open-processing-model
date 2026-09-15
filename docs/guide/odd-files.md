@@ -7,6 +7,8 @@ transform module. The compiled module will automatically be cached for further u
 To learn more about ODD, it is best to read the [TEI Publisher documentation](https://teipublisher.org/doc/documentation.xml?id=odd#odd).
 It also includes a small tutorial in the [Gentle Introduction](https://teipublisher.org/doc/quickstart.xml?id=pm-tutorial#pm-tutorial) document.
 
+> **Note**: if you are using an editor based on Visual Studio Code (Cursor, Antigravity, Windsurf, Kiro …), check the marketplace for an extension called [ODDity](https://open-vsx.org/extension/e-editiones/oddity) – it provides a graphical environment for editing ODDs.
+
 The library packages three stock ODDs:
 
 - `teipublisher.odd` (+ `tp.css`) — main TEI Publisher model, and the fallback
