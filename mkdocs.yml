@@ -7,6 +7,7 @@ edit_uri: edit/main/docs/
 
 theme:
   name: material
+  custom_dir: overrides
   variant: classic
   logo: assets/logo.svg
   favicon: assets/logo.svg
@@ -34,6 +35,9 @@ theme:
       toggle:
         icon: material/weather-sunny
         name: Switch to light mode
+
+extra:
+  pypi_url: https://pypi.org/project/open-processing-model/
 
 extra_css:
   - stylesheets/brand.css

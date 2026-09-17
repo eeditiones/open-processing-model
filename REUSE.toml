@@ -106,6 +106,7 @@ path = [
   "scripts/**",
   "typings/**",
   "docs/**",
+  "overrides/**",
   "*.md",
   "*.toml",
   "*.yml",

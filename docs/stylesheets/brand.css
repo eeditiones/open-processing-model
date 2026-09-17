@@ -222,3 +222,19 @@
 .md-typeset .slideshow__dots button.active {
   opacity: .9;
 }
+
+/* --- Header source links (GitHub + PyPI) ------------------------------ */
+
+/* Icons only in the header; the mobile drawer keeps the full labels. */
+@media screen and (min-width: 60em) {
+  .md-header__source {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: auto;
+    max-width: none;
+  }
+  .md-header__source .md-source__repository {
+    display: none;
+  }
+}
