@@ -25,6 +25,9 @@ The modules below are the layer underneath, for finer control:
 | Split a document into pages / JSON for a site | [`opm.chunking`](chunking.md) |
 | Build search / embedding records from a document | [`opm.indexing`](indexing.md) |
 | Find what an ODD never runs, or never handles | [`opm.coverage`](coverage.md) |
+| Build a static schema / Guidelines site from an ODD | [`opm.document_site`](document-site.md) |
+| Index ODD specs (contained by, may contain, members) | [`opm.spec_index`](spec-index.md) |
+| Compile a schema customization against TEI | [`opm.odd_schema`](odd-schema.md) |
 | Read `opm.toml` settings programmatically | [`opm.config`](config.md) |
 | Compile an ODD into a transform module | [`opm.odd_compiler`](odd-compiler.md) |
 | Implement a new output format | [`opm.runtime.output_functions`](output-functions.md) |

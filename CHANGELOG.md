@@ -9,6 +9,34 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `opm odd document` — static HTML documentation site from an ODD (element /
+  class / macro / datatype reference pages, A–Z catalogs, processing models,
+  optional Guidelines chapters). Follows `schemaSpec/@source` and writes to
+  `odd/<schemaSpec ident>` unless `-o` is given. `--tei` documents TEI alone, chapters included.
+- `SpecIndex` and `compile_schema` — Python API for the ODD spec graph
+  (contained by, may contain, members, used by, attribute inheritance) and a
+  small odd2odd merge.
+- `tp:highlight($source, $language)` — Pygments HTML for a code listing,
+  called from ODD `content` params (`opm.runtime.common_xpath_functions`).
+- `chunking.file_pattern` — name chunk HTML files from `{xml_id}` / `{ident}`
+  instead of `001.html`. `opm odd document` uses `{xml_id}.html` so reference
+  pages stay at `ref-{ident}.html`.
+- `tp:contained_by` / `tp:may_contain` / `tp:members` / `tp:used_by` (and
+  catalog helpers) in `opm.runtime.spec_xpath_functions`, used by `tagdocs.odd`
+  to render documentation pages through `opm chunk`.
+
+### Changed
+
+- `opm coverage` is now `opm odd coverage`. The old command remains as a hidden
+  alias.
+- DocBook `programlisting` / `synopsis` (and tagdocs `egXML`) call
+  `tp:highlight` on `output="opm-web"` / `opm-print`. tei-publisher-lib still
+  uses `pb-code-highlight`.
+
 ## [0.9.0] - 2026-09-14
 
 First public release. Feature-complete and in use; the 0.x version

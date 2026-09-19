@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader>
+    <fileDesc>
+      <titleStmt>
+        <title>Mini customization</title>
+      </titleStmt>
+      <publicationStmt>
+        <publisher>e-editiones</publisher>
+        <availability>
+          <licence>test fixture</licence>
+        </availability>
+      </publicationStmt>
+      <sourceDesc>
+        <p>Drops hi and the inherited n attribute on p.</p>
+      </sourceDesc>
+    </fileDesc>
+  </teiHeader>
+  <text>
+    <body>
+      <schemaSpec ident="miniCustom" start="div" source="mini_schema.odd">
+        <moduleRef key="tei"/>
+        <moduleRef key="core"/>
+        <elementSpec ident="hi" mode="delete"/>
+        <elementSpec ident="p" mode="change">
+          <attList>
+            <attDef ident="n" mode="delete"/>
+            <attDef ident="type" mode="add">
+              <desc xml:lang="en">a local type</desc>
+            </attDef>
+          </attList>
+        </elementSpec>
+      </schemaSpec>
+    </body>
+  </text>
+</TEI>

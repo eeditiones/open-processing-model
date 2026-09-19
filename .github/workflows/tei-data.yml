@@ -1,0 +1,82 @@
+# Builds the TEI artifact `opm odd document` downloads at runtime and publishes
+# it to the rolling `tei-data` release.
+#
+# The artifact is the TEI Guidelines with every spec inlined and XInclude
+# resolved — the same specs as p5subset.xml plus the chapter prose, so one
+# fetch replaces both. It is deliberately NOT committed: git keeps every
+# historical blob, and gzipped XML does not delta-compress.
+#
+# This is separate from the package release on purpose. TEI ships on its own
+# schedule, so refreshing this data must not require cutting an opm version.
+name: TEI data
+
+on:
+  workflow_dispatch:
+    inputs:
+      tei_ref:
+        description: "Tag or branch of TEIC/TEI to build from"
+        default: "master"
+  schedule:
+    # Monthly, so a TEI release is picked up without anyone remembering to.
+    - cron: "0 4 1 * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tei-data
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Check out TEI
+        uses: actions/checkout@v5
+        with:
+          repository: TEIC/TEI
+          ref: ${{ inputs.tei_ref || 'master' }}
+          path: tei-source
+
+      - name: Build p5all.xml
+        run: |
+          set -euo pipefail
+          mkdir -p build/tei-data
+          uv run python scripts/build_tei_data.py \
+            --source tei-source/P5/p5.xml \
+            --out build/tei-data/p5all.xml
+
+      - name: Compress and checksum
+        run: |
+          set -euo pipefail
+          cd build/tei-data
+          gzip -9 -c p5all.xml > p5all.xml.gz
+          sha256sum p5all.xml.gz p5all.xml > SHA256SUMS
+          cat SHA256SUMS
+          ls -l
+
+      - name: Smoke-test the artifact
+        run: |
+          set -euo pipefail
+          uv run python scripts/build_tei_data.py --verify build/tei-data/p5all.xml.gz
+
+      - name: Publish to the rolling tei-data release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(uv run python scripts/build_tei_data.py \
+            --print-version build/tei-data/p5all.xml)
+          notes="TEI $version, built from TEIC/TEI@${{ inputs.tei_ref || 'master' }} on $(date -u +%Y-%m-%d)."
+          if gh release view tei-data >/dev/null 2>&1; then
+            gh release edit tei-data --notes "$notes" --title "TEI data ($version)"
+          else
+            gh release create tei-data \
+              --title "TEI data ($version)" --notes "$notes"
+          fi
+          gh release upload tei-data \
+            build/tei-data/p5all.xml.gz build/tei-data/SHA256SUMS --clobber

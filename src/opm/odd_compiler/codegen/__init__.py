@@ -120,7 +120,7 @@ def model_key(ident: str, spec_el, model_el) -> str:
     """The key a JSON record's ``model`` field carries (``tei-div11``).
 
     Generated code puts it in ``cls[1]``, the ``ODD_MODELS`` table is keyed by
-    it, and ``opm coverage`` joins static findings onto the same key — so all
+    it, and ``opm odd coverage`` joins static findings onto the same key — so all
     three have to agree on how it is built.
     """
     return f'tei-{_sanitize_ident(ident)}{_model_ordinal(spec_el, model_el)}'

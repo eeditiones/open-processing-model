@@ -1,0 +1,40 @@
+/* SPDX-FileCopyrightText: 2026 e-editiones
+   SPDX-License-Identifier: CC-BY-4.0 */
+
+.ident, .gi, .tag { font-family: ui-monospace, Menlo, Consolas, monospace; }
+.att { font-family: ui-monospace, Menlo, Consolas, monospace; }
+.gloss { font-style: italic; color: var(--doc-muted, #5b6b7c); }
+.soCalled::before, .mentioned::before { content: '“'; }
+.soCalled::after, .mentioned::after { content: '”'; }
+.val { font-family: ui-monospace, Menlo, Consolas, monospace; }
+/* TEI logo orange (#F7A823) / menubar blue (#0059A8), darkened for body text. */
+.term, .tei-term {
+  font-style: italic;
+  color: var(--doc-term, #0059A8);
+}
+.code, .tei-code {
+  font-family: var(--doc-mono, ui-monospace, Menlo, Consolas, monospace);
+  font-size: 0.92em;
+  color: var(--doc-code, #9a6400);
+  background: var(--doc-code-bg, rgba(247, 168, 35, 0.14));
+  border-radius: 0.2rem;
+  padding: 0.05em 0.28em;
+}
+.remarks { margin: 0.5rem 0; }
+.specList { list-style: none; padding-left: 0; }
+.specList .specDesc { margin: 0.2rem 0; }
+.specList-elementSpec,
+.specList-classSpec,
+.specList-macroSpec,
+.specList-dataSpec { font-weight: 600; }
+.specList-elementSpec:before { content: "<"; }
+.specList-elementSpec:after { content: ">"; }
+.egXML, .eg {
+  display: block;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  overflow: auto;
+}

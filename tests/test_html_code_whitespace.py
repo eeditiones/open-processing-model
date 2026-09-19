@@ -27,6 +27,7 @@ def test_html_code_emits_pre_code() -> None:
     code = res[0].find('code')
     assert code is not None
     assert code.get('data-language') == 'xml'
+    assert 'language-' not in (code.get('class') or '')
     assert 'line1\n    indented\nline3' in serialize(res)
 
 
@@ -42,9 +43,11 @@ def test_webcomponent_code_highlight_degrades_without_webcomponents() -> None:
         name='pb-code-highlight',
         optional={'language': 'xml'},
     )
+    html = serialize(res)
     assert res[0].tag == 'pre'
-    assert 'pb-code-highlight' not in serialize(res)
-    assert '  <b/>' in serialize(res) or '  &lt;b/&gt;' in serialize(res)
+    assert '<pb-code-highlight' not in html
+    assert '&lt;b/&gt;' in html
+    assert '\n  ' in html
 
 
 def test_webcomponent_code_highlight_kept_when_webcomponents_on() -> None:
@@ -72,5 +75,44 @@ def test_print_inherits_code_degrade() -> None:
         name='pb-code-highlight',
         optional={'language': 'json'},
     )
+    html = serialize(res)
     assert res[0].tag == 'pre'
-    assert '\n  b\n' in serialize(res)
+    assert '\n  ' in html
+    assert 'b' in html
+
+
+def test_html_code_inserts_tp_highlight_nodes() -> None:
+    from opm.xml_highlight import highlight_markup
+
+    pmf = HtmlOutputFunctions()
+    node = etree.Element('programlisting')
+    wrap = highlight_markup('<div n="1"/>', 'xml')
+    res = pmf.code(_config(), node, ['programlisting'], wrap, language='xml')
+    html = serialize(res)
+    assert '<span class="highlight">' in html
+    assert 'class="nt"' in html
+    assert 'language-' not in html
+    assert 'pb-code-highlight' not in html
+
+
+def test_html_code_omits_language_attrs_when_webcomponents_on() -> None:
+    """Prism in pb-components re-highlights ``data-language`` / ``language-*``."""
+    from opm.xml_highlight import highlight_markup
+
+    pmf = HtmlOutputFunctions()
+    node = etree.Element('programlisting')
+    wrap = highlight_markup('display: block;', 'css')
+    res = pmf.code(
+        _config(webcomponents=True),
+        node,
+        ['programlisting'],
+        wrap,
+        language='css',
+    )
+    code = res[0].find('code')
+    assert code is not None
+    assert code.get('data-language') is None
+    assert 'language-' not in (code.get('class') or '')
+    html = serialize(res)
+    assert 'display' in html
+    assert 'class="highlight"' in html

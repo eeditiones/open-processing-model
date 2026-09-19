@@ -1,4 +1,4 @@
-"""Tests for ``opm coverage`` — the ODD's own diagnostics."""
+"""Tests for ``opm odd coverage`` — the ODD's own diagnostics."""
 
 from __future__ import annotations
 
@@ -358,7 +358,7 @@ def test_cli_prints_a_table(tmp_path: Path, monkeypatch, capsys) -> None:
     _isolate_cache(tmp_path, monkeypatch)
     monkeypatch.chdir(tmp_path)
 
-    assert main(['coverage', 'data', '-d', str(odd)]) == 0
+    assert main(['odd', 'coverage', 'data', '-d', str(odd)]) == 0
     out = capsys.readouterr().out
     assert 'ODD coverage' in out
     assert 'Elements with no model' in out
@@ -371,7 +371,7 @@ def test_cli_defaults_to_the_data_directory(tmp_path: Path, monkeypatch, capsys)
     _isolate_cache(tmp_path, monkeypatch)
     monkeypatch.chdir(tmp_path)
 
-    assert main(['coverage', '-d', str(odd), '--json']) == 0
+    assert main(['odd', 'coverage', '-d', str(odd), '--json']) == 0
     report = json.loads(capsys.readouterr().out)
     assert report['documents'] == [str(Path('data') / 'in.xml')]
 
@@ -383,7 +383,7 @@ def test_cli_json_report_carries_every_section(
     _isolate_cache(tmp_path, monkeypatch)
     monkeypatch.chdir(tmp_path)
 
-    assert main(['coverage', 'data', '-d', str(odd), '--json']) == 0
+    assert main(['odd', 'coverage', 'data', '-d', str(odd), '--json']) == 0
     report = json.loads(capsys.readouterr().out)
 
     assert report['channel'] == 'web'
@@ -396,7 +396,7 @@ def test_cli_json_report_carries_every_section(
 def test_cli_reports_a_missing_corpus(tmp_path: Path, monkeypatch, capsys) -> None:
     monkeypatch.chdir(tmp_path)
 
-    assert main(['coverage']) == 1
+    assert main(['odd', 'coverage']) == 1
     assert 'input XML file or directory is required' in capsys.readouterr().err
 
 
@@ -404,8 +404,17 @@ def test_cli_rejects_an_unknown_channel(tmp_path: Path, monkeypatch, capsys) -> 
     odd = _tiny_project(tmp_path)
     monkeypatch.chdir(tmp_path)
 
-    assert main(['coverage', 'data', '-d', str(odd), '--channel', 'nope']) == 1
+    assert main(['odd', 'coverage', 'data', '-d', str(odd), '--channel', 'nope']) == 1
     assert '--channel must be one of' in capsys.readouterr().err
+
+
+def test_cli_coverage_alias_still_works(tmp_path: Path, monkeypatch, capsys) -> None:
+    odd = _tiny_project(tmp_path)
+    _isolate_cache(tmp_path, monkeypatch)
+    monkeypatch.chdir(tmp_path)
+
+    assert main(['coverage', 'data', '-d', str(odd)]) == 0
+    assert 'ODD coverage' in capsys.readouterr().out
 
 
 def test_occurrence_location_falls_back_to_the_xpath() -> None:

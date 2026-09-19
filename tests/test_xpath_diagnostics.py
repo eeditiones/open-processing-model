@@ -259,10 +259,10 @@ def test_coverage_lists_unsupported_expressions(tmp_path: Path, monkeypatch, cap
     xml = _project(tmp_path)
     monkeypatch.chdir(tmp_path)
 
-    assert main(['coverage', str(xml), '--json']) == 0
+    assert main(['odd', 'coverage', str(xml), '--json']) == 0
     report = json.loads(capsys.readouterr().out)
     assert report['summary']['unsupported_expressions'] == 1
     assert report['unsupported'][0]['where'] == 'predicate'
 
-    assert main(['coverage', str(xml)]) == 0
+    assert main(['odd', 'coverage', str(xml)]) == 0
     assert 'Expressions opm cannot run' in capsys.readouterr().out

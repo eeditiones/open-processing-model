@@ -154,6 +154,22 @@ pre[class*="tei-synopsis"] {
     padding: 1em 0 1em .5em;
 }
 
+/* Pygments tokens from tp:highlight (opm); pb-code-highlight is unchanged in TEI Publisher */
+pre code .p, .highlight .p { color: #5b6b7c; }
+pre code .nt, .highlight .nt { color: #0b6bcb; font-weight: 600; }
+pre code .na, .highlight .na { color: #0a7a5c; }
+pre code .s, pre code .s1, pre code .s2,
+.highlight .s, .highlight .s1, .highlight .s2 { color: #a14a1a; }
+pre code .c, pre code .c1, pre code .cm,
+.highlight .c, .highlight .c1, .highlight .cm { color: #5b6b7c; font-style: italic; }
+pre code .cp, .highlight .cp { color: #5b6b7c; }
+pre code .k, pre code .kc, pre code .kd, pre code .kn, pre code .kt,
+.highlight .k, .highlight .kc, .highlight .kd, .highlight .kn, .highlight .kt { color: #6d28d9; }
+pre code .m, pre code .mi, pre code .mf,
+.highlight .m, .highlight .mi, .highlight .mf { color: #b45309; }
+pre code .o, pre code .ow, .highlight .o, .highlight .ow { color: #64748b; }
+pre code .nb, .highlight .nb { color: #0b6bcb; }
+
 .footnotes {
     margin-top: 1em;
     padding-top: .5em;

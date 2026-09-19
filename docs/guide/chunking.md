@@ -51,6 +51,7 @@ Chunk roots are selected by an XPath expression (default `//text/body/div`), con
 [chunking]
 xpath = "//text/body/div"
 depth = 2          # maximum heading depth at which to split
+# file_pattern = "{xml_id}.html"   # stable names instead of 001.html
 ```
 
 For logic that XPath can't express, you can use a `selector` (dotted path) to call Python objects

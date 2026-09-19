@@ -1083,6 +1083,57 @@ def test_global_fragments_receive_a_per_document_doc_parameter(tmp_path: Path) -
     assert proc._expand_document_params({'q': '{not-a-placeholder}'})['q'] == '{not-a-placeholder}'
 
 
+def test_file_pattern_names_chunks_from_xml_id(tmp_path: Path) -> None:
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    proc = ChunkProcessor(
+        module_path=module_path,
+        xml_root=etree.parse(str(xml_path)).getroot(),
+        config=ChunkingConfig(
+            xpath="//body/div[@type='chunk']",
+            file_pattern='{xml_id}.html',
+        ),
+        project_root=tmp_path,
+    )
+    proc.select_chunks()
+    names = [proc.generate_chunk_metadata(chunk, i).file for i, chunk in enumerate(proc.chunks)]
+    assert names == ['a.html', 'b.html']
+    first = proc.generate_chunk_metadata(proc.chunks[0], 0)
+    assert first.next == 'b'
+    assert proc.generate_chunk_metadata(proc.chunks[1], 1).prev == 'a'
+
+
+def test_file_pattern_falls_back_when_xml_id_is_missing(tmp_path: Path) -> None:
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    xml_path.write_text(
+        """<doc xmlns:xml="http://www.w3.org/XML/1998/namespace">
+  <body>
+    <div type="chunk"><p>one</p></div>
+    <div type="chunk" xml:id="named"><p>two</p></div>
+  </body>
+</doc>
+""",
+        encoding='utf-8',
+    )
+    proc = ChunkProcessor(
+        module_path=module_path,
+        xml_root=etree.parse(str(xml_path)).getroot(),
+        config=ChunkingConfig(
+            xpath="//body/div[@type='chunk']",
+            file_pattern='{xml_id}.html',
+        ),
+        project_root=tmp_path,
+    )
+    proc.select_chunks()
+    names = [proc.generate_chunk_metadata(chunk, i).file for i, chunk in enumerate(proc.chunks)]
+    assert names == ['001.html', 'named.html']
+
+
 def test_prefix_placeholder_tracks_the_depth_chunks_are_written_at(tmp_path: Path) -> None:
     """``{prefix}`` keeps a URL into assets/ correct in both output layouts."""
     module_path = tmp_path / 'chunk_fixture.py'

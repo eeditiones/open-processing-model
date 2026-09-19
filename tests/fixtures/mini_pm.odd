@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader>
+    <fileDesc>
+      <titleStmt>
+        <title>Mini processing overlay</title>
+      </titleStmt>
+      <publicationStmt>
+        <publisher>e-editiones</publisher>
+        <availability>
+          <licence>test fixture</licence>
+        </availability>
+      </publicationStmt>
+      <sourceDesc>
+        <p>Processing models merged onto mini_schema.odd.</p>
+      </sourceDesc>
+    </fileDesc>
+  </teiHeader>
+  <text>
+    <body>
+      <schemaSpec ident="miniPm" source="mini_schema.odd">
+        <elementSpec ident="p" mode="change">
+          <model predicate="@rend" behaviour="block" cssClass="rend">
+            <desc xml:lang="en">honour @rend</desc>
+          </model>
+          <model behaviour="paragraph"/>
+        </elementSpec>
+        <elementSpec ident="quote" mode="add">
+          <model behaviour="inline"/>
+        </elementSpec>
+      </schemaSpec>
+    </body>
+  </text>
+</TEI>

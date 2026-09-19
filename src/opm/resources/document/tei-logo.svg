@@ -1,0 +1,20 @@
+<!--
+  SPDX-FileCopyrightText: TEI Consortium
+  SPDX-License-Identifier: LicenseRef-Logos
+  Source: https://tei-c.org/about/logos/TEI_Logo.svg
+-->
+<svg width="156" height="156" viewBox="0 0 156 156" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_631_1263)">
+<path d="M7.64941 148.358H21.0094L148.369 148.348V7.64844H7.65942V148.368L7.64941 148.358Z" fill="#222120"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M62.0498 7.63892H148.35V93.9389H155.86V0.128906H62.0498V7.63892Z" fill="#F7A823"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M20.9999 148.349H7.63989V62.0586H0.129883V155.869H93.9399V148.349H20.9899H20.9999Z" fill="#F7A823"/>
+<path d="M26.3994 51.7305H68.7094V58.9604H51.7894V103.36H43.3294V58.9604H26.4094V51.7305H26.3994Z" fill="white"/>
+<path d="M74.3303 51.7288H106.05V58.9587H82.7903V73.2787H104.31V80.5088H82.7903V96.1288H107.27V103.359H74.3203V51.7188L74.3303 51.7288Z" fill="white"/>
+<path d="M111.85 51.7305H120.31V103.37H111.85V51.7305Z" fill="white"/>
+</g>
+<defs>
+<clipPath id="clip0_631_1263">
+<rect width="156" height="156" fill="white"/>
+</clipPath>
+</defs>
+</svg>

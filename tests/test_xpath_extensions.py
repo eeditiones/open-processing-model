@@ -157,6 +157,54 @@ def test_heading_number_matches_ext_common_heading_number() -> None:
     assert result == ['1.1', '1.2', '2.1']
 
 
+def test_tp_serialize_egxml_strips_odd_indent() -> None:
+    EX = 'http://www.tei-c.org/ns/Examples'
+    eg = etree.fromstring(
+        f'<egXML xmlns="{EX}">\n'
+        '        <pb n="474"/>\n'
+        '        <p>alone\n'
+        '          present.</p>\n'
+        '      </egXML>'
+    )
+    body = XPathEnvironment(extensions=COMMON).select(eg, 'tp:serialize_egxml(.)')
+    assert isinstance(body, str)
+    assert body.startswith('<pb')
+    assert '\n        <p' not in body
+    assert 'alone\npresent.' in body
+
+
+def test_tp_normalize_egxml_dedents_plain_text() -> None:
+    TEI = 'http://www.tei-c.org/ns/1.0'
+    eg = etree.fromstring(
+        f'<eg xmlns="{TEI}">\n'
+        '            CHAPTER 38\n'
+        '            READER, I married him.\n'
+        '        </eg>'
+    )
+    body = XPathEnvironment(extensions=COMMON).select(eg, 'tp:normalize_egxml(.)')
+    assert body == 'CHAPTER 38\nREADER, I married him.'
+
+
+def test_tp_highlight_returns_markup_node() -> None:
+    el = etree.fromstring('<programlisting language="xml">&lt;pb n="1"/&gt;</programlisting>')
+    result = XPathEnvironment(extensions=COMMON).select(
+        el, "tp:highlight(string(.), (@language, 'xml')[1])",
+    )
+    assert isinstance(result, etree._Element)
+    assert result.get('class') == 'highlight'
+    html = etree.tostring(result, encoding='unicode')
+    assert 'class="nt"' in html
+    assert 'pb' in html
+
+
+def test_tp_highlight_unknown_language_returns_source() -> None:
+    el = etree.fromstring('<x>select 1</x>')
+    result = XPathEnvironment(extensions=COMMON).select(
+        el, "tp:highlight(string(.), 'not-a-lexer')",
+    )
+    assert result == 'select 1'
+
+
 class _MockHttpResponse:
     def __init__(self, body: bytes, content_type: str, *, charset: str = 'utf-8') -> None:
         self._body = body
@@ -231,3 +279,50 @@ def test_tp_request_accepts_xml_suffix_content_types() -> None:
         wrapped = request('https://example.com/feed')
     assert wrapped is not None
     assert wrapped.value.tag == '{http://www.w3.org/2005/Atom}feed'  # type: ignore[union-attr]
+
+
+def test_tp_spec_functions_use_spec_index() -> None:
+    from pathlib import Path
+
+    from opm.spec_index import SpecIndex
+
+    mini = Path(__file__).resolve().parent / 'fixtures' / 'mini_schema.odd'
+    index = SpecIndex.from_path(mini)
+    p = index.element('p').node
+    env = XPathEnvironment(
+        extensions='opm.runtime.spec_xpath_functions',
+        spec_index=index,
+        root=index.element('p').node.getroottree().getroot(),
+    )
+    contained = env.select(p, 'tp:contained_by(.)')
+    assert contained is not None
+    xml = etree.tostring(contained, encoding='unicode')
+    assert 'div' in xml
+    may = env.select(p, 'tp:may_contain(.)')
+    xml = etree.tostring(may, encoding='unicode')
+    assert 'hi' in xml
+    # Module is the group heading; inner items must not repeat it.
+    ns = {'t': 'http://www.tei-c.org/ns/1.0'}
+    for item in may.findall('t:item/t:list[@type="specItems"]/t:item', ns):
+        assert item.find('t:seg[@type="module"]', ns) is None
+    member = env.select(p, 'tp:member_of(.)')
+    member_xml = etree.tostring(member, encoding='unicode')
+    assert 'model.pLike' in member_xml
+    assert 'att.global' in member_xml
+    ns = {'t': 'http://www.tei-c.org/ns/1.0'}
+    for item in member.findall('t:item', ns):
+        assert item.find('t:seg[@type="module"]', ns) is None
+    phrase = index.get('model.phrase').node
+    members_xml = etree.tostring(env.select(phrase, 'tp:members(.)'), encoding='unicode')
+    assert 'hi' in members_xml
+    used = env.select(phrase, 'tp:used_by(.)')
+    assert used is not None
+    assert env.test(p, 'tp:spec_exists("hi", .)')
+    assert not env.test(p, 'tp:spec_exists("no-such-element", .)')
+    assert env.select(p, 'tp:spec_kind_tag("p", .)') == 'elementSpec'
+    assert env.select(p, 'tp:spec_gloss_label("p", .)') == '(paragraph) '
+    desc = env.select(p, 'tp:spec_desc("p", .)')
+    assert desc is not None
+    assert 'marks paragraphs' in ' '.join(desc.itertext())
+    assert env.select(p, 'tp:has_attribute_tree(.)')
+    assert env.select(p, 'tp:usage_label("opt")') == 'Optional'

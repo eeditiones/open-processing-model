@@ -35,6 +35,9 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         el = etree.Element(tag)
         el.set('class', classes(*cls))
         add_lang_attrs(el, node)
+        xml_id = node.get(XML_ID) if node is not None else None
+        if xml_id and not el.get('id'):
+            el.set('id', xml_id)
         return el
 
     def block(self, config, node, cls, content) -> PMResult:
@@ -305,10 +308,19 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         return [el]
 
     def code(self, config, node, cls, content, language=None) -> PMResult:
-        """Emit a ``<pre><code>`` block so whitespace is preserved without JS."""
+        """Emit a ``<pre><code>`` block so whitespace is preserved without JS.
+
+        ``data-language`` is omitted when web components are on: Prism in
+        pb-components would otherwise re-highlight already-rendered listings
+        (Pygments spans from ``tp:highlight``, or the source itself).
+        """
         pre = self._el('pre', cls, node)
         code_el = etree.SubElement(pre, 'code')
-        if language is not None and not isinstance(language, (list, tuple)):
+        if (
+            language is not None
+            and not isinstance(language, (list, tuple))
+            and not config.webcomponents
+        ):
             lang = str(language).strip()
             if lang:
                 code_el.set('data-language', lang)

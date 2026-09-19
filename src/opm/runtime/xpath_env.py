@@ -278,6 +278,7 @@ class XPathEnvironment:
     __slots__ = (
         'base_uri', 'documents', 'collections', 'variables',
         'project_namespaces', 'odd_namespaces', 'extensions', 'parameters', 'root',
+        'spec_index',
         '_cache', '_ext_fp', '_ns_key', '_params_key',
     )
 
@@ -292,6 +293,7 @@ class XPathEnvironment:
         extensions=None,
         parameters: dict[str, Any] | None = None,
         root: etree._Element | None = None,
+        spec_index=None,
         cache: DocumentCache | None = None,
     ) -> None:
         self.base_uri = base_uri or None
@@ -303,6 +305,7 @@ class XPathEnvironment:
         self.extensions = normalize_extensions(extensions)
         self.parameters: dict[str, Any] = dict(parameters) if parameters else {}
         self.root = root
+        self.spec_index = spec_index
         self._cache = cache if cache is not None else DocumentCache()
         self._ext_fp = extension_fingerprint(self.extensions)
         self._ns_key = self._namespaces_key(self.odd_namespaces, self.project_namespaces)
@@ -326,6 +329,10 @@ class XPathEnvironment:
     def with_root(self, root: etree._Element | None) -> XPathEnvironment:
         """A view binding *root* as ``$parameters?root``."""
         return self._view(root=root)
+
+    def with_spec_index(self, spec_index) -> XPathEnvironment:
+        """A view binding a [`SpecIndex`][opm.spec_index.SpecIndex] for ``tp:`` spec helpers."""
+        return self._view(spec_index=spec_index)
 
     def with_parameters(self, parameters: dict[str, Any] | None) -> XPathEnvironment:
         """A view binding *parameters* as ``$parameters``."""

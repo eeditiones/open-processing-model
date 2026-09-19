@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader>
+    <fileDesc>
+      <titleStmt>
+        <title>Mini schema</title>
+      </titleStmt>
+      <publicationStmt>
+        <publisher>e-editiones</publisher>
+        <availability>
+          <licence>test fixture</licence>
+        </availability>
+      </publicationStmt>
+      <sourceDesc>
+        <p>Synthetic ODD for SpecIndex tests.</p>
+      </sourceDesc>
+    </fileDesc>
+  </teiHeader>
+  <text>
+    <body>
+      <schemaSpec ident="mini" start="div">
+        <moduleSpec ident="tei">
+          <desc xml:lang="en">Infrastructure.</desc>
+        </moduleSpec>
+        <moduleSpec ident="core">
+          <desc xml:lang="en">Core elements.</desc>
+        </moduleSpec>
+
+        <classSpec ident="att.global" type="atts" module="tei">
+          <desc xml:lang="en">attributes common to all elements</desc>
+          <attList>
+            <attDef ident="xml:id" usage="opt">
+              <desc xml:lang="en">provides a unique identifier</desc>
+              <datatype><dataRef name="ID"/></datatype>
+            </attDef>
+            <attDef ident="n" usage="opt">
+              <desc xml:lang="en">gives a number or other label</desc>
+              <datatype><dataRef key="teidata.text"/></datatype>
+            </attDef>
+          </attList>
+        </classSpec>
+
+        <classSpec ident="model.phrase" type="model" module="tei">
+          <desc xml:lang="en">phrase-level elements</desc>
+        </classSpec>
+
+        <classSpec ident="model.pLike" type="model" module="tei">
+          <desc xml:lang="en">paragraph-like elements</desc>
+        </classSpec>
+
+        <macroSpec ident="macro.paraContent" module="tei">
+          <desc xml:lang="en">paragraph content</desc>
+          <content>
+            <alternate minOccurs="0" maxOccurs="unbounded">
+              <textNode/>
+              <classRef key="model.phrase"/>
+            </alternate>
+          </content>
+        </macroSpec>
+
+        <dataSpec ident="teidata.text" module="tei">
+          <desc xml:lang="en">text</desc>
+        </dataSpec>
+
+        <elementSpec ident="hi" module="core">
+          <gloss xml:lang="en">highlighted</gloss>
+          <desc xml:lang="en">marks a word or phrase as graphically distinct.</desc>
+          <classes>
+            <memberOf key="att.global"/>
+            <memberOf key="model.phrase"/>
+          </classes>
+          <content>
+            <textNode/>
+          </content>
+        </elementSpec>
+
+        <elementSpec ident="p" module="core">
+          <gloss xml:lang="en">paragraph</gloss>
+          <desc xml:lang="en">marks paragraphs in prose. See <gi>hi</gi>.</desc>
+          <desc xml:lang="fr">marque les paragraphes.</desc>
+          <classes>
+            <memberOf key="att.global"/>
+            <memberOf key="model.pLike"/>
+          </classes>
+          <content>
+            <macroRef key="macro.paraContent"/>
+          </content>
+          <attList>
+            <attDef ident="rend" usage="opt">
+              <desc xml:lang="en">local rendition</desc>
+              <datatype><dataRef key="teidata.text"/></datatype>
+            </attDef>
+          </attList>
+          <model behaviour="paragraph">
+            <desc xml:lang="en">render as a paragraph</desc>
+          </model>
+          <exemplum xml:lang="en">
+            <egXML xmlns="http://www.tei-c.org/ns/Examples">
+              <p>Hello <hi>world</hi>.</p>
+            </egXML>
+          </exemplum>
+          <remarks xml:lang="en">
+            <p>A remark with a nested <gi>p</gi>.</p>
+          </remarks>
+        </elementSpec>
+
+        <elementSpec ident="div" module="core">
+          <gloss xml:lang="en">division</gloss>
+          <desc xml:lang="en">contains a subdivision of the text.</desc>
+          <classes>
+            <memberOf key="att.global"/>
+          </classes>
+          <content>
+            <classRef key="model.pLike"/>
+          </content>
+        </elementSpec>
+      </schemaSpec>
+    </body>
+  </text>
+</TEI>

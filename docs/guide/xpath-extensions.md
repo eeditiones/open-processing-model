@@ -52,6 +52,8 @@ ships reusable functions you can register directly or copy:
 - `format_date(when, locale='en')` — format a TEI `xs:date` for display
 - `heading_number(div)` — dotted outline number such as `1.2.3` for a TEI `div`
 - `roman_fn(n)` — alphabetic apparatus labels
+- `highlight(source, language='xml')` — Pygments HTML for a code listing
+  (`tp:highlight(string(.), @language)`); used by the DocBook example and tagdocs
 
 ## Registering extensions
 

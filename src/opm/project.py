@@ -567,7 +567,7 @@ class Project:
         odd: Path | str | None = None,
         parameters: dict[str, str] | None = None,
     ) -> CoverageReport:
-        """Measure the ODD against *sources*, as ``opm coverage`` does.
+        """Measure the ODD against *sources*, as ``opm odd coverage`` does.
 
         Args:
             sources: An XML file, a directory (searched recursively), or a

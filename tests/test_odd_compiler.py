@@ -182,6 +182,70 @@ def test_compile_code_behaviour_emits_language_kwarg_for_markdown(tmp_path: Path
     assert "pmf.code(config, node, ['tei-code', 'tei-code1', r], node, language='python')" in src
 
 
+def test_prefixed_element_spec_dispatches_foreign_namespace(tmp_path: Path) -> None:
+    """``ident="eg:egXML"`` with xmlns:eg matches Examples-NS nodes."""
+    from lxml import etree
+    from opm.odd_compiler import compile_odd
+    from opm.transform import load_transform_module, run_transform
+    from opm.runtime.xpath_env import XPathEnvironment
+
+    odd = tmp_path / 'egxml.odd'
+    odd.write_text(
+        '<?xml version="1.0"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0"\n'
+        '     xmlns:eg="http://www.tei-c.org/ns/Examples"\n'
+        '     xmlns:pb="http://teipublisher.com/1.0">\n'
+        '<teiHeader><fileDesc><titleStmt><title>t</title></titleStmt>\n'
+        '<publicationStmt><p>p</p></publicationStmt>\n'
+        '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>\n'
+        '<text><body>\n'
+        '<schemaSpec ident="x" ns="http://www.tei-c.org/ns/1.0">\n'
+        '<elementSpec ident="eg:egXML" mode="add">\n'
+        '<model behaviour="code" cssClass="egXML">\n'
+        '<param name="content" value="tp:serialize_egxml(.)"/>\n'
+        '<param name="language" value="\'xml\'"/>\n'
+        '</model>\n'
+        '</elementSpec>\n'
+        '</schemaSpec>\n'
+        '</body></text></TEI>\n',
+        encoding='utf-8',
+    )
+    src = compile_odd(str(odd), output_mode='web')
+    assert "case 'eg:egXML':" in src
+    assert '_PREFIX_BY_NS' in src
+    assert 'http://www.tei-c.org/ns/Examples' in src
+    assert '_element_key' in src
+    assert "if _ns(node) != 'http://www.tei-c.org/ns/1.0':\n        return [node]" not in src
+
+    mod_path = tmp_path / 'egxml_web.py'
+    mod_path.write_text(src, encoding='utf-8')
+    # compile_odd returns source; write and load via ensure path — use run from string
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location('egxml_web_test', mod_path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    frag = etree.fromstring(
+        '<div xmlns="http://www.tei-c.org/ns/1.0">'
+        '<egXML xmlns="http://www.tei-c.org/ns/Examples">'
+        '<lg><l>line</l></lg>'
+        '</egXML></div>'
+    )
+    html = run_transform(
+        mod,
+        frag,
+        apply_template=False,
+        xpath_env=XPathEnvironment(extensions=('opm.runtime.common_xpath_functions',)),
+    )
+    if isinstance(html, bytes):
+        html = html.decode()
+    assert 'egXML' in html
+    assert '&lt;lg' in html or '<span class="nt">&lt;lg' in html
+    assert 'line' in html
+
+
 def test_generated_transform_calls_pmf_finish() -> None:
     from opm.odd_compiler import compile_odd
 
@@ -575,6 +639,41 @@ def test_docbook_toc_prefers_opm_web_over_tei_publisher_lib_models(tmp_path: Pat
     assert 'node-id="b"' in out
     # The tei-publisher-lib leaf model would emit a bare <li> with no pb-link.
     assert '<li><span' not in out
+
+
+def test_docbook_opm_web_listings_use_tp_highlight(tmp_path: Path) -> None:
+    """programlisting/synopsis: opm-web Pygments path wins over pb-code-highlight."""
+    from opm.odd_compiler import compile_odd
+    from opm.transform import load_transform_module, run_transform
+    from opm.runtime.xpath_env import XPathEnvironment
+
+    dbk = 'http://docbook.org/ns/docbook'
+    root = etree.fromstring(
+        f'<article xmlns="{dbk}" version="5.0">'
+        f'<info><title>Guide</title></info>'
+        f'<section xml:id="a"><title>A</title>'
+        f'<programlisting language="xml" xml:space="preserve">'
+        f'&lt;epigraph&gt;x&lt;/epigraph&gt;'
+        f'</programlisting>'
+        f'<para>y</para></section>'
+        f'</article>'.encode()
+    )
+    mod_path = tmp_path / 'dbk_highlight.py'
+    src = compile_odd(str(packaged_odd('docbook')), output_mode='web')
+    assert 'tp:highlight' in src
+    mod_path.write_text(src, encoding='utf-8')
+    out = str(
+        run_transform(
+            load_transform_module(mod_path),
+            root,
+            apply_template=False,
+            xpath_env=XPathEnvironment(extensions=('opm.runtime.common_xpath_functions',)),
+        )
+    )
+    assert '<pb-code-highlight' not in out
+    assert '<pre' in out
+    assert 'class="nt"' in out
+    assert 'epigraph' in out
 
 
 def _odd_with_availability(path: Path, *, title: str, availability: str, source: str = '') -> Path:

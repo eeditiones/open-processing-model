@@ -36,3 +36,7 @@ site/
 
 # Example output
 output/
+
+# ``opm odd document`` default site (odd/<schemaSpec @ident>/). Anchored to
+# the repo root so examples/*/odd/ and src/opm/resources/odd/ stay tracked.
+/odd/

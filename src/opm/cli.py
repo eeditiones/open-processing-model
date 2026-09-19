@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Unified CLI: ``opm init``, ``opm transform``, ``opm chunk``, ``opm index``,
-``opm coverage``, and ``opm serve``.
+``opm odd`` (``document``, ``coverage``), and ``opm serve``.
 
 ODDs are compiled on demand into the user cache (``platformdirs``); there is no
 separate ``compile`` command.
@@ -53,6 +53,13 @@ app = typer.Typer(
         'Open Processing Model: transform XML via ODD processing models '
         '(ODDs compile on demand into the user cache).'
     ),
+    no_args_is_help=True,
+    context_settings={'help_option_names': ['-h', '--help']},
+)
+
+odd_app = typer.Typer(
+    name='odd',
+    help='Inspect or document an ODD: corpus coverage, static schema reference sites.',
     no_args_is_help=True,
     context_settings={'help_option_names': ['-h', '--help']},
 )
@@ -647,7 +654,7 @@ def _report_resolved_module(resolved: ResolvedTransform) -> None:
         _note(
             f'{count} ODD expression{"s" if plural else ""} use{"" if plural else "s"} '
             'features opm does not support (probably for TEI Publisher compatibility) and '
-            f'{"are" if plural else "is"} skipped; opm coverage lists them.'
+            f'{"are" if plural else "is"} skipped; opm odd coverage lists them.'
         )
 
 
@@ -730,7 +737,7 @@ def _apply_json_channel(transform_type: str | None, channel: str | None) -> str 
 
 
 def _corpus_files(input_path: Path | None) -> list[Path]:
-    """XML files for a corpus-wide command (``opm index``, ``opm coverage``).
+    """XML files for a corpus-wide command (``opm index``, ``opm odd coverage``).
 
     Three things ``opm chunk`` does not do, because chunking publishes a given
     set of pages while these commands read a body of material:
@@ -780,6 +787,16 @@ def _chunk_progress() -> Progress:
         console=console,
         disable=not console.is_terminal,
     )
+
+
+def _document_output_dir(compiled, output_dir: Path | None) -> Path:
+    """``-o``, else ``odd/<schemaSpec @ident>`` under the current directory."""
+    if output_dir is not None:
+        return output_dir.resolve()
+    ident = Path(getattr(compiled, 'ident', '') or 'schema').name
+    if ident in {'', '.', '..'}:
+        ident = 'schema'
+    return (Path('odd') / ident).resolve()
 
 
 def _prepare_chunk_output_dir(out_dir: Path, *, force: bool) -> None:
@@ -1526,7 +1543,7 @@ def _truncate(text: str | None, width: int = 60) -> str:
 
 
 def _render_coverage(report, *, limit: int | None = 20) -> None:
-    """Print the coverage report as a set of tables (see ``opm coverage``)."""
+    """Print the coverage report as a set of tables (see ``opm odd coverage``)."""
     from rich.console import Console
 
     from opm.coverage import _by_count
@@ -1634,7 +1651,166 @@ def _render_coverage(report, *, limit: int | None = 20) -> None:
 
 
 
-@app.command('coverage')
+@odd_app.command('document')
+def document_cmd(
+    source: Annotated[
+        Optional[Path],
+        typer.Argument(
+            help=(
+                'ODD, compiled spec document (p5subset.xml / Guidelines p5.xml), '
+                'or a directory of Specs. Omit with --tei to document the TEI schema.'
+            ),
+        ),
+    ] = None,
+    tei: Annotated[
+        bool,
+        typer.Option(
+            '--tei',
+            help=(
+                'Document TEI alone (no SOURCE). Downloads the TEI schema '
+                '(specs plus Guidelines prose, ~2 MB) into the user cache on '
+                'first use; it is not shipped in the wheel. TEI-targeting ODDs '
+                'merge onto it by default.'
+            ),
+        ),
+    ] = False,
+    schema_source: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--source',
+            help='Local schema source (p5subset.xml or a compiled ODD) used as the merge base.',
+        ),
+    ] = None,
+    output_dir: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--output-dir',
+            '-o',
+            help='Output directory (default: odd/<schemaSpec ident>).',
+        ),
+    ] = None,
+    lang: Annotated[
+        str,
+        typer.Option('--lang', help='xml:lang to prefer on gloss/desc/remarks (default: en).'),
+    ] = 'en',
+    title: Annotated[
+        Optional[str],
+        typer.Option('--title', help='Site title (default: taken from the ODD header).'),
+    ] = None,
+    odd: Annotated[
+        Optional[Path],
+        typer.Option(
+            '--odd',
+            '-d',
+            help='Processing ODD used to render nested TEI (default: packaged tagdocs.odd).',
+        ),
+    ] = None,
+    force: Annotated[
+        bool,
+        typer.Option('--force', help='Replace the output directory if it already exists.'),
+    ] = False,
+    offline: Annotated[
+        bool,
+        typer.Option(
+            '--offline',
+            help='Do not download the TEI schema; fail if it is not already cached.',
+        ),
+    ] = False,
+    preview: Annotated[
+        bool,
+        typer.Option(
+            '--preview',
+            '-v',
+            help='After building, serve the site and open it in a browser.',
+        ),
+    ] = False,
+    port: Annotated[
+        int,
+        typer.Option('--port', '-p', help='Port for --preview (default: 8080).'),
+    ] = 8080,
+) -> None:
+    """Generate a static HTML documentation site from an ODD.
+
+    Follows ``schemaSpec/@source`` (processing-model chains included). A
+    TEI-targeting ODD (``schemaSpec/@ns`` absent or the TEI namespace) is merged
+    onto the cached TEI schema. --tei documents TEI alone; --source supplies a
+    local schema instead. Writes
+    reference pages plus A–Z catalogs. Processing models are listed on each
+    elementSpec.
+
+    Chapter prose from the input is always kept, and when the input is itself
+    the schema being documented (--tei, a Guidelines p5.xml, a Specs directory)
+    its chapters are published too. A customization documents itself, so TEI's
+    chapters stay out of its site. An ODD pinning an older TEI/@version is
+    compiled against the shipped snapshot, with a warning.
+    PDF, Markdown and print channels are planned.
+    """
+    from opm.document_site import build_document_site
+    from opm.odd_schema import SchemaError, compile_schema
+
+    if source is None and not tei and schema_source is None:
+        _die('pass an ODD / spec document, or --tei to document the TEI schema.')
+
+    try:
+        compiled = compile_schema(
+            source,
+            source=schema_source,
+            use_tei=tei,
+            fetch=not offline,
+        )
+    except SchemaError as exc:
+        _die(str(exc), cause=exc)
+
+    for warning in compiled.warnings:
+        _note(warning)
+
+    out_dir = _document_output_dir(compiled, output_dir)
+    _prepare_chunk_output_dir(out_dir, force=force)
+
+    typer.echo(f'Documenting {compiled.title or compiled.source_path or "schema"} → {out_dir}')
+
+    with _chunk_progress() as progress, collect_xpath_errors() as xpath_log:
+        task = progress.add_task('Writing pages', total=None)
+
+        def _on_progress(current: int, total: int, label: str) -> None:
+            progress.update(
+                task,
+                completed=current,
+                total=total,
+                description=f'Writing {label}',
+            )
+
+        site = build_document_site(
+            compiled,
+            out_dir,
+            lang=lang,
+            title=title,
+            odd=odd,
+            on_progress=_on_progress,
+        )
+
+    typer.echo(
+        f'Wrote {site.pages} pages ({len(site.index.elements())} elements'
+        + (f', {site.chapters} chapters' if site.chapters else '')
+        + f') to {out_dir}'
+    )
+    if site.unsupported:
+        count = len(site.unsupported)
+        plural = count != 1
+        _note(
+            f'{count} expression{"s" if plural else ""} in the documentation ODD '
+            f'{"are" if plural else "is"} not supported and rendered empty: '
+            + '; '.join(
+                f'{e.get("element") or "?"} {e.get("where") or ""} — {e.get("reason")}'
+                for e in site.unsupported[:_XPATH_FAILURES_SHOWN]
+            )
+        )
+    _report_xpath_errors(xpath_log)
+    if preview:
+        _serve_directory(out_dir, port, open_browser=True)
+
+
+@odd_app.command('coverage')
 def coverage_cmd(
     input_xml: Annotated[
         Optional[Path],
@@ -1726,6 +1902,12 @@ def coverage_cmd(
         _report_xpath_errors(xpath_log)
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as e:
         _die(str(e), cause=e)
+
+
+# ``opm coverage`` shipped in 0.9.0; keep it as a hidden alias of ``odd coverage``.
+app.command('coverage', hidden=True, deprecated=True)(coverage_cmd)
+app.add_typer(odd_app, name='odd')
+
 
 @app.command('serve')
 def serve_cmd(

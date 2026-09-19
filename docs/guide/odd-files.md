@@ -49,11 +49,12 @@ To cope with this, two mechanisms are implemented:
 1. `<model>` which target `opm` can have an `@output` attribute value prefixed with `opm-`
 (e.g. `output="opm-web"`). TEI Publisher will simply skip over those. If you put the prefixed model
 before the unprefixed one, `opm` will use it while TEI Publisher ignores it and selects the next
-matching model instead.
+matching model instead. DocBook listings do this: `tp:highlight` (Pygments) on `opm-web` /
+`opm-print`, then `pb-code-highlight` for tei-publisher-lib.
 2. `opm`'s compiler tests each XPath expression and recognises the ones it cannot execute. If such
 an expression occurs inside a predicate, it will evaluate to `false` and the processor consequently skips it.
 Parameter expressions will return the context node instead of failing. The client prints a count of
-ignored expressions to the console. To get a full report for an ODD, see [`opm coverage`](coverage.md#expressions-opm-cannot-run). 
+ignored expressions to the console. To get a full report for an ODD, see [`opm odd coverage`](coverage.md#expressions-opm-cannot-run). 
 
 ## Supported extensions
 
@@ -101,7 +102,7 @@ would not be possible. Markup templates also help with plain-text markup languag
 An expression that is valid XPath can still fail on a particular document, for example,
 `xs:date(date)` on a date written as "circa 1850", say. As before, such a
 predicate counts as false and a param as empty. `opm transform`, `opm chunk`,
-`opm index` and `opm coverage` list these failures at the end of the run, each
+`opm index` and `opm odd coverage` list these failures at the end of the run, each
 expression once, with the error, how often it failed and where it first did:
 
 ```

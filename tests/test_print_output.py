@@ -155,7 +155,8 @@ def test_compile_print_mode_renders_with_print_output_functions(tmp_path: Path) 
     src = compile_odd(str(packaged_odd('teipublisher')), output_mode='print')
     assert "OUTPUT_MODE = 'print'" in src
     # print also matches web models — dispatch should still have cases
-    assert 'match _tag(node):' in src
+    assert 'match key:' in src
+    assert 'def _element_key(node):' in src
 
     out = tmp_path / 'print_gen.py'
     out.write_text(src, encoding='utf-8')

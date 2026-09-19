@@ -126,7 +126,13 @@ def _render_command(command, prog: str, *, heading: int, parent=None) -> str:
     if opts:
         parts.extend([opts, ''])
 
-    sub_names = list(command.list_commands(ctx)) if hasattr(command, 'list_commands') else []
+    sub_names = []
+    if hasattr(command, 'list_commands'):
+        for name in command.list_commands(ctx):
+            sub = command.get_command(ctx, name)
+            if sub is None or getattr(sub, 'hidden', False):
+                continue
+            sub_names.append(name)
     if sub_names:
         parts.append('**Commands:**')
         parts.append('')

@@ -1,8 +1,11 @@
 Logos and wordmarks
 
-The image files under docs/assets/ are logos and wordmarks: those of e-editiones and Open
-Processing Model, and those of the institutions that support the project's development —
-among them the Schweizerische Akademie der Geistes- und Sozialwissenschaften, the
+The image files under docs/assets/ and the TEI Consortium mark shipped as
+src/opm/resources/document/tei-logo.svg (source:
+https://tei-c.org/about/logos/TEI_Logo.svg) are logos and wordmarks: those of
+e-editiones and Open Processing Model, the TEI Consortium, and those of the
+institutions that support the project's development — among them the
+Schweizerische Akademie der Geistes- und Sozialwissenschaften, the
 Universität Basel, the Universität Zürich, the Zentralbibliothek Zürich and the
 Ernst Göhner Stiftung.
 

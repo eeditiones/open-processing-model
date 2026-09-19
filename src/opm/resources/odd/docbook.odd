@@ -606,6 +606,12 @@ white-space: pre-wrap;
 [[code]]
 \end{lstlisting} </pb:template>
                     </model>
+                    <model output="opm-print" behaviour="code">
+                        <desc>opm: Pygments via tp:highlight as pre/code. tei-publisher-lib print
+                            keeps the unprefixed print model below.</desc>
+                        <param name="language" value="@language"/>
+                        <param name="content" value="tp:highlight(string(.), (@language, 'xml')[1])"/>
+                    </model>
                     <model output="print" behaviour="code">
                         <desc>opm-only: print keeps &lt;pre&gt;&lt;code data-language&gt; rather than a
                             styled div, so the paged-media stylesheet and the syntax hint survive.</desc>
@@ -623,6 +629,12 @@ white-space: pre-wrap;
                         </model>
                         <model predicate="parent::cell|parent::para|parent::ab" behaviour="inline"
                             cssClass="code"/>
+                        <model output="opm-web" behaviour="code">
+                            <desc>opm: Pygments via tp:highlight. tei-publisher-lib keeps
+                                pb-code-highlight.</desc>
+                            <param name="language" value="(@language, 'xml')[1]"/>
+                            <param name="content" value="tp:highlight(string(.), (@language, 'xml')[1])"/>
+                        </model>
                         <model behaviour="webcomponent">
                             <param name="name" value="'pb-code-highlight'"/>
                             <param name="language" value="(@language, 'xml')[1]"/>
@@ -669,6 +681,12 @@ white-space: pre-wrap;
 [[code]]
 \end{lstlisting} </pb:template>
                     </model>
+                    <model output="opm-print" behaviour="code">
+                        <desc>opm: Pygments via tp:highlight as pre/code. tei-publisher-lib print
+                            keeps the unprefixed print model below.</desc>
+                        <param name="language" value="@language"/>
+                        <param name="content" value="tp:highlight(string(.), (@language, 'xml')[1])"/>
+                    </model>
                     <model output="print" behaviour="code">
                         <desc>opm-only: print keeps &lt;pre&gt;&lt;code data-language&gt; rather than a
                             styled div, so the paged-media stylesheet and the syntax hint survive.</desc>
@@ -676,6 +694,12 @@ white-space: pre-wrap;
                         <param name="content" value="text()"/>
                     </model>
                     <model output="docx" behaviour="block" cssClass="Code"/>
+                    <model output="opm-web" behaviour="code">
+                        <desc>opm: Pygments via tp:highlight. tei-publisher-lib keeps
+                            pb-code-highlight.</desc>
+                        <param name="language" value="@language"/>
+                        <param name="content" value="tp:highlight(string(.), (@language, 'xml')[1])"/>
+                    </model>
                     <model behaviour="webcomponent">
                         <param name="name" value="'pb-code-highlight'"/>
                         <param name="language" value="@language"/>

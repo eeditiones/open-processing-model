@@ -213,12 +213,25 @@ class PythonGenerator(CodeGenerator):
         else:
             fallthrough = 'return apply(config, child_nodes(node))'
 
+        prefix_by_ns = self._prefix_by_ns(parsed)
+        prefix_by_ns_literal = self._python_dict_literal(prefix_by_ns)
         if cases:
+            # Foreign-namespace specs use ``prefix:local`` idents (e.g. eg:egXML);
+            # unmatched names in a mapped foreign NS are copied through, while
+            # schema-NS unknowns still recurse into children.
+            default_arm = (
+                f'            if _ns(node) != {schema_ns!r}:\n'
+                f'                return [node]\n'
+                f'            {fallthrough}'
+            )
             dispatch_body = (
-                '    match _tag(node):\n'
+                '    key = _element_key(node)\n'
+                '    if key is None:\n'
+                '        return [node]\n'
+                '    match key:\n'
                 + '\n'.join(cases) + '\n'
                 '        case _:\n'
-                f'            {fallthrough}'
+                + default_arm
             )
         else:
             # No web-output specs — skip the match entirely; a bare `match` with no
@@ -254,6 +267,9 @@ from lxml import etree
 
 # Namespace mappings from ODD root element (for XPath expressions)
 NSMAP = {nsmap_literal}
+# URI → prefix for elementSpec idents like ``eg:egXML`` / ``mei:mdiv``.
+_PREFIX_BY_NS = {prefix_by_ns_literal}
+_SCHEMA_NS = {schema_ns!r}
 
 from opm.runtime.context import build_context
 from opm.runtime.output_functions import (
@@ -282,7 +298,7 @@ OUTPUT_MODE = {mode.name!r}
 
 # ODD expressions opm can never evaluate (eXist functions, XQuery syntax). Each
 # was compiled to the result a failing evaluation returns; see
-# opm.odd_compiler.expression_check. `opm coverage` lists them.
+# opm.odd_compiler.expression_check. `opm odd coverage` lists them.
 ODD_UNSUPPORTED = {unsupported_literal}
 
 {odd_generated_constants}
@@ -292,12 +308,21 @@ def apply(config, nodes):
     return _apply_impl(config, nodes, config.dispatch)
 
 
+def _element_key(node):
+    """Dispatch key: local name in the schema NS, else ``prefix:local`` when mapped."""
+    namespace = _ns(node)
+    local = _tag(node)
+    if namespace == _SCHEMA_NS:
+        return local
+    prefix = _PREFIX_BY_NS.get(namespace)
+    if prefix:
+        return f'{{prefix}}:{{local}}'
+    return None
+
+
 def _dispatch(config, node, params):
     pmf = config.pmf
     r = map_rend_to_class(node)
-    if _ns(node) != {schema_ns!r}:
-        return [node]
-
 {dispatch_body}
 
 
@@ -344,6 +369,29 @@ def transform(root, options=None, *, xpath_env=None):
             return '{}'
         items = ', '.join(f'{k!r}: {v!r}' for k, v in sorted(nsmap.items()))
         return '{' + items + '}'
+
+    @staticmethod
+    def _python_dict_literal(mapping: dict[str, str]) -> str:
+        """Return a sorted ``{k: v}`` literal for generated module constants."""
+        if not mapping:
+            return '{}'
+        items = ', '.join(f'{k!r}: {v!r}' for k, v in sorted(mapping.items()))
+        return '{' + items + '}'
+
+    @staticmethod
+    def _prefix_by_ns(parsed: ParsedOdd) -> dict[str, str]:
+        """Map namespace URI → prefix for ``prefix:local`` elementSpec idents."""
+        out: dict[str, str] = {}
+        nsmap = parsed.nsmap or {}
+        for spec in iter_element_specs(parsed):
+            ident = spec.get('ident') or ''
+            if ':' not in ident:
+                continue
+            prefix, _, _local = ident.partition(':')
+            uri = nsmap.get(prefix)
+            if uri:
+                out[uri] = prefix
+        return out
 
     def _python_unsupported_literal(self) -> str:
         """``ODD_UNSUPPORTED`` as a Python list literal, one record per line."""

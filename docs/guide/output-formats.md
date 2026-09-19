@@ -276,10 +276,10 @@ behaviour at all — its text just surfaces in some ancestor. In JSON it appears
 with `"behaviour": null`, so everything an ODD does not cover is findable:
 
 ```bash
-opm coverage doc.xml     # counts them, with a file:line for each
+opm odd coverage doc.xml     # counts them, with a file:line for each
 ```
 
-[`opm coverage`](coverage.md) rolls these records up across a corpus: unmatched
+[`opm odd coverage`](coverage.md) rolls these records up across a corpus: unmatched
 elements, models that never fired, models that can never fire, and elements
 whose spec exists but whose predicates were all false.
 
@@ -379,7 +379,7 @@ nothing came out of it.
 
 Models that survive pruning but never fired are the coverage report: elements
 the document uses, models the ODD declares for them, and no match. That reading
-is what [`opm coverage`](coverage.md) automates, across a whole corpus and with
+is what [`opm odd coverage`](coverage.md) automates, across a whole corpus and with
 the local/inherited split applied.
 
 For building a search index from this data, see

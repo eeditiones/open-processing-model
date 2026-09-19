@@ -29,8 +29,8 @@ opm [OPTIONS] COMMAND [ARGS]...
 - [`transform`](#opm-transform): Transform an XML document via an ODD with...
 - [`chunk`](#opm-chunk): Chunk a large XML document into smaller...
 - [`index`](#opm-index): Emit embedding-ready JSONL records for a...
-- [`coverage`](#opm-coverage): Diagnose an ODD against a corpus: what...
 - [`serve`](#opm-serve): Start a local HTTP server rooted at the...
+- [`odd`](#opm-odd): Inspect or document an ODD: corpus...
 
 ### `opm init`
 
@@ -167,7 +167,95 @@ opm index [OPTIONS] [INPUT_XML]
 | `--config, -c PATH` | Path to a TOML configuration file (default: opm.toml in the current directory). |
 | `--help` | Show this message and exit. |
 
-### `opm coverage`
+### `opm serve`
+
+Start a local HTTP server rooted at the chunks output directory.
+
+**Usage:**
+
+```text
+opm serve [OPTIONS]
+```
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--port, -p INTEGER` | Port to listen on (default: 8080). |
+| `--directory, -d PATH` | Directory to serve (default: chunking.output_dir from config, or "chunks"). |
+| `--config, -c PATH` | Path to a TOML configuration file (default: opm.toml in the current directory). |
+| `--help` | Show this message and exit. |
+
+### `opm odd`
+
+Inspect or document an ODD: corpus coverage, static schema reference sites.
+
+**Usage:**
+
+```text
+opm odd [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--help` | Show this message and exit. |
+
+
+**Commands:**
+
+- [`document`](#opm-odd-document): Generate a static HTML documentation site...
+- [`coverage`](#opm-odd-coverage): Diagnose an ODD against a corpus: what...
+
+#### `opm odd document`
+
+Generate a static HTML documentation site from an ODD.
+
+Follows ``schemaSpec/@source`` (processing-model chains included). A
+TEI-targeting ODD (``schemaSpec/@ns`` absent or the TEI namespace) is merged
+onto the cached TEI schema. --tei documents TEI alone; --source supplies a
+local schema instead. Writes
+reference pages plus A–Z catalogs. Processing models are listed on each
+elementSpec.
+
+Chapter prose from the input is always kept, and when the input is itself
+the schema being documented (--tei, a Guidelines p5.xml, a Specs directory)
+its chapters are published too. A customization documents itself, so TEI's
+chapters stay out of its site. An ODD pinning an older TEI/@version is
+compiled against the shipped snapshot, with a warning.
+PDF, Markdown and print channels are planned.
+
+**Usage:**
+
+```text
+opm odd document [OPTIONS] [SOURCE]
+```
+
+**Arguments:**
+
+| Argument | Description |
+| --- | --- |
+| `SOURCE` | ODD, compiled spec document (p5subset.xml / Guidelines p5.xml), or a directory of Specs. Omit with --tei to document the TEI schema. |
+
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--tei` | Document TEI alone (no SOURCE). Downloads the TEI schema (specs plus Guidelines prose, ~2 MB) into the user cache on first use; it is not shipped in the wheel. TEI-targeting ODDs merge onto it by default. |
+| `--source PATH` | Local schema source (p5subset.xml or a compiled ODD) used as the merge base. |
+| `--output-dir, -o PATH` | Output directory (default: odd/<schemaSpec ident>). |
+| `--lang TEXT` | xml:lang to prefer on gloss/desc/remarks (default: en). |
+| `--title TEXT` | Site title (default: taken from the ODD header). |
+| `--odd, -d PATH` | Processing ODD used to render nested TEI (default: packaged tagdocs.odd). |
+| `--force` | Replace the output directory if it already exists. |
+| `--offline` | Do not download the TEI schema; fail if it is not already cached. |
+| `--preview, -v` | After building, serve the site and open it in a browser. |
+| `--port, -p INTEGER` | Port for --preview (default: 8080). |
+| `--help` | Show this message and exit. |
+
+#### `opm odd coverage`
 
 Diagnose an ODD against a corpus: what never runs, and what is never handled.
 
@@ -182,7 +270,7 @@ Coverage transforms whole documents; chunking config is ignored.
 **Usage:**
 
 ```text
-opm coverage [OPTIONS] [INPUT_XML]
+opm odd coverage [OPTIONS] [INPUT_XML]
 ```
 
 **Arguments:**
@@ -202,23 +290,4 @@ opm coverage [OPTIONS] [INPUT_XML]
 | `--all, -a` | List every finding instead of the first 20 per section. |
 | `--json` | Print the whole report as JSON instead of tables. |
 | `--config, -c PATH` | Path to opm.toml. |
-| `--help` | Show this message and exit. |
-
-### `opm serve`
-
-Start a local HTTP server rooted at the chunks output directory.
-
-**Usage:**
-
-```text
-opm serve [OPTIONS]
-```
-
-**Options:**
-
-| Option | Description |
-| --- | --- |
-| `--port, -p INTEGER` | Port to listen on (default: 8080). |
-| `--directory, -d PATH` | Directory to serve (default: chunking.output_dir from config, or "chunks"). |
-| `--config, -c PATH` | Path to a TOML configuration file (default: opm.toml in the current directory). |
 | `--help` | Show this message and exit. |

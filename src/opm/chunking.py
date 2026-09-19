@@ -10,6 +10,7 @@ for static site generation.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from collections.abc import Collection
 from dataclasses import dataclass, asdict
@@ -45,6 +46,12 @@ from opm.runtime.output_functions import XML_ID
 PB_LINK_TARGET_ATTRS = ('xml-id', 'node-id', 'hash')
 # pb-view wiring that means nothing once the element is a plain anchor.
 PB_LINK_DROP_ATTRS = PB_LINK_TARGET_ATTRS + ('emit', 'subscribe', 'browse')
+_UNSAFE_FILE_RE = re.compile(r'[/\\]+')
+
+
+def _safe_file_stem(raw: str) -> str:
+    """Strip path separators from a chunk id so it can be a filename stem."""
+    return _UNSAFE_FILE_RE.sub('-', raw).strip()
 
 
 @dataclass
@@ -404,16 +411,52 @@ class ChunkProcessor:
             expanded[key] = value
         return expanded
 
+    def _numbered_chunk_file(self, index: int) -> str:
+        """Default ``001.html``-style name for the chunk at *index*."""
+        return f'{index + 1:03d}.html'
+
+    def _chunk_file(self, chunk: etree._Element, index: int) -> str:
+        """Filename for *chunk*, from ``file_pattern`` or the numbered default."""
+        numbered = self._numbered_chunk_file(index)
+        pattern = self.config.file_pattern
+        if not pattern:
+            return numbered
+        xml_id = _safe_file_stem(chunk.get(XML_ID) or chunk.get('id') or '')
+        ident = _safe_file_stem(chunk.get('ident') or '')
+        stem = xml_id or ident
+        if not stem:
+            return numbered
+        try:
+            name = pattern.format(
+                xml_id=xml_id or stem,
+                ident=ident or stem,
+                index=index + 1,
+                stem=stem,
+            )
+        except (KeyError, IndexError, ValueError):
+            return numbered
+        name = name.strip()
+        if not name or name == '.html':
+            return numbered
+        if not name.endswith('.html'):
+            name += '.html'
+        return name
+
     def generate_chunk_metadata(self, chunk: etree._Element, index: int) -> ChunkMetadata:
         """Generate metadata for a chunk."""
         chunk_id = f"chunk-{index + 1:03d}"
-        chunk_file = f"{index + 1:03d}.html"
-        
-        # Determine prev/next as filename stems (e.g. "002") so templates can
-        # link them directly as {{ chunk.prev }}.html.
-        prev_id = f"{index:03d}" if index > 0 else None
-        next_id = f"{index + 2:03d}" if index < len(self.chunks) - 1 else None
-        
+        chunk_file = self._chunk_file(chunk, index)
+
+        # Filename stems so templates can link them as {{ chunk.prev }}.html.
+        prev_id = (
+            Path(self._chunk_file(self.chunks[index - 1], index - 1)).stem
+            if index > 0 else None
+        )
+        next_id = (
+            Path(self._chunk_file(self.chunks[index + 1], index + 1)).stem
+            if index < len(self.chunks) - 1 else None
+        )
+
         return ChunkMetadata(
             id=chunk_id,
             file=chunk_file,
@@ -501,8 +544,8 @@ class ChunkProcessor:
         """Rewrite same-document links inside an HTML fragment string."""
         if not html:
             return html
-        has_targets = '#' in html and bool(self._chunk_anchor_map)
-        if not has_targets and 'pb-link' not in html:
+        has_hash_href = 'href="#' in html or "href='#" in html
+        if not has_hash_href and 'pb-link' not in html:
             return html
 
         parser = etree.HTMLParser(encoding='utf-8')
@@ -1322,6 +1365,7 @@ def chunk_document(
     output_format: str = 'html',
     doc_path: str | None = None,
     documents: Collection[str] | None = None,
+    spec_index=None,
 ) -> None:
     """Chunk a document using the specified configuration.
 
@@ -1363,15 +1407,21 @@ def chunk_document(
             'in your config, or use the packaged teipublisher ODD.',
         )
 
-    tree = etree.parse(str(xml_path))
+    # collect_ids=False: TEI / p5subset documents (and the documentation
+    # prepare step) can repeat xml:id; lxml's default parser rejects that.
+    tree = etree.parse(str(xml_path), etree.XMLParser(collect_ids=False))
     root = tree.getroot()
     cfg = project_config or ProjectConfig()
+
+    xpath_env = project_xpath_env(cfg, xml_path, extensions=xpath_extensions)
+    if spec_index is not None:
+        xpath_env = xpath_env.with_spec_index(spec_index)
 
     processor = ChunkProcessor(
         resolved_module, root, config, project_root,
         project_config=project_config,
         webcomponents=webcomponents,
-        xpath_env=project_xpath_env(cfg, xml_path, extensions=xpath_extensions),
+        xpath_env=xpath_env,
         source_dir=xml_path.parent,
         documents=documents if documents is not None else (xml_path.name,),
         document=xml_path.name,

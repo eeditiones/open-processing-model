@@ -1,12 +1,12 @@
 # ODD coverage
 
-`opm coverage` is a useful debugging tool. It runs your documents through the ODD and reports on the ODD, not on the documents: the processing models that never run, and what elements the sources contain that were never handled.
+`opm odd coverage` is a useful debugging tool. It runs your documents through the ODD and reports on the ODD, not on the documents: the processing models that never run, and what elements the sources contain that were never handled. (`opm coverage` remains as a hidden alias.)
 
 ```bash
-opm coverage examples/tei-test.xml
-opm coverage data/                    # a corpus, subdirectories included
-opm coverage                          # no path: defaults to ./data
-opm coverage --json > coverage.json   # the full report, nothing elided
+opm odd coverage examples/tei-test.xml
+opm odd coverage data/                    # a corpus, subdirectories included
+opm odd coverage                          # no path: defaults to ./data
+opm odd coverage --json > coverage.json   # the full report, nothing elided
 ```
 
 It is the [`json` output mode](output-formats.md#json) rolled up across a corpus
@@ -111,7 +111,7 @@ Coverage reports on one output channel, because that is what decides which
 `@output`-tagged models participate:
 
 ```bash
-opm coverage data/ --channel typst
+opm odd coverage data/ --channel typst
 ```
 
 The channels are the same as for [`-t json`](output-formats.md#choosing-which-channel-to-inspect):
@@ -124,7 +124,7 @@ reading view, so models for common user-specified modes like `toc`, `breadcrumb`
 unused. Check those views with the same `--param` flag `opm transform` takes:
 
 ```bash
-opm coverage data/ -p mode=toc
+opm odd coverage data/ -p mode=toc
 ```
 
 ## The JSON report

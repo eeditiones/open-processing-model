@@ -76,6 +76,7 @@ Typical usage scenarios for `opm` include:
 * split large documents into chunks, so they can be read page by page
 * prepare HTML data to be used by other systems such as static site generators
 * provide [pre-rendered content for TEI Publisher](guide/tei-publisher.md) to speed up load times
+* generate a static HTML reference site from an ODD (`opm odd document`), including processing models and the TEI Guidelines when you have `p5.xml` locally
 
 ## Where to go next
 
@@ -86,6 +87,7 @@ Typical usage scenarios for `opm` include:
   [XPath extensions](guide/xpath-extensions.md),
   [Templates & CSS](guide/templates-and-css.md),
   [Chunking](guide/chunking.md),
+  [ODD documentation](guide/odd-documentation.md),
   [Integration with TEI Publisher](guide/tei-publisher.md), and the
   [`opm.toml` configuration](guide/configuration.md).
 - Reference: the [CLI](cli.md) and the [Python API](api/index.md).

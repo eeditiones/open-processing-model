@@ -91,6 +91,7 @@ nav:
       - Chunking: guide/chunking.md
       - Search indexing: guide/search-indexing.md
       - ODD coverage: guide/coverage.md
+      - ODD documentation: guide/odd-documentation.md
       - Integration with TEI Publisher: guide/tei-publisher.md
       - Configuration (opm.toml): guide/configuration.md
   - CLI Reference: cli.md
@@ -101,6 +102,9 @@ nav:
       - chunking: api/chunking.md
       - indexing: api/indexing.md
       - coverage: api/coverage.md
+      - spec_index: api/spec-index.md
+      - odd_schema: api/odd-schema.md
+      - document_site: api/document-site.md
       - config: api/config.md
       - odd_compiler: api/odd-compiler.md
       - output functions: api/output-functions.md

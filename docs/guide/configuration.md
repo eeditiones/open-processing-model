@@ -60,6 +60,9 @@ xpath = "//text/body/div"
 # selector = "extensions.my_chunk_selector"
 # Maximum heading depth for chunk splitting
 depth = 2
+# Filename pattern for chunk pages ({xml_id}, {ident}, {index}, {stem}).
+# Omit for the default 001.html, 002.html, …
+# file_pattern = "{xml_id}.html"
 # Output directory for chunk files
 output_dir = "chunks"
 # Jinja2 template for chunk pages

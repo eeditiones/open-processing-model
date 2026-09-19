@@ -14,10 +14,12 @@ from datetime import date, datetime
 import lxml.etree as ET
 from babel.dates import format_date as babel_format_date
 from elementpath.tree_builders import get_node_tree
+from elementpath.xpath_nodes import XPathNode
 from opm.runtime.xpath_extensions import expect_element, expect_string
 
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
 XML_ID = '{http://www.w3.org/XML/1998/namespace}id'
+_XMLNS_ATTR_RE = re.compile(r'\s+xmlns(?::\w+)?="[^"]*"')
 
 
 def format_date(when: Any, locale: Any = 'en') -> str:
@@ -112,6 +114,138 @@ def roman_fn(n: Any) -> str:
     except (TypeError, ValueError):
         return str(n)
     return _to_app_label(num)
+
+
+# ── tp:normalize_egxml / tp:serialize_egxml — ODD example whitespace ─────────────
+
+
+def normalize_egxml(text: Any) -> str:
+    """``tp:normalize_egxml(.)`` — strip ODD embedding indent from example source.
+
+    Dedents common leading whitespace and soft-wrapped continuation lines so
+    ``eg`` / materialized ``egXML`` text matches the TEI stylesheets' display
+    (nested source indent is an artefact of the ODD file, not the example).
+    """
+    raw = expect_string(text, arg_name='normalize_egxml()')
+    return _normalize_egxml_source(raw)
+
+
+def serialize_egxml(node: Any) -> str:
+    """``tp:serialize_egxml(.)`` — egXML inner XML with normalized whitespace.
+
+    Element children are serialized as XML (``with_tail`` handled for mixed
+    content); a text-only node is passed through
+    [`normalize_egxml`][opm.runtime.common_xpath_functions.normalize_egxml].
+    xmlns declarations are stripped so example listings stay readable.
+    """
+    value: Any = node
+    if isinstance(value, (list, tuple)):
+        if len(value) != 1:
+            raise ValueError('serialize_egxml() expects a single item')
+        value = value[0]
+    if isinstance(value, XPathNode):
+        value = value.value
+    if isinstance(value, ET._Element):
+        if any(isinstance(child.tag, str) for child in value):
+            return _serialize_egxml_body(value)
+        return _normalize_egxml_source(''.join(value.itertext()))
+    return _normalize_egxml_source(expect_string(value, arg_name='serialize_egxml()'))
+
+
+def _normalize_egxml_source(text: str) -> str:
+    """Dedent common leading whitespace from serialized example source."""
+    if not text:
+        return ''
+    text = text.replace('\t', '    ')
+    lines = text.splitlines()
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    while lines and not lines[-1].strip():
+        lines.pop()
+    nonempty = [line for line in lines if line.strip()]
+    if not nonempty:
+        return ''
+    # Shared pad across *all* nonempty lines. Pretty-printed XML starts at
+    # column 0, so pad is 0 and structural indent is preserved. Plain ``eg``
+    # text nested in an ODD shares a pad on every line and is fully dedented.
+    pad = min(len(line) - len(line.lstrip(' ')) for line in nonempty)
+    if pad:
+        lines = [line[pad:] if len(line) >= pad else line for line in lines]
+    return '\n'.join(lines).strip()
+
+
+def _normalize_egxml_text_node(text: str) -> str:
+    """Drop per-line indent from soft-wrapped text; keep the line breaks."""
+    if '\n' not in text:
+        return text
+    lines = text.split('\n')
+    out = [lines[0].rstrip()]
+    for line in lines[1:]:
+        out.append(line.strip())
+    return '\n'.join(out)
+
+
+def _normalize_egxml_tree_text(el: ET._Element) -> None:
+    """Normalize soft-wraps; clear indent-only whitespace so pretty_print can indent."""
+    if el.text is not None:
+        if not el.text.strip():
+            el.text = None
+        else:
+            el.text = _normalize_egxml_text_node(el.text)
+    for child in el:
+        _normalize_egxml_tree_text(child)
+        if child.tail is not None:
+            if not child.tail.strip():
+                child.tail = None
+            else:
+                child.tail = _normalize_egxml_text_node(child.tail)
+
+
+def _serialize_egxml_element(el: ET._Element) -> str:
+    copy = ET.fromstring(ET.tostring(el, with_tail=False))
+    ET.cleanup_namespaces(copy)
+    _normalize_egxml_tree_text(copy)
+    text = ET.tostring(copy, encoding='unicode', pretty_print=True)
+    return _XMLNS_ATTR_RE.sub('', text).strip()
+
+
+def _serialize_egxml_body(eg: ET._Element) -> str:
+    parts: list[str] = []
+    if eg.text and eg.text.strip():
+        parts.append(_normalize_egxml_text_node(eg.text))
+    for child in eg:
+        if isinstance(child.tag, str):
+            parts.append(_serialize_egxml_element(child))
+        if child.tail and child.tail.strip():
+            parts.append(_normalize_egxml_text_node(child.tail))
+    return _normalize_egxml_source('\n'.join(parts))
+
+
+# ── tp:highlight(source, language) — Pygments HTML for a listing ──────────────────
+
+
+def highlight(source: Any, language: Any = 'xml') -> Any:
+    """``tp:highlight($source, $language)`` — Pygments HTML spans for a listing.
+
+    Call from an ODD ``content`` param, typically with ``behaviour="code"``::
+
+        tp:highlight(string(.), (@language, 'xml')[1])
+
+    Returns a ``<span class="highlight">`` of inner ``<span>`` tokens so the
+    markup is inserted rather than escaped. Unknown *language* values (and
+    empty source) return the source string unchanged.
+    """
+    raw = expect_string(source, arg_name='highlight(source)')
+    if language is None or language == [] or language == ():
+        lang = 'xml'
+    else:
+        lang = expect_string(language, arg_name='highlight(language)').strip() or 'xml'
+    if not raw:
+        return ''
+    from opm.xml_highlight import highlight_markup
+
+    marked = highlight_markup(raw, lang)
+    return marked if marked is not None else raw
 
 
 # ── tp:request(uri) — HTTP GET with XML-or-string response ───────────────────────

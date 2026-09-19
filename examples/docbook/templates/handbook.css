@@ -718,6 +718,43 @@ body.handbook {
   font-size: inherit;
 }
 
+.hb-page .content pre .p { color: var(--hb-muted); }
+.hb-page .content pre .nt { color: var(--hb-accent); font-weight: 600; }
+.hb-page .content pre .na { color: #0a7a5c; }
+.hb-page .content pre .s,
+.hb-page .content pre .s1,
+.hb-page .content pre .s2 { color: #a14a1a; }
+.hb-page .content pre .c,
+.hb-page .content pre .c1,
+.hb-page .content pre .cm,
+.hb-page .content pre .cp { color: var(--hb-muted); font-style: italic; }
+.hb-page .content pre .k,
+.hb-page .content pre .kc,
+.hb-page .content pre .kd,
+.hb-page .content pre .kn,
+.hb-page .content pre .kt { color: #6d28d9; }
+.hb-page .content pre .m,
+.hb-page .content pre .mi,
+.hb-page .content pre .mf { color: #b45309; }
+.hb-page .content pre .o,
+.hb-page .content pre .ow { color: var(--hb-muted); }
+.hb-page .content pre .nb { color: var(--hb-accent); }
+
+@media (prefers-color-scheme: dark) {
+  .hb-page .content pre .na { color: #5dcaa0; }
+  .hb-page .content pre .s,
+  .hb-page .content pre .s1,
+  .hb-page .content pre .s2 { color: #e0a06a; }
+  .hb-page .content pre .k,
+  .hb-page .content pre .kc,
+  .hb-page .content pre .kd,
+  .hb-page .content pre .kn,
+  .hb-page .content pre .kt { color: #c4b5fd; }
+  .hb-page .content pre .m,
+  .hb-page .content pre .mi,
+  .hb-page .content pre .mf { color: #fbbf24; }
+}
+
 .hb-page .content blockquote {
   margin: 1.35em 0;
   padding: 0.15em 0 0.15em 1rem;

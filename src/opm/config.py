@@ -147,6 +147,25 @@ class ChunkingConfig:
     since its URLs resolve against its own location rather than the page's.
     """
     fragments: list[FragmentConfig] | None = None
+    file_pattern: str | None = None
+    """Optional filename template for chunk pages.
+
+    Placeholders:
+      ``{xml_id}`` – the chunk root's ``xml:id`` (or ``@id``)
+      ``{ident}``  – ``@ident`` (ODD specs), falling back to ``{xml_id}``
+      ``{index}``  – 1-based chunk index (``{index:03d}`` zero-pads)
+      ``{stem}``   – ``{xml_id}`` or ``{ident}``, whichever is set
+
+    When *None* (default) files are ``001.html``, ``002.html``, … as before.
+    A chunk that has neither ``xml:id`` nor ``@ident`` still uses the numbered
+    form, even when this pattern is set.
+
+    ```toml
+    file_pattern = "{xml_id}.html"       # AB.html, ref-p.html
+    file_pattern = "{ident}.html"
+    file_pattern = "{index:03d}.html"    # same as the default numbering
+    ```
+    """
     link_pattern: str | None = None
     """Optional URL template for cross-chunk links.
 
@@ -727,6 +746,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
                 for asset in (chunking_data.get('assets') or ())
             ),
             fragments=fragments if fragments else None,
+            file_pattern=chunking_data.get('file_pattern'),
             link_pattern=chunking_data.get('link_pattern'),
             odd=config_path.parent / str(raw_chunking_odd) if raw_chunking_odd else None,
             view=chunking_data.get('view', 'div'),

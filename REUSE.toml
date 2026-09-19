@@ -25,7 +25,7 @@ SPDX-License-Identifier = "AGPL-3.0-or-later"
 # ---------------------------------------------------------------------------
 
 [[annotations]]
-path = ["src/opm/resources/scaffold/**", "src/opm/resources/templates/**"]
+path = ["src/opm/resources/scaffold/**", "src/opm/resources/templates/**", "src/opm/resources/document/**"]
 SPDX-FileCopyrightText = "2026 e-editiones"
 SPDX-License-Identifier = "CC0-1.0"
 
@@ -75,6 +75,8 @@ path = [
   "examples/shakespeare/odd/shakespeare.odd",
   "src/opm/resources/odd/jats.odd",
   "src/opm/resources/odd/jats.css",
+  "src/opm/resources/odd/tagdocs.odd",
+  "src/opm/resources/odd/tagdocs.css",
   "examples/jats/odd/jats.odd",
   "examples/jats/odd/jats.css",
 ]
@@ -134,12 +136,47 @@ SPDX-License-Identifier = "CC0-1.0"
 # ---------------------------------------------------------------------------
 
 [[annotations]]
-path = "docs/assets/**"
+path = ["docs/assets/**", "src/opm/resources/document/tei-logo.svg"]
 SPDX-FileCopyrightText = "The respective trademark owners"
 SPDX-License-Identifier = "LicenseRef-Logos"
+
+# ---------------------------------------------------------------------------
+# Webfonts self-hosted by the generated documentation site. Upstream releases under the
+# SIL Open Font License 1.1, which the CC0 block above would misstate: the OFL's reserved
+# font names and its condition on redistributing the fonts themselves both have to survive.
+# Only the subsetted woff2 builds Google Fonts serves are vendored here; the sources live
+# with their projects. Overrides the `src/opm/resources/document/**` block.
+# ---------------------------------------------------------------------------
+
+[[annotations]]
+path = "src/opm/resources/document/fonts/source-serif-4-*.woff2"
+SPDX-FileCopyrightText = "2014-2023 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'"
+SPDX-License-Identifier = "OFL-1.1"
+
+[[annotations]]
+path = "src/opm/resources/document/fonts/work-sans-*.woff2"
+SPDX-FileCopyrightText = "2019 The Work Sans Project Authors (https://github.com/weiweihuanghuang/Work-Sans)"
+SPDX-License-Identifier = "OFL-1.1"
+
+[[annotations]]
+path = "src/opm/resources/document/fonts/fira-code-*.woff2"
+SPDX-FileCopyrightText = "2014 The Fira Code Project Authors (https://github.com/tonsky/FiraCode)"
+SPDX-License-Identifier = "OFL-1.1"
 
 # Loose files under examples/ that are not part of a project `opm init` copies.
 [[annotations]]
 path = ["examples/*.xml", "examples/*.py"]
 SPDX-FileCopyrightText = "2026 e-editiones"
 SPDX-License-Identifier = "CC0-1.0"
+
+# ---------------------------------------------------------------------------
+# The TEI artifact `opm odd document` downloads at runtime. It is redistributed,
+# not vendored: built by .github/workflows/tei-data.yml and attached to the
+# rolling `tei-data` release, never committed (build/ is ignored). Recorded here
+# so the licence of what we publish is stated somewhere in the repo.
+# ---------------------------------------------------------------------------
+
+[[annotations]]
+path = "build/tei-data/**"
+SPDX-FileCopyrightText = "TEI Consortium"
+SPDX-License-Identifier = "CC-BY-4.0 OR BSD-2-Clause"

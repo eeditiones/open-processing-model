@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: CC0-1.0
+#
+# Packaged chunking config for `opm odd document`. Paths are relative to this
+# file (resources/document/). The documentation command loads this and runs
+# `chunk_document` against a prepared compiled ODD.
+
+[transform]
+odd = "../odd/tagdocs.odd"
+xpath_extensions = [
+    "opm.runtime.common_xpath_functions",
+    "opm.runtime.spec_xpath_functions",
+]
+
+# Marks which nodes the site publishes as pages, and which kind. Kept out of
+# the TEI namespace so a document's own @type survives untouched.
+[transform.namespaces]
+opm = "http://teipublisher.com/opm/1.0"
+
+[chunking]
+odd = "../odd/tagdocs.odd"
+xpath = """
+  //div[@opm:page]
+  | //elementSpec[starts-with(@xml:id,'ref-')]
+  | //classSpec[starts-with(@xml:id,'ref-')]
+  | //macroSpec[starts-with(@xml:id,'ref-')]
+  | //dataSpec[starts-with(@xml:id,'ref-')]
+"""
+file_pattern = "{xml_id}.html"
+template = "page.html.j2"
+
+[[chunking.fragments]]
+name = "nav"
+scope = "global"
+xpath = "//list[@type='siteNav']"
+parameters = { mode = "nav" }
+
+# Per-chunk: the compact previous/next pair the right-hand rail shows under
+# "On this page". Selects nothing on reference and catalog pages, so the
+# fragment is empty there.
+[[chunking.fragments]]
+name = "chapternav"
+scope = "per-chunk"
+xpath = "self::div[@opm:page='chapter']"
+parameters = { mode = "chapnav" }
+
+# Per-chunk: the full-width previous/next cards that close a chapter. Rendered
+# after the chunk body so footnotes stay with the prose that cites them.
+[[chunking.fragments]]
+name = "chapterend"
+scope = "per-chunk"
+xpath = "self::div[@opm:page='chapter']"
+parameters = { mode = "chapnav-end" }

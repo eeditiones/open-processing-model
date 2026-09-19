@@ -1,0 +1,1074 @@
+/* SPDX-FileCopyrightText: 2026 e-editiones
+   SPDX-License-Identifier: CC0-1.0 */
+
+@import 'fonts.css';
+
+/* Palette and type follow the TEI Guidelines design system: a warm paper ground,
+   one amber accent reserved for what is clickable, and a three-family split —
+   serif for prose, sans for chrome, mono for anything literally XML. */
+:root {
+  --doc-paper: #fcfaf6;
+  --doc-surface: #fff;
+  --doc-ink: #222120;
+  --doc-muted: #6e6860;
+  --doc-rule: #e5dfd4;
+  --doc-wash: #fbf6ec;
+  --doc-code-bg: #f6f3ec;
+  --doc-amber: #f7a823;
+  --doc-amber-text: #9a6510;
+  --doc-tag: #9a6510;
+  --doc-attr: #6e6860;
+  --doc-val: #55504a;
+  --doc-selection: #fbe3b0;
+  --doc-shadow: rgba(34, 33, 32, 0.12);
+
+  --doc-link: var(--doc-amber-text);
+  --doc-link-hover: var(--doc-ink);
+  /* Read by the upstream tagdocs.css when tagdocs output is styled outside this
+     site; kept in step with the palette so that case does not go stale. */
+  --doc-canvas: var(--doc-paper);
+  --doc-accent: var(--doc-amber-text);
+  --doc-term: var(--doc-ink);
+  --doc-code: var(--doc-val);
+
+  --doc-header-h: 4.1rem;
+  --doc-scroll-pad: calc(var(--doc-header-h) + 1.5rem);
+  --doc-sidebar-w: 14.5rem;
+  --doc-aside-w: 12.25rem;
+  --doc-measure: 42rem;
+
+  --doc-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --doc-body: "Work Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --doc-mono: "Fira Code", ui-monospace, Menlo, Consolas, monospace;
+  --doc-display: var(--doc-serif);
+  color-scheme: light;
+}
+
+/* Dark is opt-in via the header toggle, which sets data-theme on <html>; with no
+   explicit choice the system preference decides. */
+:root[data-theme="dark"],
+:root:not([data-theme]) {
+  --doc-dark-paper: #171614;
+  --doc-dark-surface: #1e1d1a;
+  --doc-dark-ink: #ede9e2;
+  --doc-dark-muted: #a09889;
+  --doc-dark-rule: #332f29;
+  --doc-dark-wash: #221f19;
+  --doc-dark-code-bg: #1c1b18;
+  --doc-dark-val: #cfc8bc;
+}
+
+:root[data-theme="dark"] {
+  --doc-paper: var(--doc-dark-paper);
+  --doc-surface: var(--doc-dark-surface);
+  --doc-ink: var(--doc-dark-ink);
+  --doc-muted: var(--doc-dark-muted);
+  --doc-rule: var(--doc-dark-rule);
+  --doc-wash: var(--doc-dark-wash);
+  --doc-code-bg: var(--doc-dark-code-bg);
+  --doc-amber-text: var(--doc-amber);
+  --doc-tag: var(--doc-amber);
+  --doc-attr: var(--doc-dark-muted);
+  --doc-val: var(--doc-dark-val);
+  --doc-selection: #5a4413;
+  --doc-shadow: rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --doc-paper: var(--doc-dark-paper);
+    --doc-surface: var(--doc-dark-surface);
+    --doc-ink: var(--doc-dark-ink);
+    --doc-muted: var(--doc-dark-muted);
+    --doc-rule: var(--doc-dark-rule);
+    --doc-wash: var(--doc-dark-wash);
+    --doc-code-bg: var(--doc-dark-code-bg);
+    --doc-amber-text: var(--doc-amber);
+    --doc-tag: var(--doc-amber);
+    --doc-attr: var(--doc-dark-muted);
+    --doc-val: var(--doc-dark-val);
+    --doc-selection: #5a4413;
+    --doc-shadow: rgba(0, 0, 0, 0.45);
+    color-scheme: dark;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html {
+  font-size: 100%;
+  scroll-padding-top: var(--doc-scroll-pad);
+}
+body.doc {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--doc-ink);
+  background: var(--doc-paper);
+  font-family: var(--doc-serif);
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  font-optical-sizing: auto;
+  text-wrap: pretty;
+}
+::selection { background: var(--doc-selection); color: var(--doc-ink); }
+
+a { color: var(--doc-link); text-decoration: none; }
+a:hover { color: var(--doc-link-hover); text-decoration: underline; text-underline-offset: 3px; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);
+}
+.doc-skip {
+  position: absolute; left: -9999px; top: 0;
+  padding: 0.5rem 0.8rem; background: var(--doc-amber); color: #222120;
+  font-family: var(--doc-body); font-weight: 600;
+}
+.doc-skip:focus { left: 0.75rem; top: 0.75rem; z-index: 40; }
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.doc-header {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 1.5rem;
+  min-height: var(--doc-header-h);
+  padding: 0.75rem 1.75rem;
+  background: var(--doc-surface);
+  border-bottom: 1px solid var(--doc-rule);
+  font-family: var(--doc-body);
+  color: var(--doc-ink);
+}
+.doc-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--doc-body);
+  font-weight: 600;
+  font-size: 0.938rem;
+  letter-spacing: -0.01em;
+  color: var(--doc-ink);
+  text-decoration: none;
+  min-width: 0;
+}
+.doc-brand:hover { color: var(--doc-ink); text-decoration: none; }
+.doc-brand__logo {
+  flex: 0 0 auto;
+  width: 1.875rem;
+  height: 1.875rem;
+  display: block;
+}
+.doc-brand__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc-edition {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--doc-muted);
+  border-left: 1px solid var(--doc-rule);
+  padding-left: 1.25rem;
+}
+.doc-header__spacer { flex: 1; }
+.doc-search { position: relative; flex: 0 1 22rem; }
+.doc-search input {
+  width: 100%;
+  padding: 0.44rem 0.8rem;
+  border: 1px solid var(--doc-rule);
+  border-radius: 999px;
+  background: var(--doc-paper);
+  color: var(--doc-ink);
+  font-family: var(--doc-body);
+  font-size: 0.813rem;
+  min-height: 2.125rem;
+}
+.doc-search input::placeholder { color: var(--doc-muted); }
+.doc-search input:focus {
+  outline: none;
+  border-color: var(--doc-amber);
+  box-shadow: 0 0 0 3px rgba(247, 168, 35, 0.22);
+}
+.doc-search__hits {
+  position: absolute; left: 0; right: 0; top: 100%;
+  margin: 0.3rem 0 0; padding: 0.3rem 0;
+  list-style: none;
+  background: var(--doc-surface);
+  border: 1px solid var(--doc-rule);
+  border-radius: 0.4rem;
+  max-height: 18rem;
+  overflow: auto;
+  box-shadow: 0 10px 28px var(--doc-shadow);
+  font-size: 0.875rem;
+}
+.doc-search__hits a {
+  display: block; padding: 0.35rem 0.8rem;
+  color: var(--doc-ink); text-decoration: none;
+}
+.doc-search__hits a:hover, .doc-search__hits [aria-selected="true"] a {
+  background: var(--doc-wash);
+  color: var(--doc-amber-text);
+}
+.doc-search__kind { color: var(--doc-muted); font-size: 0.85em; margin-left: 0.4rem; }
+.doc-theme {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.125rem;
+  height: 2.125rem;
+  padding: 0;
+  color: var(--doc-ink);
+  background: transparent;
+  border: 1px solid var(--doc-rule);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.doc-theme:hover { background: var(--doc-wash); border-color: var(--doc-amber); }
+.doc-theme:focus-visible {
+  outline: none;
+  border-color: var(--doc-amber);
+  box-shadow: 0 0 0 3px rgba(247, 168, 35, 0.22);
+}
+.doc-theme svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+.doc-theme .doc-theme__sun { display: none; }
+:root[data-theme="dark"] .doc-theme .doc-theme__moon { display: none; }
+:root[data-theme="dark"] .doc-theme .doc-theme__sun { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .doc-theme .doc-theme__moon { display: none; }
+  :root:not([data-theme]) .doc-theme .doc-theme__sun { display: block; }
+}
+
+/* ── Shell ──────────────────────────────────────────────────────────────── */
+
+.doc-shell {
+  display: grid;
+  grid-template-columns: var(--doc-sidebar-w) minmax(0, 1fr) var(--doc-aside-w);
+  align-items: start;
+  min-height: calc(100vh - var(--doc-header-h));
+}
+body.doc:not(.doc--with-nav) .doc-shell { grid-template-columns: minmax(0, 1fr) var(--doc-aside-w); }
+
+.doc-sidebar {
+  position: sticky;
+  top: var(--doc-header-h);
+  align-self: start;
+  max-height: calc(100vh - var(--doc-header-h));
+  overflow-y: auto;
+  padding: 1.875rem 1.25rem 3.75rem 1.75rem;
+  border-right: 1px solid var(--doc-rule);
+  font-family: var(--doc-body);
+  font-size: 0.813rem;
+  line-height: 1.5;
+}
+.doc-sidebar a {
+  display: block;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.3rem;
+  color: var(--doc-muted);
+  text-decoration: none;
+}
+.doc-sidebar a:hover { background: var(--doc-wash); color: var(--doc-ink); text-decoration: none; }
+.doc-sidebar a[aria-current] {
+  background: var(--doc-wash);
+  color: var(--doc-ink);
+  font-weight: 600;
+  box-shadow: inset 2px 0 0 var(--doc-amber);
+}
+.doc-sidebar ul { list-style: none; margin: 0; padding: 0; }
+.doc-sidebar li { margin: 0.1rem 0; }
+.doc-sidebar__label {
+  font-size: 0.656rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--doc-muted);
+  margin: 0 0 0.75rem;
+}
+
+.doc-main {
+  min-width: 0;
+  max-width: var(--doc-measure);
+  padding: 3.5rem 2.75rem 7.5rem;
+}
+
+.doc-aside {
+  position: sticky;
+  top: var(--doc-header-h);
+  align-self: start;
+  max-height: calc(100vh - var(--doc-header-h));
+  overflow-y: auto;
+  padding: 3.5rem 1.75rem 3.75rem 0;
+  font-family: var(--doc-body);
+  font-size: 0.781rem;
+  line-height: 1.5;
+}
+.doc-aside__label {
+  font-size: 0.656rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--doc-muted);
+  margin-bottom: 0.875rem;
+}
+.doc-aside ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 0.875rem;
+  border-left: 1px solid var(--doc-rule);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.doc-aside ul[hidden] { display: none; }
+.doc-aside a { color: var(--doc-muted); text-decoration: none; }
+.doc-aside a:hover { color: var(--doc-ink); }
+.doc-aside li.is-sub { padding-left: 0.75rem; }
+
+.doc-footer {
+  border-top: 1px solid var(--doc-rule);
+  padding: 1.625rem 1.75rem;
+  font-family: var(--doc-body);
+  font-size: 0.719rem;
+  color: var(--doc-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.125rem;
+}
+
+.doc-crumbs {
+  font-family: var(--doc-body);
+  font-size: 0.688rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--doc-amber-text);
+  margin-bottom: 1.125rem;
+}
+.doc-crumbs a { color: inherit; }
+
+/* ── Prose ──────────────────────────────────────────────────────────────── */
+
+h1, h2, h3, h4, h5, h6 { font-family: var(--doc-display); font-weight: 600; }
+.doc-main h1 {
+  font-size: 2.375rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0 0 1.35rem;
+}
+.doc-main h2 {
+  font-size: 1.5rem;
+  line-height: 1.28;
+  letter-spacing: -0.015em;
+  margin: 2.5rem 0 0.75rem;
+}
+.doc-main h3 { font-size: 1.25rem; line-height: 1.3; margin: 2rem 0 0.65rem; }
+.doc-main h4 { font-size: 1.0625rem; margin: 1.65rem 0 0.5rem; }
+.doc-main p { margin: 0 0 1.15rem; }
+/* Chapter navigation sits in two places, per the design: a full-width pair of
+   cards after the last section, and a compact pair in the right-hand rail under
+   "On this page" — the rail one stays reachable while scrolled, the cards work
+   at any width and are the landing a finished chapter asks for. */
+.chapter-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 4rem 0 0;
+  padding-top: 2.5rem;
+  border-top: 1px solid var(--doc-rule);
+  font-family: var(--doc-body);
+}
+.chapter-nav a {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 1.125rem 1.25rem;
+  border: 1px solid var(--doc-rule);
+  border-radius: 5px;
+  color: inherit;
+  text-decoration: none;
+}
+.chapter-nav a:hover {
+  border-color: var(--doc-amber);
+  background: var(--doc-wash);
+  text-decoration: none;
+}
+.chapter-nav a:focus-visible {
+  outline: none;
+  border-color: var(--doc-amber);
+  box-shadow: 0 0 0 3px rgba(247, 168, 35, 0.22);
+}
+.chapter-nav__next { align-items: flex-end; text-align: right; }
+.chapter-nav__label {
+  font-size: 0.656rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--doc-muted);
+}
+.chapter-nav__prev .chapter-nav__label::before { content: "\2190\00a0"; }
+.chapter-nav__next .chapter-nav__label::after { content: "\00a0\2192"; }
+.chapter-nav__title {
+  font-family: var(--doc-serif);
+  font-size: 1.125rem;
+  line-height: 1.3;
+  color: var(--doc-ink);
+}
+.chapter-nav__num { color: var(--doc-amber-text); }
+.chapter-nav__num:not(:empty)::after { content: "\00a0"; }
+.chapter-nav a[href=""], .chapter-nav a:not([href]) {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Rail variant: no card, just the pair under the on-this-page list. */
+.chapter-nav--rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  margin: 1.75rem 0 0;
+  padding-top: 1.25rem;
+  font-size: 0.781rem;
+}
+.chapter-nav--rail a {
+  gap: 0.188rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+.chapter-nav--rail a:hover { background: none; }
+.chapter-nav--rail a:hover .chapter-nav__title { color: var(--doc-link-hover); }
+.chapter-nav--rail a:focus-visible { box-shadow: 0 0 0 3px rgba(247, 168, 35, 0.22); }
+.chapter-nav--rail .chapter-nav__next { align-items: flex-start; text-align: left; }
+.chapter-nav--rail .chapter-nav__label {
+  font-size: 0.625rem;
+  letter-spacing: 0.09em;
+}
+.chapter-nav--rail .chapter-nav__title {
+  font-family: inherit;
+  font-size: 0.781rem;
+  line-height: 1.35;
+}
+.chapter-nav--rail .chapter-nav__num { font-weight: 600; }
+/* A chapter with no previous (or no next) leaves no gap in the rail. */
+.chapter-nav--rail a[href=""], .chapter-nav--rail a:not([href]) { display: none; }
+/* Nothing to separate from when the page has no headings to list. */
+.doc-aside ul[hidden] + .chapter-nav--rail { margin: 0; padding-top: 0; border-top: 0; }
+
+.lead, .spec__lead {
+  font-size: 1.1875rem;
+  line-height: 1.55;
+  color: var(--doc-ink);
+}
+.lead:empty { display: none; }
+.home-sub:empty, .home-byline:empty { display: none; }
+.home-sub {
+  margin: 0 0 0.35rem;
+  font-family: var(--doc-body);
+  font-size: 1.05rem;
+  color: var(--doc-muted);
+}
+.home-byline {
+  margin: 0 0 1.5rem;
+  font-family: var(--doc-body);
+  font-size: 0.938rem;
+  color: var(--doc-muted);
+}
+.home-author + .home-author::before { content: ", "; }
+.home-date::before { content: " · "; }
+.home > p {
+  font-size: 1.1875rem;
+  line-height: 1.55;
+  margin: 0 0 1.5rem;
+}
+.title-page {
+  text-align: center;
+  margin: 2.5rem 0 3rem;
+  font-family: var(--doc-serif);
+}
+.title-page__title {
+  font-family: var(--doc-display);
+  font-size: 2rem;
+  line-height: 1.25;
+  margin: 0.75rem 0 1rem;
+}
+.title-page__byline, .title-page__imprint { color: var(--doc-muted); }
+.muted { color: var(--doc-muted); }
+
+/* Nested headed divs are subsections. Space and a hairline live on the
+   wrapper so they are not collapsed away from the preceding paragraph
+   (the heading is the wrapper's first child). The chapter <section> itself
+   is not a subsection. */
+.doc-main > section > .tei-div:has(> .tei-head) {
+  margin-top: 2.5rem;
+  padding-top: 1.65rem;
+  border-top: 1px solid var(--doc-rule);
+}
+.doc-main > section > .tei-div .tei-div:has(> .tei-head) {
+  margin-top: 2rem;
+  padding-top: 0;
+  border-top: 0;
+}
+.doc-main .tei-div > .tei-head:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.doc-main .tei-p { margin: 0 0 1.15rem; }
+.doc-main .tei-list { margin: 1.25rem 0 1.5rem; padding-left: 1.25rem; }
+.doc-main ul, .doc-main ol { margin: 0 0 1.35rem; padding-left: 1.4rem; }
+.doc-main li { margin: 0.35rem 0; }
+/* A specList is a glossary, not an enumeration: the tag opening each entry is
+   marker enough, so drop the bullet and let the entries run full width. */
+.doc-main .specList { list-style: none; padding-left: 0; margin: 1.5rem 0 1.75rem; }
+.doc-main .specList > li { margin: 0.85rem 0; line-height: 1.55; }
+/* Footnotes. The runtime appends one dl per note to the end of the chapter, so
+   the group has no wrapper: the rule above the block comes from the first note
+   that follows ordinary prose. */
+.doc-main a.note {
+  font-family: var(--doc-body);
+  font-size: 0.7em;
+  font-weight: 600;
+  vertical-align: super;
+  line-height: 0;
+  padding-left: 0.1em;
+}
+.doc-main .footnote {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  margin: 0.65rem 0 0;
+  font-family: var(--doc-body);
+  font-size: 0.844rem;
+  line-height: 1.6;
+  color: var(--doc-muted);
+}
+.doc-main > *:not(.footnote) + .footnote,
+.doc-main .doc-chapter > *:not(.footnote) + .footnote {
+  margin-top: 2.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--doc-rule);
+}
+.doc-main .footnote .fn-number {
+  font-weight: 600;
+  color: var(--doc-amber-text);
+}
+.doc-main .footnote .fn-content { margin: 0; }
+.doc-main .footnote .fn-back { margin-left: 0.4rem; text-decoration: none; }
+
+/* Tables in running prose. TEI gives rows a role rather than a thead, so the
+   header is a `row-label` tr of plain cells: it takes the same uppercase sans
+   label as a spec section heading. Cells align on the baseline so a wrapping
+   cell does not push its neighbours off the first line, and the first and last
+   columns keep the text margin instead of padding away from it. */
+.doc-main .tei-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.75rem 0 2.25rem;
+  font-family: var(--doc-body);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.doc-main .tei-table th,
+.doc-main .tei-table td {
+  padding: 0.55rem 1.25rem 0.55rem 0;
+  text-align: left;
+  vertical-align: baseline;
+  border-bottom: 1px solid var(--doc-rule);
+}
+.doc-main .tei-table th:last-child,
+.doc-main .tei-table td:last-child { padding-right: 0; }
+.doc-main .tei-table tr:last-child td { border-bottom: 0; }
+.doc-main .tei-table th,
+.doc-main .tei-table .row-label td {
+  font-family: var(--doc-body);
+  font-size: 0.688rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--doc-muted);
+}
+.doc-main .tei-table caption {
+  caption-side: top;
+  text-align: left;
+  font-size: 0.688rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--doc-muted);
+  margin-bottom: 0.625rem;
+}
+
+/* Gloss lists: a term over its definition, not a browser dl with a 40px hang. */
+.doc-main dl.tei-list {
+  margin: 1.5rem 0 1.75rem;
+  padding-left: 0;
+}
+.doc-main dl.tei-list > dt {
+  margin: 1.125rem 0 0.2rem;
+  font-weight: 600;
+}
+.doc-main dl.tei-list > dt:first-of-type { margin-top: 0; }
+.doc-main dl.tei-list > dd { margin: 0 0 0 1.5rem; }
+
+.doc-main blockquote {
+  margin: 1.65rem 0;
+  padding: 0.25rem 0 0.25rem 1.25rem;
+  border-left: 3px solid var(--doc-rule);
+  color: var(--doc-muted);
+}
+
+/* ── Inline conventions ─────────────────────────────────────────────────────
+   Literal XML is mono, a place in the document is sans, a concept stays serif;
+   amber marks only what is clickable. */
+
+/* Element reference: mono, amber, brackets kept so it reads as a tag. */
+.doc-main a.tei-gi,
+.doc-main .specList-elementSpec {
+  font-family: var(--doc-mono);
+  font-size: 0.88em;
+  color: var(--doc-tag);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--doc-amber) 45%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+.doc-main a.tei-gi::before,
+.doc-main .specList-elementSpec::before { content: "<"; }
+.doc-main a.tei-gi::after,
+.doc-main .specList-elementSpec::after { content: ">"; }
+.doc-main a.tei-gi:hover {
+  color: var(--doc-ink);
+  text-decoration-color: currentColor;
+}
+
+/* Attribute reference: same mono, but ink not amber, so it never reads as an element. */
+.doc-main .tei-att {
+  font-family: var(--doc-mono);
+  font-size: 0.88em;
+  color: var(--doc-val);
+}
+.doc-main a.tei-att {
+  text-decoration: underline;
+  text-decoration-color: var(--doc-rule);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+.doc-main a.tei-att:hover { color: var(--doc-ink); text-decoration-color: currentColor; }
+
+/* Class and datatype names: long and dotted, so a tinted ground rather than a rule. */
+.doc-main .tei-ident,
+.doc-main .specList-classSpec,
+.doc-main .specList-macroSpec,
+.doc-main .specList-dataSpec {
+  font-family: var(--doc-mono);
+  font-size: 0.86em;
+  color: var(--doc-tag);
+  background: var(--doc-code-bg);
+  border-radius: 0.19rem;
+  padding: 0.06em 0.31em;
+}
+
+/* Literal values the encoder types verbatim: mono, ink, tinted, never a link. */
+.doc-main .tei-val,
+.doc-main .tei-code,
+.doc-main .tei-tag,
+.doc-main span.code {
+  font-family: var(--doc-mono);
+  font-size: 0.86em;
+  color: var(--doc-val);
+  background: var(--doc-code-bg);
+  border-radius: 0.19rem;
+  padding: 0.06em 0.31em;
+}
+.doc-main .tei-tag::before { content: "<"; }
+.doc-main .tei-tag::after { content: ">"; }
+
+/* Term, defining occurrence: a concept, so it stays in the serif. Not a link. */
+.doc-main .tei-term,
+.doc-main .term {
+  font-style: italic;
+  color: inherit;
+  border-bottom: 1px dotted var(--doc-amber);
+  padding-bottom: 1px;
+}
+.doc-main .tei-mentioned, .doc-main .mentioned { font-style: italic; }
+.doc-main .tei-soCalled::before, .doc-main .tei-soCalled::after { content: "\201c"; }
+.doc-main .tei-soCalled::after { content: "\201d"; }
+.doc-main .tei-foreign { font-style: italic; }
+
+/* Section cross-reference: a place in the document, so it leaves the serif. The
+   canvas marks these with an amber section number, which generated ptr labels do
+   not always carry — hence a rule beneath, so they still read as clickable. */
+.doc-main a.tei-ptr,
+.doc-main a.tei-ref:not([href^="http"]) {
+  font-family: var(--doc-body);
+  font-size: 0.9em;
+  color: var(--doc-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--doc-rule);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.doc-main a.tei-ptr:hover,
+.doc-main a.tei-ref:not([href^="http"]):hover {
+  color: var(--doc-ink);
+  text-decoration-color: var(--doc-amber);
+}
+
+/* External link: leaves the site, so it earns a marker. */
+.doc-main a.tei-ref[href^="http"],
+.doc-main a[rel~="external"] {
+  font-family: var(--doc-body);
+  font-size: 0.85em;
+  color: var(--doc-amber-text);
+  text-decoration: underline;
+  text-decoration-color: var(--doc-amber);
+  text-underline-offset: 3px;
+}
+.doc-main a.tei-ref[href^="http"]::after,
+.doc-main a[rel~="external"]::after { content: "\202f\2197"; }
+
+.doc-main .tei-gloss, .doc-main .gloss { color: var(--doc-muted); }
+.doc-main .tei-q, .doc-main .inline-quote { font-style: normal; }
+
+/* ── Code and examples ──────────────────────────────────────────────────── */
+
+pre.code, .egXML, .eg,
+.doc-main pre.code, .doc-main .egXML, .doc-main .eg {
+  margin: 1.65rem 0 1.85rem;
+  font-family: var(--doc-mono);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  color: var(--doc-val);
+  background: var(--doc-code-bg);
+  border: 1px solid var(--doc-rule);
+  border-radius: 0.31rem;
+  padding: 1.15rem 1.25rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+.egXML .p { color: var(--doc-muted); }           /* Punctuation */
+.egXML .nt { color: var(--doc-tag); }            /* Name.Tag */
+.egXML .na { color: var(--doc-attr); }           /* Name.Attribute */
+.egXML .s, .egXML .s2 { color: var(--doc-val); } /* String */
+.egXML .c, .egXML .c1, .egXML .cm { color: var(--doc-muted); font-style: italic; }
+.egXML .cp { color: var(--doc-muted); }          /* Comment.Preproc / PI */
+
+.doc-figure { margin: 0 0 1.875rem; }
+.doc-figure figcaption,
+.doc-label {
+  font-family: var(--doc-body);
+  font-size: 0.688rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--doc-muted);
+  margin-bottom: 0.625rem;
+}
+
+/* ── Reference pages ────────────────────────────────────────────────────── */
+
+.spec__ident {
+  font-family: var(--doc-mono);
+  font-weight: 500;
+  font-size: 2.5rem;
+  letter-spacing: -0.03em;
+  color: var(--doc-ink);
+}
+.spec > h1 { margin: 0 0 0.625rem; }
+.spec__gloss {
+  display: block;
+  margin: 0 0 1.625rem;
+  font-family: var(--doc-body);
+  font-size: 1.063rem;
+  font-style: normal;
+  font-weight: 400;
+  color: var(--doc-muted);
+}
+.spec__lead { margin: 0 0 1.25rem; }
+.spec__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 2.75rem;
+  font-family: var(--doc-body);
+  font-size: 0.781rem;
+}
+.spec__chip {
+  padding: 0.31rem 0.69rem;
+  border-radius: 999px;
+  background: var(--doc-wash);
+  border: 1px solid var(--doc-rule);
+  color: var(--doc-ink);
+}
+a.spec__chip:hover { border-color: var(--doc-amber); color: var(--doc-ink); text-decoration: none; }
+.spec__chip strong { font-weight: 600; }
+/* A moduleSpec met in running prose, rather than the block under a spec title. */
+.spec__chips--inline { margin: 1.5rem 0 1.75rem; }
+.spec__chip__desc:not(:empty)::before { content: "\00a0\2014\00a0"; }
+
+.spec-section { margin: 0 0 3.25rem; }
+.spec-section > h2 {
+  font-family: var(--doc-body);
+  font-size: 0.688rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--doc-muted);
+  margin: 0 0 1.375rem;
+  padding: 0 0 0.75rem;
+  border: 0;
+  border-bottom: 1px solid var(--doc-rule);
+}
+.spec-note {
+  font-family: var(--doc-body);
+  font-size: 0.844rem;
+  line-height: 1.6;
+  color: var(--doc-muted);
+  margin: 0 0 1.625rem;
+}
+
+/* Attribute definitions: the name and its gloss on one line, the facts beneath. */
+.att-def {
+  margin: 0 0 1.625rem;
+  display: grid;
+  gap: 0.625rem;
+}
+.att-def dt {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-family: var(--doc-mono);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--doc-tag);
+}
+.att-def > dd { margin: 0; }
+.att-def dt > .tei-desc,
+.att-def dt > span:not(.att-def__name) {
+  font-family: var(--doc-body);
+  font-size: 0.906rem;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--doc-ink);
+}
+.att-def dd dl {
+  margin: 0.625rem 0 0;
+  display: grid;
+  grid-template-columns: 6.625rem minmax(0, 1fr);
+  font-family: var(--doc-body);
+  font-size: 0.813rem;
+  border-top: 1px solid var(--doc-rule);
+}
+.att-def dd dl dt {
+  display: block;
+  font-family: var(--doc-body);
+  font-size: 0.813rem;
+  font-weight: 400;
+  color: var(--doc-muted);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--doc-rule);
+}
+.att-def dd dl dd {
+  margin: 0;
+  padding: 0.5rem 0;
+  line-height: 1.6;
+  border-bottom: 1px solid var(--doc-rule);
+}
+
+.att-class {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.5rem;
+  margin: 0.35rem 0;
+  font-family: var(--doc-body);
+  font-size: 0.844rem;
+}
+.att-class__nested { flex: 1 1 100%; margin-left: 1rem; }
+.att-class s { color: var(--doc-muted); }
+/* The class name takes the class treatment, its attributes the attribute one. */
+.att-class > a:first-child {
+  font-family: var(--doc-mono);
+  font-size: 0.813rem;
+  color: var(--doc-tag);
+  background: var(--doc-code-bg);
+  border-radius: 0.19rem;
+  padding: 0.06em 0.31em;
+}
+.att-class a:not(:first-child), .att-class s {
+  font-family: var(--doc-mono);
+  font-size: 0.813rem;
+  color: var(--doc-val);
+}
+
+/* Classes and content: a label column against a value column. */
+.spec-facts {
+  display: grid;
+  grid-template-columns: 6.625rem minmax(0, 1fr);
+  gap: 1.25rem;
+  font-family: var(--doc-body);
+  font-size: 0.844rem;
+  line-height: 1.7;
+}
+.spec-facts > dt { color: var(--doc-muted); margin: 0; }
+.spec-facts > dd {
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.module-group { display: flex; flex-wrap: wrap; gap: 0.31rem; align-items: baseline; }
+.module-group h4 {
+  flex: none;
+  width: 6.625rem;
+  margin: 0;
+  font-family: var(--doc-body);
+  font-size: 0.656rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--doc-amber-text);
+}
+.module-group ul {
+  display: flex; flex-wrap: wrap; gap: 0.25rem;
+  list-style: none; margin: 0; padding: 0; min-width: 0;
+}
+.module-group li { margin: 0; }
+.module-group a, .spec-links a {
+  font-family: var(--doc-mono);
+  font-size: 0.75rem;
+  padding: 0.06rem 0.38rem;
+  border-radius: 0.19rem;
+  color: var(--doc-val);
+}
+.module-group a:hover, .spec-links a:hover {
+  background: var(--doc-code-bg);
+  color: var(--doc-link);
+  text-decoration: none;
+}
+.spec-links { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+
+/* Processing model listing. */
+.pm { list-style: none; margin: 0; padding: 0; font-family: var(--doc-body); font-size: 0.875rem; }
+.pm__item { margin: 0 0 0.85rem; padding: 0 0 0.75rem; border-bottom: 1px dashed var(--doc-rule); }
+.pm__item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+.pm .pm { margin: 0.5rem 0 0 1rem; }
+.pm__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.6rem; }
+.pm__kind {
+  font-size: 0.656rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--doc-muted);
+}
+.pm__behaviour { font-family: var(--doc-mono); font-size: 0.813rem; color: var(--doc-tag); }
+.pm__output, .pm__class { color: var(--doc-muted); font-size: 0.9em; }
+.pm__pred {
+  display: block; flex: 1 1 100%;
+  font-family: var(--doc-mono); font-size: 0.75rem; color: var(--doc-muted);
+}
+.pm__desc { margin: 0.35rem 0 0; }
+.pm__params {
+  display: grid; grid-template-columns: max-content 1fr;
+  gap: 0.15rem 0.8rem; margin: 0.4rem 0 0;
+}
+.pm__params dt { font-family: var(--doc-mono); font-size: 0.75rem; color: var(--doc-muted); }
+.pm__params dd { margin: 0; }
+.pm__template { margin: 0.4rem 0 0; }
+
+/* A callout for the pointer back to the reference section. */
+.doc-callout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+  margin: 2.25rem 0 0;
+  padding: 1.125rem 1.25rem;
+  border: 1px dashed var(--doc-rule);
+  border-radius: 0.31rem;
+  font-family: var(--doc-body);
+  font-size: 0.906rem;
+  line-height: 1.6;
+  color: var(--doc-muted);
+}
+.doc-callout__label {
+  font-size: 0.656rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--doc-amber-text);
+  padding-top: 0.12rem;
+}
+
+/* ── Catalogs and home ──────────────────────────────────────────────────── */
+
+.doc-main .catalog__list { columns: 2; column-gap: 2rem; list-style: none; padding: 0; }
+.doc-main .catalog__list li {
+  break-inside: avoid;
+  margin: 0.15rem 0;
+  font-family: var(--doc-body);
+  font-size: 0.875rem;
+}
+.doc-main .catalog__list a { font-family: var(--doc-mono); font-size: 0.813rem; }
+/* Letter buckets are signposts, not sections: no rule above them. */
+.catalog h2 {
+  font-family: var(--doc-mono);
+  font-size: 1.125rem;
+  color: var(--doc-amber-text);
+  margin: 2.25rem 0 0.75rem;
+  padding-top: 0;
+  border-top: 0;
+}
+.catalog h2:first-of-type { margin-top: 1rem; }
+.doc-main .toc { list-style: none; padding: 0; font-family: var(--doc-body); font-size: 0.938rem; }
+.doc-main .toc li { margin: 0.35rem 0; }
+.doc-main .toc .toc { margin: 0.15rem 0 0.35rem; padding-left: 1.25rem; }
+.doc-main .toc .toc li { margin: 0.2rem 0; font-size: 0.875rem; }
+
+.spec-table { width: 100%; border-collapse: collapse; font-family: var(--doc-body); font-size: 0.875rem; }
+.spec-table th, .spec-table td {
+  vertical-align: top;
+  padding: 0.65rem 0.75rem;
+  border-top: 1px solid var(--doc-rule);
+  text-align: left;
+}
+.spec-table th { width: 9.5rem; color: var(--doc-muted); font-weight: 600; }
+.spec-table td code { font-family: var(--doc-mono); font-size: 0.813rem; }
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1180px) {
+  .doc-shell { grid-template-columns: var(--doc-sidebar-w) minmax(0, 1fr); }
+  body.doc:not(.doc--with-nav) .doc-shell { grid-template-columns: minmax(0, 1fr); }
+  .doc-aside { display: none; }
+  .doc-main { padding: 3rem 2rem 6rem; }
+}
+@media (max-width: 860px) {
+  .doc-shell, body.doc:not(.doc--with-nav) .doc-shell { grid-template-columns: minmax(0, 1fr); }
+  /* One card per row; a missing previous/next collapses instead of leaving a hole. */
+  .chapter-nav { grid-template-columns: minmax(0, 1fr); }
+  .chapter-nav a[href=""], .chapter-nav a:not([href]) { display: none; }
+  .doc-sidebar { display: none; }
+  .doc-edition { display: none; }
+  /* Brand and toggle share the first row; the search field takes the second. */
+  .doc-header { flex-wrap: wrap; gap: 0.75rem 1rem; padding: 0.75rem 1.25rem; }
+  .doc-brand { flex: 1 1 auto; }
+  .doc-header__spacer { display: none; }
+  .doc-theme { order: 2; }
+  .doc-search { order: 3; flex: 1 1 100%; }
+  .doc-main { padding: 2.25rem 1.25rem 4.5rem; }
+  .doc-main h1 { font-size: 2.125rem; }
+  .spec__ident { font-size: 1.875rem; }
+  .doc-main .catalog__list { columns: 1; }
+  .spec-facts, .att-def dd dl { grid-template-columns: minmax(0, 1fr); gap: 0.25rem; }
+  .module-group h4 { width: auto; }
+}
+
+@media print {
+  .doc-header, .doc-sidebar, .doc-aside, .doc-skip, .doc-footer, .chapter-nav { display: none !important; }
+  .doc-shell { display: block; }
+  .doc-main { max-width: none; padding: 0; }
+  body.doc { background: #fff; }
+}

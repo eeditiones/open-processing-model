@@ -25,6 +25,7 @@ opm init                          # asks: empty project, or one of the examples
 opm transform data/sample.xml --preview
 opm chunk data/sample.xml --force
 opm serve
+opm odd document my.odd --force --preview         # ODD documentation site
 ```
 
 A one-off transform needs no project files (`opm transform my.xml --preview`
