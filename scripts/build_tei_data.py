@@ -3,8 +3,11 @@
 
 """Build and check the TEI artifact that ``opm odd document`` downloads.
 
-The artifact is ``TEI/P5/p5.xml`` with XInclude resolved: the same specs as
-``p5subset.xml`` plus the Guidelines chapter prose, so one fetch replaces both.
+The artifact is ``P5/Source/guidelines-{lang}.xml`` with XInclude resolved: the
+same specs as ``p5subset.xml`` plus the Guidelines chapter prose, so one fetch
+replaces both. Note that ``P5/p5.xml`` is *not* the input — TEI gitignores it
+as a build product of their Makefile, so it does not exist in a checkout.
+
 Run by ``.github/workflows/tei-data.yml``; usable by hand to reproduce a
 release locally.
 """
@@ -13,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import re
 import sys
 from pathlib import Path
 
@@ -26,6 +30,24 @@ XML_BASE = '{http://www.w3.org/XML/1998/namespace}base'
 #: ordinary drift between TEI releases.
 _MIN_COUNTS = {'elementSpec': 400, 'classSpec': 150, 'macroSpec': 4, 'dataSpec': 20}
 
+
+def describe_version(root: etree._Element) -> str:
+    """How to label this tree, for logs and release notes.
+
+    ``TEI/@version`` is the *schema* version (``5.0`` while 4.12.0 is the
+    current P5 release), so it is not a release label. The P5 number lives in
+    ``editionStmt/edition`` — but in a raw Source checkout that element is an
+    unfilled template, populated only by TEI's own build. So report whichever
+    is actually there and never dress the schema version up as a release: the
+    workflow takes the release number from the git tag instead.
+    """
+    schema = (root.get('version') or '?').strip()
+    for edition in root.iter(_q('edition')):
+        text = re.sub(r"\s+", " ", " ".join(edition.itertext())).strip()
+        match = re.search(r"\b(\d+\.\d+(?:\.\d+)?)\b", text)
+        if match:
+            return f"P5 {match.group(1)} (schema {schema})"
+    return f"schema {schema}, P5 release unstated in source"
 
 def _q(tag: str) -> str:
     return f'{{{TEI_NS}}}{tag}'
@@ -110,7 +132,7 @@ def build(source: Path, out: Path) -> int:
     counts = _counts(root)
     print(
         f'{out} ({out.stat().st_size:,} bytes) '
-        f'TEI {root.get("version") or "?"} '
+        f'TEI {describe_version(root)} '
         + ', '.join(f'{tag}={n}' for tag, n in sorted(counts.items()))
     )
     return 0
@@ -124,22 +146,26 @@ def verify(path: Path) -> int:
         for problem in problems:
             print(f'  - {problem}', file=sys.stderr)
         return 1
-    print(f'{path} verified: TEI {root.get("version") or "?"}, {_counts(root)}')
+    print(f'{path} verified: TEI {describe_version(root)}, {_counts(root)}')
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--source', type=Path, help='TEI/P5/p5.xml to assemble')
+    ap.add_argument(
+        '--source', type=Path,
+        help='P5/Source/guidelines-en.xml to XInclude-resolve',
+    )
     ap.add_argument('--out', type=Path, help='where to write p5all.xml')
     ap.add_argument('--verify', type=Path, help='check a built .xml or .xml.gz')
     ap.add_argument(
-        '--print-version', type=Path, help='print TEI/@version of a built artifact',
+        '--print-version', type=Path,
+        help='describe the TEI version of a built artifact',
     )
     args = ap.parse_args(argv)
 
     if args.print_version:
-        print((_load(args.print_version).get('version') or 'unknown').strip())
+        print(describe_version(_load(args.print_version)))
         return 0
     if args.verify:
         return verify(args.verify)

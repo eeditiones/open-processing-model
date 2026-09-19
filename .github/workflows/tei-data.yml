@@ -6,16 +6,18 @@
 # fetch replaces both. It is deliberately NOT committed: git keeps every
 # historical blob, and gzipped XML does not delta-compress.
 #
-# This is separate from the package release on purpose. TEI ships on its own
-# schedule, so refreshing this data must not require cutting an opm version.
+# Separate from the package release on purpose. TEI ships on its own schedule,
+# so refreshing this data must not require cutting an opm version.
 name: TEI data
 
 on:
   workflow_dispatch:
     inputs:
       tei_ref:
-        description: "Tag or branch of TEIC/TEI to build from"
-        default: "master"
+        description: >-
+          TEI tag to build from. Defaults to the latest P5_Release_* tag.
+          Use `dev` only to preview unreleased Guidelines.
+        default: ""
   schedule:
     # Monthly, so a TEI release is picked up without anyone remembering to.
     - cron: "0 4 1 * *"
@@ -35,19 +37,47 @@ jobs:
 
       - uses: astral-sh/setup-uv@v6
 
-      - name: Check out TEI
+      - name: Resolve the TEI release to build
+        id: tei
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED: ${{ inputs.tei_ref }}
+        run: |
+          set -euo pipefail
+          ref="$REQUESTED"
+          if [ -z "$ref" ]; then
+            # Release tags look like P5_Release_4.12.0. Pick the newest by
+            # version, not by date: TEI re-tags older lines occasionally.
+            ref=$(gh api repos/TEIC/TEI/tags --paginate --jq '.[].name' \
+              | grep -E '^P5_Release_[0-9]+\.[0-9]+(\.[0-9]+)?$' \
+              | sort -V | tail -1)
+          fi
+          if [ -z "$ref" ]; then
+            echo "Could not resolve a TEI release tag" >&2
+            exit 1
+          fi
+          version="${ref#P5_Release_}"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building TEI $version from $ref"
+
+      - name: Check out the TEI Guidelines source
         uses: actions/checkout@v5
         with:
           repository: TEIC/TEI
-          ref: ${{ inputs.tei_ref || 'master' }}
+          ref: ${{ steps.tei.outputs.ref }}
           path: tei-source
+          # The repo is ~420 MB; only the Guidelines source is needed.
+          sparse-checkout: P5/Source
+          sparse-checkout-cone-mode: true
 
       - name: Build p5all.xml
         run: |
           set -euo pipefail
-          mkdir -p build/tei-data
+          # P5/p5.xml is NOT in the repo — TEI gitignores it as a Makefile
+          # build product. The XInclude driver is the real input.
           uv run python scripts/build_tei_data.py \
-            --source tei-source/P5/p5.xml \
+            --source tei-source/P5/Source/guidelines-en.xml \
             --out build/tei-data/p5all.xml
 
       - name: Compress and checksum
@@ -59,7 +89,7 @@ jobs:
           cat SHA256SUMS
           ls -l
 
-      - name: Smoke-test the artifact
+      - name: Verify what we are about to publish
         run: |
           set -euo pipefail
           uv run python scripts/build_tei_data.py --verify build/tei-data/p5all.xml.gz
@@ -67,16 +97,16 @@ jobs:
       - name: Publish to the rolling tei-data release
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.tei.outputs.version }}
+          TEI_REF: ${{ steps.tei.outputs.ref }}
         run: |
           set -euo pipefail
-          version=$(uv run python scripts/build_tei_data.py \
-            --print-version build/tei-data/p5all.xml)
-          notes="TEI $version, built from TEIC/TEI@${{ inputs.tei_ref || 'master' }} on $(date -u +%Y-%m-%d)."
+          notes="TEI P5 $VERSION, built from TEIC/TEI@$TEI_REF on $(date -u +%Y-%m-%d)."
           if gh release view tei-data >/dev/null 2>&1; then
-            gh release edit tei-data --notes "$notes" --title "TEI data ($version)"
+            gh release edit tei-data --notes "$notes" --title "TEI data ($VERSION)"
           else
             gh release create tei-data \
-              --title "TEI data ($version)" --notes "$notes"
+              --title "TEI data ($VERSION)" --notes "$notes"
           fi
           gh release upload tei-data \
             build/tei-data/p5all.xml.gz build/tei-data/SHA256SUMS --clobber
