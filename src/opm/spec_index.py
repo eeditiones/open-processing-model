@@ -25,6 +25,8 @@ from pathlib import Path
 
 from lxml import etree
 
+from opm.xml_parser import make_parser
+
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
 PB_NS = 'http://teipublisher.com/1.0'
 XML_LANG = '{http://www.w3.org/XML/1998/namespace}lang'
@@ -44,7 +46,7 @@ PAGE_ATTS = 'atts'
 #: Injected stubs, as opposed to chapters that came from the document.
 INJECTED_PAGES = frozenset({PAGE_HOME, PAGE_CATALOG, PAGE_ATTS})
 
-_PARSER = etree.XMLParser(collect_ids=False, remove_comments=True)
+_PARSER = make_parser(remove_comments=True)
 
 SPEC_TAGS = {
     'elementSpec': 'element',

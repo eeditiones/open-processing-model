@@ -11,12 +11,14 @@ from urllib.parse import unquote, urlparse
 
 from lxml import etree
 
+from opm.xml_parser import make_parser
+
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
 
 # Real-world ODDs (e.g. tei_simplePrint.odd) carry duplicate xml:id values.
 # collect_ids=False prevents lxml from rejecting them; xml:id is not used by
 # the compiler — specs are located by @ident, not by xml:id lookup.
-_PARSER = etree.XMLParser(collect_ids=False)
+_PARSER = make_parser()
 
 
 @dataclass(frozen=True)

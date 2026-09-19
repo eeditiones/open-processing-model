@@ -234,24 +234,6 @@ def load_xml(path: Path) -> etree._Element:
     return etree.parse(str(path), _PARSER).getroot()
 
 
-def looks_like_schema(root: etree._Element) -> bool:
-    """True when *root* already is a schema document to index as-is.
-
-    Used to recognise compiled specs (``p5subset``, a Specs directory, a
-    hand-authored schema ODD). TEI *customizations* are detected separately via
-    [`targets_tei`][opm.odd_schema.targets_tei] and always merge onto p5subset.
-    """
-    for el, kind in iter_canonical_specs(root):
-        if kind == 'module':
-            continue
-        if el.get('module'):
-            return True
-        if localname(el) in {'elementSpec', 'classSpec', 'macroSpec', 'dataSpec'}:
-            if el.find(qn('content')) is not None or el.find(qn('classes')) is not None:
-                return True
-    return False
-
-
 def targets_tei(root: etree._Element) -> bool:
     """True when ``schemaSpec/@ns`` is absent or the TEI namespace.
 
@@ -595,18 +577,26 @@ def _is_standalone_spec_document(
     explicit_source: Path | None,
     use_tei: bool,
 ) -> bool:
-    """True when *root* is already the document to index (no merge)."""
+    """True when *root* is already the document to index (no merge).
+
+    An ODD that targets TEI is always a customization, however many specs of
+    its own it adds, so it merges onto p5subset. Everything else already is
+    the schema: a Specs directory, a compiled spec document (``p5subset`` /
+    Guidelines ``p5.xml``, which carry no ``schemaSpec``), a hand-authored
+    schema that *declares* its modules with ``moduleSpec`` instead of
+    referencing TEI's with ``moduleRef``, and JATS / DocBook ODDs, which
+    declare a non-TEI ``@ns``.
+    """
     if explicit_source is not None or use_tei:
         return False
     if path is not None and path.is_dir():
         return True
     schema = _main_schema_spec(root)
-    if schema is not None and schema.find(qn('moduleRef')) is not None:
-        return False
-    if path is not None and path.is_file():
-        if len(_inheritance_chain(path)) > 1:
-            return False
-    return looks_like_schema(root)
+    if schema is None:
+        return True
+    if schema.find(qn('moduleSpec')) is not None:
+        return True
+    return not targets_tei(root)
 
 
 def _inheritance_chain(odd_path: Path, *, seen: set[Path] | None = None) -> list[Path]:

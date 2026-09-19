@@ -25,6 +25,11 @@
         <moduleSpec ident="core">
           <desc xml:lang="en">Core elements.</desc>
         </moduleSpec>
+        <!-- Stands in for TEI's verse module: tests that render a moduleSpec
+             in chapter prose need it to survive the schema merge. -->
+        <moduleSpec ident="verse">
+          <desc xml:lang="en">Verse structures.</desc>
+        </moduleSpec>
 
         <classSpec ident="att.global" type="atts" module="tei">
           <desc xml:lang="en">attributes common to all elements</desc>

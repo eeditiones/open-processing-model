@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 from pathlib import Path
 
 from lxml import etree
@@ -26,21 +27,23 @@ XML_ID = '{http://www.w3.org/XML/1998/namespace}id'
 
 
 @pytest.fixture(autouse=True)
-def _no_p5subset_download(monkeypatch: pytest.MonkeyPatch) -> None:
+def _offline_tei(monkeypatch: pytest.MonkeyPatch, tmp_path_factory) -> None:
+    """Keep every test off the network and off the developer's cache.
+
+    Two separate hazards. The urlopen stub catches a test that would download.
+    Seeding the cache path catches the subtler one: a test that passes locally
+    only because the real TEI artifact happens to be cached, then fails in CI
+    where it is not. Pointing the cache at the mini schema also keeps
+    TEI-targeting fixtures small — merging the real Guidelines would give them
+    thousands of pages.
+    """
     def _blocked(*_args, **_kwargs):
-        raise AssertionError('tests must not download p5subset')
+        raise AssertionError('tests must not download the TEI schema')
 
     monkeypatch.setattr('urllib.request.urlopen', _blocked)
-
-
-def _stub_p5subset(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Use the mini schema as the TEI base so customization tests stay small.
-
-    ``mini_custom.odd`` / ``mini_pm.odd`` are TEI-targeting overlays, so
-    ``compile_schema`` would otherwise merge cached ``p5subset.xml`` and the
-    site would grow to thousands of pages.
-    """
-    monkeypatch.setattr('opm.odd_schema.ensure_p5all', lambda **_k: MINI)
+    cached = tmp_path_factory.mktemp('tei-cache') / 'p5all.xml'
+    shutil.copy(MINI, cached)
+    monkeypatch.setattr('opm.odd_schema.p5all_cache_path', lambda: cached)
 
 
 def test_build_document_site_from_mini_schema(tmp_path: Path) -> None:
@@ -192,7 +195,6 @@ def test_exemplum_keeps_mixed_content_around_element(tmp_path: Path) -> None:
 def test_customization_site_drops_deleted_element(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _stub_p5subset(monkeypatch)
     compiled = compile_schema(CUSTOM)
     site = build_document_site(compiled, tmp_path / 'out')
     assert not (site.output_dir / 'ref-hi.html').exists()
@@ -204,7 +206,6 @@ def test_customization_site_drops_deleted_element(
 def test_processing_overlay_site_lists_models(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _stub_p5subset(monkeypatch)
     compiled = compile_schema(PM)
     site = build_document_site(compiled, tmp_path / 'out')
     html = (site.output_dir / 'ref-p.html').read_text(encoding='utf-8')
@@ -850,6 +851,7 @@ def test_header_carries_edition_and_licence(tmp_path: Path) -> None:
              </teiHeader>
              <text><body>
                <schemaSpec ident="edition">
+                 <moduleSpec ident="core"><desc>Core elements.</desc></moduleSpec>
                  <elementSpec ident="p" module="core">
                    <desc xml:lang="en">paragraph</desc>
                    <content><textNode/></content>

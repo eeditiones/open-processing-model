@@ -40,6 +40,7 @@ from opm.template_rendering import (
 )
 from opm.runtime.pm_runtime import serialize as _default_serialize, inject_cached_footnotes
 from opm.runtime.output_functions import XML_ID
+from opm.xml_parser import parse as xml_parse
 
 # ``pb-link`` carries its cross-reference in a pb-view attribute rather than an
 # href; the first one set wins when resolving the target.
@@ -1407,9 +1408,7 @@ def chunk_document(
             'in your config, or use the packaged teipublisher ODD.',
         )
 
-    # collect_ids=False: TEI / p5subset documents (and the documentation
-    # prepare step) can repeat xml:id; lxml's default parser rejects that.
-    tree = etree.parse(str(xml_path), etree.XMLParser(collect_ids=False))
+    tree = xml_parse(str(xml_path))
     root = tree.getroot()
     cfg = project_config or ProjectConfig()
 

@@ -10,6 +10,7 @@ from pathlib import Path
 from lxml import etree
 
 from opm.runtime.output_functions import XML_ID
+from opm.xml_parser import make_parser
 
 from .codegen import _model_matches_output_mode
 from .parse_odd import ParsedOdd, iter_element_specs
@@ -54,7 +55,7 @@ def _collect_tagsdecl_renditions(
     seen_src: set[str] = set()
 
     for odd_file in parsed.odd_chain:
-        root = etree.parse(odd_file, etree.XMLParser(collect_ids=False)).getroot()
+        root = etree.parse(odd_file, make_parser()).getroot()
         for rend in root.iter(f'{{{TEI_NS}}}rendition'):
             par = rend.getparent()
             if par is None or _local(par.tag) != 'tagsDecl':

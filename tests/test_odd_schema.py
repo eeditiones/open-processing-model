@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import shutil
 from pathlib import Path
 
 import pytest
@@ -27,11 +28,23 @@ TEI_NS = 'http://www.tei-c.org/ns/1.0'
 
 
 @pytest.fixture(autouse=True)
-def _no_p5subset_download(monkeypatch: pytest.MonkeyPatch) -> None:
+def _offline_tei(monkeypatch: pytest.MonkeyPatch, tmp_path_factory) -> None:
+    """Keep every test off the network and off the developer's cache.
+
+    Two separate hazards. The urlopen stub catches a test that would download.
+    Seeding the cache path catches the subtler one: a test that passes locally
+    only because the real TEI artifact happens to be cached, then fails in CI
+    where it is not. Pointing the cache at the mini schema also keeps
+    TEI-targeting fixtures small — merging the real Guidelines would give them
+    thousands of pages.
+    """
     def _blocked(*_args, **_kwargs):
-        raise AssertionError('tests must not download p5subset')
+        raise AssertionError('tests must not download the TEI schema')
 
     monkeypatch.setattr('urllib.request.urlopen', _blocked)
+    cached = tmp_path_factory.mktemp('tei-cache') / 'p5all.xml'
+    shutil.copy(MINI, cached)
+    monkeypatch.setattr('opm.odd_schema.p5all_cache_path', lambda: cached)
 
 
 def _write_processing_odd(
@@ -180,6 +193,47 @@ def test_tei_customization_fetches_p5subset_even_with_local_source(
     compile_schema(CUSTOM)
     assert len(calls) == 2
     assert all(c['url'] is None for c in calls)
+
+
+def test_customization_adding_its_own_elements_fetches_p5subset(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """New elementSpecs do not make a TEI customization self-contained.
+
+    An ODD may add elements of its own and still take everything else from
+    TEI, so a ``content`` model in the input is no signal to skip the merge.
+    """
+    calls = _stub_p5all(monkeypatch)
+    odd = tmp_path / 'adds.odd'
+    odd.write_text(
+        '''<?xml version="1.0" encoding="UTF-8"?>
+        <TEI xmlns="http://www.tei-c.org/ns/1.0">
+          <teiHeader><fileDesc>
+            <titleStmt><title>Adds an element</title></titleStmt>
+            <publicationStmt><p>test</p></publicationStmt>
+            <sourceDesc><p>test</p></sourceDesc>
+          </fileDesc></teiHeader>
+          <text><body>
+            <schemaSpec ident="adds" source="p5subset.xml">
+              <elementSpec ident="myThing" mode="add">
+                <desc xml:lang="en">an element this ODD invents</desc>
+                <content><textNode/></content>
+              </elementSpec>
+            </schemaSpec>
+          </body></text>
+        </TEI>''',
+        encoding='utf-8',
+    )
+    compile_schema(odd)
+    assert len(calls) == 1
+
+
+def test_non_tei_vocabularies_are_standalone(monkeypatch: pytest.MonkeyPatch) -> None:
+    """JATS (``ns=""``) and DocBook ODDs are schemas in their own right."""
+    calls = _stub_p5all(monkeypatch)
+    for name in ('jats.odd', 'docbook.odd'):
+        compile_schema(Path('src/opm/resources/odd') / name)
+    assert calls == []
 
 
 def test_roma_style_module_refs_fetch_p5subset(
