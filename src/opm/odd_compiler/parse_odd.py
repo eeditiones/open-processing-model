@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import unquote, urlparse
@@ -114,6 +115,21 @@ def _resolve_source_paths(schema_spec, odd_path: Path) -> list[Path]:
     return [resolve_schema_source(token, odd_path) for token in raw.split()]
 
 
+_MODEL_TAGS = ('model', 'modelGrp', 'modelSequence')
+
+
+def _model_elements(spec_el) -> list:
+    """The processing models *spec_el* declares, in document order."""
+    return [
+        c for c in spec_el
+        if isinstance(c.tag, str) and etree.QName(c).localname in _MODEL_TAGS
+    ]
+
+
+def _declares_models(spec_el) -> bool:
+    return bool(_model_elements(spec_el))
+
+
 def _collect_element_specs(odd_path: Path, seen: set[Path]) -> list:
     odd_path = odd_path.resolve()
     if odd_path in seen:
@@ -134,8 +150,20 @@ def _collect_element_specs(odd_path: Path, seen: set[Path]) -> list:
 
     for spec in root.iter(f'{{{TEI_NS}}}elementSpec'):
         ident = spec.get('ident')
-        if ident:
-            merged[ident] = spec
+        if not ident:
+            continue
+        inherited = merged.get(ident)
+        if inherited is not None and not _declares_models(spec):
+            # A local spec that declares no processing model is refining the
+            # element in some other way — an attribute vocabulary, a content
+            # model, a description — and means to keep the behaviour it
+            # inherits. Taking it whole would silently drop that behaviour, so
+            # the inherited models are carried over, matching odd2odd.xql in
+            # tei-publisher-lib. A local spec that *does* declare models still
+            # replaces the inherited set outright, as it does upstream.
+            for model in _model_elements(inherited):
+                spec.append(deepcopy(model))
+        merged[ident] = spec
 
     seen.remove(odd_path)
     return list(merged.values())

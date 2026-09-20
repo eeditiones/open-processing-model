@@ -689,8 +689,17 @@ def _odd2odd(source: etree._Element, customization: etree._Element) -> etree._El
     selected = _specs_by_ident(source)
     schema = _main_schema_spec(customization)
     if schema is not None:
-        selected = _apply_module_refs(selected, schema)
+        all_specs = dict(selected)
+        # Filter, then let the customization have its say, and only then close
+        # over what is left. The closure has to see the content models the ODD
+        # actually declares: a customization that rewrites `text` to hold a
+        # pair of texts no longer references front/back/group, and subsetting
+        # from the stock model would pull all three back in behind its back.
+        selected = _apply_module_refs(selected, schema, close=False)
         selected = _apply_local_specs(selected, schema)
+        if any(localname(el) == 'moduleRef' for el in schema):
+            all_specs.update(selected)
+            selected = _dependency_closure(all_specs, selected)
     return _wrap_specs(
         selected, ident=(schema.get('ident') if schema is not None else None)
     )
@@ -783,6 +792,8 @@ def _module_ref_filters(ref: etree._Element) -> tuple[set[str], set[str]]:
 def _apply_module_refs(
     specs: dict[str, etree._Element],
     schema: etree._Element,
+    *,
+    close: bool = True,
 ) -> dict[str, etree._Element]:
     refs = [el for el in schema if localname(el) == 'moduleRef']
     if not refs:
@@ -799,7 +810,7 @@ def _apply_module_refs(
             if ident in excepted:
                 continue
             keep[ident] = el
-    return _dependency_closure(specs, keep)
+    return _dependency_closure(specs, keep) if close else keep
 
 
 def _dependency_closure(

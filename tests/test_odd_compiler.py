@@ -108,6 +108,74 @@ def test_compile_unknown_mode_is_an_error() -> None:
         compile_odd(str(ODD), output_mode='latex')
 
 
+def _write_parent_and_child(tmp_path: Path, child_spec: str) -> Path:
+    """A parent ODD giving `p` a model, and a child ODD extending it."""
+    header = (
+        '<teiHeader><fileDesc><titleStmt><title>t</title></titleStmt>'
+        '<publicationStmt><p>p</p></publicationStmt>'
+        '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
+    )
+    parent = tmp_path / 'parent.odd'
+    parent.write_text(
+        '<?xml version="1.0"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0">' + header +
+        '<text><body>'
+        '<schemaSpec ident="parent" ns="http://www.tei-c.org/ns/1.0">'
+        '<elementSpec ident="p" mode="change">'
+        '<model behaviour="paragraph"/>'
+        '</elementSpec>'
+        '</schemaSpec>'
+        '</body></text></TEI>',
+        encoding='utf-8',
+    )
+    child = tmp_path / 'child.odd'
+    child.write_text(
+        '<?xml version="1.0"?>\n'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0">' + header +
+        '<text><body>'
+        '<schemaSpec ident="child" ns="http://www.tei-c.org/ns/1.0" source="parent.odd">'
+        + child_spec +
+        '</schemaSpec>'
+        '</body></text></TEI>',
+        encoding='utf-8',
+    )
+    return child
+
+
+def test_attribute_only_spec_keeps_the_inherited_models(tmp_path: Path) -> None:
+    """A local spec declaring no model refines the element, it does not silence it.
+
+    Without this the child's attribute vocabulary would replace the parent's
+    spec wholesale and `p` would lose its behaviour altogether — the trap that
+    `mode="change"` is meant to avoid. odd2odd.xql in tei-publisher-lib carries
+    the parent's models across in exactly this case.
+    """
+    child = _write_parent_and_child(
+        tmp_path,
+        '<elementSpec ident="p" mode="change">'
+        '<attList><attDef ident="rend" mode="change">'
+        '<valList type="semi"><valItem ident="i"/></valList>'
+        '</attDef></attList>'
+        '</elementSpec>',
+    )
+    from opm.odd_compiler import compile_odd
+
+    assert 'pmf.paragraph' in compile_odd(str(child), output_mode='web')
+
+
+def test_local_models_still_replace_the_inherited_ones(tmp_path: Path) -> None:
+    """A local spec that does declare models overrides the parent outright."""
+    child = _write_parent_and_child(
+        tmp_path,
+        '<elementSpec ident="p" mode="change"><model behaviour="block"/></elementSpec>',
+    )
+    from opm.odd_compiler import compile_odd
+
+    src = compile_odd(str(child), output_mode='web')
+    assert 'pmf.block' in src
+    assert 'pmf.paragraph' not in src
+
+
 def test_opm_output_prefix_matches_web_mode_in_document_order(tmp_path: Path) -> None:
     """``output=\"opm-web\"`` is web-only for this compiler; first matching model wins."""
     from opm.odd_compiler import compile_odd

@@ -236,6 +236,75 @@ def test_non_tei_vocabularies_are_standalone(monkeypatch: pytest.MonkeyPatch) ->
     assert calls == []
 
 
+def test_local_content_model_narrows_the_dependency_closure(tmp_path: Path) -> None:
+    """Subsetting follows the ODD's own content models, not the stock ones.
+
+    An edition that rewrites `text` to hold a pair of parallel texts no longer
+    references front, back or group. Closing over the source's content model
+    instead would pull all three into the schema behind the ODD's back, and the
+    include list would not mean what it says.
+    """
+    source = tmp_path / 'source.odd'
+    source.write_text(
+        f'''<?xml version="1.0" encoding="UTF-8"?>
+<TEI xmlns="{TEI_NS}">
+  <teiHeader><fileDesc>
+    <titleStmt><title>Source</title></titleStmt>
+    <publicationStmt><p>test</p></publicationStmt>
+    <sourceDesc><p>test</p></sourceDesc>
+  </fileDesc></teiHeader>
+  <text><body>
+    <schemaSpec ident="src">
+      <moduleSpec ident="textstructure"><desc>Text structure.</desc></moduleSpec>
+      <elementSpec ident="text" module="textstructure">
+        <desc>a text</desc>
+        <content>
+          <elementRef key="front"/><elementRef key="body"/><elementRef key="back"/>
+        </content>
+      </elementSpec>
+      <elementSpec ident="body" module="textstructure">
+        <desc>a body</desc><content><textNode/></content>
+      </elementSpec>
+      <elementSpec ident="front" module="textstructure">
+        <desc>front matter</desc><content><textNode/></content>
+      </elementSpec>
+      <elementSpec ident="back" module="textstructure">
+        <desc>back matter</desc><content><textNode/></content>
+      </elementSpec>
+    </schemaSpec>
+  </body></text>
+</TEI>
+''',
+        encoding='utf-8',
+    )
+    odd = tmp_path / 'edition.odd'
+    odd.write_text(
+        f'''<?xml version="1.0" encoding="UTF-8"?>
+<TEI xmlns="{TEI_NS}">
+  <teiHeader><fileDesc>
+    <titleStmt><title>Edition</title></titleStmt>
+    <publicationStmt><p>test</p></publicationStmt>
+    <sourceDesc><p>test</p></sourceDesc>
+  </fileDesc></teiHeader>
+  <text><body>
+    <schemaSpec ident="edition" start="text">
+      <moduleRef key="textstructure" include="text body"/>
+      <elementSpec ident="text" mode="change">
+        <content><elementRef key="body"/></content>
+      </elementSpec>
+    </schemaSpec>
+  </body></text>
+</TEI>
+''',
+        encoding='utf-8',
+    )
+    index = SpecIndex.from_tree(compile_schema(odd, source=source).tree)
+    assert index.get('text') is not None
+    assert index.get('body') is not None
+    assert index.get('front') is None
+    assert index.get('back') is None
+
+
 def test_roma_style_module_refs_fetch_p5subset(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -978,6 +978,17 @@ a.spec__chip:hover { border-color: var(--doc-amber); color: var(--doc-ink); text
 .pm__params dd { margin: 0; }
 .pm__template { margin: 0.4rem 0 0; }
 
+/* A model need not carry a template, a description, parameters, an output or a
+   predicate, but the tagdocs template emits every wrapper unconditionally, so an
+   absent one arrives as an empty element. An empty pre.code is the visible one:
+   it keeps its border, background and ~1.75rem margins and reads as a broken
+   code block. The rest are flex children of .pm__head, where each empty one
+   still claims its 0.6rem gap. */
+.pm__template:has(> code:empty),
+.pm__desc:empty,
+.pm__params:empty,
+.pm__head > :empty { display: none; }
+
 /* A callout for the pointer back to the reference section. */
 .doc-callout {
   display: grid;
