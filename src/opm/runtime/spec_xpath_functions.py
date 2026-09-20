@@ -432,11 +432,17 @@ def serialize_spec(node: Any) -> str:
 
 
 def list_ref(spec: Any) -> etree._Element:
-    """Guidelines ``listRef`` pointers as ``ref`` links to the published P5 docs."""
+    """Guidelines ``listRef`` pointers as ``ref`` links to the chapter they cite.
+
+    When the site publishes the Guidelines prose itself the link stays inside
+    the site (``ref/@type='local'``); otherwise it points at the published P5
+    documentation on tei-c.org.
+    """
     wrap = _tei('list', type='listRef')
     resolved = _spec_of(spec)
     env = current_environment()
     lang = str((env.parameters or {}).get('lng') or 'en') if env else 'en'
+    index = _index(spec)
     targets = resolved.list_refs if resolved is not None else []
     if resolved is None:
         node = expect_element(spec, arg_name='list_ref(spec)')
@@ -449,13 +455,19 @@ def list_ref(spec: Any) -> etree._Element:
         code = target.lstrip('#')
         if not code:
             continue
-        match = _GUIDELINES_CHAPTER_RE.match(code)
-        if not match:
-            continue
-        chapter = match.group(1)
+        local = index.chapter_page(code) if index is not None else None
+        if local is None:
+            match = _GUIDELINES_CHAPTER_RE.match(code)
+            if not match:
+                continue
+            chapter = match.group(1)
         item = etree.SubElement(wrap, qn('item'))
         ref = etree.SubElement(item, qn('ref'))
-        ref.set('target', f'{_TEI_P5_DOC}/{lang}/html/{chapter}.html#{code}')
+        if local is not None:
+            ref.set('type', 'local')
+            ref.set('target', local)
+        else:
+            ref.set('target', f'{_TEI_P5_DOC}/{lang}/html/{chapter}.html#{code}')
         ref.text = code
     return wrap
 

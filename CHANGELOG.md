@@ -16,7 +16,9 @@ All notable changes to this project are documented here. The format follows
 - `opm odd document` — static HTML documentation site from an ODD (element /
   class / macro / datatype reference pages, A–Z catalogs, processing models,
   optional Guidelines chapters). Follows `schemaSpec/@source` and writes to
-  `odd/<schemaSpec ident>` unless `-o` is given. `--tei` documents TEI alone, chapters included.
+  `odd/<schemaSpec ident>` unless `-o` is given. `--guidelines` documents TEI
+  alone, chapters included; a spec's Guidelines pointers then link to the
+  chapter page in the site rather than to tei-c.org.
 - `SpecIndex` and `compile_schema` — Python API for the ODD spec graph
   (contained by, may contain, members, used by, attribute inheritance) and a
   small odd2odd merge.

@@ -697,7 +697,7 @@ def test_eg_element_renders_as_source_block(tmp_path: Path) -> None:
 def test_tei_publishes_the_artifact_chapters(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
-    """``--tei`` documents TEI, so the artifact's chapters are the site's."""
+    """``--guidelines`` documents TEI, so the artifact's chapters are the site's."""
     artifact = tmp_path / 'p5all.xml'
     artifact.write_text(
         '''<?xml version="1.0" encoding="UTF-8"?>
@@ -728,7 +728,7 @@ def test_tei_publishes_the_artifact_chapters(
     )
     monkeypatch.setattr('opm.odd_schema.ensure_p5all', lambda **_kwargs: artifact)
 
-    tei = compile_schema(use_tei=True)
+    tei = compile_schema(use_guidelines=True)
     assert chapters_have_prose(tei.tree)
     site = build_document_site(tei, tmp_path / 'tei-out')
     assert site.chapters == 1
@@ -799,6 +799,87 @@ def test_customization_does_not_inherit_tei_chapters(
     assert (site.output_dir / 'ref-p.html').is_file()
 
 
+_LIST_REF_ARTIFACT = '''<?xml version="1.0" encoding="UTF-8"?>
+   <TEI xmlns="http://www.tei-c.org/ns/1.0">
+     <teiHeader>
+       <fileDesc>
+         <titleStmt><title>TEI</title></titleStmt>
+         <publicationStmt><publisher>TEI</publisher></publicationStmt>
+         <sourceDesc><p>fixture</p></sourceDesc>
+       </fileDesc>
+     </teiHeader>
+     <text><body>
+       <div type="div1" xml:id="CO">
+         <head>Core</head>
+         <p>Elements common to all documents.</p>
+         <div xml:id="COEDADD"><head>Additions</head><p>Prose.</p></div>
+       </div>
+       <elementSpec ident="p" module="core">
+         <desc xml:lang="en">marks paragraphs.</desc>
+         <content><textNode/></content>
+         <listRef><ptr target="#COEDADD"/></listRef>
+       </elementSpec>
+     </body></text>
+   </TEI>'''
+
+
+def test_list_ref_links_to_the_local_chapter(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """With the chapters published, a listRef stays inside the site."""
+    artifact = tmp_path / 'p5all.xml'
+    artifact.write_text(_LIST_REF_ARTIFACT, encoding='utf-8')
+    monkeypatch.setattr('opm.odd_schema.ensure_p5all', lambda **_kwargs: artifact)
+
+    site = build_document_site(compile_schema(use_guidelines=True), tmp_path / 'out')
+    html = (site.output_dir / 'ref-p.html').read_text(encoding='utf-8')
+    assert '<a class="spec__chip" href="CO.html#COEDADD">COEDADD</a>' in html
+    assert 'tei-c.org/release' not in html
+    assert 'id="COEDADD"' in (site.output_dir / 'CO.html').read_text(encoding='utf-8')
+
+
+def test_list_ref_falls_back_to_the_published_guidelines(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """A customization publishes no chapters, so the chip leaves the site.
+
+    The label is a plain string: rendering the ``ref`` itself would nest an
+    ``<a>`` inside the chip's anchor, which browsers split into two links.
+    """
+    artifact = tmp_path / 'p5all.xml'
+    artifact.write_text(_LIST_REF_ARTIFACT, encoding='utf-8')
+    monkeypatch.setattr('opm.odd_schema.ensure_p5all', lambda **_kwargs: artifact)
+
+    custom = tmp_path / 'custom.odd'
+    custom.write_text(
+        '''<?xml version="1.0" encoding="UTF-8"?>
+           <TEI xmlns="http://www.tei-c.org/ns/1.0">
+             <teiHeader>
+               <fileDesc>
+                 <titleStmt><title>Custom</title></titleStmt>
+                 <publicationStmt><p>t</p></publicationStmt>
+                 <sourceDesc><p>t</p></sourceDesc>
+               </fileDesc>
+             </teiHeader>
+             <text><body>
+               <schemaSpec ident="custom">
+                 <elementSpec ident="p" mode="change">
+                   <model behaviour="paragraph"/>
+                 </elementSpec>
+               </schemaSpec>
+             </body></text>
+           </TEI>''',
+        encoding='utf-8',
+    )
+    site = build_document_site(compile_schema(custom), tmp_path / 'out')
+    html = (site.output_dir / 'ref-p.html').read_text(encoding='utf-8')
+    assert (
+        '<a class="spec__chip" '
+        'href="https://www.tei-c.org/release/doc/tei-p5-doc/en/html/CO.html#COEDADD" '
+        'rel="external">COEDADD</a>'
+    ) in html
+
+
 def test_document_site_ships_self_hosted_fonts(tmp_path: Path) -> None:
     compiled = compile_schema(MINI)
     site = build_document_site(compiled, tmp_path / 'out')
@@ -830,6 +911,14 @@ def test_reference_page_toc_targets_exist(tmp_path: Path) -> None:
     assert 'id="ref-attributes"' in html
     assert 'id="ref-classes"' in html
     assert 'id="ref-models"' in html
+    # The entries the rail nests under those two: the attributes the spec
+    # defines itself, and each class / content relation.
+    assert '<dt id="att-rend">' in html
+    for anchor in ('ref-memberOf', 'ref-mayContain', 'ref-containedBy'):
+        assert f'<dt id="{anchor}">' in html
+    klass = (site.output_dir / 'ref-model.phrase.html').read_text(encoding='utf-8')
+    assert '<dt id="ref-usedBy">' in klass
+    assert '<dt id="ref-members">' in klass
 
 
 def test_header_carries_edition_and_licence(tmp_path: Path) -> None:

@@ -2,9 +2,7 @@
     <teiHeader>
         <fileDesc>
             <titleStmt>
-                <title>Serafin Letters <desc>15th c. manuscript correspondence with parallel
-                        translation</desc>
-                </title>
+                <title>Serafin Letters <desc>15th c. manuscript correspondence with parallel translation</desc></title>
             </titleStmt>
             <publicationStmt>
                 <publisher>e-editiones</publisher>
@@ -41,9 +39,69 @@
     </teiHeader>
     <text>
         <body>
-            <schemaSpec start="TEI teiCorpus" ident="serafin" source="teipublisher.odd">
+            <schemaSpec start="TEI" ident="serafin" source="teipublisher.odd">
+
+                <!-- ==============================================================
+                     1. Modules
+
+                     `tei` is the infrastructure module (classes, macros, datatypes)
+                     and is always required. The remaining seven are every module the
+                     edition draws on; the include lists are exhaustive.
+
+                     Scope: the letters, and nothing else. The registers
+                     (data/registers/*.xml) are separate documents with a
+                     structure of their own — standOff/listPerson, listPlace,
+                     listOrg, listBibl — and they are not validated against this
+                     schema, so `person`, `place`, `org`, `bibl/@type="work"`
+                     and the rest of the register vocabulary are left out. The
+                     letters reach the registers only by pointer (persName/@key,
+                     placeName/@key), which no schema follows.
+
+                     This is a schema decision, not a rendering one: the
+                     processing models are compiled independently of these
+                     include lists, so the register entries pulled into a letter
+                     page by the `mode='register'` models below still render
+                     through teipublisher.odd's inherited person / place specs.
+                     ============================================================== -->
+                <moduleRef key="tei"/>
+                <moduleRef key="core"
+                    include="add bibl corr date del editor emph expan gap head hi lb
+                             note p publisher ref resp respStmt sic title unclear"/>
+                <moduleRef key="header"
+                    include="availability catRef change correspAction correspContext
+                             correspDesc creation editorialDecl encodingDesc fileDesc idno
+                             langUsage language licence listChange profileDesc publicationStmt
+                             revisionDesc schemaRef sourceDesc teiHeader textClass
+                             titleStmt"/>
+                <moduleRef key="linking" include="anchor listAnnotation seg standOff"/>
+                <moduleRef key="msdescription"
+                    include="msContents msDesc msIdentifier physDesc repository"/>
+                <!-- Only the name elements: a letter points at the registers, it
+                     does not contain them. -->
+                <moduleRef key="namesdates" include="orgName persName placeName"/>
+                <moduleRef key="textstructure"
+                    include="TEI div opener postscript signed text"/>
+                <moduleRef key="transcr" include="ex subst supplied surplus"/>
+
                 <elementSpec ident="gap" mode="change">
-                    <desc>Lacunae, after the Leiden conventions.</desc>
+                    <desc>Lacunae, after the Leiden conventions. Note that 100 of the 104 gaps in
+                        the edition carry no @quantity or @unit at all, so they fall to the
+                        undetermined-extent rule ("[- - -]"); only four are measured.</desc>
+                    <attList>
+                        <attDef ident="unit" mode="change">
+                            <desc>The unit @quantity counts. Only a gap measured in characters
+                                can be printed as Leiden dots; one measured in words prints as
+                                an undetermined lacuna, with the count kept in the XML.</desc>
+                            <valList type="semi" mode="replace">
+                                <valItem ident="chars">
+                                    <desc>Extent in characters.</desc>
+                                </valItem>
+                                <valItem ident="words">
+                                    <desc>Extent in words.</desc>
+                                </valItem>
+                            </valList>
+                        </attDef>
+                    </attList>
                     <model predicate="desc" behaviour="inline"/>
 
                     <!-- Leiden: a lost passage of known extent is one dot per lost
@@ -132,6 +190,18 @@
                     <desc>SERAFIN: as in teipublisher.odd, except that in Typst the
                         text-critical notes (type="transcription", marked a, b, …) go to
                         the margin, leaving the footnotes to the commentary (1, 2, …).</desc>
+                    <attList>
+                        <attDef ident="type" mode="change">
+                            <desc>Only note anchors are used: the point in the text where a
+                                standOff note is pulled in. The models below branch on this,
+                                so the list is closed.</desc>
+                            <valList type="closed" mode="replace">
+                                <valItem ident="note">
+                                    <desc>Anchor for a note held in standOff/listAnnotation.</desc>
+                                </valItem>
+                            </valList>
+                        </attDef>
+                    </attList>
                     <model predicate="$parameters?mode=('toc', 'breadcrumb')" behaviour="omit"/>
                     <model predicate="@corresp" behaviour="note">
                         <param name="content" value="let $target := @corresp return root($parameters?root)/id($target)/node()"/>
@@ -168,6 +238,26 @@
                     <model behaviour="inline"/>
                 </elementSpec>
                 <elementSpec ident="note" mode="change">
+                    <attList>
+                        <attDef ident="type" mode="change">
+                            <desc>Suggested, not closed: the one kind a letter carries today,
+                                but an editor may add categories without touching the ODD. An
+                                untyped note is the commentary. ("bio", the biographical note
+                                of a person register entry, is not listed: the registers are
+                                not validated against this schema.)</desc>
+                            <valList type="semi" mode="replace">
+                                <valItem ident="transcription">
+                                    <desc>Text-critical note on the transcription; lettered a, b,
+                                        c … and set in the margin in Typst.</desc>
+                                </valItem>
+                            </valList>
+                        </attDef>
+                        <attDef ident="n" mode="change">
+                            <desc>Note label. Letters (a, b, c …) mark text-critical notes,
+                                numbers (1, 2, 3 …) the commentary; the two series are
+                                rendered to different places in print.</desc>
+                        </attDef>
+                    </attList>
                     <model predicate="ancestor::listAnnotation" behaviour="inline">
                         <desc>SERAFIN: notes stored in the standOff section, therefore they just
                             need to be rendered inline when pulled from corresponding anchor element
@@ -357,6 +447,36 @@
                     </model>
                 </elementSpec>
                 <elementSpec ident="text" mode="change">
+                    <desc>The edition nests a pair of `text` elements — the Latin transcription
+                        and the Polish translation — directly inside the outer `text`, and each
+                        of those holds its `div` without an intervening `body`. Plain TEI does
+                        not allow either: `text` requires `body` or `group`. The conformant
+                        spelling of exactly this structure is
+                        `text/group/text/body/div`, and migrating to it would let this content
+                        model be dropped; until then the schema has to describe the files as
+                        they are, or it describes nothing. No letter has a `body` — the outer
+                        `text` holds the pair, the inner two hold their `div` — so `body` is
+                        not in the alternation and not in the schema at all.</desc>
+                    <content>
+                        <alternate>
+                            <elementRef key="text" minOccurs="2" maxOccurs="2"/>
+                            <elementRef key="div" minOccurs="1" maxOccurs="unbounded"/>
+                        </alternate>
+                    </content>
+                    <attList>
+                        <attDef ident="type" mode="change">
+                            <desc>Which half of the letter this is. The ODD's own models branch
+                                on these two values, so the list is closed.</desc>
+                            <valList type="closed" mode="replace">
+                                <valItem ident="source">
+                                    <desc>The transcription of the manuscript.</desc>
+                                </valItem>
+                                <valItem ident="translation">
+                                    <desc>The modern Polish translation.</desc>
+                                </valItem>
+                            </valList>
+                        </attDef>
+                    </attList>
                     <!-- The translation is pulled into the parallel rows above, so it
                          must not also print as a second block after the source. -->
                     <model output="typst" predicate="@type = 'translation'" behaviour="omit"/>
@@ -443,7 +563,62 @@
                     </modelSequence>
                     <model output="web" behaviour="block"/>
                 </elementSpec>
+                <elementSpec ident="msIdentifier" mode="change">
+                    <desc>Repository and shelfmark, the only two the edition records. Dropping
+                        TEI's place hierarchy (country, region, settlement, institution) and
+                        the altIdentifier branch keeps collection, institution, msName and
+                        altIdentifier out of the schema.</desc>
+                    <content>
+                        <sequence>
+                            <elementRef key="repository"/>
+                            <elementRef key="idno"/>
+                        </sequence>
+                    </content>
+                </elementSpec>
+                <elementSpec ident="physDesc" mode="change">
+                    <desc>A sentence of prose on dimensions and condition ("209 × 260 mm; ślady
+                        zawilgocenia…"). TEI's model.physDescPart — handDesc, bindingDesc,
+                        decoDesc and the rest — is dropped; no letter carries one.</desc>
+                    <content>
+                        <classRef key="model.pLike" minOccurs="1" maxOccurs="unbounded"/>
+                    </content>
+                </elementSpec>
+                <elementSpec ident="msContents" mode="change">
+                    <desc>Every letter describes its manuscript in a sentence of prose
+                        ("recto: tekst listu, podpis, dopisek; verso: adres, ślady po
+                        pieczęci"), which is TEI's `model.pLike` branch. The other branch —
+                        summary, textLang, titlePage, msItem — is dropped: nothing in the
+                        edition uses it, and keeping it pulled 23 elements into the schema,
+                        the whole msItem/biblStruct chain among them, that no letter can
+                        contain. Restore the stock content model before encoding a
+                        structured manuscript description.</desc>
+                    <content>
+                        <classRef key="model.pLike" minOccurs="1" maxOccurs="unbounded"/>
+                    </content>
+                </elementSpec>
                 <elementSpec ident="msDesc" mode="change">
+                    <desc>All 46 letters describe the manuscript the same way: where it is,
+                        what is on it, what it looks like. TEI's history, additional, msPart
+                        and msFrag branches are dropped — see msContents for the reasoning
+                        and the cost of keeping them.</desc>
+                    <content>
+                        <sequence>
+                            <elementRef key="msIdentifier"/>
+                            <elementRef key="msContents"/>
+                            <elementRef key="physDesc"/>
+                        </sequence>
+                    </content>
+                    <attList>
+                        <attDef ident="type" mode="change">
+                            <desc>Every letter in the edition survives as a fair copy; kept open
+                                for drafts and registers of outgoing letters.</desc>
+                            <valList type="semi" mode="replace">
+                                <valItem ident="fair-copy">
+                                    <desc>A fair copy of the letter as sent.</desc>
+                                </valItem>
+                            </valList>
+                        </attDef>
+                    </attList>
                     <model predicate="$parameters?mode='metadata-panel'" behaviour="listItem"/>
                     <model behaviour="paragraph">
                         <param name="content" value="('Or.:', msIdentifier, physDesc/p/node(), msContents/p/node())"/>
@@ -523,6 +698,112 @@
                 </elementSpec>
                 <elementSpec ident="signed" mode="change">
                     <model behaviour="block" cssClass="signed"/>
+                </elementSpec>
+
+                <!-- ==============================================================
+                     Attribute vocabularies carrying no processing model of their
+                     own. Closed where this ODD's models branch on the value, so a
+                     typo would silently change the output; suggested ("semi")
+                     where the vocabulary is descriptive and editors may extend it.
+                     ============================================================== -->
+                <elementSpec ident="correspAction" mode="change">
+                    <attList>
+                        <attDef ident="type" mode="change">
+                            <desc>The letter-head models select the "sent" action for its date
+                                and place, so the list is closed.</desc>
+                            <valList type="closed" mode="replace">
+                                <valItem ident="sent">
+                                    <desc>Sender, place and date of sending.</desc>
+                                </valItem>
+                                <valItem ident="received">
+                                    <desc>Addressee.</desc>
+                                </valItem>
+                            </valList>
+                        </attDef>
+                    </attList>
+                </elementSpec>
+                <elementSpec ident="ref" mode="change">
+                    <attList>
+                        <attDef ident="type" mode="change">
+                            <desc>Navigation between letters, read by the correspContext model
+                                above to build the toolbar. "prev" is accepted alongside
+                                "previous" because the model matches both.</desc>
+                            <valList type="closed" mode="replace">
+                                <valItem ident="previous">
+                                    <desc>Preceding letter in the edition.</desc>
+                                </valItem>
+                                <valItem ident="prev">
+                                    <desc>Deprecated spelling of "previous".</desc>
+                                </valItem>
+                                <valItem ident="next">
+                                    <desc>Following letter in the edition.</desc>
+                                </valItem>
+                                <valItem ident="previous-in-correspondence">
+                                    <desc>Preceding letter between the same two people.</desc>
+                                </valItem>
+                                <valItem ident="next-in-correspondence">
+                                    <desc>Following letter between the same two people.</desc>
+                                </valItem>
+                            </valList>
+                        </attDef>
+                    </attList>
+                </elementSpec>
+                <!-- persName and placeName carry no elementSpec here. In a letter
+                     they are a pointer into a register and nothing else: @key or
+                     @ref, no @type. The main / variant / sort vocabulary belongs
+                     to the register entries, which this schema does not cover. -->
+                <elementSpec ident="bibl" mode="change">
+                    <attList>
+                        <attDef ident="type" mode="change">
+                            <desc>A letter cites its previous printing, in sourceDesc. The
+                                other value in the edition, "work", labels an entry in the
+                                register of works and is out of scope here.</desc>
+                            <valList type="semi" mode="replace">
+                                <valItem ident="printed-edition">
+                                    <desc>The printed edition a letter was previously published in.</desc>
+                                </valItem>
+                            </valList>
+                        </attDef>
+                    </attList>
+                </elementSpec>
+                <elementSpec ident="hi" mode="change">
+                    <attList>
+                        <attDef ident="rend" mode="change">
+                            <desc>Rendition of the manuscript's own highlighting. Note that one
+                                instance in the edition carries this value on @ana instead,
+                                which is a pointer attribute and cannot hold it.</desc>
+                            <valList type="semi" mode="replace">
+                                <valItem ident="i">
+                                    <desc>Set in italics.</desc>
+                                </valItem>
+                                <valItem ident="space">
+                                    <desc>Set with additional letter spacing.</desc>
+                                </valItem>
+                            </valList>
+                        </attDef>
+                    </attList>
+                </elementSpec>
+                <elementSpec ident="add" mode="change">
+                    <attList>
+                        <attDef ident="status" mode="change">
+                            <valList type="semi" mode="replace">
+                                <valItem ident="unremarkable">
+                                    <desc>An addition calling for no comment.</desc>
+                                </valItem>
+                            </valList>
+                        </attDef>
+                    </attList>
+                </elementSpec>
+                <elementSpec ident="del" mode="change">
+                    <attList>
+                        <attDef ident="type" mode="change">
+                            <valList type="semi" mode="replace">
+                                <valItem ident="overwritten">
+                                    <desc>Deleted by writing over the original text.</desc>
+                                </valItem>
+                            </valList>
+                        </attDef>
+                    </attList>
                 </elementSpec>
             </schemaSpec>
         </body>

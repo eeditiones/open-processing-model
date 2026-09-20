@@ -397,9 +397,17 @@
                         <param name="uri" value="concat('ref-', parent::list/parent::item/ident, '.html#', @n)"/>
                         <pb:template xmlns=""><a href="[[uri]]">[[name]]</a></pb:template>
                     </model>
+                    <!-- The label is taken as a string: letting the ref render
+                         itself would nest an <a> inside the chip's own anchor,
+                         which the browser then splits into two links. -->
+                    <model predicate="parent::list[@type='listRef'] and ref/@type='local'" behaviour="pass-through">
+                        <param name="uri" value="ref/@target"/>
+                        <param name="label" value="string(ref)"/>
+                        <pb:template xmlns=""><a class="spec__chip" href="[[uri]]">[[label]]</a></pb:template>
+                    </model>
                     <model predicate="parent::list[@type='listRef']" behaviour="pass-through">
                         <param name="uri" value="ref/@target"/>
-                        <param name="label" value="ref"/>
+                        <param name="label" value="string(ref)"/>
                         <pb:template xmlns=""><a class="spec__chip" href="[[uri]]" rel="external">[[label]]</a></pb:template>
                     </model>
                     <model predicate="parent::list[@type='chips'] and @type='module'" behaviour="pass-through">
@@ -430,7 +438,7 @@
                         <param name="examples" value="tp:spec_examples(.)"/>
                         <param name="constraints" value="tp:spec_constraints(.)"/>
                         <param name="schema" value="tp:spec_content(.)"/>
-                        <pb:template xmlns=""><article class="spec spec--element"><h1><span class="spec__ident">&lt;[[ident]]&gt;</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span>[[listRef]]</div><section class="spec-section" id="ref-attributes"><h2>Attributes</h2><div class="spec-note">Global and inherited attributes:[[attTree]]</div><dl class="att-def">[[localAtts]]</dl><p class="spec-note">[[attEmpty]]</p></section><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt>Member of</dt><dd><div class="spec-links">[[memberOf]]</div></dd><dt>May contain</dt><dd>[[mayContain]]</dd><dt>Contained by</dt><dd>[[containedBy]]</dd></dl></section>[[models]][[notes]][[examples]][[constraints]][[schema]]</article></pb:template>
+                        <pb:template xmlns=""><article class="spec spec--element"><h1><span class="spec__ident">&lt;[[ident]]&gt;</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span>[[listRef]]</div><section class="spec-section" id="ref-attributes"><h2>Attributes</h2><div class="spec-note">Global and inherited attributes:[[attTree]]</div><dl class="att-def">[[localAtts]]</dl><p class="spec-note">[[attEmpty]]</p></section><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt id="ref-memberOf">Member of</dt><dd><div class="spec-links">[[memberOf]]</div></dd><dt id="ref-mayContain">May contain</dt><dd>[[mayContain]]</dd><dt id="ref-containedBy">Contained by</dt><dd>[[containedBy]]</dd></dl></section>[[models]][[notes]][[examples]][[constraints]][[schema]]</article></pb:template>
                     </model>
                 </elementSpec>
                 <elementSpec ident="classSpec" mode="add">
@@ -446,7 +454,7 @@
                         <param name="members" value="tp:members(.)"/>
                         <param name="notes" value="tp:spec_notes(.)"/>
                         <param name="examples" value="tp:spec_examples(.)"/>
-                        <pb:template xmlns=""><article class="spec spec--class"><h1><span class="spec__ident">[[ident]]</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span></div><section class="spec-section" id="ref-attributes"><h2>Attributes</h2>[[attTree]]<dl class="att-def">[[localAtts]]</dl></section><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt>Used by</dt><dd><div class="spec-links">[[usedBy]]</div></dd><dt>Members</dt><dd><div class="spec-links">[[members]]</div></dd></dl></section>[[notes]][[examples]]</article></pb:template>
+                        <pb:template xmlns=""><article class="spec spec--class"><h1><span class="spec__ident">[[ident]]</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span></div><section class="spec-section" id="ref-attributes"><h2>Attributes</h2>[[attTree]]<dl class="att-def">[[localAtts]]</dl></section><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt id="ref-usedBy">Used by</dt><dd><div class="spec-links">[[usedBy]]</div></dd><dt id="ref-members">Members</dt><dd><div class="spec-links">[[members]]</div></dd></dl></section>[[notes]][[examples]]</article></pb:template>
                     </model>
                     <model behaviour="pass-through">
                         <param name="ident" value="@ident"/>
@@ -457,7 +465,7 @@
                         <param name="members" value="tp:members(.)"/>
                         <param name="notes" value="tp:spec_notes(.)"/>
                         <param name="examples" value="tp:spec_examples(.)"/>
-                        <pb:template xmlns=""><article class="spec spec--class"><h1><span class="spec__ident">[[ident]]</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span></div><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt>Used by</dt><dd><div class="spec-links">[[usedBy]]</div></dd><dt>Members</dt><dd><div class="spec-links">[[members]]</div></dd></dl></section>[[notes]][[examples]]</article></pb:template>
+                        <pb:template xmlns=""><article class="spec spec--class"><h1><span class="spec__ident">[[ident]]</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span></div><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt id="ref-usedBy">Used by</dt><dd><div class="spec-links">[[usedBy]]</div></dd><dt id="ref-members">Members</dt><dd><div class="spec-links">[[members]]</div></dd></dl></section>[[notes]][[examples]]</article></pb:template>
                     </model>
                 </elementSpec>
                 <elementSpec ident="macroSpec" mode="add">
@@ -472,7 +480,7 @@
                         <param name="notes" value="tp:spec_notes(.)"/>
                         <param name="examples" value="tp:spec_examples(.)"/>
                         <param name="schema" value="tp:spec_content(.)"/>
-                        <pb:template xmlns=""><article class="spec spec--macro"><h1><span class="spec__ident">[[ident]]</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span></div><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt>Used by</dt><dd><div class="spec-links">[[usedBy]]</div></dd></dl></section>[[notes]][[examples]][[schema]]</article></pb:template>
+                        <pb:template xmlns=""><article class="spec spec--macro"><h1><span class="spec__ident">[[ident]]</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span></div><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt id="ref-usedBy">Used by</dt><dd><div class="spec-links">[[usedBy]]</div></dd></dl></section>[[notes]][[examples]][[schema]]</article></pb:template>
                     </model>
                 </elementSpec>
                 <elementSpec ident="dataSpec" mode="add">
@@ -485,7 +493,7 @@
                         <param name="usedBy" value="tp:used_by(.)"/>
                         <param name="notes" value="tp:spec_notes(.)"/>
                         <param name="schema" value="tp:spec_content(.)"/>
-                        <pb:template xmlns=""><article class="spec spec--datatype"><h1><span class="spec__ident">[[ident]]</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span></div><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt>Used by</dt><dd><div class="spec-links">[[usedBy]]</div></dd></dl></section>[[notes]][[schema]]</article></pb:template>
+                        <pb:template xmlns=""><article class="spec spec--datatype"><h1><span class="spec__ident">[[ident]]</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span></div><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt id="ref-usedBy">Used by</dt><dd><div class="spec-links">[[usedBy]]</div></dd></dl></section>[[notes]][[schema]]</article></pb:template>
                     </model>
                 </elementSpec>
                 <elementSpec ident="attDef" mode="add">

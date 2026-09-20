@@ -1658,14 +1658,15 @@ def document_cmd(
         typer.Argument(
             help=(
                 'ODD, compiled spec document (p5subset.xml / Guidelines p5.xml), '
-                'or a directory of Specs. Omit with --tei to document the TEI schema.'
+                'or a directory of Specs. Omit with --guidelines to document '
+                'the TEI schema.'
             ),
         ),
     ] = None,
-    tei: Annotated[
+    guidelines: Annotated[
         bool,
         typer.Option(
-            '--tei',
+            '--guidelines',
             help=(
                 'Document TEI alone (no SOURCE). Downloads the TEI schema '
                 '(specs plus Guidelines prose, ~2 MB) into the user cache on '
@@ -1693,10 +1694,6 @@ def document_cmd(
         str,
         typer.Option('--lang', help='xml:lang to prefer on gloss/desc/remarks (default: en).'),
     ] = 'en',
-    title: Annotated[
-        Optional[str],
-        typer.Option('--title', help='Site title (default: taken from the ODD header).'),
-    ] = None,
     odd: Annotated[
         Optional[Path],
         typer.Option(
@@ -1708,13 +1705,6 @@ def document_cmd(
     force: Annotated[
         bool,
         typer.Option('--force', help='Replace the output directory if it already exists.'),
-    ] = False,
-    offline: Annotated[
-        bool,
-        typer.Option(
-            '--offline',
-            help='Do not download the TEI schema; fail if it is not already cached.',
-        ),
     ] = False,
     preview: Annotated[
         bool,
@@ -1733,13 +1723,14 @@ def document_cmd(
 
     Follows ``schemaSpec/@source`` (processing-model chains included). A
     TEI-targeting ODD (``schemaSpec/@ns`` absent or the TEI namespace) is merged
-    onto the cached TEI schema. --tei documents TEI alone; --source supplies a
-    local schema instead. Writes
+    onto the cached TEI schema. --guidelines documents TEI alone; --source
+    supplies a local schema instead. Writes
     reference pages plus A–Z catalogs. Processing models are listed on each
     elementSpec.
 
     Chapter prose from the input is always kept, and when the input is itself
-    the schema being documented (--tei, a Guidelines p5.xml, a Specs directory)
+    the schema being documented (--guidelines, a Guidelines p5.xml, a Specs
+    directory)
     its chapters are published too. A customization documents itself, so TEI's
     chapters stay out of its site. An ODD pinning an older TEI/@version is
     compiled against the shipped snapshot, with a warning.
@@ -1748,15 +1739,14 @@ def document_cmd(
     from opm.document_site import build_document_site
     from opm.odd_schema import SchemaError, compile_schema
 
-    if source is None and not tei and schema_source is None:
-        _die('pass an ODD / spec document, or --tei to document the TEI schema.')
+    if source is None and not guidelines and schema_source is None:
+        _die('pass an ODD / spec document, or --guidelines to document the TEI schema.')
 
     try:
         compiled = compile_schema(
             source,
             source=schema_source,
-            use_tei=tei,
-            fetch=not offline,
+            use_guidelines=guidelines,
         )
     except SchemaError as exc:
         _die(str(exc), cause=exc)
@@ -1784,7 +1774,6 @@ def document_cmd(
             compiled,
             out_dir,
             lang=lang,
-            title=title,
             odd=odd,
             on_progress=_on_progress,
         )

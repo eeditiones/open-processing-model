@@ -82,22 +82,38 @@
   var ul = aside.querySelector('ul');
   if (!ul) return;
   var seen = {};
+  function entry(id, label, sub) {
+    if (!id || !label || seen[id]) return;
+    seen[id] = true;
+    var li = document.createElement('li');
+    if (sub) li.className = 'is-sub';
+    var a = document.createElement('a');
+    a.href = '#' + id;
+    a.textContent = label;
+    li.appendChild(a);
+    ul.appendChild(li);
+  }
+  // A reference section lists what it holds: the attributes the spec defines
+  // itself (the inherited ones live in the tree above the list, which has no
+  // anchors of its own) and the class / content relations under it.
+  function subEntries(section) {
+    section.querySelectorAll('dl.att-def > dt[id], dl.spec-facts > dt[id]')
+      .forEach(function (dt) {
+        var dd = dt.nextElementSibling;
+        if (dd && dd.tagName === 'DD' && !(dd.textContent || '').trim()) return;
+        var name = dt.querySelector('.att-def__name');
+        entry(dt.id, ((name || dt).textContent || '').trim(), true);
+      });
+  }
   main.querySelectorAll('h2, h3').forEach(function (heading) {
     var id = heading.id;
     if (!id) {
       var wrap = heading.closest('[id]');
       id = wrap ? wrap.id : '';
     }
-    var label = (heading.textContent || '').trim();
-    if (!id || !label || seen[id]) return;
-    seen[id] = true;
-    var li = document.createElement('li');
-    if (heading.tagName === 'H3') li.className = 'is-sub';
-    var a = document.createElement('a');
-    a.href = '#' + id;
-    a.textContent = label;
-    li.appendChild(a);
-    ul.appendChild(li);
+    entry(id, (heading.textContent || '').trim(), heading.tagName === 'H3');
+    var section = heading.tagName === 'H2' ? heading.closest('.spec-section') : null;
+    if (section) subEntries(section);
   });
   if (!ul.children.length) {
     // Keep the rail when it still carries the chapter's previous/next pair.

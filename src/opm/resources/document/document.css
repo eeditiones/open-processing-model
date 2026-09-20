@@ -791,6 +791,7 @@ pre.code, .egXML, .eg,
 .spec__chips {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
   margin: 0 0 2.75rem;
   font-family: var(--doc-body);
@@ -802,6 +803,15 @@ pre.code, .egXML, .eg,
   background: var(--doc-wash);
   border: 1px solid var(--doc-rule);
   color: var(--doc-ink);
+}
+/* A chip that leaves the site keeps the pill: it takes the arrow from the
+   external-link rule above, but none of its inline type or underline. */
+.doc-main a.spec__chip,
+.doc-main a.spec__chip[rel~="external"] {
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--doc-ink);
+  text-decoration: none;
 }
 a.spec__chip:hover { border-color: var(--doc-amber); color: var(--doc-ink); text-decoration: none; }
 .spec__chip strong { font-weight: 600; }

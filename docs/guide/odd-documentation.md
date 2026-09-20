@@ -20,7 +20,7 @@ By default the site is written to `odd/<schemaSpec ident>` (the ODD's
 opm odd document my.odd --force --preview
 
 # TEI itself, no customization
-opm odd document --tei -o tei-ref --force --preview
+opm odd document --guidelines -o tei-ref --force --preview
 ```
 
 One can use ODD to process non-TEI documents: `opm` currently supports

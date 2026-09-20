@@ -30,6 +30,7 @@ from opm.xml_parser import make_parser
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
 PB_NS = 'http://teipublisher.com/1.0'
 XML_LANG = '{http://www.w3.org/XML/1998/namespace}lang'
+XML_ID = '{http://www.w3.org/XML/1998/namespace}id'
 EX_NS = 'http://www.tei-c.org/ns/Examples'
 OPM_NS = 'http://teipublisher.com/opm/1.0'
 #: Marks a node that ``opm odd document`` publishes as its own page, and says
@@ -262,10 +263,20 @@ class Spec:
 class SpecIndex:
     """Lookup table of specs plus precomputed membership / content relations."""
 
-    def __init__(self, specs: dict[str, Spec], *, lang: str = 'en', title: str = ''):
+    def __init__(
+        self,
+        specs: dict[str, Spec],
+        *,
+        lang: str = 'en',
+        title: str = '',
+        chapter_anchors: dict[str, str] | None = None,
+    ):
         self._specs = specs
         self.lang = lang
         self.title = title
+        #: ``xml:id`` → the chapter page it lands on, for every id inside a
+        #: published chapter. Empty unless the site publishes chapter prose.
+        self._chapter_anchors = chapter_anchors or {}
         self._compute_relations()
 
     @classmethod
@@ -273,7 +284,25 @@ class SpecIndex:
         specs = _collect_specs(root, lang=lang)
         if not title:
             title = _document_title(root) or 'ODD documentation'
-        return cls(specs, lang=lang, title=title)
+        return cls(
+            specs,
+            lang=lang,
+            title=title,
+            chapter_anchors=_collect_chapter_anchors(root),
+        )
+
+    def chapter_page(self, xml_id: str) -> str | None:
+        """Local page URL for *xml_id*, or ``None`` when it is not published.
+
+        Ids are only known when the site documents the schema whose prose it
+        carries (``--guidelines``, a Guidelines ``p5.xml``, a Specs directory).
+        A customization publishes no TEI chapters, so pointers into them stay
+        external.
+        """
+        chapter = self._chapter_anchors.get(xml_id)
+        if chapter is None:
+            return None
+        return f'{chapter}.html' if chapter == xml_id else f'{chapter}.html#{xml_id}'
 
     @classmethod
     def from_path(cls, path: Path | str, *, lang: str = 'en') -> SpecIndex:
@@ -655,6 +684,28 @@ def _collect_specs(root: etree._Element, *, lang: str) -> dict[str, Spec]:
         if previous is None or (spec.module and not previous.module):
             merged[spec.ident] = spec
     return merged
+
+
+def _collect_chapter_anchors(root: etree._Element) -> dict[str, str]:
+    """Map every ``xml:id`` under a published chapter to that chapter's id.
+
+    ``@opm:page='chapter'`` is stamped by the site builder, so this is empty
+    for a tree that has not been prepared and for a customization, whose
+    chapters are its own rather than the documented schema's.
+    """
+    anchors: dict[str, str] = {}
+    for div in root.iter(qn('div')):
+        if div.get(OPM_PAGE) != PAGE_CHAPTER:
+            continue
+        chapter = div.get(XML_ID)
+        if not chapter:
+            continue
+        anchors[chapter] = chapter
+        for el in div.iter():
+            xml_id = el.get(XML_ID)
+            if xml_id:
+                anchors.setdefault(xml_id, chapter)
+    return anchors
 
 
 def _document_title(root: etree._Element) -> str:

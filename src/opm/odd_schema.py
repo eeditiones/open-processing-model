@@ -112,9 +112,8 @@ def ensure_p5all(
         return dest
     if not fetch:
         raise SchemaError(
-            f'The TEI schema is not cached at {dest}. '
-            'Re-run without --offline, or pass --source to a local p5subset.xml '
-            'or Guidelines p5.xml.'
+            f'The TEI schema is not cached at {dest} and downloading is off. '
+            'Pass --source to a local p5subset.xml or Guidelines p5.xml.'
         )
     dest.parent.mkdir(parents=True, exist_ok=True)
     archive = dest.with_suffix('.xml.gz.part')
@@ -282,7 +281,7 @@ def compile_schema(
     path: Path | str | None = None,
     *,
     source: Path | str | None = None,
-    use_tei: bool = False,
+    use_guidelines: bool = False,
     fetch: bool = True,
     p5all_url: str | None = None,
 ) -> CompiledSchema:
@@ -295,12 +294,12 @@ def compile_schema(
       resolve. It tracks TEI's latest release; an ODD pinning an older
       ``TEI/@version`` is compiled against the latest with a warning. JATS /
       DocBook set a different ``@ns`` and are left alone.
-    * ``use_tei`` documents TEI alone; an explicit *source* path wins over the
-      auto-fetch.
+    * ``use_guidelines`` documents TEI alone; an explicit *source* path wins
+      over the auto-fetch.
     * A compiled document (Guidelines ``p5.xml``, ``p5subset.xml``, a directory
       of Specs) with no further inheritance is returned as-is.
     * Chapter prose from the input is always kept. When the input *is* the
-      schema being documented (``use_tei``, a Guidelines ``p5.xml``, a Specs
+      schema being documented (``use_guidelines``, a Guidelines ``p5.xml``, a Specs
       directory) its chapters are published too. A customization merged onto
       TEI documents itself, so TEI's chapters stay out of its site.
     """
@@ -309,9 +308,9 @@ def compile_schema(
     fetched: Path | None = None
 
     input_path: Path | None = Path(path).resolve() if path else None
-    if input_path is None and not use_tei and explicit_source is None:
+    if input_path is None and not use_guidelines and explicit_source is None:
         raise SchemaError(
-            'Pass an ODD / compiled spec document, or --tei to document the TEI schema.'
+            'Pass an ODD / compiled spec document, or --guidelines to document the TEI schema.'
         )
 
     root: etree._Element | None = None
@@ -321,7 +320,10 @@ def compile_schema(
     if (
         root is not None
         and _is_standalone_spec_document(
-            root, input_path, explicit_source=explicit_source, use_tei=use_tei,
+            root,
+            input_path,
+            explicit_source=explicit_source,
+            use_guidelines=use_guidelines,
         )
     ):
         tree = _apply_prose(
@@ -346,7 +348,7 @@ def compile_schema(
     if source_path is not None:
         source_root = load_xml(source_path)
     else:
-        need_tei = use_tei or (
+        need_tei = use_guidelines or (
             root is not None
             and (_schema_source_is_tei(root) or targets_tei(root))
         )
@@ -374,7 +376,7 @@ def compile_schema(
         if schema is not None and schema.find(qn('moduleRef')) is not None:
             raise SchemaError(
                 f'{input_path} uses moduleRef but no schema source was found. '
-                'Pass --tei (downloads the TEI schema) or --source path/to/p5subset.xml.'
+                'Pass --guidelines (downloads the TEI schema) or --source path/to/p5subset.xml.'
             )
         tree = _apply_prose(
             root,
@@ -390,7 +392,7 @@ def compile_schema(
         )
     else:
         raise SchemaError(
-            'Pass an ODD / compiled spec document, or --tei to document the TEI schema.'
+            'Pass an ODD / compiled spec document, or --guidelines to document the TEI schema.'
         )
 
     for overlay_path in overlays:
@@ -575,7 +577,7 @@ def _is_standalone_spec_document(
     path: Path | None,
     *,
     explicit_source: Path | None,
-    use_tei: bool,
+    use_guidelines: bool,
 ) -> bool:
     """True when *root* is already the document to index (no merge).
 
@@ -587,7 +589,7 @@ def _is_standalone_spec_document(
     referencing TEI's with ``moduleRef``, and JATS / DocBook ODDs, which
     declare a non-TEI ``@ns``.
     """
-    if explicit_source is not None or use_tei:
+    if explicit_source is not None or use_guidelines:
         return False
     if path is not None and path.is_dir():
         return True
