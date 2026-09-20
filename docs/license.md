@@ -79,8 +79,14 @@ keep publishing your work under the AGPL. See
 ## Dependencies
 
 All runtime dependencies are permissively licensed and impose no copyleft of their own:
-lxml and Babel (BSD-3-Clause), Jinja2 (BSD), elementpath, Typer, Rich, python-docx and
-platformdirs (MIT).
+lxml and Babel (BSD-3-Clause), Jinja2 (BSD), Typer, Rich, python-docx and platformdirs
+(MIT).
+
+opm also ships a copy of [elementpath](https://github.com/sissaschool/elementpath) (MIT)
+under `src/opm/_vendor/`, rather than depending on it. The copy is a fork adding an XQuery 3.1 parser: if further testing demonstrates that this fork
+is solid, it may be submitted back to elementpath after some generalization, but for now it explicitely targets only the language features needed by OPM and should not be considered complete. Its licence
+travels with it, in `src/opm/_vendor/elementpath/LICENSE` and in every file's header. MIT
+imposes no copyleft, so this changes nothing about opm's own terms.
 
 ---
 

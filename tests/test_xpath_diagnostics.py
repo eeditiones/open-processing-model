@@ -49,13 +49,27 @@ def _isolate_cache(tmp_path: Path, monkeypatch) -> None:
 
 @pytest.mark.parametrize(('expr', 'reason'), [
     ('util:document-name(.)', 'eXist function util:document-name()'),
-    ("try { xs:date(@when) } catch * { string(@when) }", 'XQuery try/catch'),
-    ('head((ref, <ref type="previous"/>))', 'XQuery element constructor'),
-    ('let $a := 1 let $b := 2 return $a + $b', 'XQuery let chain'),
     ('no-such-function(.)', 'unknown function no-such-function()'),
 ])
 def test_static_problem_names_what_opm_cannot_run(expr: str, reason: str) -> None:
     assert static_problem(expr, {}) == reason
+
+
+@pytest.mark.parametrize('expr', [
+    "try { xs:date(@when) } catch * { string(@when) }",
+    'head((ref, <ref type="previous"/>))',
+    'let $a := 1 let $b := 2 return $a + $b',
+    'for $r in ref return $r/@target',
+])
+def test_static_problem_accepts_xquery(expr: str) -> None:
+    """The constructs the ODDs are written in, which opm parses as XQuery 3.1.
+
+    These were reported as unsupported for as long as opm parsed XPath 3.1
+    only; the vendored elementpath fork adds the XQuery parser, so they now
+    compile like any other expression. `describe` still knows how to name them,
+    for an elementpath that raises on one.
+    """
+    assert static_problem(expr, {}) is None
 
 
 @pytest.mark.parametrize('expr', [
@@ -97,14 +111,13 @@ def test_unsupported_param_falls_back_and_is_recorded(tmp_path: Path) -> None:
     odd = _odd(
         tmp_path,
         '<elementSpec ident="date"><model behaviour="inline">'
-        '<param name="content" value="try { format-date(xs:date(@when), \'[D1] [MNn] [Y]\') }'
-        ' catch * { string(@when) }"/>'
+        '<param name="content" value="no-such-function(.)"/>'
         '</model></elementSpec>',
     )
     found: list = []
     compile_odd(str(odd), diagnostics=found)
     assert [(e.where, e.reason) for e in found] == [
-        ('param content', 'XQuery try/catch'),
+        ('param content', 'unknown function no-such-function()'),
     ]
 
     mod = _module(tmp_path, odd)
@@ -112,6 +125,28 @@ def test_unsupported_param_falls_back_and_is_recorded(tmp_path: Path) -> None:
     out = run_transform(mod, etree.fromstring('<date when="1850-03-14">14.3.</date>'), apply_template=False)
     # The failing expression gave an empty sequence before, and still does.
     assert '<span' in out and '14.3.' not in out and '1850' not in out
+
+
+def test_xquery_param_is_compiled_not_reported(tmp_path: Path) -> None:
+    """A `try`/`catch` param runs, where it used to be skipped as unsupported."""
+    odd = _odd(
+        tmp_path,
+        '<elementSpec ident="date"><model behaviour="inline">'
+        '<param name="content" value="try { format-date(xs:date(@when), \'[D1] [MNn] [Y]\') }'
+        ' catch * { string(@when) }"/>'
+        '</model></elementSpec>',
+    )
+    found: list = []
+    compile_odd(str(odd), diagnostics=found)
+    assert found == []
+
+    mod = _module(tmp_path, odd)
+    assert mod.ODD_UNSUPPORTED == []
+    out = run_transform(mod, etree.fromstring('<date when="1850-03-14">14.3.</date>'), apply_template=False)
+    assert '14 3 1850' in out
+    # The catch arm is what the ODD falls back to, and it is reachable.
+    out = run_transform(mod, etree.fromstring('<date when="not-a-date">x</date>'), apply_template=False)
+    assert 'not-a-date' in out
 
 
 def test_names_supplied_by_the_project_are_compiled_not_reported(tmp_path: Path) -> None:
@@ -133,13 +168,19 @@ def test_names_supplied_by_the_project_are_compiled_not_reported(tmp_path: Path)
     assert "config.xpath.select_or_node(node, '($global:register" in src
 
 
-def test_stock_odd_reports_only_exist_functions_and_xquery() -> None:
+def test_stock_odd_reports_only_exist_functions() -> None:
+    """Nothing in teipublisher.odd is beyond opm now except eXist's own modules.
+
+    Its XQuery — the `try`/`catch` around `format-date`, the `<ref/>` placeholder
+    constructors of the correspContext models — compiles since opm parses XQuery
+    3.1. What is left needs a database opm does not have.
+    """
     found: list = []
     compile_odd(str(packaged_odd('teipublisher')), diagnostics=found)
 
     reasons = [e.reason for e in found]
-    assert any('eXist function' in r for r in reasons)
-    assert 'XQuery try/catch' in reasons
+    assert reasons, 'the stock ODD still calls eXist functions'
+    assert all(r.startswith('eXist function ') for r in reasons), reasons
     assert not any('tp:' in r for r in reasons)
     assert {e.odd for e in found} == {'teipublisher.odd'}
 

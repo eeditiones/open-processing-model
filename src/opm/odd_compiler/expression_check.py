@@ -25,13 +25,15 @@ from __future__ import annotations
 import re
 from dataclasses import asdict, dataclass
 
-from elementpath.exceptions import ElementPathError
+from opm._vendor.elementpath.exceptions import ElementPathError
 
 # Any prefixed name in an expression.
 _PREFIX_RE = re.compile(r'(?<![\w.-])([A-Za-z_][\w.-]*):[A-Za-z_]')
 # A call to a tp: extension function.
 _TP_CALL_RE = re.compile(r'(?<![\w.-])tp:([A-Za-z_][\w.-]*)\s*\(')
-_UNKNOWN_FUNCTION_RE = re.compile(r"unknown function '([^']+)'")
+# elementpath spells this two ways: the XPath parser quotes the name,
+# the XQuery one gives it unquoted with an arity suffix (``tp:missing#1``).
+_UNKNOWN_FUNCTION_RE = re.compile(r"unknown function (?:'([^']+)'|([^\s']+?)(?:#\d+)?)(?:\s|$)")
 _UNEXPECTED_RE = re.compile(r"unexpected '([^']+)'")
 
 #: Function namespaces of eXist's own modules, as TEI Publisher ODDs bind them.
@@ -98,7 +100,7 @@ def describe(exc: ElementPathError, expr: str) -> str:
 
     if code == 'XPST0017':
         match = _UNKNOWN_FUNCTION_RE.search(message)
-        name = match.group(1) if match else 'function'
+        name = (match.group(1) or match.group(2)) if match else 'function'
         prefix = name.partition(':')[0] if ':' in name else ''
         if prefix in EXIST_PREFIXES:
             return f'eXist function {name}()'

@@ -433,16 +433,15 @@ def transform(root, options=None, *, xpath_env=None):
         #    ODD as opting in. An ODD that has not opted in keeps the historical
         #    fallback to the context node, which the bundled teipublisher.odd
         #    relies on for its in-document listPerson register.
-        # 2. The expression must parse as XPath 3.1. Many eXist models are
-        #    XQuery, not XPath — chained ``let $a := ... let $b := ...`` clauses
-        #    are the common case, legal in XQuery but XPST0003 here. Those keep
-        #    the fallback too, rather than compiling into something that throws
-        #    (and is swallowed) at transform time.
+        # 2. The expression must be one opm can evaluate. What is left after
+        #    the move to XQuery 3.1 is eXist's own modules, which no parser
+        #    supplies. Those keep the fallback, rather than compiling into
+        #    something that throws (and is swallowed) at transform time.
         #
         # Opting in also means supplying [[transform.collections]] and
         # [transform.variables.<ns>] in opm.toml.
         if self._needs_external_context(v):
-            return self._parses_as_xpath(v)
+            return self._is_evaluable(v)
         return True
 
     @staticmethod
@@ -450,14 +449,15 @@ def transform(root, options=None, *, xpath_env=None):
         """True if *expr* depends on project config (a collection or a variable)."""
         return 'collection(' in expr or _EXTERNAL_VAR_RE.search(expr) is not None
 
-    def _parses_as_xpath(self, expr: str) -> bool:
-        """True if *expr* is XPath 3.1 opm can evaluate, rather than XQuery.
+    def _is_evaluable(self, expr: str) -> bool:
+        """True if opm can evaluate *expr* at all.
 
         See [`static_problem`][opm.odd_compiler.expression_check.static_problem]: prefixes
         the ODD does not declare are bound to placeholders and ``tp:`` calls are
         stubbed, since both are project config the cached module cannot know.
-        It catches the common eXist idiom of chained ``let $a := ... let $b :=
-        ...`` clauses, legal XQuery but XPST0003 here.
+        XQuery is no longer what this rules out — opm parses XQuery 3.1, so the
+        chained ``let $a := ... let $b := ...`` of the eXist models compiles.
+        What it still catches is a call into eXist's own modules.
         """
         return self._static_problem(expr) is None
 

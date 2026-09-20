@@ -36,7 +36,9 @@ from . import source_map
 
 _PREFIX_RE = re.compile(r"prefix '([^']+)' is not declared")
 _VARIABLE_RE = re.compile(r"unknown variable '([^']+)'")
-_FUNCTION_RE = re.compile(r"unknown function '([^']+)'")
+# elementpath spells this two ways: the XPath parser quotes the name,
+# the XQuery one gives it unquoted with an arity suffix (``tp:missing#1``).
+_FUNCTION_RE = re.compile(r"unknown function (?:'([^']+)'|([^\s']+?)(?:#\d+)?)(?:\s|$)")
 _COLLECTION_RE = re.compile(r"'([^']+)' collection not found")
 # elementpath names Python classes in some messages; keep only the class name.
 _CLASS_REPR_RE = re.compile(r"<class '(?:[\w.]+\.)?(\w+)'>")
@@ -152,7 +154,7 @@ def _config_hint(code: str, message: str) -> tuple[str, str] | None:
         )
     if code == 'XPST0017':
         match = _FUNCTION_RE.search(message)
-        name = match.group(1) if match else ''
+        name = (match.group(1) or match.group(2)) if match else ''
         if name.startswith('tp:'):
             return (
                 f'function:{name}',

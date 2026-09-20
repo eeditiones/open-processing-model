@@ -21,6 +21,27 @@ SPDX-FileCopyrightText = "2026 e-editiones"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
 
 # ---------------------------------------------------------------------------
+# Vendored third-party code: a fork of elementpath carrying an XQuery 3.1 parser,
+# copied in because opm needs XQuery and PyPI does not let a published package
+# depend on a git URL. MIT, as upstream — the block above would misstate it as
+# AGPL. Every .py file also carries the upstream MIT header in-file and wins
+# under REUSE's `closest` precedence anyway; this covers the LICENSE, py.typed,
+# the two XSDs and the README recording which commit was copied.
+#
+# The second copyright line is for the fork's own commits, which are the XQuery
+# parser; the first is upstream's, which the MIT licence requires be kept.
+# `scripts/vendor_elementpath.py` refreshes the copy — never edit it by hand.
+# ---------------------------------------------------------------------------
+
+[[annotations]]
+path = "src/opm/_vendor/elementpath/**"
+SPDX-FileCopyrightText = [
+  "2018-2026 SISSA (Scuola Internazionale Superiore di Studi Avanzati)",
+  "2026 Wolfgang Meier",
+]
+SPDX-License-Identifier = "MIT"
+
+# ---------------------------------------------------------------------------
 # Scaffolding: CC0, and copied into user projects by `opm init`.
 # ---------------------------------------------------------------------------
 

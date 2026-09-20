@@ -3,12 +3,20 @@
 
 """The XPath parser opm evaluates ODD expressions with.
 
-XPath 3.1 as elementpath implements it, with one change: ``fn:id()`` answers
+XQuery 3.1 as the vendored elementpath implements it
+([`opm._vendor.elementpath`][opm._vendor]), with one change: ``fn:id()`` answers
 from a per-document index instead of walking the whole document on every call.
 elementpath visits every node of the target document for each lookup, which on
 register-heavy editions — ``id($key, collection(...))`` in a predicate or param
 — dominated whole runs. ODDs are shared with TEI Publisher, so the fix has to
 live in the standard function rather than in a ``tp:`` alternative.
+
+XQuery rather than XPath because the ODDs are TEI Publisher's, and eXist
+evaluates them as XQuery: element constructors, ``let`` chains and
+``try``/``catch`` all appear in the stock models. XQuery 3.1 is a superset of
+XPath 3.1, so every expression that parsed before parses the same way — ``<``
+keeps its comparison meaning and gains a constructor reading only where an
+operand cannot follow.
 
 The index is built from the same node tree with the same ``is_id`` test, and
 the first element in document order wins for each value, exactly as in
@@ -24,10 +32,11 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Any
 
-from elementpath.datatypes import Id
-from elementpath.xpath31.xpath31_parser import XPath31Parser
-from elementpath.xpath_context import XPathSchemaContext
-from elementpath.xpath_nodes import DocumentNode, ElementNode, EtreeElementNode, XPathNode
+from opm._vendor.elementpath.datatypes import Id
+from opm._vendor.elementpath.xpath31.xpath31_parser import XPath31Parser
+from opm._vendor.elementpath.xpath_context import XPathSchemaContext
+from opm._vendor.elementpath.xpath_nodes import DocumentNode, ElementNode, EtreeElementNode, XPathNode
+from opm._vendor.elementpath.xquery31 import XQuery31Parser
 
 IdIndex = dict[str, tuple[int, EtreeElementNode]]
 
@@ -82,8 +91,8 @@ def _id_index(root: XPathNode) -> IdIndex:
     return env.id_index(root) if env is not None else build_id_index(root)
 
 
-class OpmXPathParser(XPath31Parser):
-    """XPath 3.1 with an indexed ``fn:id()``; see the module docstring."""
+class OpmXPathParser(XQuery31Parser):
+    """XQuery 3.1 with an indexed ``fn:id()``; see the module docstring."""
 
 
 class _IndexedIdFunction(XPath31Parser.symbol_table['id']):  # type: ignore[misc,valid-type]
@@ -124,7 +133,7 @@ class _IndexedIdFunction(XPath31Parser.symbol_table['id']):  # type: ignore[misc
             yield element
 
 
-# A subclass holds its own copy of the symbol table, so the stock XPath31Parser
-# keeps elementpath's implementation.
+# A subclass holds its own copy of the symbol table, so neither the stock
+# XPath31Parser nor XQuery31Parser loses elementpath's implementation.
 OpmXPathParser.symbol_table['id'] = _IndexedIdFunction
 OpmXPathParser.build()

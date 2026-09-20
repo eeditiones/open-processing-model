@@ -10,8 +10,8 @@ import inspect
 import os
 from typing import Any, Callable, cast
 
-from elementpath.exceptions import ElementPathValueError
-from elementpath.xpath_nodes import XPathNode
+from opm._vendor.elementpath.exceptions import ElementPathValueError
+from opm._vendor.elementpath.xpath_nodes import XPathNode
 import lxml.etree as ET
 
 from .xpath_parser import OpmXPathParser

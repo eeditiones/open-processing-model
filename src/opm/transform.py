@@ -75,7 +75,7 @@ from types import ModuleType
 from pathlib import Path
 from typing import Any, Sequence, TypedDict
 
-from elementpath.tree_builders import get_node_tree
+from opm._vendor.elementpath.tree_builders import get_node_tree
 from lxml import etree
 
 from opm.config import (

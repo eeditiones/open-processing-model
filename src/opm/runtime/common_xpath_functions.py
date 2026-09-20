@@ -13,8 +13,8 @@ from datetime import date, datetime
 
 import lxml.etree as ET
 from babel.dates import format_date as babel_format_date
-from elementpath.tree_builders import get_node_tree
-from elementpath.xpath_nodes import XPathNode
+from opm._vendor.elementpath.tree_builders import get_node_tree
+from opm._vendor.elementpath.xpath_nodes import XPathNode
 from opm.runtime.xpath_extensions import expect_element, expect_string
 
 TEI_NS = 'http://www.tei-c.org/ns/1.0'

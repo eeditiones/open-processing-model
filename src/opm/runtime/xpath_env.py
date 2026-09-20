@@ -30,11 +30,11 @@ from contextvars import ContextVar
 from functools import lru_cache
 from typing import Any
 
-import elementpath
-from elementpath import XPathContext
-from elementpath.tree_builders import get_node_tree
-from elementpath.xpath_nodes import XPathNode
-from elementpath.xpath31.xpath31_parser import XPath31Parser
+from opm._vendor import elementpath
+from opm._vendor.elementpath import XPathContext
+from opm._vendor.elementpath.tree_builders import get_node_tree
+from opm._vendor.elementpath.xpath_nodes import XPathNode
+from opm._vendor.elementpath.xpath31.xpath31_parser import XPath31Parser
 from lxml import etree
 
 from . import source_map
