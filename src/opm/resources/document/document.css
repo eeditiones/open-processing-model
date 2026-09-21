@@ -489,6 +489,15 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--doc-display); font-weight: 600; }
   font-size: 0.938rem;
   color: var(--doc-muted);
 }
+/* The edition line closes the masthead: smaller than the byline above it,
+   and gone when the header carries no editionStmt. */
+.home-edition {
+  margin: -0.9rem 0 1.5rem;
+  font-family: var(--doc-body);
+  font-size: 0.813rem;
+  color: var(--doc-muted);
+}
+.home-edition:empty { display: none; }
 .home-author + .home-author::before { content: ", "; }
 /* Both halves of the byline are optional — a TEI docDate holding nothing but a
    processing instruction renders empty — so neither the separator nor the line
@@ -1091,12 +1100,13 @@ a.spec__chip:hover { border-color: var(--doc-amber); color: var(--doc-ink); text
   text-transform: uppercase;
   margin: 0 0 1.125rem;
 }
-/* In a table of contents the label is part of the entry, not a mark beside it. */
+/* In a table of contents the label is part of the entry rather than a mark
+   beside it, so it takes the entry's size — but keeps the amber it has in a
+   heading, so a number reads as a number wherever it appears. */
 .doc-main .toc .heading-number {
   margin-right: 0.4em;
   font-size: inherit;
   font-weight: 500;
-  color: inherit;
 }
 .doc-main .toc .toc { margin: 0.15rem 0 0.35rem; padding-left: 1.25rem; }
 .doc-main .toc .toc li { margin: 0.2rem 0; font-size: 0.875rem; }

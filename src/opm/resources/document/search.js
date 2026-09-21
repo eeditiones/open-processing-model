@@ -105,12 +105,24 @@
         entry(dt.id, ((name || dt).textContent || '').trim(), true);
       });
   }
+  // What the rail links to. A chapter's headings sit in a div that carries the
+  // anchor, which is what the fragment links in the prose point at; a heading
+  // with neither its own id nor a section of its own — the groups on the home
+  // page — gets one made from its text, or the page's own container would
+  // stand in for every one of them and the rail would show only the first.
+  function anchor(heading) {
+    if (heading.id) return heading.id;
+    var wrap = heading.closest('[id]');
+    if (wrap && wrap !== main && !seen[wrap.id]) return wrap.id;
+    var base = (heading.textContent || '').trim().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'section';
+    var id = base;
+    for (var n = 2; document.getElementById(id); n++) id = base + '-' + n;
+    heading.id = id;
+    return id;
+  }
   main.querySelectorAll('h2, h3').forEach(function (heading) {
-    var id = heading.id;
-    if (!id) {
-      var wrap = heading.closest('[id]');
-      id = wrap ? wrap.id : '';
-    }
+    var id = anchor(heading);
     entry(id, (heading.textContent || '').trim(), heading.tagName === 'H3');
     var section = heading.tagName === 'H2' ? heading.closest('.spec-section') : null;
     if (section) subEntries(section);

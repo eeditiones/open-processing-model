@@ -46,8 +46,13 @@
                     <desc>In toc mode, headed nested divs become linked list items
                         (chapter file for top-level, fragment id otherwise).</desc>
                     <model predicate="@opm:page='home'" behaviour="pass-through">
-                        <param name="title" value="normalize-space((head, root($parameters?root)/teiHeader/fileDesc/titleStmt/title, @xml:id)[1])"/>
+                        <param name="title" value="normalize-space((head, root($parameters?root)/*/teiHeader/fileDesc/titleStmt/title, @xml:id)[1])"/>
                         <param name="blurb" value="titlePage | p | opener | epigraph"/>
+                        <!-- The release line from the header, under the title page's own
+                             byline: "P5 Version 4.12.0. Last updated on …". Flattened to
+                             text because the Guidelines link parts of it to pages that
+                             only exist in TEI's own build. -->
+                        <param name="edition" value="normalize-space(root($parameters?root)/*/teiHeader/fileDesc/editionStmt/edition)"/>
                         <param name="lead" value="if (empty((titlePage, p, opener, epigraph))) then 'Reference documentation generated from the ODD.' else ''"/>
                         <param name="toc" value="tp:guidelines_toc(.)"/>
                         <param name="nElements" value="tp:spec_count('element', .)"/>
@@ -55,7 +60,7 @@
                         <param name="nAtts" value="tp:spec_count('atts', .)"/>
                         <param name="nAttributes" value="tp:spec_count('attributes', .)"/>
                         <param name="nMacros" value="tp:spec_count('macro', .)"/>
-                        <pb:template xmlns=""><section class="home"><h1>[[title]]</h1>[[blurb]]<p class="lead">[[lead]]</p>[[toc]]<h2>Reference</h2><ul class="toc"><li><a href="REF-ELEMENTS.html">Elements</a> <span class="muted">[[nElements]]</span></li><li><a href="REF-CLASSES-MODEL.html">Model classes</a> <span class="muted">[[nModel]]</span></li><li><a href="REF-CLASSES-ATTS.html">Attribute classes</a> <span class="muted">[[nAtts]]</span></li><li><a href="REF-ATTS.html">Attributes</a> <span class="muted">[[nAttributes]]</span></li><li><a href="REF-MACROS.html">Macros and datatypes</a> <span class="muted">[[nMacros]]</span></li></ul></section></pb:template>
+                        <pb:template xmlns=""><section class="home"><h1>[[title]]</h1>[[blurb]]<p class="home-edition">[[edition]]</p><p class="lead">[[lead]]</p>[[toc]]<h2>Reference</h2><ul class="toc"><li><a href="REF-ELEMENTS.html">Elements</a> <span class="muted">[[nElements]]</span></li><li><a href="REF-CLASSES-MODEL.html">Model classes</a> <span class="muted">[[nModel]]</span></li><li><a href="REF-CLASSES-ATTS.html">Attribute classes</a> <span class="muted">[[nAtts]]</span></li><li><a href="REF-ATTS.html">Attributes</a> <span class="muted">[[nAttributes]]</span></li><li><a href="REF-MACROS.html">Macros and datatypes</a> <span class="muted">[[nMacros]]</span></li></ul></section></pb:template>
                     </model>
                     <model predicate="@opm:page='catalog'" behaviour="pass-through">
                         <param name="heading" value="normalize-space(head)"/>
