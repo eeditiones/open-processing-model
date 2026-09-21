@@ -1,0 +1,13 @@
+# The TEI P5 release that `opm odd document` documents, and that TEI-targeting
+# ODDs are merged onto. One release number, as it appears in TEIC/TEI's own tag
+# `P5_Release_<version>`.
+#
+# TEI ships on its own schedule, and a new release can change content models
+# and prose. Moving to one is therefore a decision, taken in a reviewed commit:
+# bump the line below, then run the "TEI data" workflow, which builds
+# p5all.xml from exactly this tag and publishes it to the rolling `tei-data`
+# release. Nothing else republishes it — no schedule, no discovery of newer
+# tags — so the data moves only when someone decides it should.
+#
+# See CONTRIBUTING.md, "Updating the TEI data".
+4.12.0

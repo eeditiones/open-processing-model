@@ -29,8 +29,10 @@ result in a flat structure as the schema is not expressed in the ODD: consequent
 and _may contain_ sections will be empty.
 
 ODDs which are real TEI customizations will always be merged with the full TEI ODD before being
-processed. `opm` in this case uses the latest TEI release. If the ODD to be document does reference
-a different version (`@version` tag on the `TEI` root element), a warning will be printed.
+processed. `opm` in this case uses a pinned TEI release, specified in the `tei-version` file
+of this repository.
+If the ODD to be document does reference a different version (`@version` tag on the `TEI` root
+element), a warning will be printed.
 
 If your ODD contains prose, i.e. documentation chapters, it will be
 extracted and displayed first.

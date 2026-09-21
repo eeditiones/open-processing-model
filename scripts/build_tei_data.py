@@ -18,6 +18,7 @@ import argparse
 import gzip
 import re
 import sys
+from datetime import date as Date
 from pathlib import Path
 
 from lxml import etree
@@ -51,6 +52,99 @@ def describe_version(root: etree._Element) -> str:
 
 def _q(tag: str) -> str:
     return f'{{{TEI_NS}}}{tag}'
+
+
+def _ordinal(day: int) -> str:
+    """``28`` → ``28th``, the day format TEI's own build writes."""
+    if 11 <= day % 100 <= 13:
+        return f'{day}th'
+    suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
+    return f'{day}{suffix}'
+
+
+def _in_example(el: etree._Element) -> bool:
+    """True inside ``egXML``/``eg``: specs quoted in prose are not the schema's."""
+    parent = el.getparent()
+    while parent is not None:
+        if isinstance(parent.tag, str) and etree.QName(parent).localname in {'egXML', 'eg'}:
+            return True
+        parent = parent.getparent()
+    return False
+
+
+def _spec_totals(root: etree._Element) -> dict[str, str]:
+    """The counts TEI's prose quotes of itself ("There are N model classes…").
+
+    Same definitions TEI's own build uses, which is why they come out at its
+    published numbers: every spec but those quoted inside an example, and
+    attributes counted by distinct name rather than by declaration.
+    """
+    classes = [c for c in root.iter(_q('classSpec')) if not _in_example(c)]
+    attributes = {
+        a.get('ident') for a in root.iter(_q('attDef'))
+        if a.get('ident') and not _in_example(a)
+    }
+    return {
+        'totalElements': str(
+            sum(1 for e in root.iter(_q('elementSpec')) if not _in_example(e))
+        ),
+        'totalModelClasses': str(sum(1 for c in classes if c.get('type') == 'model')),
+        'totalAttributeClasses': str(sum(1 for c in classes if c.get('type') == 'atts')),
+        'totalAttributes': str(len(attributes)),
+        'totalDataSpec': str(
+            sum(1 for d in root.iter(_q('dataSpec')) if not _in_example(d))
+        ),
+    }
+
+
+def expand_insert_pis(
+    root: etree._Element,
+    *,
+    version: str = '',
+    revision: str = '',
+    when: Date | None = None,
+) -> tuple[int, list[str]]:
+    """Fill TEI's build-time ``<?insert …?>`` placeholders; report what is left.
+
+    The Guidelines source carries its release number, date, revision and its
+    own self-counts as processing instructions, which TEI's Makefile fills and
+    a plain XInclude resolve does not: left alone they render as nothing, so
+    the edition line reads "P5 ." and the copyright year is blank. A
+    placeholder with no value stays a placeholder — a later build can still
+    fill it, and an empty one would only hide that it was never supplied.
+    """
+    values = _spec_totals(root)
+    if version:
+        # TEI writes the word too: "P5 Version 4.12.0. Last updated on …".
+        values['version'] = f'Version {version}'
+    if revision:
+        values['revision'] = revision
+    if when is not None:
+        values['date'] = f'{_ordinal(when.day)} {when.strftime("%B")} {when.year}'
+        values['year'] = str(when.year)
+
+    filled = 0
+    unfilled: set[str] = set()
+    for pi in list(root.iter(etree.ProcessingInstruction)):
+        if pi.target != 'insert':
+            continue
+        key = (pi.text or '').strip()
+        text = values.get(key)
+        if not text:
+            unfilled.add(key)
+            continue
+        parent = pi.getparent()
+        if parent is None:
+            continue
+        tail = pi.tail or ''
+        previous = pi.getprevious()
+        if previous is None:
+            parent.text = (parent.text or '') + text + tail
+        else:
+            previous.tail = (previous.tail or '') + text + tail
+        parent.remove(pi)
+        filled += 1
+    return filled, sorted(unfilled)
 
 
 def _counts(root: etree._Element) -> dict[str, int]:
@@ -108,7 +202,14 @@ def _load(path: Path) -> etree._Element:
         raise ArtifactError(f'{path} could not be parsed: {exc}') from exc
 
 
-def build(source: Path, out: Path) -> int:
+def build(
+    source: Path,
+    out: Path,
+    *,
+    version: str = '',
+    revision: str = '',
+    when: Date | None = None,
+) -> int:
     parser = etree.XMLParser(
         remove_blank_text=False, resolve_entities=False, huge_tree=True,
         collect_ids=False,
@@ -121,6 +222,14 @@ def build(source: Path, out: Path) -> int:
     for el in root.iter():
         if isinstance(el.tag, str) and XML_BASE in el.attrib:
             del el.attrib[XML_BASE]
+    filled, unfilled = expand_insert_pis(
+        root, version=version, revision=revision, when=when,
+    )
+    print(f'filled {filled} <?insert?> placeholder(s)')
+    if unfilled:
+        # tab-content-models is a table TEI generates; the rest mean the
+        # release metadata was not passed in.
+        print(f'left unfilled: {", ".join(unfilled)}', file=sys.stderr)
     problems = _check(root)
     if problems:
         print(f'{source} did not produce a usable artifact:', file=sys.stderr)
@@ -157,6 +266,18 @@ def main(argv: list[str] | None = None) -> int:
         help='P5/Source/guidelines-en.xml to XInclude-resolve',
     )
     ap.add_argument('--out', type=Path, help='where to write p5all.xml')
+    ap.add_argument(
+        '--version', default='',
+        help='TEI release being built, e.g. 4.12.0 (fills <?insert version?>).',
+    )
+    ap.add_argument(
+        '--revision', default='',
+        help='Short commit of the TEI checkout (fills <?insert revision?>).',
+    )
+    ap.add_argument(
+        '--date', default='',
+        help='Release date as YYYY-MM-DD (fills <?insert date?> / <?insert year?>).',
+    )
     ap.add_argument('--verify', type=Path, help='check a built .xml or .xml.gz')
     ap.add_argument(
         '--print-version', type=Path,
@@ -171,7 +292,16 @@ def main(argv: list[str] | None = None) -> int:
         return verify(args.verify)
     if not args.source or not args.out:
         ap.error('--source and --out are required to build')
-    return build(args.source, args.out)
+    when = None
+    if args.date:
+        try:
+            when = Date.fromisoformat(args.date)
+        except ValueError:
+            ap.error(f'--date must be YYYY-MM-DD, not {args.date!r}')
+    return build(
+        args.source, args.out,
+        version=args.version, revision=args.revision, when=when,
+    )
 
 
 if __name__ == '__main__':

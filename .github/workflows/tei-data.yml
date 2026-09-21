@@ -8,6 +8,11 @@
 #
 # Separate from the package release on purpose. TEI ships on its own schedule,
 # so refreshing this data must not require cutting an opm version.
+#
+# Which TEI release is built is pinned in `tei-version`, not discovered here: a
+# new Guidelines release can change content models and prose, so moving to one
+# is a reviewed commit followed by a deliberate run of this workflow. Nothing
+# runs on a schedule — publishing stays a decision someone takes.
 name: TEI data
 
 on:
@@ -15,15 +20,10 @@ on:
     inputs:
       tei_ref:
         description: >-
-          TEI tag to build from. Defaults to the latest P5_Release_* tag.
-          Use `dev` only to preview unreleased Guidelines.
+          Build this TEI tag instead of the one `tei-version` pins. For
+          previewing a release before pinning it; `dev` previews unreleased
+          Guidelines. The result is still published, so bump the pin after.
         default: ""
-  schedule:
-    # Monthly, so a TEI release is picked up without anyone remembering to.
-    - cron: "0 4 1 * *"
-
-permissions:
-  contents: write
 
 concurrency:
   group: tei-data
@@ -32,6 +32,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
 
@@ -40,21 +42,17 @@ jobs:
       - name: Resolve the TEI release to build
         id: tei
         env:
-          GH_TOKEN: ${{ github.token }}
           REQUESTED: ${{ inputs.tei_ref }}
         run: |
           set -euo pipefail
           ref="$REQUESTED"
           if [ -z "$ref" ]; then
-            # Release tags look like P5_Release_4.12.0. Pick the newest by
-            # version, not by date: TEI re-tags older lines occasionally.
-            ref=$(gh api repos/TEIC/TEI/tags --paginate --jq '.[].name' \
-              | grep -E '^P5_Release_[0-9]+\.[0-9]+(\.[0-9]+)?$' \
-              | sort -V | tail -1)
-          fi
-          if [ -z "$ref" ]; then
-            echo "Could not resolve a TEI release tag" >&2
-            exit 1
+            pinned=$(grep -vE '^[[:space:]]*(#|$)' tei-version | head -1 | tr -d '[:space:]')
+            if ! printf '%s' "$pinned" | grep -qE '^[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
+              echo "tei-version must hold a P5 release number like 4.12.0, not '$pinned'" >&2
+              exit 1
+            fi
+            ref="P5_Release_$pinned"
           fi
           version="${ref#P5_Release_}"
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
@@ -72,13 +70,30 @@ jobs:
           sparse-checkout-cone-mode: true
 
       - name: Build p5all.xml
+        env:
+          VERSION: ${{ steps.tei.outputs.version }}
         run: |
           set -euo pipefail
+          # The Guidelines source carries its release number, date, revision
+          # and self-counts as <?insert …?> placeholders that TEI's Makefile
+          # fills. We resolve XInclude ourselves, so we fill them ourselves:
+          # the release comes from the tag, the rest from the tagged commit.
+          revision=$(git -C tei-source rev-parse --short=9 HEAD)
+          released=$(git -C tei-source log -1 --format=%cs)
+          # A preview build off a branch has no release number; leave the
+          # placeholder standing rather than writing "Version dev" into the
+          # edition line as though it were one.
+          release="$VERSION"
+          printf '%s' "$release" | grep -qE '^[0-9]+\.[0-9]+(\.[0-9]+)?$' || release=""
+          echo "TEI ${release:-$VERSION}, revision $revision, dated $released"
           # P5/p5.xml is NOT in the repo — TEI gitignores it as a Makefile
           # build product. The XInclude driver is the real input.
           uv run python scripts/build_tei_data.py \
             --source tei-source/P5/Source/guidelines-en.xml \
-            --out build/tei-data/p5all.xml
+            --out build/tei-data/p5all.xml \
+            --version "$release" \
+            --revision "$revision" \
+            --date "$released"
 
       - name: Compress and checksum
         run: |
@@ -101,7 +116,11 @@ jobs:
           TEI_REF: ${{ steps.tei.outputs.ref }}
         run: |
           set -euo pipefail
+          pinned=$(grep -vE '^[[:space:]]*(#|$)' tei-version | head -1 | tr -d '[:space:]')
           notes="TEI P5 $VERSION, built from TEIC/TEI@$TEI_REF on $(date -u +%Y-%m-%d)."
+          if [ "$VERSION" != "$pinned" ]; then
+            notes="$notes Preview build — tei-version pins $pinned."
+          fi
           if gh release view tei-data >/dev/null 2>&1; then
             gh release edit tei-data --notes "$notes" --title "TEI data ($VERSION)"
           else
