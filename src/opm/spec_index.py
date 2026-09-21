@@ -202,13 +202,12 @@ class Spec:
     kind: str
     module: str | None
     class_type: str | None
+    #: The canonical spec element. ``gloss``, ``desc``, ``remarks``,
+    #: ``exemplum`` and ``constraintSpec`` are read off it by the ODD, through
+    #: [`tp:spec`][opm.runtime.spec_xpath_functions.spec] — the xml:lang
+    #: preference lives there, next to the markup it feeds.
     node: etree._Element
-    gloss: etree._Element | None
-    desc: etree._Element | None
-    remarks: etree._Element | None
-    exempla: list[etree._Element]
     content: etree._Element | None
-    constraints: list[etree._Element]
     list_refs: list[str]
     member_of_keys: list[str]
     local_atts: list[AttDefView]
@@ -267,11 +266,15 @@ class SpecIndex:
         self,
         specs: dict[str, Spec],
         *,
+        modules: dict[str, Spec] | None = None,
         lang: str = 'en',
         title: str = '',
         chapter_anchors: dict[str, str] | None = None,
     ):
         self._specs = specs
+        #: ``moduleSpec``s, kept apart from *specs* because module idents are
+        #: their own namespace — see [`_collect_specs`][opm.spec_index._collect_specs].
+        self._modules = modules or {}
         self.lang = lang
         self.title = title
         #: ``xml:id`` → the chapter page it lands on, for every id inside a
@@ -281,11 +284,12 @@ class SpecIndex:
 
     @classmethod
     def from_tree(cls, root: etree._Element, *, lang: str = 'en', title: str = '') -> SpecIndex:
-        specs = _collect_specs(root, lang=lang)
+        specs, modules = _collect_specs(root, lang=lang)
         if not title:
             title = _document_title(root) or 'ODD documentation'
         return cls(
             specs,
+            modules=modules,
             lang=lang,
             title=title,
             chapter_anchors=_collect_chapter_anchors(root),
@@ -350,7 +354,11 @@ class SpecIndex:
         return [s for s in self.all() if s.kind == 'datatype']
 
     def modules(self) -> list[Spec]:
-        return [s for s in self.all() if s.kind == 'module']
+        return sorted(self._modules.values(), key=lambda s: s.ident.lower())
+
+    def module(self, ident: str) -> Spec | None:
+        """A ``moduleSpec`` by ident. Modules are not reachable via `get`."""
+        return self._modules.get(ident)
 
     def attributes(self) -> list[tuple[str, list[Spec]]]:
         """Attribute ident → specs (classes/elements) that define it, A–Z."""
@@ -414,9 +422,16 @@ class SpecIndex:
                 for other in self._specs.values()
                 if spec.ident in other.member_of_keys
             ])
-            spec.used_by = _unique_refs(content_parents.get(('class', spec.ident), [])
-                                        + content_parents.get(('macro', spec.ident), [])
-                                        + content_parents.get(('data', spec.ident), []))
+            used_by = (content_parents.get(('class', spec.ident), [])
+                       + content_parents.get(('macro', spec.ident), [])
+                       + content_parents.get(('data', spec.ident), []))
+            if spec.is_model_class:
+                # A model class is also "used" by the classes it is a member of:
+                # a classRef to the parent matches this class's members too. The
+                # TEI Stylesheets list those parents alongside the content-model
+                # references, so model.persStateLike shows model.personPart.
+                used_by += [self.ref(key, kind='class') for key in spec.model_classes]
+            spec.used_by = _unique_refs(used_by)
             if spec.kind == 'element':
                 spec.may_contain = self._expand_content(spec.content)
                 spec.contained_by = self._contained_by(spec, content_parents)
@@ -600,15 +615,7 @@ def _spec_from_element(el: etree._Element, kind: str, lang: str) -> Spec | None:
         module=el.get('module'),
         class_type=el.get('type'),
         node=el,
-        gloss=pick_lang(_children(el, 'gloss'), lang),
-        desc=pick_lang(_children(el, 'desc'), lang),
-        remarks=pick_lang(_children(el, 'remarks'), lang),
-        exempla=[
-            ex for ex in _children(el, 'exemplum')
-            if (ex.get(XML_LANG) or lang) == lang
-        ] or _children(el, 'exemplum')[:1],
         content=_first(el, 'content'),
-        constraints=_children(el, 'constraintSpec'),
         list_refs=ptrs,
         member_of_keys=member_of,
         local_atts=local_atts,
@@ -673,17 +680,33 @@ def iter_canonical_specs(root: etree._Element):
             yield el, kind
 
 
-def _collect_specs(root: etree._Element, *, lang: str) -> dict[str, Spec]:
+def _collect_specs(
+    root: etree._Element, *, lang: str
+) -> tuple[dict[str, Spec], dict[str, Spec]]:
+    """Referenceable specs by ident, and ``moduleSpec``s by ident.
+
+    Modules are kept in a dict of their own because module idents are a
+    separate namespace: ``moduleRef/@key`` names a module, while
+    ``elementRef`` / ``classRef`` / ``macroRef`` / ``dataRef`` name the rest.
+    TEI does reuse one name across both — ``certainty`` is an element *and*
+    the module that declares it — so a single dict keyed on ident alone drops
+    whichever of the two is indexed second.
+
+    Within either namespace a repeated ident is still possible (a merged ODD
+    can carry more than one copy of a spec), and there the copy carrying
+    ``@module`` wins as the canonical one.
+    """
     merged: dict[str, Spec] = {}
+    modules: dict[str, Spec] = {}
     for el, kind in iter_canonical_specs(root):
         spec = _spec_from_element(el, kind, lang)
         if spec is None:
             continue
-        previous = merged.get(spec.ident)
-        # Prefer the copy that carries @module (canonical Guidelines / p5subset).
+        target = modules if kind == 'module' else merged
+        previous = target.get(spec.ident)
         if previous is None or (spec.module and not previous.module):
-            merged[spec.ident] = spec
-    return merged
+            target[spec.ident] = spec
+    return merged, modules
 
 
 def _collect_chapter_anchors(root: etree._Element) -> dict[str, str]:

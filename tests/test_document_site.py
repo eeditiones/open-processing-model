@@ -642,7 +642,11 @@ def test_unsupported_expressions_in_own_odd_are_reported(tmp_path: Path) -> None
     odd = tmp_path / 'tampered.odd'
     packaged = Path(packaged_odd('tagdocs')).read_text(encoding='utf-8')
     odd.write_text(
-        packaged.replace('tp:spec_desc(@key, .)', 'current()'),
+        packaged.replace(
+            'let $s := tp:spec(@key, .) return '
+            '($s/desc[@xml:lang=$parameters?lng], $s/desc[not(@xml:lang)], $s/desc)[1]',
+            'current()',
+        ),
         encoding='utf-8',
     )
 

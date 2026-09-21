@@ -25,6 +25,25 @@ def extension_namespace_map() -> dict[str, str]:
     return {TEI_PUBLISHER_XPATH_EXT_PREFIX: TEI_PUBLISHER_XPATH_EXT_NS}
 
 
+#: Attribute a ``tp:`` function carries to declare its XPath signature.
+_SEQUENCE_TYPES_ATTR = 'xpath_sequence_types'
+
+
+def sequence_types(*types: str) -> Callable[[Any], Any]:
+    """Declare the XPath argument and return types of a ``tp:`` function.
+
+    Registration otherwise lets elementpath infer ``item()?`` for every
+    argument, which is right for the functions that take one node or one
+    string. A function that takes a node *set* has to say so, or elementpath
+    rejects the call with ``XPTY0004`` before the function ever runs. The last
+    entry is the return type, as elementpath expects.
+    """
+    def decorate(fn: Any) -> Any:
+        setattr(fn, _SEQUENCE_TYPES_ATTR, types)
+        return fn
+    return decorate
+
+
 def expect_element(value: Any, *, arg_name: str = 'argument') -> ET._Element:
     """Unwrap an XPath item and require an lxml element.
 
@@ -126,7 +145,7 @@ def build_extension_parser(
                 fn,
                 name=name,
                 prefix=TEI_PUBLISHER_XPATH_EXT_PREFIX,
-                sequence_types=(),
+                sequence_types=getattr(fn, _SEQUENCE_TYPES_ATTR, ()),
             )
         except ElementPathValueError as e:
             raise ElementPathValueError(

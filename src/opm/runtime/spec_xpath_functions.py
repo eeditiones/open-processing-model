@@ -15,10 +15,11 @@ import copy
 import re
 from typing import Any
 
+from elementpath.tree_builders import get_node_tree
 from lxml import etree
 
 from opm.runtime.xpath_env import current_environment
-from opm.runtime.xpath_extensions import expect_element, expect_string
+from opm.runtime.xpath_extensions import expect_element, expect_string, sequence_types
 from opm.spec_index import (
     TEXT_IDENT,
     AttClassView,
@@ -26,7 +27,6 @@ from opm.spec_index import (
     SpecIndex,
     SpecRef,
     localname,
-    pick_lang,
     qn,
     serialize_spec_xml,
 )
@@ -39,15 +39,6 @@ _USAGE_LABELS = {
     'req': 'Required',
     'rec': 'Recommended',
     'mwa': 'Mandatory when applicable',
-}
-
-MODEL_TAGS = {'model', 'modelGrp', 'modelSequence'}
-
-_KIND_TAGS = {
-    'element': 'elementSpec',
-    'class': 'classSpec',
-    'macro': 'macroSpec',
-    'datatype': 'dataSpec',
 }
 
 _KIND_PREDICATES = {
@@ -165,60 +156,89 @@ def _section(anchor: str, heading: str) -> etree._Element:
     return wrap
 
 
-def spec_models(spec: Any) -> etree._Element | str:
-    """Processing-model tree as a spec section, or the empty string."""
-    resolved = _spec_of(spec)
+def spec(value: Any, node: Any = None) -> etree._Element | list[Any]:
+    """The canonical spec node for *value* — a spec element, or an ident.
+
+    A ref page already stands on the spec it documents, so ``tp:spec(.)`` is
+    usually the context node itself. Resolving through the index is what makes
+    a lookup by name work (``tp:spec(@key, .)``), and what keeps a merged ODD
+    that carries a spec twice on the copy carrying ``@module``.
+
+    Returns the empty sequence when nothing matches, so a caller can walk into
+    the result (``tp:spec(@key, .)/tei:desc``) without a guard.
+    """
+    resolved: Spec | None = None
+    try:
+        element = expect_element(value, arg_name='spec')
+    except ValueError:
+        resolved = _spec_by_ident(value, node)
+    else:
+        resolved = _spec_of(element)
     if resolved is None:
-        return ''
-    children = [
-        child for child in resolved.node
-        if localname(child) in MODEL_TAGS
-    ]
-    if not children:
-        return ''
-    wrap = _section('ref-models', 'Processing model')
-    for child in children:
-        wrap.append(copy.deepcopy(child))
-    return wrap
+        return []
+    return _as_xpath_node(resolved.node)
 
 
-def spec_notes(spec: Any) -> etree._Element | str:
-    resolved = _spec_of(spec)
-    if resolved is None or resolved.remarks is None:
-        return ''
-    wrap = _section('ref-notes', 'Note')
-    wrap.append(copy.deepcopy(resolved.remarks))
-    return wrap
+def _as_xpath_node(el: etree._Element) -> Any:
+    """Wrap *el* so XPath can walk into it, or return it under a declared type.
+
+    elementpath rejects a bare lxml element both as an intermediate path step
+    and as an ``item()``, so a node a function hands back has to come from a
+    node tree: without this ``tp:spec(@key, .)/desc`` yields nothing. A node of
+    the source document is taken from the run's cached tree, which keeps
+    identity and document order intact — the same wrapping ``$source-node``
+    does, see [`_xpath_source_node`][opm.runtime.xpath_env._xpath_source_node].
+    An element built here, such as a spec section, is its own root and gets a
+    throwaway tree of its own.
+    """
+    tree = el.getroottree()
+    env = current_environment()
+    if env is not None and tree.getroot() is not el:
+        try:
+            return env.wrapped(el).elements[el]
+        except (AttributeError, KeyError, TypeError):
+            pass
+    try:
+        return get_node_tree(tree).elements[el]  # type: ignore[union-attr,index]
+    except (AttributeError, KeyError, TypeError):
+        return el
 
 
-def spec_examples(spec: Any) -> etree._Element | str:
-    resolved = _spec_of(spec)
-    if resolved is None or not resolved.exempla:
-        return ''
-    heading = 'Example' if len(resolved.exempla) == 1 else 'Examples'
-    wrap = _section('ref-examples', heading)
-    for example in resolved.exempla:
-        wrap.append(copy.deepcopy(example))
-    return wrap
+def _as_elements(value: Any) -> list[etree._Element]:
+    """XPath argument to a list of elements, dropping anything else.
+
+    Never tests *value* for truth: an lxml element with no children is falsy.
+    """
+    if value is None:
+        return []
+    items = list(value) if isinstance(value, (list, tuple)) else [value]
+    out: list[etree._Element] = []
+    for item in items:
+        try:
+            out.append(expect_element(item, arg_name='spec_section(nodes)'))
+        except ValueError:
+            continue
+    return out
 
 
-def spec_constraints(spec: Any) -> etree._Element | str:
-    resolved = _spec_of(spec)
-    if resolved is None or not resolved.constraints:
-        return ''
-    wrap = _section('ref-constraints', 'Schematron')
-    for constraint in resolved.constraints:
-        wrap.append(copy.deepcopy(constraint))
-    return wrap
+@sequence_types('xs:string', 'xs:string', 'item()*', 'item()*')
+def spec_section(anchor: Any, heading: Any, nodes: Any) -> Any:
+    """Wrap *nodes* in the ``spec-section`` div the ref-page models render.
 
-
-def spec_content(spec: Any) -> etree._Element | str:
-    resolved = _spec_of(spec)
-    if resolved is None or resolved.content is None:
-        return ''
-    wrap = _section('ref-schema', 'Content model')
-    wrap.append(copy.deepcopy(resolved.content))
-    return wrap
+    The ODD selects the nodes, and so owns the ``xml:lang`` preference and the
+    heading; this only builds the wrapper. Each node is deep-copied because
+    appending a live one would move it out of the source tree.
+    """
+    items = _as_elements(nodes)
+    if not items:
+        return []
+    wrap = _section(
+        expect_string(anchor, arg_name='spec_section(anchor)'),
+        expect_string(heading, arg_name='spec_section(heading)'),
+    )
+    for item in items:
+        wrap.append(copy.deepcopy(item))
+    return _as_xpath_node(wrap)
 
 
 def contained_by(spec: Any) -> etree._Element:
@@ -307,31 +327,6 @@ def spec_exists(ident: Any, node: Any = None) -> bool:
     """True when *ident* is a documented element, class, macro or datatype."""
     spec = _spec_by_ident(ident, node)
     return spec is not None and spec.kind in {'element', 'class', 'macro', 'datatype'}
-
-
-def spec_kind_tag(ident: Any, node: Any = None) -> str:
-    """``elementSpec`` / ``classSpec`` / … for *ident*, for ``specDesc`` CSS."""
-    spec = _spec_by_ident(ident, node)
-    if spec is None:
-        return 'elementSpec'
-    return _KIND_TAGS.get(spec.kind, 'elementSpec')
-
-
-def spec_gloss_label(ident: Any, node: Any = None) -> str:
-    """``(gloss) `` prefix for a ``specDesc``, or the empty string."""
-    spec = _spec_by_ident(ident, node)
-    if spec is None or spec.gloss is None:
-        return ''
-    text = ' '.join(spec.gloss.itertext()).strip()
-    return f'({text}) ' if text else ''
-
-
-def spec_desc(ident: Any, node: Any = None) -> etree._Element | str:
-    """The language-picked ``desc`` node for *ident*, or the empty string."""
-    spec = _spec_by_ident(ident, node)
-    if spec is None or spec.desc is None:
-        return ''
-    return spec.desc
 
 
 def _spec_by_ident(ident: Any, node: Any = None) -> Spec | None:
@@ -570,18 +565,3 @@ def _bucket_letter(ident: str) -> str:
             break
     ch = rest[:1].upper() if rest else '#'
     return ch if ch.isalpha() else '#'
-
-
-def lang_node(nodes: Any, name: str | None = None) -> etree._Element | str:
-    """Pick the ``xml:lang``-matching child named *name* (default: context children).
-
-    Kept for ODD expressions that need the same preference as SpecIndex:
-    requested language, then unlanguaged, then the first.
-    """
-    env = current_environment()
-    lang = str((env.parameters or {}).get('lng') or 'en') if env else 'en'
-    parent = expect_element(nodes, arg_name='lang_node(nodes)')
-    tag = expect_string(name, arg_name='lang_node(name)').strip() if name else ''
-    candidates = [c for c in parent if not tag or localname(c) == tag]
-    hit = pick_lang(candidates, lang)
-    return hit if hit is not None else ''

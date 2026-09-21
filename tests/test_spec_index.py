@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from opm.spec_index import SpecIndex, TEXT_IDENT, serialize_spec_xml
+from opm.spec_index import SpecIndex, TEXT_IDENT, pick_lang, qn, serialize_spec_xml
 from opm.runtime.common_xpath_functions import normalize_egxml, serialize_egxml
 
 FIXTURES = Path(__file__).resolve().parent / 'fixtures'
@@ -20,22 +20,53 @@ def index() -> SpecIndex:
 
 def test_indexes_elements_classes_macros(index: SpecIndex) -> None:
     assert {s.ident for s in index.elements()} == {'div', 'hi', 'p'}
-    assert {s.ident for s in index.model_classes()} == {'model.pLike', 'model.phrase'}
+    assert {s.ident for s in index.model_classes()} == {
+        'model.divPart',
+        'model.pLike',
+        'model.phrase',
+    }
     assert {s.ident for s in index.att_classes()} == {'att.global'}
     assert {s.ident for s in index.macros()} == {'macro.paraContent'}
     assert index.element('p').module == 'core'
-    assert index.element('p').gloss is not None
-    assert index.element('p').gloss.text == 'paragraph'
+    # gloss/desc/remarks/exemplum stay on the node: the ODD reads them with
+    # XPath through `tp:spec`, which is where the xml:lang preference lives.
+    gloss = index.element('p').node.find(qn('gloss'))
+    assert gloss is not None
+    assert gloss.text == 'paragraph'
     assert [m.behaviour for m in index.element('p').models] == ['paragraph']
     assert index.element('p').models[0].desc is not None
 
 
-def test_language_filter_picks_english_desc(index: SpecIndex) -> None:
-    desc = index.element('p').desc
-    assert desc is not None
-    assert 'marks paragraphs' in ''.join(desc.itertext())
-    fr = SpecIndex.from_path(MINI, lang='fr')
-    assert 'marque les paragraphes' in ''.join(fr.element('p').desc.itertext())
+def test_module_idents_do_not_collide_with_element_idents(index: SpecIndex) -> None:
+    """A ``moduleSpec`` never displaces a spec of the same name, or vice versa.
+
+    TEI names the ``certainty`` module after the ``certainty`` element; the
+    fixture mirrors that with ``hi``.
+    """
+    assert {s.ident for s in index.modules()} == {'tei', 'core', 'verse', 'hi'}
+    assert index.module('hi') is not None
+    assert index.module('hi').kind == 'module'
+    # `get` stays in the referenceable namespace: it resolves the element.
+    assert index.require('hi').kind == 'element'
+    # Modules are not part of the A-Z spec catalogs either.
+    assert all(s.kind != 'module' for s in index.all())
+
+
+def test_language_filter_picks_requested_desc(index: SpecIndex) -> None:
+    """`pick_lang` is the rule the ODD's own xml:lang idiom mirrors.
+
+    Spec no longer caches a language-picked ``desc``; what is left in Python
+    uses `pick_lang` for the nodes it does keep (attribute and model descs).
+    """
+    descs = index.element('p').node.findall(qn('desc'))
+    en = pick_lang(descs, 'en')
+    assert en is not None
+    assert 'marks paragraphs' in ''.join(en.itertext())
+    fr = pick_lang(descs, 'fr')
+    assert fr is not None
+    assert 'marque les paragraphes' in ''.join(fr.itertext())
+    # No node in the requested language: prefer an unlanguaged one, then the first.
+    assert pick_lang(descs, 'zz') is descs[0]
 
 
 def test_may_contain_expands_macro_and_class(index: SpecIndex) -> None:
@@ -56,7 +87,9 @@ def test_contained_by_via_model_class(index: SpecIndex) -> None:
 def test_members_and_used_by(index: SpecIndex) -> None:
     p_like = index.require('model.pLike')
     assert {m.ident for m in p_like.members} == {'p'}
-    assert {u.ident for u in p_like.used_by} == {'div'}
+    # ``div`` references the class in its content model; ``model.divPart`` uses it
+    # by way of membership, as the TEI Stylesheets report it.
+    assert {u.ident for u in p_like.used_by} == {'div', 'model.divPart'}
     phrase = index.require('model.phrase')
     assert {m.ident for m in phrase.members} == {'hi'}
     assert {u.ident for u in phrase.used_by} == {'macro.paraContent'}

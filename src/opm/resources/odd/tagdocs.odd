@@ -297,9 +297,9 @@
                     <model predicate="@key" behaviour="pass-through">
                         <param name="uri" value="concat('ref-', @key, '.html')"/>
                         <param name="ident" value="@key"/>
-                        <param name="rend" value="tp:spec_kind_tag(@key, .)"/>
-                        <param name="gloss" value="tp:spec_gloss_label(@key, .)"/>
-                        <param name="desc" value="tp:spec_desc(@key, .)"/>
+                        <param name="rend" value="let $s := tp:spec(@key, .) return if ($s) then local-name($s) else 'elementSpec'"/>
+                        <param name="gloss" value="let $s := tp:spec(@key, .), $g := normalize-space(($s/gloss[@xml:lang=$parameters?lng], $s/gloss[not(@xml:lang)], $s/gloss)[1]) return if ($g) then concat('(', $g, ') ') else ''"/>
+                        <param name="desc" value="let $s := tp:spec(@key, .) return ($s/desc[@xml:lang=$parameters?lng], $s/desc[not(@xml:lang)], $s/desc)[1]"/>
                         <pb:template xmlns=""><li class="specDesc"><span class="specList-[[rend]]"><a href="[[uri]]">[[ident]]</a></span> [[gloss]][[desc]]</li></pb:template>
                     </model>
                 </elementSpec>
@@ -433,11 +433,11 @@
                         <param name="memberOf" value="tp:member_of(.)"/>
                         <param name="mayContain" value="tp:may_contain(.)"/>
                         <param name="containedBy" value="tp:contained_by(.)"/>
-                        <param name="models" value="tp:spec_models(.)"/>
-                        <param name="notes" value="tp:spec_notes(.)"/>
-                        <param name="examples" value="tp:spec_examples(.)"/>
-                        <param name="constraints" value="tp:spec_constraints(.)"/>
-                        <param name="schema" value="tp:spec_content(.)"/>
+                        <param name="models" value="tp:spec_section('ref-models', 'Processing model', model|modelGrp|modelSequence)"/>
+                        <param name="notes" value="tp:spec_section('ref-notes', 'Note', (remarks[@xml:lang=$parameters?lng], remarks[not(@xml:lang)], remarks)[1])"/>
+                        <param name="examples" value="let $ex := (if (exemplum[not(@xml:lang) or @xml:lang=$parameters?lng]) then exemplum[not(@xml:lang) or @xml:lang=$parameters?lng] else exemplum[1]) return tp:spec_section('ref-examples', if (count($ex) eq 1) then 'Example' else 'Examples', $ex)"/>
+                        <param name="constraints" value="tp:spec_section('ref-constraints', 'Schematron', constraintSpec)"/>
+                        <param name="schema" value="tp:spec_section('ref-schema', 'Content model', content)"/>
                         <pb:template xmlns=""><article class="spec spec--element"><h1><span class="spec__ident">&lt;[[ident]]&gt;</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span>[[listRef]]</div><section class="spec-section" id="ref-attributes"><h2>Attributes</h2><div class="spec-note">Global and inherited attributes:[[attTree]]</div><dl class="att-def">[[localAtts]]</dl><p class="spec-note">[[attEmpty]]</p></section><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt id="ref-memberOf">Member of</dt><dd><div class="spec-links">[[memberOf]]</div></dd><dt id="ref-mayContain">May contain</dt><dd>[[mayContain]]</dd><dt id="ref-containedBy">Contained by</dt><dd>[[containedBy]]</dd></dl></section>[[models]][[notes]][[examples]][[constraints]][[schema]]</article></pb:template>
                     </model>
                 </elementSpec>
@@ -452,8 +452,8 @@
                         <param name="localAtts" value="attList/attDef[not(@mode='delete')]"/>
                         <param name="usedBy" value="tp:used_by(.)"/>
                         <param name="members" value="tp:members(.)"/>
-                        <param name="notes" value="tp:spec_notes(.)"/>
-                        <param name="examples" value="tp:spec_examples(.)"/>
+                        <param name="notes" value="tp:spec_section('ref-notes', 'Note', (remarks[@xml:lang=$parameters?lng], remarks[not(@xml:lang)], remarks)[1])"/>
+                        <param name="examples" value="let $ex := (if (exemplum[not(@xml:lang) or @xml:lang=$parameters?lng]) then exemplum[not(@xml:lang) or @xml:lang=$parameters?lng] else exemplum[1]) return tp:spec_section('ref-examples', if (count($ex) eq 1) then 'Example' else 'Examples', $ex)"/>
                         <pb:template xmlns=""><article class="spec spec--class"><h1><span class="spec__ident">[[ident]]</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span></div><section class="spec-section" id="ref-attributes"><h2>Attributes</h2>[[attTree]]<dl class="att-def">[[localAtts]]</dl></section><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt id="ref-usedBy">Used by</dt><dd><div class="spec-links">[[usedBy]]</div></dd><dt id="ref-members">Members</dt><dd><div class="spec-links">[[members]]</div></dd></dl></section>[[notes]][[examples]]</article></pb:template>
                     </model>
                     <model behaviour="pass-through">
@@ -463,8 +463,8 @@
                         <param name="module" value="@module"/>
                         <param name="usedBy" value="tp:used_by(.)"/>
                         <param name="members" value="tp:members(.)"/>
-                        <param name="notes" value="tp:spec_notes(.)"/>
-                        <param name="examples" value="tp:spec_examples(.)"/>
+                        <param name="notes" value="tp:spec_section('ref-notes', 'Note', (remarks[@xml:lang=$parameters?lng], remarks[not(@xml:lang)], remarks)[1])"/>
+                        <param name="examples" value="let $ex := (if (exemplum[not(@xml:lang) or @xml:lang=$parameters?lng]) then exemplum[not(@xml:lang) or @xml:lang=$parameters?lng] else exemplum[1]) return tp:spec_section('ref-examples', if (count($ex) eq 1) then 'Example' else 'Examples', $ex)"/>
                         <pb:template xmlns=""><article class="spec spec--class"><h1><span class="spec__ident">[[ident]]</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span></div><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt id="ref-usedBy">Used by</dt><dd><div class="spec-links">[[usedBy]]</div></dd><dt id="ref-members">Members</dt><dd><div class="spec-links">[[members]]</div></dd></dl></section>[[notes]][[examples]]</article></pb:template>
                     </model>
                 </elementSpec>
@@ -477,9 +477,9 @@
                         <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
                         <param name="module" value="@module"/>
                         <param name="usedBy" value="tp:used_by(.)"/>
-                        <param name="notes" value="tp:spec_notes(.)"/>
-                        <param name="examples" value="tp:spec_examples(.)"/>
-                        <param name="schema" value="tp:spec_content(.)"/>
+                        <param name="notes" value="tp:spec_section('ref-notes', 'Note', (remarks[@xml:lang=$parameters?lng], remarks[not(@xml:lang)], remarks)[1])"/>
+                        <param name="examples" value="let $ex := (if (exemplum[not(@xml:lang) or @xml:lang=$parameters?lng]) then exemplum[not(@xml:lang) or @xml:lang=$parameters?lng] else exemplum[1]) return tp:spec_section('ref-examples', if (count($ex) eq 1) then 'Example' else 'Examples', $ex)"/>
+                        <param name="schema" value="tp:spec_section('ref-schema', 'Content model', content)"/>
                         <pb:template xmlns=""><article class="spec spec--macro"><h1><span class="spec__ident">[[ident]]</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span></div><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt id="ref-usedBy">Used by</dt><dd><div class="spec-links">[[usedBy]]</div></dd></dl></section>[[notes]][[examples]][[schema]]</article></pb:template>
                     </model>
                 </elementSpec>
@@ -491,8 +491,8 @@
                         <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
                         <param name="module" value="@module"/>
                         <param name="usedBy" value="tp:used_by(.)"/>
-                        <param name="notes" value="tp:spec_notes(.)"/>
-                        <param name="schema" value="tp:spec_content(.)"/>
+                        <param name="notes" value="tp:spec_section('ref-notes', 'Note', (remarks[@xml:lang=$parameters?lng], remarks[not(@xml:lang)], remarks)[1])"/>
+                        <param name="schema" value="tp:spec_section('ref-schema', 'Content model', content)"/>
                         <pb:template xmlns=""><article class="spec spec--datatype"><h1><span class="spec__ident">[[ident]]</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span></div><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt id="ref-usedBy">Used by</dt><dd><div class="spec-links">[[usedBy]]</div></dd></dl></section>[[notes]][[schema]]</article></pb:template>
                     </model>
                 </elementSpec>

@@ -284,7 +284,7 @@ def test_tp_request_accepts_xml_suffix_content_types() -> None:
 def test_tp_spec_functions_use_spec_index() -> None:
     from pathlib import Path
 
-    from opm.spec_index import SpecIndex
+    from opm.spec_index import SpecIndex, localname
 
     mini = Path(__file__).resolve().parent / 'fixtures' / 'mini_schema.odd'
     index = SpecIndex.from_path(mini)
@@ -319,10 +319,27 @@ def test_tp_spec_functions_use_spec_index() -> None:
     assert used is not None
     assert env.test(p, 'tp:spec_exists("hi", .)')
     assert not env.test(p, 'tp:spec_exists("no-such-element", .)')
-    assert env.select(p, 'tp:spec_kind_tag("p", .)') == 'elementSpec'
-    assert env.select(p, 'tp:spec_gloss_label("p", .)') == '(paragraph) '
-    desc = env.select(p, 'tp:spec_desc("p", .)')
+    # tp:spec hands back a node the ODD can walk into, by ident or by node.
+    assert env.select(p, 'local-name(tp:spec("p", .))') == 'elementSpec'
+    assert env.select(p, 'tp:spec("no-such-element", .)') == []
+    gloss = env.select(p, 'tp:spec("p", .)/gloss')
+    assert ' '.join(gloss.itertext()) == 'paragraph'
+    desc = env.select(
+        p,
+        'let $s := tp:spec("p", .) return '
+        '($s/desc[@xml:lang="en"], $s/desc[not(@xml:lang)], $s/desc)[1]',
+    )
     assert desc is not None
     assert 'marks paragraphs' in ' '.join(desc.itertext())
+    # tp:spec(.) resolves the context spec through the index, not by identity.
+    assert env.select(p, 'tp:spec(.)/@ident') == 'p'
+    # tp:spec_section wraps a nodeset the ODD selected; empty in, nothing out.
+    section = env.select(
+        p, 'tp:spec_section("ref-notes", "Note", remarks)',
+    )
+    assert section.get('type') == 'spec-section'
+    assert section.get('n') == 'ref-notes'
+    assert [localname(c) for c in section] == ['head', 'remarks']
+    assert env.select(p, 'tp:spec_section("ref-x", "X", nonesuch)') == []
     assert env.select(p, 'tp:has_attribute_tree(.)')
     assert env.select(p, 'tp:usage_label("opt")') == 'Optional'

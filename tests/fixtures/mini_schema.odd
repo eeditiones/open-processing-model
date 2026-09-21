@@ -30,6 +30,12 @@
         <moduleSpec ident="verse">
           <desc xml:lang="en">Verse structures.</desc>
         </moduleSpec>
+        <!-- Deliberately shares its ident with the `hi` element below, the way
+             TEI names the `certainty` module after the `certainty` element.
+             Module idents are their own namespace and must not collide. -->
+        <moduleSpec ident="hi">
+          <desc xml:lang="en">Highlighting.</desc>
+        </moduleSpec>
 
         <classSpec ident="att.global" type="atts" module="tei">
           <desc xml:lang="en">attributes common to all elements</desc>
@@ -51,6 +57,13 @@
 
         <classSpec ident="model.pLike" type="model" module="tei">
           <desc xml:lang="en">paragraph-like elements</desc>
+          <classes>
+            <memberOf key="model.divPart"/>
+          </classes>
+        </classSpec>
+
+        <classSpec ident="model.divPart" type="model" module="tei">
+          <desc xml:lang="en">paragraph-level elements</desc>
         </classSpec>
 
         <macroSpec ident="macro.paraContent" module="tei">
