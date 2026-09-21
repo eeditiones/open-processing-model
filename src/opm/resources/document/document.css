@@ -365,7 +365,20 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--doc-display); font-weight: 600; }
   margin: 2.5rem 0 0.75rem;
 }
 .doc-main h3 { font-size: 1.25rem; line-height: 1.3; margin: 2rem 0 0.65rem; }
-.doc-main h4 { font-size: 1.0625rem; margin: 1.65rem 0 0.5rem; }
+.doc-main h4 { font-size: 1.125rem; margin: 1.65rem 0 0.5rem; }
+/* A head's level follows the depth of its div, so chapter prose reaches h5
+   and h6, which the browser would otherwise set *below* body size. The scale
+   bottoms out at the body's 1.0625rem: the last level parts company with the
+   text by tracking and colour instead of by shrinking below it. */
+.doc-main h5 { font-size: 1.0625rem; line-height: 1.35; margin: 1.5rem 0 0.45rem; }
+.doc-main h6 {
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--doc-muted);
+  margin: 1.4rem 0 0.4rem;
+}
 .doc-main p { margin: 0 0 1.15rem; }
 /* Chapter navigation sits in two places, per the design: a full-width pair of
    cards after the last section, and a compact pair in the right-hand rail under
@@ -477,7 +490,11 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--doc-display); font-weight: 600; }
   color: var(--doc-muted);
 }
 .home-author + .home-author::before { content: ", "; }
-.home-date::before { content: " · "; }
+/* Both halves of the byline are optional — a TEI docDate holding nothing but a
+   processing instruction renders empty — so neither the separator nor the line
+   itself shows up on its own. */
+.home-date:not(:empty)::before { content: " · "; }
+.home-byline:not(:has(.home-author:not(:empty), .home-date:not(:empty))) { display: none; }
 .home > p {
   font-size: 1.1875rem;
   line-height: 1.55;
@@ -497,21 +514,27 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--doc-display); font-weight: 600; }
 .title-page__byline, .title-page__imprint { color: var(--doc-muted); }
 .muted { color: var(--doc-muted); }
 
-/* Nested headed divs are subsections. Space and a hairline live on the
-   wrapper so they are not collapsed away from the preceding paragraph
-   (the heading is the wrapper's first child). The chapter <section> itself
-   is not a subsection. */
-.doc-main > section > .tei-div:has(> .tei-head) {
+/* Top-level headed divs are the chapter's sections. Space and a hairline live
+   on the wrapper so they are not collapsed away from the preceding paragraph
+   (the heading is the wrapper's first child). The chapter <article> itself is
+   not a section of itself. */
+.doc-main .doc-chapter > .tei-div:has(> .tei-head) {
   margin-top: 2.5rem;
   padding-top: 1.65rem;
   border-top: 1px solid var(--doc-rule);
 }
-.doc-main > section > .tei-div .tei-div:has(> .tei-head) {
+/* Subsections below that get neither rule nor padding: the wrapper margin is
+   only a floor, and the heading's own margin collapses into it. */
+.doc-main .doc-chapter > .tei-div .tei-div:has(> .tei-head) {
   margin-top: 2rem;
   padding-top: 0;
   border-top: 0;
 }
-.doc-main .tei-div > .tei-head:first-child {
+/* Only the padded wrapper above needs its heading's margin zeroed — padding
+   stops that margin collapsing, so it would otherwise add to the rule gap.
+   Deeper headings keep their margin; without it they sat flush against the
+   preceding paragraph. */
+.doc-main .doc-chapter > .tei-div > .tei-head:first-child {
   margin-top: 0;
   padding-top: 0;
   border-top: 0;
@@ -1045,6 +1068,36 @@ a.spec__chip:hover { border-color: var(--doc-amber); color: var(--doc-ink); text
 .catalog h2:first-of-type { margin-top: 1rem; }
 .doc-main .toc { list-style: none; padding: 0; font-family: var(--doc-body); font-size: 0.938rem; }
 .doc-main .toc li { margin: 0.35rem 0; }
+/* Outline labels — "1.2.1", "iv.1.", "Appendix A" — opening a heading or a
+   table-of-contents entry. Per the design the label is not part of the
+   heading's own voice: it stays small and sans at one fixed size whatever the
+   heading does, marked in amber, on the heading's baseline. */
+.heading-number {
+  margin-right: 0.875rem;
+  font-family: var(--doc-body);
+  font-size: 0.813rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--doc-amber-text);
+}
+.heading-number:empty { display: none; }
+/* A chapter's own label opens the page instead, as the line above the title. */
+.doc-main h1 > .heading-number {
+  display: block;
+  font-size: 0.688rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 0 0 1.125rem;
+}
+/* In a table of contents the label is part of the entry, not a mark beside it. */
+.doc-main .toc .heading-number {
+  margin-right: 0.4em;
+  font-size: inherit;
+  font-weight: 500;
+  color: inherit;
+}
 .doc-main .toc .toc { margin: 0.15rem 0 0.35rem; padding-left: 1.25rem; }
 .doc-main .toc .toc li { margin: 0.2rem 0; font-size: 0.875rem; }
 

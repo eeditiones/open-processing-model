@@ -34,3 +34,25 @@ a different version (`@version` tag on the `TEI` root element), a warning will b
 
 If your ODD contains prose, i.e. documentation chapters, it will be
 extracted and displayed first.
+
+Chapters and their subdivisions are numbered as in the published TEI
+Guidelines: arabic in the body (`1`, `1.2`, `1.2.1`), lowercase roman with a
+trailing dot in the front matter (`iv.`, `iv.1.`), and lettered in the back
+matter (`Appendix A`, `Appendix A.1`). The index at each level is the
+division's position among its siblings, so a title page carries no number, and
+neither do the pages `opm` adds itself. The A–Z catalogs are appendices, in the
+order they appear in the sidebar.
+
+## Example: the TEI Guidelines
+
+The [TEI Guidelines](../guidelines/index.html) published alongside this
+documentation are the unedited output of
+
+```bash
+opm odd document --guidelines
+```
+
+`scripts/build_guidelines_docs.sh` runs it into `docs/guidelines/`, from where
+the documentation build copies it verbatim. The directory is generated, not
+tracked: run the script once if you want the subsite in a local `zensical
+serve`.

@@ -26,6 +26,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Generated into docs/guidelines/, published at /guidelines/. Downloads
+      # the TEI schema into the runner's cache on first use.
+      - name: Build TEI Guidelines reference
+        run: ./scripts/build_guidelines_docs.sh
+
       - name: Build documentation
         run: uv run --locked --group docs zensical build --clean
 

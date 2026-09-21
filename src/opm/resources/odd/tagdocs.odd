@@ -59,12 +59,14 @@
                     </model>
                     <model predicate="@opm:page='catalog'" behaviour="pass-through">
                         <param name="heading" value="normalize-space(head)"/>
+                        <param name="number" value="tp:heading_mark(.)"/>
                         <param name="catalog" value="tp:spec_catalog(@subtype, .)"/>
-                        <pb:template xmlns=""><section class="catalog"><h1>[[heading]]</h1>[[catalog]]</section></pb:template>
+                        <pb:template xmlns=""><section class="catalog"><h1>[[number]][[heading]]</h1>[[catalog]]</section></pb:template>
                     </model>
                     <model predicate="@opm:page='atts'" behaviour="pass-through">
+                        <param name="number" value="tp:heading_mark(.)"/>
                         <param name="catalog" value="tp:attribute_catalog(.)"/>
-                        <pb:template xmlns=""><section class="catalog"><h1>Attributes</h1>[[catalog]]</section></pb:template>
+                        <pb:template xmlns=""><section class="catalog"><h1>[[number]]Attributes</h1>[[catalog]]</section></pb:template>
                     </model>
                     <model predicate="@type='guidelines-toc' and count(list)=1" behaviour="pass-through">
                         <param name="content" value="list"/>
@@ -102,10 +104,10 @@
                     <model predicate="$parameters?mode='chapnav' and @opm:page='chapter'" behaviour="pass-through">
                         <param name="prevHref" value="let $p := preceding::div[@opm:page='chapter'][1] return if (exists($p/@xml:id)) then concat($p/@xml:id, '.html') else ''"/>
                         <param name="prevTitle" value="let $p := preceding::div[@opm:page='chapter'][1] return if (exists($p/head)) then normalize-space($p/head[1]) else ''"/>
-                        <param name="prevNum" value="let $p := preceding::div[@opm:page='chapter'][1] return if (exists($p/parent::body)) then string(count($p/preceding-sibling::div[@opm:page='chapter']) + 1) else ''"/>
+                        <param name="prevNum" value="let $p := preceding::div[@opm:page='chapter'][1] return tp:heading_label($p)"/>
                         <param name="nextHref" value="let $n := following::div[@opm:page='chapter'][1] return if (exists($n/@xml:id)) then concat($n/@xml:id, '.html') else ''"/>
                         <param name="nextTitle" value="let $n := following::div[@opm:page='chapter'][1] return if (exists($n/head)) then normalize-space($n/head[1]) else ''"/>
-                        <param name="nextNum" value="let $n := following::div[@opm:page='chapter'][1] return if (exists($n/parent::body)) then string(count($n/preceding-sibling::div[@opm:page='chapter']) + 1) else ''"/>
+                        <param name="nextNum" value="let $n := following::div[@opm:page='chapter'][1] return tp:heading_label($n)"/>
                         <pb:template xmlns=""><nav class="chapter-nav chapter-nav--rail" aria-label="Chapter"><a class="chapter-nav__prev" href="[[prevHref]]" rel="prev"><span class="chapter-nav__label">Previous</span><span class="chapter-nav__title"><span class="chapter-nav__num">[[prevNum]]</span>[[prevTitle]]</span></a><a class="chapter-nav__next" href="[[nextHref]]" rel="next"><span class="chapter-nav__label">Next</span><span class="chapter-nav__title"><span class="chapter-nav__num">[[nextNum]]</span>[[nextTitle]]</span></a></nav></pb:template>
                     </model>
                     <!-- Full-width previous/next cards closing the chapter. Kept out of the
@@ -114,10 +116,10 @@
                     <model predicate="$parameters?mode='chapnav-end' and @opm:page='chapter'" behaviour="pass-through">
                         <param name="prevHref" value="let $p := preceding::div[@opm:page='chapter'][1] return if (exists($p/@xml:id)) then concat($p/@xml:id, '.html') else ''"/>
                         <param name="prevTitle" value="let $p := preceding::div[@opm:page='chapter'][1] return if (exists($p/head)) then normalize-space($p/head[1]) else ''"/>
-                        <param name="prevNum" value="let $p := preceding::div[@opm:page='chapter'][1] return if (exists($p/parent::body)) then string(count($p/preceding-sibling::div[@opm:page='chapter']) + 1) else ''"/>
+                        <param name="prevNum" value="let $p := preceding::div[@opm:page='chapter'][1] return tp:heading_label($p)"/>
                         <param name="nextHref" value="let $n := following::div[@opm:page='chapter'][1] return if (exists($n/@xml:id)) then concat($n/@xml:id, '.html') else ''"/>
                         <param name="nextTitle" value="let $n := following::div[@opm:page='chapter'][1] return if (exists($n/head)) then normalize-space($n/head[1]) else ''"/>
-                        <param name="nextNum" value="let $n := following::div[@opm:page='chapter'][1] return if (exists($n/parent::body)) then string(count($n/preceding-sibling::div[@opm:page='chapter']) + 1) else ''"/>
+                        <param name="nextNum" value="let $n := following::div[@opm:page='chapter'][1] return tp:heading_label($n)"/>
                         <pb:template xmlns=""><nav class="chapter-nav" aria-label="Chapter navigation"><a class="chapter-nav__prev" href="[[prevHref]]" rel="prev"><span class="chapter-nav__label">Previous chapter</span><span class="chapter-nav__title"><span class="chapter-nav__num">[[prevNum]]</span>[[prevTitle]]</span></a><a class="chapter-nav__next" href="[[nextHref]]" rel="next"><span class="chapter-nav__label">Next chapter</span><span class="chapter-nav__title"><span class="chapter-nav__num">[[nextNum]]</span>[[nextTitle]]</span></a></nav></pb:template>
                     </model>
                     <model predicate="@opm:page='chapter'" behaviour="pass-through">
@@ -135,6 +137,9 @@
                     <model predicate="parent::list" behaviour="block" cssClass="list-head"/>
                     <model predicate="parent::div" behaviour="heading">
                         <param name="level" value="count(ancestor::div)"/>
+                        <!-- Outline label ("1.2.1", "iv.1.", "Appendix A.1"), as in
+                             the published Guidelines. Empty outside front/body/back. -->
+                        <param name="content" value="(tp:heading_mark(parent::div), node())"/>
                     </model>
                     <model behaviour="block"/>
                 </elementSpec>
@@ -192,7 +197,10 @@
                 <elementSpec ident="titlePage" mode="change">
                     <desc>Home-page byline, or the full title page on Title.html.</desc>
                     <model predicate="ancestor::div[@opm:page='home']" behaviour="pass-through">
-                        <param name="sub" value="docTitle/titlePart[@type='sub']"/>
+                        <!-- The docTitle as it reads on the title page: its parts run
+                             together ("TEI P5: Guidelines for ..."). Dropped when it
+                             only repeats the heading above it. -->
+                        <param name="sub" value="if (normalize-space(docTitle) = normalize-space(ancestor::div[@opm:page='home']/head)) then () else docTitle/titlePart"/>
                         <param name="authors" value="docAuthor"/>
                         <param name="date" value="docDate"/>
                         <pb:template xmlns=""><p class="home-sub">[[sub]]</p><p class="home-byline">[[authors]] [[date]]</p></pb:template>
@@ -350,6 +358,7 @@
                     <model behaviour="inline" cssClass="term"/>
                 </elementSpec>
                 <elementSpec ident="seg" mode="change">
+                    <model predicate="@type='headingNumber'" behaviour="inline" cssClass="heading-number"/>
                     <model predicate="@type='module'" behaviour="inline" cssClass="muted"/>
                     <model predicate="@type=('empty','charData')" behaviour="inline" cssClass="muted"/>
                     <model behaviour="inline"/>

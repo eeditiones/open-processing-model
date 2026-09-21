@@ -187,8 +187,9 @@ def prepare_document_tree(
 
     Then the site's own pages are injected, because ``chunk`` selects chunks by
     XPath over this tree and names each file after an ``xml:id``: a page with
-    no node cannot exist. Home, the A–Z catalogs and the sidebar list are stub
-    ``div``s / a ``list`` added to ``text/body`` for exactly that reason.
+    no node cannot exist. Home and the sidebar list are stub ``div``s / a
+    ``list`` added to ``text/body`` for exactly that reason; the A–Z catalogs
+    go to ``text/back``, where the appendices they replace stood.
     """
     tree = _with_opm_namespace(deepcopy(compiled.tree))
     _drop_schema_catalog_chapters(tree)
@@ -206,7 +207,7 @@ def prepare_document_tree(
         title=title or compiled.title or 'ODD documentation',
         opening=opening,
     )
-    _inject_catalogs(body)
+    _inject_catalogs(_ensure_back(tree))
     return tree
 
 
@@ -450,6 +451,17 @@ def _ensure_body(tree: etree._Element) -> etree._Element:
     return etree.SubElement(text, qn('body'))
 
 
+def _ensure_back(tree: etree._Element) -> etree._Element:
+    """``text/back``, created after ``text/body`` when the ODD has none."""
+    back = _text_part(tree, 'back')
+    if back is not None:
+        return back
+    text = _text_element(tree)
+    if text is None:
+        text = etree.SubElement(tree, qn('text'))
+    return etree.SubElement(text, qn('back'))
+
+
 def _inject_nav(body: etree._Element) -> None:
     data = resources.files('opm').joinpath('resources/document/nav.xml').read_bytes()
     nav = etree.fromstring(data)
@@ -502,8 +514,15 @@ def _opening_nodes(tree: etree._Element) -> list[etree._Element]:
     return found
 
 
-def _inject_catalogs(body: etree._Element) -> None:
-    for xml_id, page, subtype, heading in _CATALOGS:
+def _inject_catalogs(back: etree._Element) -> None:
+    """The A–Z catalog stubs, as the first divs of ``text/back``.
+
+    They stand in for the Guidelines' own reference appendices, which
+    [`_drop_schema_catalog_chapters`][opm.document_site._drop_schema_catalog_chapters]
+    removed, so they belong to the back matter and are numbered with it
+    (Appendix A…). Document order is unchanged either way: back follows body.
+    """
+    for offset, (xml_id, page, subtype, heading) in enumerate(_CATALOGS):
         div = etree.Element(qn('div'))
         div.set(XML_ID, xml_id)
         div.set(OPM_PAGE, page)
@@ -511,7 +530,7 @@ def _inject_catalogs(body: etree._Element) -> None:
             div.set('subtype', subtype)
         head = etree.SubElement(div, qn('head'))
         head.text = heading
-        body.append(div)
+        back.insert(offset, div)
 
 
 def _write_idents(index: SpecIndex, output_dir: Path) -> None:

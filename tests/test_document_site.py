@@ -410,7 +410,8 @@ def test_chapter_nav_sits_after_the_chapter_and_in_the_rail(tmp_path: Path) -> N
     assert 'class="chapter-nav chapter-nav--rail"' in aside
     assert 'chapter-nav--rail' not in body
 
-    # Body chapters are numbered by position; front/back chapters are not.
+    # Chapters carry the same outline label as their heading: arabic in the
+    # body, lowercase roman in the front matter.
     assert re.search(
         r'class="chapter-nav__num">2</span>The TEI Header', chapter
     )
@@ -418,7 +419,75 @@ def test_chapter_nav_sits_after_the_chapter_and_in_the_rail(tmp_path: Path) -> N
         r'class="chapter-nav__num">4</span>Default Text Structure', chapter
     )
     first = (site.output_dir / 'IN.html').read_text(encoding='utf-8')
-    assert re.search(r'class="chapter-nav__num"></span>About', first)
+    assert re.search(r'class="chapter-nav__num">i\.</span>About', first)
+
+
+def test_headings_carry_guidelines_outline_numbers(tmp_path: Path) -> None:
+    """Numbering follows the published Guidelines: arabic body, roman front, lettered back.
+
+    The index at each level counts sibling divs, so the title page and the
+    pages the site injects itself (home, the A-Z catalogs) do not shift it.
+    """
+    src = tmp_path / 'p5.xml'
+    src.write_text(
+        '''<TEI xmlns="http://www.tei-c.org/ns/1.0">
+             <teiHeader>
+               <fileDesc>
+                 <titleStmt><title>Mini guidelines</title></titleStmt>
+                 <publicationStmt><publisher>test</publisher></publicationStmt>
+                 <sourceDesc><p>fixture</p></sourceDesc>
+               </fileDesc>
+             </teiHeader>
+             <text>
+               <front>
+                 <titlePage><docTitle><titlePart>Mini</titlePart></docTitle></titlePage>
+                 <div xml:id="TPV"><head>Releases</head><p>Front prose.</p></div>
+                 <div xml:id="AB"><head>About</head><p>More front prose.</p>
+                   <div xml:id="ABC"><head>Conventions</head><p>Deeper.</p></div>
+                 </div>
+               </front>
+               <body>
+                 <div xml:id="IN"><head>Infrastructure</head><p>One.</p>
+                   <div xml:id="INA"><head>Modules</head><p>Two.</p>
+                     <div xml:id="INAB"><head>Classes</head><p>Three.</p></div>
+                   </div>
+                 </div>
+                 <div xml:id="HD"><head>The TEI Header</head><p>Four.</p></div>
+               </body>
+               <back>
+                 <div xml:id="BIB"><head>Bibliography</head><p>Works cited.</p></div>
+               </back>
+             </text>
+           </TEI>''',
+        encoding='utf-8',
+    )
+    site = build_document_site(compile_schema(src), tmp_path / 'out')
+
+    def heading(page: str, level: str) -> str:
+        html = (site.output_dir / page).read_text(encoding='utf-8')
+        match = re.search(rf'<{level}[^>]*>(.*?)</{level}>', html, re.S)
+        assert match, f'no {level} in {page}'
+        return re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', '', match.group(1))).strip()
+
+    # Body chapters are arabic and start at 1: the injected home page is not
+    # a division of the text. A chapter's own label opens the page spelled out.
+    assert heading('IN.html', 'h1') == 'Chapter 1 Infrastructure'
+    assert heading('IN.html', 'h2') == '1.1 Modules'
+    assert heading('IN.html', 'h3') == '1.1.1 Classes'
+    assert heading('HD.html', 'h1') == 'Chapter 2 The TEI Header'
+    # Front matter is roman with a trailing dot (spelled out on the page's own
+    # heading), and the title page is skipped.
+    assert heading('TPV.html', 'h1') == 'Front matter i Releases'
+    assert heading('AB.html', 'h1') == 'Front matter ii About'
+    assert heading('AB.html', 'h2') == 'ii.1. Conventions'
+    # Back matter is lettered, after the five catalog appendices.
+    assert heading('BIB.html', 'h1') == 'Appendix F Bibliography'
+    assert heading('REF-ELEMENTS.html', 'h1') == 'Appendix A Elements'
+    # The home page lists the same labels, and carries none itself.
+    home = (site.output_dir / 'index.html').read_text(encoding='utf-8')
+    assert re.search(r'heading-number">1 </span><a[^>]*href="IN.html"', home)
+    assert re.search(r'heading-number">1\.1 </span><a[^>]*href="IN.html#INA"', home)
+    assert heading('index.html', 'h1') == 'Mini guidelines'
 
 
 def test_chapter_footnotes_and_modulespec(tmp_path: Path) -> None:
@@ -595,7 +664,15 @@ def test_front_and_back_matter_are_grouped_on_home(tmp_path: Path) -> None:
     assert 'ST' in body_ids
     assert 'dedication' not in body_ids
     assert 'BIB' in back_ids
-    assert 'REF-ELEMENTS' not in back_ids
+    # The Guidelines' own elementSpec dump is dropped; our catalog stub stands
+    # in its place, in the back matter and ahead of the remaining appendices.
+    assert 'REF-ELEMENTS' in back_ids
+    assert 'REF-ELEMENTS' not in body_ids
+    back = tree.find('.//{http://www.tei-c.org/ns/1.0}back')
+    stub = back[0]
+    assert stub.get('{http://www.w3.org/XML/1998/namespace}id') == 'REF-ELEMENTS'
+    assert stub.get(OPM_PAGE) == 'catalog'
+    assert not stub.findall('.//{http://www.tei-c.org/ns/1.0}elementSpec')
 
     site = build_document_site(compiled, tmp_path / 'out')
     home = (site.output_dir / 'index.html').read_text(encoding='utf-8')

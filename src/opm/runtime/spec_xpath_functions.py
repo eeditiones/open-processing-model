@@ -467,6 +467,130 @@ def list_ref(spec: Any) -> etree._Element:
     return wrap
 
 
+_ROMAN = (
+    (1000, 'm'), (900, 'cm'), (500, 'd'), (400, 'cd'), (100, 'c'), (90, 'xc'),
+    (50, 'l'), (40, 'xl'), (10, 'x'), (9, 'ix'), (5, 'v'), (4, 'iv'), (1, 'i'),
+)
+
+
+def _roman(n: int) -> str:
+    out: list[str] = []
+    for value, sign in _ROMAN:
+        while n >= value:
+            out.append(sign)
+            n -= value
+    return ''.join(out)
+
+
+def _letter(n: int) -> str:
+    """1 → A, 26 → Z, 27 → AA (appendix labels)."""
+    out = ''
+    while n > 0:
+        n, rem = divmod(n - 1, 26)
+        out = chr(ord('A') + rem) + out
+    return out
+
+
+def _is_numbered_div(node: etree._Element) -> bool:
+    """False for the pages the site adds rather than the text's own divisions.
+
+    The home page is ours, and a div that carries the title page stands in for
+    ``front/titlePage`` — neither is a numbered division of the text, and TEI's
+    own numbering skips both (the title page is no div there to begin with).
+    """
+    from opm.spec_index import OPM_PAGE, PAGE_HOME
+
+    if localname(node) != 'div':
+        return False
+    if node.get(OPM_PAGE) == PAGE_HOME:
+        return False
+    return not any(localname(child) == 'titlePage' for child in node)
+
+
+def _div_index(div: etree._Element) -> int:
+    n = 1
+    for sib in div.itersiblings(preceding=True):
+        if _is_numbered_div(sib):
+            n += 1
+    return n
+
+
+def heading_label(div: Any = None) -> str:
+    """Guidelines-style outline label for a chapter ``div`` or one of its sections.
+
+    The TEI Guidelines number each part of the text differently: body chapters
+    run ``1``, ``1.2``, ``1.2.1``; front matter takes lowercase roman numerals
+    with a trailing dot (``iv.``, ``iv.1.``); back matter is lettered
+    (``Appendix A``, ``Appendix A.1``). The index at every level is the div's
+    position among its sibling divs, so the title page — a ``titlePage``, not a
+    div — is skipped, exactly as in TEI's own stylesheets.
+
+    Returns ``''`` for anything outside ``front``/``body``/``back`` (the home
+    page, spec sections, catalogs of a customization that has no back matter).
+    """
+    if isinstance(div, (list, tuple)):
+        if len(div) != 1:
+            return ''
+        div = div[0]
+    if div is None or div == []:
+        return ''
+    try:
+        node = expect_element(div, arg_name='heading_label(div)')
+    except ValueError:
+        return ''
+
+    if not _is_numbered_div(node):
+        return ''
+
+    chain: list[etree._Element] = [node]
+    while True:
+        parent = chain[-1].getparent()
+        if parent is None or localname(parent) != 'div':
+            break
+        chain.append(parent)
+    part = localname(chain[-1].getparent()) if chain[-1].getparent() is not None else ''
+    if part not in ('front', 'body', 'back'):
+        return ''
+
+    indices = [_div_index(el) for el in reversed(chain)]
+    if part == 'body':
+        head, suffix = str(indices[0]), ''
+    elif part == 'front':
+        head, suffix = _roman(indices[0]), '.'
+    else:
+        head, suffix = f'Appendix {_letter(indices[0])}', ''
+    return '.'.join([head, *(str(i) for i in indices[1:])]) + suffix
+
+
+def _label_seg(label: str) -> etree._Element:
+    seg = _tei('seg', type='headingNumber')
+    # The space is part of the text, as in the published Guidelines: it keeps
+    # "1.1 Modules" readable wherever the heading is read as plain text — the
+    # on-this-page rail, the search index, a copied line.
+    seg.text = f'{label} '
+    return seg
+
+
+def heading_mark(div: Any = None) -> etree._Element | str:
+    """[`heading_label`][opm.runtime.spec_xpath_functions.heading_label] as a TEI fragment.
+
+    ``seg[@type='headingNumber']`` so tagdocs can render it as the span that
+    opens a heading; empty where there is no label. A chapter's label opens
+    its page on a line of its own, so a bare index is spelled out to say what
+    it counts: "Chapter 3", "Front matter iv". Back matter already reads as a
+    phrase ("Appendix F"), and a section's label ("1.2", "iv.1.") is a mark
+    beside its heading rather than a line, so both are left alone.
+    """
+    label = heading_label(div)
+    if not label:
+        return ''
+    if label.isdigit():
+        label = f'Chapter {label}'
+    elif label.endswith('.') and label[:-1].isalpha():
+        label = f'Front matter {label[:-1]}'
+    return _label_seg(label)
+
+
 def guidelines_toc(node: Any = None) -> etree._Element | str:
     """TEI lists of chapter ``div``s, grouped by front / body / back.
 
@@ -525,6 +649,7 @@ def _top_chapters(root: etree._Element):
 def _toc_item(div: etree._Element) -> etree._Element:
     xml_id = div.get('{http://www.w3.org/XML/1998/namespace}id') or ''
     item = _tei('item')
+    _append_mark(item, div)
     ref = etree.SubElement(item, qn('ref'))
     ref.set('target', f'{xml_id}.html' if xml_id else '#')
     ref.text = _heading_text(div) or xml_id
@@ -539,6 +664,7 @@ def _toc_item(div: etree._Element) -> etree._Element:
         for child in nested:
             child_id = child.get('{http://www.w3.org/XML/1998/namespace}id') or ''
             sub = etree.SubElement(inner, qn('item'))
+            _append_mark(sub, child)
             sub_ref = etree.SubElement(sub, qn('ref'))
             if chapter_id and child_id and child_id != chapter_id:
                 sub_ref.set('target', f'{chapter_id}.html#{child_id}')
@@ -548,6 +674,18 @@ def _toc_item(div: etree._Element) -> etree._Element:
                 sub_ref.set('target', '#')
             sub_ref.text = _heading_text(child) or child_id
     return item
+
+
+def _append_mark(item: etree._Element, div: etree._Element) -> None:
+    """Prefix a table-of-contents entry with its outline label, as TEI does.
+
+    The bare label, not the spelled-out chapter heading: a list of chapters
+    reads as a numbered list, and repeating the word on every line would only
+    push the titles out of alignment.
+    """
+    label = heading_label(div)
+    if label:
+        item.append(_label_seg(label))
 
 
 def _heading_text(div: etree._Element) -> str:
