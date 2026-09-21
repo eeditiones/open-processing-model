@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: CC0-1.0
+#
+# Packaged chunking config for `opm odd document`, first of two runs: the
+# Guidelines read as a text. Paths are relative to this file
+# (resources/document/). The reference pages — one per spec — are the second
+# run, in reference.toml, over the same prepared tree and into the same
+# directory.
+
+[transform]
+odd = "../odd/tagdocs.odd"
+xpath_extensions = [
+    "opm.runtime.common_xpath_functions",
+    "opm.runtime.spec_xpath_functions",
+]
+
+# Every top-level division of the text is a page — chapters, front matter and
+# the back-matter appendices, the A–Z catalogs among them — plus the home page,
+# which the site builder puts directly under `text` because it is no division
+# of the text itself. Specs inside the prose are left to the reference run.
+[chunking]
+odd = "../odd/tagdocs.odd"
+xpath = "/TEI/text/div | /TEI/text/(front|body|back)/div"
+file_pattern = "{xml_id}.html"
+template = "page.html.j2"
+
+[[chunking.fragments]]
+name = "nav"
+scope = "global"
+xpath = "//list[@type='siteNav']"
+parameters = { mode = "nav" }
+
+# Per-chunk: the compact previous/next pair the right-hand rail shows under
+# "On this page". Selects nothing on the home page, so the fragment is empty
+# there.
+[[chunking.fragments]]
+name = "chapternav"
+scope = "per-chunk"
+xpath = "self::div[parent::front or parent::body or parent::back]"
+parameters = { mode = "chapnav" }
+
+# Per-chunk: the full-width previous/next cards that close a chapter. Rendered
+# after the chunk body so footnotes stay with the prose that cites them.
+[[chunking.fragments]]
+name = "chapterend"
+scope = "per-chunk"
+xpath = "self::div[parent::front or parent::body or parent::back]"
+parameters = { mode = "chapnav-end" }

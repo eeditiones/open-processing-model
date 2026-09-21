@@ -236,7 +236,9 @@ def test_non_tei_vocabularies_are_standalone(monkeypatch: pytest.MonkeyPatch) ->
     assert calls == []
 
 
-def test_local_content_model_narrows_the_dependency_closure(tmp_path: Path) -> None:
+def test_local_content_model_narrows_the_dependency_closure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Subsetting follows the ODD's own content models, not the stock ones.
 
     An edition that rewrites `text` to hold a pair of parallel texts no longer
@@ -298,7 +300,8 @@ def test_local_content_model_narrows_the_dependency_closure(tmp_path: Path) -> N
 ''',
         encoding='utf-8',
     )
-    index = SpecIndex.from_tree(compile_schema(odd, source=source).tree)
+    _stub_p5all(monkeypatch, returns=source)
+    index = SpecIndex.from_tree(compile_schema(odd).tree)
     assert index.get('text') is not None
     assert index.get('body') is not None
     assert index.get('front') is None
@@ -421,18 +424,6 @@ def test_ancestor_tei_version_pin_is_reported(
     )
     compiled = compile_schema(child)
     assert any('4.8.0' in w for w in compiled.warnings), compiled.warnings
-
-
-def test_explicit_source_skips_p5subset_fetch(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls = _stub_p5all(monkeypatch)
-    odd = _write_processing_odd(tmp_path / 'pm.odd', ident='pm', version='4.8.0')
-    compiled = compile_schema(odd, source=MINI)
-    assert calls == []
-    assert compiled.fetched_source is None
-    p = SpecIndex.from_tree(compiled.tree).element('p')
-    assert [m.behaviour for m in p.models] == ['paragraph']
 
 
 def test_explicit_tei_namespace_still_fetches(

@@ -3,10 +3,11 @@
 
 """Build a static HTML documentation site from a compiled ODD / Guidelines document.
 
-The site is a [`chunk_document`][opm.chunking.chunk_document] run: a short
-prepare step stamps ``xml:id`` values and catalog stubs onto the compiled tree,
-then the packaged ``resources/document/opm.toml`` plus ``tagdocs.odd`` render
-every page. Contained-by / may-contain / members stay in
+The site is two [`chunk_document`][opm.chunking.chunk_document] runs over
+one prepared tree: a short prepare step stamps ``xml:id`` values, the home page
+and catalog stubs onto the compiled tree, then ``tagdocs.odd`` renders the
+text — every top-level division, per ``resources/document/guidelines.toml`` —
+and the reference pages, one per spec, per ``reference.toml``. Contained-by / may-contain / members stay in
 [`SpecIndex`][opm.spec_index.SpecIndex], exposed to the ODD as ``tp:`` functions.
 """
 
@@ -25,18 +26,12 @@ from pathlib import Path
 from lxml import etree
 
 from opm.chunking import chunk_document
-from opm.config import load_project_config
+from opm.config import ProjectConfig, load_project_config
 from opm.odd_cache import ensure_compiled_module
-from opm.odd_schema import CompiledSchema, chapter_has_prose, iter_guideline_chapters
+from opm.odd_schema import CompiledSchema, iter_guideline_chapters
 from opm.resources import packaged_document_dir, packaged_odd
 from opm.spec_index import (
-    OPM_NS,
     SPEC_TAGS,
-    OPM_PAGE,
-    PAGE_ATTS,
-    PAGE_CATALOG,
-    PAGE_CHAPTER,
-    PAGE_HOME,
     SpecIndex,
     iter_canonical_specs,
     localname,
@@ -53,15 +48,17 @@ _TAGDOCS_XPATH_EXTENSIONS = (
     'opm.runtime.spec_xpath_functions',
 )
 
-#: ``xml:id``, ``@opm:page``, ``@subtype``, heading — one row per catalog page.
+#: ``xml:id``, ``@subtype``, heading — one row per catalog page. The ids are
+#: TEI's own for the appendices these replace; tagdocs picks its catalog
+#: templates by them.
 _CATALOGS = (
-    ('REF-ELEMENTS', PAGE_CATALOG, 'elements', 'Elements'),
-    ('REF-CLASSES-MODEL', PAGE_CATALOG, 'model', 'Model classes'),
-    ('REF-CLASSES-ATTS', PAGE_CATALOG, 'atts', 'Attribute classes'),
-    ('REF-MACROS', PAGE_CATALOG, 'macro', 'Macros and datatypes'),
-    ('REF-ATTS', PAGE_ATTS, None, 'Attributes'),
+    ('REF-ELEMENTS', 'elements', 'Elements'),
+    ('REF-CLASSES-MODEL', 'model', 'Model classes'),
+    ('REF-CLASSES-ATTS', 'atts', 'Attribute classes'),
+    ('REF-MACROS', 'macro', 'Macros and datatypes'),
+    ('REF-ATTS', None, 'Attributes'),
 )
-_CATALOG_IDS = {xml_id for xml_id, _page, _subtype, _heading in _CATALOGS}
+_CATALOG_IDS = {xml_id for xml_id, _subtype, _heading in _CATALOGS}
 
 
 @dataclass
@@ -100,58 +97,70 @@ def build_document_site(
     odd_path = Path(odd) if odd else packaged_odd('tagdocs')
     header_source = compiled.tree
 
-    cfg = load_project_config(packaged_document_dir() / 'opm.toml')
-    cfg = replace(
-        cfg,
-        template_context={
-            **cfg.template_context,
-            'site_title': site_title,
-            'lang': lang,
-            'edition': _edition_line(compiled.tree) or _edition_line(header_source),
-            'rights': _rights_line(header_source) or _rights_line(compiled.tree),
-        },
-        parameters={**cfg.parameters, 'lng': lang, 'mode': 'ref'},
-        xpath_extensions=_TAGDOCS_XPATH_EXTENSIONS,
-    )
-    if odd is not None:
-        chunking = replace(cfg.chunking, odd=odd_path) if cfg.chunking else None
-        cfg = replace(cfg, chunking=chunking, transform_odd=odd_path)
+    def _run_config(name: str) -> ProjectConfig:
+        """One of the two packaged run configs, with this site's context."""
+        cfg = load_project_config(packaged_document_dir() / name)
+        cfg = replace(
+            cfg,
+            template_context={
+                **cfg.template_context,
+                'site_title': site_title,
+                'lang': lang,
+                'edition': _edition_line(compiled.tree) or _edition_line(header_source),
+                'rights': _rights_line(header_source) or _rights_line(compiled.tree),
+            },
+            parameters={**cfg.parameters, 'lng': lang, 'mode': 'ref'},
+            xpath_extensions=_TAGDOCS_XPATH_EXTENSIONS,
+        )
+        if odd is not None:
+            chunking = replace(cfg.chunking, odd=odd_path) if cfg.chunking else None
+            cfg = replace(cfg, chunking=chunking, transform_odd=odd_path)
+        return cfg
 
     _copy_assets(output_dir)
 
     chapters = [
         div for div in iter_guideline_chapters(tree)
-        if div.get(OPM_PAGE) == PAGE_CHAPTER
+        if div.get(XML_ID) not in _CATALOG_IDS
     ]
     specs = [
         spec for spec in index.all()
         if spec.kind in {'element', 'class', 'macro', 'datatype'}
     ]
     total = max(len(specs) + len(chapters) + 6, 1)
+    written = 0
 
-    def _on_chunk_progress(done: int, chunk_total: int) -> None:
+    def _on_chunk_progress(done: int, _run_total: int) -> None:
+        # Two runs, one bar: the reference run continues where the text ended.
         if on_progress:
-            on_progress(done, chunk_total or total, 'pages')
+            on_progress(written + done, total, 'pages')
 
     with tempfile.TemporaryDirectory(prefix='opm-document-') as tmp:
         xml_path = Path(tmp) / 'schema.xml'
         xml_path.write_bytes(
             etree.tostring(tree, xml_declaration=True, encoding='utf-8'),
         )
-        chunking = cfg.chunking
-        assert chunking is not None
-        chunking = replace(chunking, output_dir='.', odd=odd_path)
-        chunk_document(
-            module_path=None,
-            xml_path=xml_path,
-            config=chunking,
-            project_root=output_dir,
-            template_path=chunking.template,
-            on_progress=_on_chunk_progress,
-            project_config=cfg,
-            xpath_extensions=_TAGDOCS_XPATH_EXTENSIONS,
-            spec_index=index,
-        )
+        # The text first: its anchors let the reference run resolve a spec's
+        # pointers into the prose (`#SATSRN` → SA.html#SATSRN).
+        anchors: dict[str, str] = {}
+        for name in ('guidelines.toml', 'reference.toml'):
+            cfg = _run_config(name)
+            chunking = cfg.chunking
+            assert chunking is not None
+            chunking = replace(chunking, output_dir='.', odd=odd_path)
+            anchors = chunk_document(
+                module_path=None,
+                xml_path=xml_path,
+                config=chunking,
+                project_root=output_dir,
+                template_path=chunking.template,
+                on_progress=_on_chunk_progress,
+                project_config=cfg,
+                xpath_extensions=_TAGDOCS_XPATH_EXTENSIONS,
+                spec_index=index,
+                anchors=anchors,
+            )
+            written = len(set(anchors.values()))
 
     _write_idents(index, output_dir)
 
@@ -187,48 +196,30 @@ def prepare_document_tree(
 
     Then the site's own pages are injected, because ``chunk`` selects chunks by
     XPath over this tree and names each file after an ``xml:id``: a page with
-    no node cannot exist. Home and the sidebar list are stub ``div``s / a
-    ``list`` added to ``text/body`` for exactly that reason; the A–Z catalogs
-    go to ``text/back``, where the appendices they replace stood.
+    no node cannot exist. Where each goes is what tells the runs and tagdocs
+    what it is, so no page needs a mark of its own. Home sits directly under
+    ``text``, outside front/body/back: it is no division of the text, which
+    keeps it out of the numbering and the chapter sequence. The A–Z catalogs
+    go to ``text/back``, where the appendices they replace stood, and are
+    chapters like any other. The sidebar list goes to ``text/body``.
     """
-    tree = _with_opm_namespace(deepcopy(compiled.tree))
+    tree = deepcopy(compiled.tree)
     _drop_schema_catalog_chapters(tree)
     # Collected before the title page is wrapped into a chapter of its own,
     # which would move it out of the walk below.
     opening = _opening_nodes(tree)
     _ensure_title_chapter(tree)
     _ensure_spec_xml_ids(tree)
-    _mark_publishable_chapters(tree)
     _ensure_chapter_ids(tree)
     body = _ensure_body(tree)
     _inject_nav(body)
     _inject_home(
-        body,
+        body.getparent(),
         title=title or compiled.title or 'ODD documentation',
         opening=opening,
     )
     _inject_catalogs(_ensure_back(tree))
     return tree
-
-
-def _with_opm_namespace(tree: etree._Element) -> etree._Element:
-    """*tree* with ``opm`` bound on the root, so ``@opm:page`` serializes readably.
-
-    lxml cannot add a namespace declaration to an existing element, so the root
-    is rebuilt when the binding is missing. Without it every marked ``div``
-    carries its own generated ``ns0:`` prefix — which still matches by URI, but
-    makes the intermediate XML hard to read.
-    """
-    if OPM_NS in (tree.nsmap or {}).values():
-        return tree
-    nsmap = {**(tree.nsmap or {}), 'opm': OPM_NS}
-    root = etree.Element(tree.tag, nsmap=nsmap)
-    root.text = tree.text
-    for key, value in tree.attrib.items():
-        root.set(key, value)
-    for child in list(tree):
-        root.append(child)
-    return root
 
 
 def _drop_schema_catalog_chapters(tree: etree._Element) -> None:
@@ -269,9 +260,9 @@ def _first_child(parent: etree._Element | None, name: str) -> etree._Element | N
 def _ensure_spec_xml_ids(tree: etree._Element) -> None:
     """Stamp ``xml:id="ref-{ident}"`` on one copy of each spec.
 
-    p5subset / Guidelines documents repeat the same ``elementSpec`` in
-    ``schemaSpec`` and in the body. Giving every copy the same id makes the
-    serialized tree invalid (``ID ref-TEI already defined``). SpecIndex already
+    A compiled schema repeats the same ``elementSpec`` in ``schemaSpec`` and in
+    the body, p5all and a compiled ODD alike. Giving every copy the same id
+    makes the serialized tree invalid (``ID ref-TEI already defined``). SpecIndex already
     keeps one node per ident (preferring ``@module``); match that here, and
     drop colliding ids on the extra copies so they are not chunked as pages.
     """
@@ -340,27 +331,6 @@ def _retarget(tree: etree._Element, old: str, new: str) -> None:
             ))
 
 
-def _mark_publishable_chapters(tree: etree._Element) -> None:
-    """Mark chapters that have real prose, so ``chunk`` emits them as pages.
-
-    p5subset keeps ``div1`` wrappers around inlined specs (CO is thousands of
-    lines of ``elementSpec``). Those are not documentation pages — transforming
-    them dominates ``opm odd document`` on a TEI customization. Only chapters
-    with ordinary paragraphs qualify.
-
-    The mark goes on ``@opm:page``, not ``@type``: a chapter's ``@type`` is the
-    author's (``div1``, ``Dedication``, ``titlePageVerso``, …) and the ODD and
-    stylesheet still need it.
-    """
-    for div in iter_guideline_chapters(tree):
-        if div.get(OPM_PAGE):
-            continue
-        if div.get(XML_ID) in _CATALOG_IDS:
-            continue
-        if chapter_has_prose(div):
-            div.set(OPM_PAGE, PAGE_CHAPTER)
-
-
 def _ensure_chapter_ids(tree: etree._Element) -> None:
     """Give every published chapter and headed section an ``xml:id``.
 
@@ -375,8 +345,6 @@ def _ensure_chapter_ids(tree: etree._Element) -> None:
     taken.update(_CATALOG_IDS)
     taken.add('index')
     for div in iter_guideline_chapters(tree):
-        if div.get(OPM_PAGE) != PAGE_CHAPTER:
-            continue
         xmlid = div.get(XML_ID)
         if not xmlid:
             xmlid = _unique_id(_slug(_chapter_heading(div), 'chapter'), taken)
@@ -472,18 +440,24 @@ _OPENING_TAGS = {'titlePage', 'p', 'opener', 'epigraph'}
 
 
 def _inject_home(
-    body: etree._Element,
+    text: etree._Element,
     *,
     title: str,
     opening: list[etree._Element],
 ) -> None:
+    """The home page, as the first child of ``text``.
+
+    Not in front, body or back: the home page belongs to the site rather than
+    to the text, and outside the three parts it is no chapter — tagdocs knows
+    it by ``parent::text``, the numbering skips it and prev/next never lands
+    on it, all without a mark.
+    """
     home = etree.Element(qn('div'))
     home.set(XML_ID, 'index')
-    home.set(OPM_PAGE, PAGE_HOME)
     head = etree.SubElement(home, qn('head'))
     head.text = title
     home.extend(opening)
-    body.insert(0, home)
+    text.insert(0, home)
 
 
 def _opening_nodes(tree: etree._Element) -> list[etree._Element]:
@@ -522,10 +496,9 @@ def _inject_catalogs(back: etree._Element) -> None:
     removed, so they belong to the back matter and are numbered with it
     (Appendix A…). Document order is unchanged either way: back follows body.
     """
-    for offset, (xml_id, page, subtype, heading) in enumerate(_CATALOGS):
+    for offset, (xml_id, subtype, heading) in enumerate(_CATALOGS):
         div = etree.Element(qn('div'))
         div.set(XML_ID, xml_id)
-        div.set(OPM_PAGE, page)
         if subtype:
             div.set('subtype', subtype)
         head = etree.SubElement(div, qn('head'))

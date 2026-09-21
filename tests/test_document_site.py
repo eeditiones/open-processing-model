@@ -10,14 +10,14 @@ from lxml import etree
 import pytest
 
 from opm.cli import main
-from opm.document_site import build_document_site, prepare_document_tree
+from opm.document_site import _CATALOG_IDS, build_document_site, prepare_document_tree
 from opm.odd_schema import (
     chapters_have_prose,
     compile_schema,
     iter_guideline_chapters,
 )
 from opm.resources import packaged_odd
-from opm.spec_index import OPM_PAGE, PAGE_CHAPTER, iter_canonical_specs
+from opm.spec_index import iter_canonical_specs
 
 FIXTURES = Path(__file__).resolve().parent / 'fixtures'
 MINI = FIXTURES / 'mini_schema.odd'
@@ -84,8 +84,13 @@ def test_build_document_site_from_mini_schema(tmp_path: Path) -> None:
     assert 'doc-sidebar' in home
 
 
-def test_spec_only_chapters_are_not_written(tmp_path: Path) -> None:
-    """p5subset wraps specs in ``div1`` skeletons; those are not site chapters."""
+def test_spec_only_chapters_are_written_without_their_specs(tmp_path: Path) -> None:
+    """Every top-level div is a page, even one holding nothing but specs.
+
+    p5subset wraps specs in ``div1`` skeletons. Read as a text, such a wrapper
+    is a chapter with a heading and no prose: its specs are the reference
+    run's pages, not part of the chapter.
+    """
     src = tmp_path / 'skel.odd'
     src.write_text(
         '''<TEI xmlns="http://www.tei-c.org/ns/1.0">
@@ -109,9 +114,47 @@ def test_spec_only_chapters_are_not_written(tmp_path: Path) -> None:
         encoding='utf-8',
     )
     site = build_document_site(compile_schema(src), tmp_path / 'out')
-    assert site.chapters == 0
-    assert not (site.output_dir / 'CO.html').exists()
+    assert site.chapters == 1
+    chapter = (site.output_dir / 'CO.html').read_text(encoding='utf-8')
+    assert 'Core' in chapter
+    assert 'paragraph' not in chapter[chapter.index('<main'):chapter.index('</main>')]
     assert (site.output_dir / 'ref-p.html').is_file()
+
+
+def test_reference_pages_link_into_the_text(tmp_path: Path) -> None:
+    """A spec's pointer into the prose lands on the chapter page that holds it.
+
+    The text and the reference pages are two chunk runs; the reference run is
+    handed the text's anchors, or ``#COPA`` would point into the spec page.
+    """
+    src = tmp_path / 'p5.xml'
+    src.write_text(
+        '''<TEI xmlns="http://www.tei-c.org/ns/1.0">
+             <teiHeader>
+               <fileDesc>
+                 <titleStmt><title>Mini guidelines</title></titleStmt>
+                 <publicationStmt><publisher>test</publisher></publicationStmt>
+                 <sourceDesc><p>fixture</p></sourceDesc>
+               </fileDesc>
+             </teiHeader>
+             <text><body>
+               <div type="div1" xml:id="CO"><head>Core</head><p>Intro.</p>
+                 <div xml:id="COPA"><head>Paragraphs</head><p>About p.</p>
+                   <elementSpec ident="p" module="core">
+                     <desc xml:lang="en">paragraph</desc>
+                     <content><textNode/></content>
+                     <remarks xml:lang="en"><p>See <ptr target="#COPA"/>.</p></remarks>
+                   </elementSpec>
+                 </div>
+               </div>
+             </body></text>
+           </TEI>''',
+        encoding='utf-8',
+    )
+    site = build_document_site(compile_schema(src), tmp_path / 'out')
+    ref = (site.output_dir / 'ref-p.html').read_text(encoding='utf-8')
+    assert 'href="CO.html#COPA"' in ref
+    assert 'href="#COPA"' not in ref
 
 
 def test_duplicate_spec_copies_share_one_ref_page(tmp_path: Path) -> None:
@@ -224,6 +267,10 @@ def test_cli_document_mini_schema(tmp_path: Path) -> None:
     home = (dest / 'index.html').read_text(encoding='utf-8')
     assert 'tei-logo.svg' in home
     assert 'doc-brand__logo' in home
+    # The tab icon, on every page rather than only the home page.
+    icon = '<link rel="icon" href="tei-logo.svg" type="image/svg+xml">'
+    assert icon in home
+    assert icon in (dest / 'ref-p.html').read_text(encoding='utf-8')
     css = (dest / 'document.css').read_text(encoding='utf-8')
     assert '--doc-amber: #f7a823' in css
     assert "@import 'fonts.css'" in css
@@ -322,7 +369,11 @@ def test_guidelines_chapters_are_written(tmp_path: Path) -> None:
     assert re.search(r'class="chapter-nav__prev"[^>]*href=""', title_page)
     notes = (site.output_dir / 'NOTES.html').read_text(encoding='utf-8')
     assert re.search(r'class="chapter-nav__prev"[^>]*href="CO\.html"', notes)
-    assert re.search(r'class="chapter-nav__next"[^>]*href=""', notes)
+    # The A–Z catalogs close the text as its appendices, so the sequence runs
+    # on into them and ends on the last one.
+    assert re.search(r'class="chapter-nav__next"[^>]*href="REF-ELEMENTS\.html"', notes)
+    last = (site.output_dir / 'REF-ATTS.html').read_text(encoding='utf-8')
+    assert re.search(r'class="chapter-nav__next"[^>]*href=""', last)
     assert 'Core' in chapter
     assert 'ref-p.html' in chapter
     assert 'egXML' in chapter
@@ -671,7 +722,7 @@ def test_front_and_back_matter_are_grouped_on_home(tmp_path: Path) -> None:
     back = tree.find('.//{http://www.tei-c.org/ns/1.0}back')
     stub = back[0]
     assert stub.get('{http://www.w3.org/XML/1998/namespace}id') == 'REF-ELEMENTS'
-    assert stub.get(OPM_PAGE) == 'catalog'
+    assert stub.get('subtype') == 'elements'
     assert not stub.findall('.//{http://www.tei-c.org/ns/1.0}elementSpec')
 
     site = build_document_site(compiled, tmp_path / 'out')
@@ -694,20 +745,27 @@ def test_front_and_back_matter_are_grouped_on_home(tmp_path: Path) -> None:
     catalog = (site.output_dir / 'REF-ELEMENTS.html').read_text(encoding='utf-8')
     assert 'class="catalog"' in catalog
     assert 'Dump of every elementSpec' not in catalog
-    assert 'chapter-nav' not in catalog
+    # The catalogs are back-matter appendices, so they sit in the chapter
+    # sequence: the last body chapter leads on to the first of them.
+    assert re.search(r'class="chapter-nav__prev"[^>]*href="ST\.html"', catalog)
     st = (site.output_dir / 'ST.html').read_text(encoding='utf-8')
     assert re.search(r'class="chapter-nav__prev"[^>]*href="FM1\.html"', st)
-    assert re.search(r'class="chapter-nav__next"[^>]*href="BIB\.html"', st)
+    assert re.search(r'class="chapter-nav__next"[^>]*href="REF-ELEMENTS\.html"', st)
+    # The home page is no chapter: no prev/next of its own.
+    assert 'chapter-nav' not in home
 
-    # Marking a chapter as publishable must not overwrite the author's @type:
-    # the ODD and the stylesheet still need to tell a dedication from a chapter.
-    marked = {
-        div.get(XML_ID): (div.get('type'), div.get(OPM_PAGE))
-        for div in iter_guideline_chapters(tree)
-    }
-    assert marked['dedication'] == ('Dedication', PAGE_CHAPTER)
-    assert marked['TitlePageVerso'] == ('titlePageVerso', PAGE_CHAPTER)
-    assert marked['ST'] == ('div1', PAGE_CHAPTER)
+    # Preparing the tree leaves the author's @type alone and adds no mark of
+    # its own: which pages a div makes is read off where it sits.
+    types = {div.get(XML_ID): div.get('type') for div in iter_guideline_chapters(tree)}
+    assert types['dedication'] == 'Dedication'
+    assert types['TitlePageVerso'] == 'titlePageVerso'
+    assert types['ST'] == 'div1'
+    assert not any(
+        '{http://teipublisher.com/opm/1.0}' in key
+        for el in tree.iter() if isinstance(el.tag, str) for key in el.attrib
+    )
+    home_div = tree.find('.//{http://www.tei-c.org/ns/1.0}div[@{http://www.w3.org/XML/1998/namespace}id="index"]')
+    assert home_div is not None and home_div.getparent().tag.endswith('}text')
 
 
 def test_unsupported_expressions_in_own_odd_are_reported(tmp_path: Path) -> None:
@@ -1084,7 +1142,7 @@ def test_chapter_ids_come_from_headings(tmp_path: Path) -> None:
     tree = prepare_document_tree(compiled)
     ids = [
         div.get(XML_ID) for div in iter_guideline_chapters(tree)
-        if div.get(OPM_PAGE) == PAGE_CHAPTER
+        if div.get(XML_ID) not in _CATALOG_IDS
     ]
     assert ids == ['encoding-names', 'epreuves-proofs']
     nested = next(
@@ -1103,7 +1161,7 @@ def test_chapter_ids_survive_an_inserted_chapter(tmp_path: Path) -> None:
         return {
             _chapter_head(div): div.get(XML_ID)
             for div in iter_guideline_chapters(tree)
-            if div.get(OPM_PAGE) == PAGE_CHAPTER
+            if div.get(XML_ID) not in _CATALOG_IDS
         }
 
     before = ids_for(_unnumbered_chapters_odd(tmp_path))
@@ -1146,7 +1204,7 @@ def test_chapter_ids_do_not_collide(tmp_path: Path) -> None:
     tree = prepare_document_tree(compile_schema(src))
     ids = [
         div.get(XML_ID) for div in iter_guideline_chapters(tree)
-        if div.get(OPM_PAGE) == PAGE_CHAPTER
+        if div.get(XML_ID) not in _CATALOG_IDS
     ]
     assert ids == ['elements', 'elements-2', 'chapter-12-numbers']
     assert len(ids) == len(set(ids))

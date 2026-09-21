@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import re
 import shutil
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any, Callable
@@ -119,8 +119,13 @@ class ChunkProcessor:
         source_dir: Path | None = None,
         documents: Collection[str] | None = None,
         document: str | None = None,
+        anchors: Mapping[str, str] | None = None,
     ):
         self.module = load_transform_module(module_path)
+        # Ids owned by pages another run wrote into the same directory (id →
+        # file), so `#id` links into them resolve here too. This run's own
+        # chunks win where both know an id.
+        self._external_anchors: dict[str, str] = dict(anchors or {})
         # The source file's name (`serafin01.xml`), handed to the page template
         # as `document`.
         self.document: str | None = document or config.link_doc or None
@@ -487,6 +492,9 @@ class ChunkProcessor:
                 xml_id = node.get(XML_ID) or node.get('id')
                 if xml_id and xml_id not in anchor_map:
                     anchor_map[xml_id] = chunk_file
+
+        for xml_id, chunk_file in self._external_anchors.items():
+            anchor_map.setdefault(xml_id, chunk_file)
 
         self._chunk_anchor_map = anchor_map
         return anchor_map
@@ -1367,7 +1375,8 @@ def chunk_document(
     doc_path: str | None = None,
     documents: Collection[str] | None = None,
     spec_index=None,
-) -> None:
+    anchors: Mapping[str, str] | None = None,
+) -> dict[str, str]:
     """Chunk a document using the specified configuration.
 
     The page template gets *xml_path*'s name as ``document``. *documents*
@@ -1378,6 +1387,10 @@ def chunk_document(
     ODDs in *config* (the main one and the fragments') that have no compiled
     module yet are compiled here. [`opm.project.Project.chunk`][opm.project.Project.chunk] handles
     a whole directory the way ``opm chunk`` does.
+
+    Returns the run's anchor map, ``xml:id`` → chunk file. Pass it as
+    *anchors* to a later run over the same output directory, and ``#id``
+    links there into this run's pages resolve as if both were one run.
     """
     from dataclasses import replace
 
@@ -1424,11 +1437,13 @@ def chunk_document(
         source_dir=xml_path.parent,
         documents=documents if documents is not None else (xml_path.name,),
         document=xml_path.name,
+        anchors=anchors,
     )
     if output_format == 'pb-view':
         processor.export_pb_view(doc_path=doc_path, on_progress=on_progress)
     else:
         processor.process_all(template_path, on_progress=on_progress, output_format=output_format)
+    return dict(processor._chunk_anchor_map)
 
 
 @dataclass

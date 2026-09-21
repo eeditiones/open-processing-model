@@ -32,20 +32,6 @@ PB_NS = 'http://teipublisher.com/1.0'
 XML_LANG = '{http://www.w3.org/XML/1998/namespace}lang'
 XML_ID = '{http://www.w3.org/XML/1998/namespace}id'
 EX_NS = 'http://www.tei-c.org/ns/Examples'
-OPM_NS = 'http://teipublisher.com/opm/1.0'
-#: Marks a node that ``opm odd document`` publishes as its own page, and says
-#: which kind. Written by the site builder onto a copy of the compiled tree,
-#: never by an ODD author — it is a namespace of our own precisely so that it
-#: cannot collide with the document's ``@type``, which stays as authored.
-OPM_PAGE = f'{{{OPM_NS}}}page'
-#: Values ``@opm:page`` takes. ``chapter`` is prose from the document; the
-#: rest are stub ``div``s the site builder injects.
-PAGE_CHAPTER = 'chapter'
-PAGE_HOME = 'home'
-PAGE_CATALOG = 'catalog'
-PAGE_ATTS = 'atts'
-#: Injected stubs, as opposed to chapters that came from the document.
-INJECTED_PAGES = frozenset({PAGE_HOME, PAGE_CATALOG, PAGE_ATTS})
 
 _PARSER = make_parser(remove_comments=True)
 
@@ -710,16 +696,17 @@ def _collect_specs(
 
 
 def _collect_chapter_anchors(root: etree._Element) -> dict[str, str]:
-    """Map every ``xml:id`` under a published chapter to that chapter's id.
+    """Map every ``xml:id`` under a chapter to that chapter's id.
 
-    ``@opm:page='chapter'`` is stamped by the site builder, so this is empty
-    for a tree that has not been prepared and for a customization, whose
-    chapters are its own rather than the documented schema's.
+    A chapter is a top-level division of front, body or back — the pages
+    ``opm odd document`` writes one per. A customization's tree holds only its
+    own chapters, TEI's staying out of its site, so pointers into TEI's prose
+    find no entry here and stay external.
     """
+    from opm.odd_schema import iter_guideline_chapters
+
     anchors: dict[str, str] = {}
-    for div in root.iter(qn('div')):
-        if div.get(OPM_PAGE) != PAGE_CHAPTER:
-            continue
+    for div in iter_guideline_chapters(root):
         chapter = div.get(XML_ID)
         if not chapter:
             continue

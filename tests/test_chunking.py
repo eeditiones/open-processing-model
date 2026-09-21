@@ -330,6 +330,31 @@ def test_link_pattern_includes_doc_subdirectory(tmp_path: Path) -> None:
     assert 'href="/quickstart.xml/002.html"' in toc
 
 
+def test_anchor_map_carries_over_to_a_later_run(tmp_path: Path) -> None:
+    """A run returns its anchors; handed to a later run they fill the gaps.
+
+    That is how two runs into one directory — the site's text and its
+    reference pages — resolve each other's ``#id`` links. The later run's own
+    chunks still win for an id both know.
+    """
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    _write_chunking_fixture_xml(xml_path)
+
+    anchors = chunk_document(
+        module_path=module_path,
+        xml_path=xml_path,
+        config=_chunking_config('anchor-chunks'),
+        project_root=tmp_path,
+        output_format='json',
+        anchors={'elsewhere': 'other.html', 'a': 'stale.html'},
+    )
+    assert anchors['a'] == '001.html'
+    assert anchors['b'] == '002.html'
+    assert anchors['elsewhere'] == 'other.html'
+
+
 def test_link_pattern_stem_anchor(tmp_path: Path) -> None:
     """link_pattern = '/{stem}#{anchor}' produces absolute paths without extension."""
     module_path = tmp_path / 'chunk_fixture.py'

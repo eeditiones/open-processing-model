@@ -383,16 +383,32 @@ def spec_catalog(kind: Any, node: Any = None) -> etree._Element:
 
 
 def attribute_catalog(node: Any = None) -> etree._Element:
-    """Attribute name → defining class or element, as a definition list."""
+    """Attribute name → defining class or element, in A–Z groups.
+
+    Grouped by letter like the spec catalogs
+    ([`spec_catalog`][opm.runtime.spec_xpath_functions.spec_catalog]): 275
+    attributes in one table is a page nothing breaks up, and the letter
+    headings are what the jump links and the on-this-page rail key on.
+    """
     wrap = _tei('list', type='attCatalog')
     index = _index(node)
     if index is None:
         return wrap
+    buckets: dict[str, list[tuple[str, list[Spec]]]] = {}
     for ident, owners in index.attributes():
-        item = etree.SubElement(wrap, qn('item'))
-        item.set('ident', ident)
-        for spec in owners:
-            _spec_pointer(item, SpecRef(ident=spec.ident, kind=spec.kind, module=spec.module))
+        buckets.setdefault(_bucket_letter(ident), []).append((ident, owners))
+    for letter in sorted(buckets):
+        group = etree.SubElement(wrap, qn('item'))
+        group.set('n', letter)
+        inner = etree.SubElement(group, qn('list'))
+        inner.set('type', 'attCatalogItems')
+        for ident, owners in buckets[letter]:
+            item = etree.SubElement(inner, qn('item'))
+            item.set('ident', ident)
+            for spec in owners:
+                _spec_pointer(
+                    item, SpecRef(ident=spec.ident, kind=spec.kind, module=spec.module),
+                )
     return wrap
 
 
@@ -492,17 +508,14 @@ def _letter(n: int) -> str:
 
 
 def _is_numbered_div(node: etree._Element) -> bool:
-    """False for the pages the site adds rather than the text's own divisions.
+    """False for a div that only carries the title page.
 
-    The home page is ours, and a div that carries the title page stands in for
-    ``front/titlePage`` — neither is a numbered division of the text, and TEI's
-    own numbering skips both (the title page is no div there to begin with).
+    It stands in for ``front/titlePage``, which is no division of the text, and
+    TEI's own numbering skips it (the title page is no div there to begin
+    with). The home page needs no such rule: it sits directly under ``text``,
+    outside front/body/back, so it never gets a label at all.
     """
-    from opm.spec_index import OPM_PAGE, PAGE_HOME
-
     if localname(node) != 'div':
-        return False
-    if node.get(OPM_PAGE) == PAGE_HOME:
         return False
     return not any(localname(child) == 'titlePage' for child in node)
 
@@ -637,13 +650,11 @@ def _document_root(node: Any = None) -> etree._Element | None:
 
 
 def _top_chapters(root: etree._Element):
+    """Every chapter the site publishes: each top-level division of the text,
+    the A–Z catalogs among the back matter's appendices."""
     from opm.odd_schema import iter_guideline_chapters
-    from opm.spec_index import OPM_PAGE, PAGE_CHAPTER
 
-    for div in iter_guideline_chapters(root):
-        if div.get(OPM_PAGE) != PAGE_CHAPTER:
-            continue
-        yield div
+    yield from iter_guideline_chapters(root)
 
 
 def _toc_item(div: etree._Element) -> etree._Element:

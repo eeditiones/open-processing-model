@@ -8,6 +8,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% if chunk.xml_id and chunk.xml_id != 'index' %}{{ chunk.xml_id }} — {% endif %}{{ context.site_title }}</title>
+  {#- The browser-tab icon. One SVG, which every current browser takes and
+      which stays sharp at any size; no .ico or apple-touch-icon, because
+      rasterizing one would mean a dependency the site builder does not have. -#}
+  <link rel="icon" href="tei-logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="document.css">
   {% if odd_css_url %}<link rel="stylesheet" href="{{ odd_css_url }}">{% endif %}
   <script src="theme.js"></script>

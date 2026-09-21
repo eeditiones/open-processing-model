@@ -214,8 +214,7 @@ Generate a static HTML documentation site from an ODD.
 
 Follows ``schemaSpec/@source`` (processing-model chains included). A
 TEI-targeting ODD (``schemaSpec/@ns`` absent or the TEI namespace) is merged
-onto the cached TEI schema. --guidelines documents TEI alone; --source
-supplies a local schema instead. Writes
+onto the cached TEI schema; --guidelines documents TEI alone. Writes
 reference pages plus A–Z catalogs. Processing models are listed on each
 elementSpec.
 
@@ -245,7 +244,6 @@ opm odd document [OPTIONS] [SOURCE]
 | Option | Description |
 | --- | --- |
 | `--guidelines` | Document TEI alone (no SOURCE). Downloads the TEI schema (specs plus Guidelines prose, ~2 MB) into the user cache on first use; it is not shipped in the wheel. TEI-targeting ODDs merge onto it by default. |
-| `--source PATH` | Local schema source (p5subset.xml or a compiled ODD) used as the merge base. |
 | `--output-dir, -o PATH` | Output directory (default: odd/<schemaSpec ident>). |
 | `--lang TEXT` | xml:lang to prefer on gloss/desc/remarks (default: en). |
 | `--odd, -d PATH` | Processing ODD used to render nested TEI (default: packaged tagdocs.odd). |

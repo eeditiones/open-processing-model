@@ -76,8 +76,8 @@ def packaged_odd(name: str = 'teipublisher') -> Path:
 def packaged_document_dir() -> Path:
     """Mirror packaged ``resources/document`` into the user cache and return it.
 
-    The documentation site's ``opm.toml``, page template and static assets live
-    here. The mirror is versioned like [`ensure_packaged_odd_dir`][opm.resources.ensure_packaged_odd_dir]
+    The documentation site's two run configs (``guidelines.toml``,
+    ``reference.toml``), page template and static assets live here. The mirror is versioned like [`ensure_packaged_odd_dir`][opm.resources.ensure_packaged_odd_dir]
     so editable-install edits show up.
     """
     dest = user_opm_cache_dir() / 'resources' / opm_version() / 'document'

@@ -1675,13 +1675,6 @@ def document_cmd(
             ),
         ),
     ] = False,
-    schema_source: Annotated[
-        Optional[Path],
-        typer.Option(
-            '--source',
-            help='Local schema source (p5subset.xml or a compiled ODD) used as the merge base.',
-        ),
-    ] = None,
     output_dir: Annotated[
         Optional[Path],
         typer.Option(
@@ -1723,8 +1716,7 @@ def document_cmd(
 
     Follows ``schemaSpec/@source`` (processing-model chains included). A
     TEI-targeting ODD (``schemaSpec/@ns`` absent or the TEI namespace) is merged
-    onto the cached TEI schema. --guidelines documents TEI alone; --source
-    supplies a local schema instead. Writes
+    onto the cached TEI schema; --guidelines documents TEI alone. Writes
     reference pages plus A–Z catalogs. Processing models are listed on each
     elementSpec.
 
@@ -1739,15 +1731,11 @@ def document_cmd(
     from opm.document_site import build_document_site
     from opm.odd_schema import SchemaError, compile_schema
 
-    if source is None and not guidelines and schema_source is None:
+    if source is None and not guidelines:
         _die('pass an ODD / spec document, or --guidelines to document the TEI schema.')
 
     try:
-        compiled = compile_schema(
-            source,
-            source=schema_source,
-            use_guidelines=guidelines,
-        )
+        compiled = compile_schema(source, use_guidelines=guidelines)
     except SchemaError as exc:
         _die(str(exc), cause=exc)
 
