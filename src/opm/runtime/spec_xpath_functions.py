@@ -20,9 +20,12 @@ from lxml import etree
 
 from opm.runtime.xpath_env import current_environment
 from opm.runtime.xpath_extensions import expect_element, expect_string, sequence_types
+from opm import spec_index as _si
+from opm.runtime.spec_primitives import _index
 from opm.spec_index import (
     TEXT_IDENT,
     AttClassView,
+    AttDefView,
     Spec,
     SpecIndex,
     SpecRef,
@@ -53,27 +56,141 @@ _KIND_PREDICATES = {
 }
 
 
-def _index(node: Any = None) -> SpecIndex | None:
-    env = current_environment()
-    if env is not None and env.spec_index is not None:
-        return env.spec_index
-    root = None
-    if env is not None and env.root is not None:
-        root = env.root
-    elif node is not None:
-        try:
-            root = expect_element(node, arg_name='spec').getroottree().getroot()
-        except ValueError:
-            root = None
-    if root is None:
-        return None
-    lang = 'en'
-    if env is not None:
-        lang = str((env.parameters or {}).get('lng') or 'en')
-        index = SpecIndex.from_tree(root, lang=lang)
-        env.spec_index = index
-        return index
-    return SpecIndex.from_tree(root, lang=lang)
+def _derive(index: SpecIndex, spec: Spec, name: str) -> list:
+    """*spec*'s relation *name*, derived once per index and cached."""
+    key = (name, spec.ident)
+    if key not in index.memo:
+        index.memo[key] = _RELATIONS[name](index, spec)
+    return index.memo[key]
+
+
+def _members(index: SpecIndex, spec: Spec) -> list[SpecRef]:
+    return index.members_of(spec.ident)
+
+
+def _used_by(index: SpecIndex, spec: Spec) -> list[SpecRef]:
+    used = (index.referrers('class', spec.ident)
+            + index.referrers('macro', spec.ident)
+            + index.referrers('data', spec.ident))
+    if spec.is_model_class:
+        # A model class is also "used" by the classes it is a member of: a
+        # classRef to the parent matches this class's members too. The TEI
+        # Stylesheets list those parents alongside the content-model
+        # references, so model.persStateLike shows model.personPart.
+        used += [index.ref(key, kind='class') for key in spec.model_classes]
+    return _si.unique_refs(used)
+
+
+def _may_contain(index: SpecIndex, spec: Spec) -> list[SpecRef]:
+    if spec.kind not in {'element', 'macro', 'datatype'} or spec.content is None:
+        return []
+    return _si.unique_refs(_walk_content(index, spec.content, seen=set()))
+
+
+def _walk_content(index: SpecIndex, el: etree._Element, seen: set[str]) -> list[SpecRef]:
+    """Everything a content model admits: classes expanded to their elements,
+    macros followed into their own content, text as character data."""
+    out: list[SpecRef] = []
+    tag = localname(el)
+    key = el.get('key')
+    if tag == 'elementRef' and key:
+        out.append(index.ref(key, kind='element'))
+    elif tag == 'classRef' and key:
+        out.extend(index.class_members_transitive(key))
+    elif tag == 'macroRef' and key and key not in seen:
+        seen.add(key)
+        macro = index.get(key)
+        if macro is not None and macro.content is not None:
+            out.extend(_walk_content(index, macro.content, seen))
+    elif tag == 'dataRef' and (key or el.get('name')):
+        out.append(index.ref(key or el.get('name') or '', kind='datatype'))
+    elif tag == 'textNode':
+        out.append(SpecRef(ident=TEXT_IDENT, kind='text'))
+    for child in el:
+        out.extend(_walk_content(index, child, seen))
+    return out
+
+
+def _contained_by(index: SpecIndex, spec: Spec) -> list[SpecRef]:
+    """Elements whose content admits *spec*: directly, through one of its model
+    classes (or their ancestors), or through a macro that references either."""
+    if spec.kind != 'element':
+        return []
+    parents: list[SpecRef] = list(index.referrers('element', spec.ident))
+    classes = index.expand_model_ancestors(spec.model_classes)
+    for cls in classes:
+        parents.extend(index.referrers('class', cls))
+    chase = {spec.ident, *classes}
+    for macro in index.macros():
+        refs = set(index.content_refs(macro.ident))
+        if any((kind, key) in refs for kind in ('class', 'element') for key in chase):
+            parents.extend(index.referrers('macro', macro.ident))
+    return [
+        ref for ref in _si.unique_refs(parents)
+        if ref.kind == 'element' and ref.ident != spec.ident
+    ]
+
+
+def _attribute_tree_of(index: SpecIndex, spec: Spec) -> list[AttClassView]:
+    """The att classes *spec* inherits from, nested as they inherit, with the
+    attributes *spec* redefines marked and those it deletes left out."""
+    if spec.kind != 'element' and not spec.is_att_class:
+        return []
+    local = {att.ident for att in spec.local_atts}
+    views = [
+        _att_class_view(index, key, local, spec.suppressed_atts)
+        for key in spec.att_classes
+    ]
+    return [view for view in views if view is not None]
+
+
+def _att_class_view(
+    index: SpecIndex, ident: str, local: set[str], suppressed: set[str],
+) -> AttClassView | None:
+    cls = index.get(ident)
+    if cls is None:
+        return AttClassView(ident=ident)
+    atts = [
+        AttDefView(
+            ident=att.ident,
+            usage=att.usage,
+            datatype=att.datatype,
+            desc=att.desc,
+            gloss=att.gloss,
+            exemplum=att.exemplum,
+            overridden=att.ident in local,
+            node=att.node,
+        )
+        for att in cls.local_atts
+        if att.ident not in suppressed
+    ]
+    nested = [
+        view
+        for key in cls.att_classes
+        if (view := _att_class_view(index, key, local, suppressed)) is not None
+    ]
+    return AttClassView(ident=ident, attributes=atts, nested=nested)
+
+
+def _grouped(refs: list[SpecRef]) -> list[tuple[str, list[SpecRef]]]:
+    """*refs* by module, A–Z, with character data last."""
+    buckets: dict[str, list[SpecRef]] = {}
+    for ref in refs:
+        buckets.setdefault('Character data' if ref.is_text else (ref.module or ''), []).append(ref)
+    named = sorted((key for key in buckets if key != 'Character data'), key=str.lower)
+    if 'Character data' in buckets:
+        named.append('Character data')
+    return [(key, buckets[key]) for key in named]
+
+
+_RELATIONS = {
+    'members': _members,
+    'used_by': _used_by,
+    'may_contain': _may_contain,
+    'contained_by': _contained_by,
+    'attribute_tree': _attribute_tree_of,
+}
+
 
 
 def _spec_of(value: Any) -> Spec | None:
@@ -132,7 +249,7 @@ def _ref_list(refs: list[SpecRef], *, list_type: str) -> etree._Element:
 
 def _grouped_list(spec: Spec, refs: list[SpecRef], *, list_type: str) -> etree._Element:
     wrap = _tei('list', type=list_type)
-    groups = spec.grouped(refs)
+    groups = _grouped(refs)
     if not groups:
         empty = _tei('seg', type='empty')
         empty.text = 'empty'
@@ -228,6 +345,17 @@ def spec_section(anchor: Any, heading: Any, nodes: Any) -> Any:
     The ODD selects the nodes, and so owns the ``xml:lang`` preference and the
     heading; this only builds the wrapper. Each node is deep-copied because
     appending a live one would move it out of the source tree.
+
+    ``tp:spec_section('ref-notes', 'Note', remarks[@xml:lang=$parameters?lng])``:
+
+    ```xml
+    <div type="spec-section" n="ref-notes">
+      <head>Note</head>
+      <remarks xml:lang="en">…</remarks>
+    </div>
+    ```
+
+    The empty sequence when *nodes* holds no element.
     """
     items = _as_elements(nodes)
     if not items:
@@ -242,39 +370,122 @@ def spec_section(anchor: Any, heading: Any, nodes: Any) -> Any:
 
 
 def contained_by(spec: Any) -> etree._Element:
-    """TEI list of elements that may contain *spec*."""
+    """TEI list of elements that may contain *spec*, grouped by module.
+
+    For ``abbr``:
+
+    ```xml
+    <list type="containedBy">
+      <item n="analysis">
+        <list type="specItems">
+          <item><gi>cl</gi></item>
+          <item><gi>pc</gi></item>
+          <!-- … -->
+        </list>
+      </item>
+      <item n="core">
+        <list type="specItems">
+          <item><gi>add</gi></item>
+          <!-- … -->
+        </list>
+      </item>
+    </list>
+    ```
+
+    One item per module, A–Z, with character data last; ``seg[@type='empty']``
+    when there is nothing to list.
+    """
     resolved = _spec_of(spec)
     if resolved is None:
         return _tei('list', type='containedBy')
-    return _grouped_list(resolved, resolved.contained_by, list_type='containedBy')
+    return _grouped_list(resolved, _derive(resolved.index, resolved, 'contained_by'), list_type='containedBy')
 
 
 def may_contain(spec: Any) -> etree._Element:
-    """TEI list of what *spec* may contain, grouped by module."""
+    """TEI list of what *spec* may contain, grouped by module.
+
+    For ``abbr``:
+
+    ```xml
+    <list type="mayContain">
+      <item n="analysis">
+        <list type="specItems">
+          <item><gi>c</gi></item>
+          <!-- … -->
+        </list>
+      </item>
+      <!-- … -->
+      <item n="Character data">
+        <list type="specItems">
+          <item type="charData">character data</item>
+        </list>
+      </item>
+    </list>
+    ```
+
+    One item per module, A–Z, with character data last; ``seg[@type='empty']``
+    when there is nothing to list.
+    """
     resolved = _spec_of(spec)
     if resolved is None:
         return _tei('list', type='mayContain')
-    return _grouped_list(resolved, resolved.may_contain, list_type='mayContain')
+    return _grouped_list(resolved, _derive(resolved.index, resolved, 'may_contain'), list_type='mayContain')
 
 
 def members(spec: Any) -> etree._Element:
-    """TEI list of specs that claim membership in *spec*."""
+    """TEI list of specs that claim membership in *spec*.
+
+    For ``model.pPart.edit``:
+
+    ```xml
+    <list type="members">
+      <item><ident type="class">model.pPart.editorial</ident></item>
+      <item><ident type="class">model.pPart.transcriptional</ident></item>
+    </list>
+    ```
+
+    An element member is a ``gi`` followed by ``seg[@type='module']``, as in
+    [`used_by`][opm.runtime.spec_xpath_functions.used_by].
+    """
     resolved = _spec_of(spec)
     if resolved is None:
         return _tei('list', type='members')
-    return _ref_list(resolved.members, list_type='members')
+    return _ref_list(_derive(resolved.index, resolved, 'members'), list_type='members')
 
 
 def used_by(spec: Any) -> etree._Element:
-    """TEI list of specs whose content model mentions *spec*."""
+    """TEI list of specs whose content model mentions *spec*.
+
+    For ``model.pPart.edit``:
+
+    ```xml
+    <list type="usedBy">
+      <item><gi>bibl</gi><seg type="module">core</seg></item>
+      <item><ident type="class">model.phrase</ident></item>
+      <item><gi>pc</gi><seg type="module">analysis</seg></item>
+    </list>
+    ```
+    """
     resolved = _spec_of(spec)
     if resolved is None:
         return _tei('list', type='usedBy')
-    return _ref_list(resolved.used_by, list_type='usedBy')
+    return _ref_list(_derive(resolved.index, resolved, 'used_by'), list_type='usedBy')
 
 
 def member_of(spec: Any) -> etree._Element:
-    """TEI list of classes *spec* belongs to (model and attribute)."""
+    """TEI list of classes *spec* belongs to (model and attribute).
+
+    For ``abbr``:
+
+    ```xml
+    <list type="memberOf">
+      <item><ident type="class">att.global</ident></item>
+      <item><ident type="class">att.typed</ident></item>
+      <item><ident type="class">model.choicePart</ident></item>
+      <!-- … -->
+    </list>
+    ```
+    """
     resolved = _spec_of(spec)
     index = _index(spec)
     if resolved is None or index is None:
@@ -309,16 +520,44 @@ def _att_tree_item(branch: AttClassView) -> etree._Element:
 def has_attribute_tree(spec: Any) -> bool:
     """True when *spec* inherits attributes from one or more att classes."""
     resolved = _spec_of(spec)
-    return bool(resolved and resolved.attribute_tree)
+    return bool(resolved and _derive(resolved.index, resolved, 'attribute_tree'))
 
 
 def attribute_tree(spec: Any) -> etree._Element:
-    """Inherited att-class tree for *spec* (nested lists)."""
+    """Inherited att-class tree for *spec* (nested lists).
+
+    Each class lists its own attributes (``@n`` is the anchor on the page that
+    defines them), then the classes it inherits from. An attribute *spec*
+    redefines itself carries ``rend="overridden"``. For ``abbr``:
+
+    ```xml
+    <list type="attTree">
+      <item>
+        <ident type="class">att.global</ident>
+        <list type="atts">
+          <item ident="xml:id" n="att-xml-id">xml:id</item>
+          <item ident="n" n="att-n">n</item>
+          <!-- … -->
+        </list>
+        <list type="attTree">
+          <item>
+            <ident type="class">att.global.analytic</ident>
+            <list type="atts">
+              <item ident="ana" n="att-ana">ana</item>
+            </list>
+          </item>
+          <!-- … -->
+        </list>
+      </item>
+      <!-- … -->
+    </list>
+    ```
+    """
     wrap = _tei('list', type='attTree')
     resolved = _spec_of(spec)
     if resolved is None:
         return wrap
-    for branch in resolved.attribute_tree:
+    for branch in _derive(resolved.index, resolved, 'attribute_tree'):
         wrap.append(_att_tree_item(branch))
     return wrap
 
@@ -354,7 +593,25 @@ def spec_count(kind: Any, node: Any = None) -> int:
 
 
 def spec_catalog(kind: Any, node: Any = None) -> etree._Element:
-    """A–Z catalog of specs of *kind*, as nested lists keyed by letter."""
+    """A–Z catalog of specs of *kind*, as nested lists keyed by letter.
+
+    ``@n`` on an entry is the spec's module. The ``att.``, ``model.``,
+    ``macro.`` and ``teidata.`` prefixes are skipped when sorting into
+    letters. ``tp:spec_catalog('element', .)``:
+
+    ```xml
+    <list type="catalog">
+      <item n="A">
+        <list type="catalogItems">
+          <item type="element" ident="ab" n="linking">ab</item>
+          <item type="element" ident="abbr" n="core">abbr</item>
+          <!-- … -->
+        </list>
+      </item>
+      <!-- … -->
+    </list>
+    ```
+    """
     wrap = _tei('list', type='catalog')
     index = _index(node)
     if index is None:
@@ -389,6 +646,26 @@ def attribute_catalog(node: Any = None) -> etree._Element:
     ([`spec_catalog`][opm.runtime.spec_xpath_functions.spec_catalog]): 275
     attributes in one table is a page nothing breaks up, and the letter
     headings are what the jump links and the on-this-page rail key on.
+
+    ```xml
+    <list type="attCatalog">
+      <item n="A">
+        <list type="attCatalogItems">
+          <item ident="active">
+            <gi>interaction</gi>
+            <gi>relation</gi>
+          </item>
+          <item ident="agent">
+            <ident type="class">att.damaged</ident>
+            <gi>gap</gi>
+            <gi>unclear</gi>
+          </item>
+          <!-- … -->
+        </list>
+      </item>
+      <!-- … -->
+    </list>
+    ```
     """
     wrap = _tei('list', type='attCatalog')
     index = _index(node)
@@ -421,7 +698,14 @@ def usage_label(usage: Any) -> str:
 
 
 def att_datatype(att_def: Any) -> etree._Element | str:
-    """``ident`` pointing at the attribute's datatype, or the empty string."""
+    """``ident`` pointing at the attribute's datatype, or the empty string.
+
+    For an ``attDef`` whose datatype is ``teidata.enumerated``:
+
+    ```xml
+    <ident type="datatype">teidata.enumerated</ident>
+    ```
+    """
     node = expect_element(att_def, arg_name='att_datatype(attDef)')
     data_ref = node.find(f'.//{qn("dataRef")}')
     if data_ref is None:
@@ -448,6 +732,24 @@ def list_ref(spec: Any) -> etree._Element:
     When the site publishes the Guidelines prose itself the link stays inside
     the site (``ref/@type='local'``); otherwise it points at the published P5
     documentation on tei-c.org.
+
+    For ``abbr``, on a site that publishes the Guidelines:
+
+    ```xml
+    <list type="listRef">
+      <item><ref type="local" target="CO.html#CONAAB">CONAAB</ref></item>
+    </list>
+    ```
+
+    and on a customization's site:
+
+    ```xml
+    <list type="listRef">
+      <item>
+        <ref target="https://www.tei-c.org/release/doc/tei-p5-doc/en/html/CO.html#CONAAB">CONAAB</ref>
+      </item>
+    </list>
+    ```
     """
     wrap = _tei('list', type='listRef')
     resolved = _spec_of(spec)
@@ -593,6 +895,13 @@ def heading_mark(div: Any = None) -> etree._Element | str:
     it counts: "Chapter 3", "Front matter iv". Back matter already reads as a
     phrase ("Appendix F"), and a section's label ("1.2", "iv.1.") is a mark
     beside its heading rather than a line, so both are left alone.
+
+    For the first body chapter, then its first section:
+
+    ```xml
+    <seg type="headingNumber">Chapter 1 </seg>
+    <seg type="headingNumber">1.1 </seg>
+    ```
     """
     label = heading_label(div)
     if not label:
@@ -610,6 +919,33 @@ def guidelines_toc(node: Any = None) -> etree._Element | str:
     Headings (Front Matter, Text Body, …) stay in tagdocs; this only walks
     the prepared tree and emits ``list[@n]`` fragments. ``$parameters?root``
     is the home chunk, so the document element is used.
+
+    Each chapter is an item with its label and a link, and its sections are a
+    nested list. The title page has no label. For the Guidelines:
+
+    ```xml
+    <div type="guidelines-toc">
+      <list type="toc" n="front">
+        <item><ref target="Title.html">Title</ref></item>
+        <item>
+          <seg type="headingNumber">iv. </seg>
+          <ref target="AB.html">About These Guidelines</ref>
+          <list type="toc">
+            <item>
+              <seg type="headingNumber">iv.1. </seg>
+              <ref target="AB.html#ABSTRUNC">Structure and Notational Conventions of this Document</ref>
+            </item>
+            <!-- … -->
+          </list>
+        </item>
+        <!-- … -->
+      </list>
+      <list type="toc" n="body"><!-- … --></list>
+      <list type="toc" n="back"><!-- … --></list>
+    </div>
+    ```
+
+    The empty string when there are no chapters.
     """
     root = _document_root(node)
     if root is None:

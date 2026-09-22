@@ -45,6 +45,7 @@ ProgressFn = Callable[[int, int, str], None]
 
 _TAGDOCS_XPATH_EXTENSIONS = (
     'opm.runtime.common_xpath_functions',
+    'opm.runtime.spec_primitives',
     'opm.runtime.spec_xpath_functions',
 )
 
@@ -82,42 +83,54 @@ def build_document_site(
     title: str | None = None,
     odd: Path | str | None = None,
     on_progress: ProgressFn | None = None,
+    config_path: Path | str | None = None,
 ) -> DocumentSite:
-    """Write a static HTML site for *compiled* into *output_dir*."""
+    """Write a static HTML site for *compiled* into *output_dir*.
+
+    *config_path* is the ``opm.toml`` to build with: a documentation project's
+    (``opm init --example odd``), or by default the packaged one. It supplies
+    the ODD, the chunking runs, the page template and the extension modules;
+    the page assets and ``nav.xml`` come from the page template's directory.
+    """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    tree = prepare_document_tree(compiled, lang=lang, title=title)
+    config_file = Path(config_path) if config_path else packaged_document_dir() / 'opm.toml'
+    base_cfg = load_project_config(config_file)
+    site_dir = site_assets_dir(base_cfg, config_file)
+
+    tree = prepare_document_tree(compiled, lang=lang, title=title, nav=site_dir / 'nav.xml')
     index = SpecIndex.from_tree(
         tree,
         lang=lang,
         title=title or compiled.title or 'ODD documentation',
     )
     site_title = title or index.title
-    odd_path = Path(odd) if odd else packaged_odd('tagdocs')
+    if odd:
+        odd_path = Path(odd)
+    elif config_path and base_cfg.chunking and base_cfg.chunking.odd:
+        odd_path = base_cfg.chunking.odd
+    else:
+        odd_path = packaged_odd('tagdocs')
     header_source = compiled.tree
 
-    def _run_config(name: str) -> ProjectConfig:
-        """One of the two packaged run configs, with this site's context."""
-        cfg = load_project_config(packaged_document_dir() / name)
-        cfg = replace(
-            cfg,
-            template_context={
-                **cfg.template_context,
-                'site_title': site_title,
-                'lang': lang,
-                'edition': _edition_line(compiled.tree) or _edition_line(header_source),
-                'rights': _rights_line(header_source) or _rights_line(compiled.tree),
-            },
-            parameters={**cfg.parameters, 'lng': lang, 'mode': 'ref'},
-            xpath_extensions=_TAGDOCS_XPATH_EXTENSIONS,
-        )
-        if odd is not None:
-            chunking = replace(cfg.chunking, odd=odd_path) if cfg.chunking else None
-            cfg = replace(cfg, chunking=chunking, transform_odd=odd_path)
-        return cfg
+    cfg = replace(
+        base_cfg,
+        template_context={
+            **base_cfg.template_context,
+            'site_title': site_title,
+            'lang': lang,
+            'edition': _edition_line(compiled.tree) or _edition_line(header_source),
+            'rights': _rights_line(header_source) or _rights_line(compiled.tree),
+        },
+        parameters={**base_cfg.parameters, 'lng': lang, 'mode': 'ref'},
+    )
+    extensions = tuple(cfg.xpath_extensions) or _TAGDOCS_XPATH_EXTENSIONS
+    runs = cfg.chunking_runs or ((cfg.chunking,) if cfg.chunking else ())
+    if not runs:
+        raise ValueError(f'{config_file} declares no [chunking] run')
 
-    _copy_assets(output_dir)
+    _copy_assets(output_dir, site_dir)
 
     chapters = [
         div for div in iter_guideline_chapters(tree)
@@ -131,7 +144,7 @@ def build_document_site(
     written = 0
 
     def _on_chunk_progress(done: int, _run_total: int) -> None:
-        # Two runs, one bar: the reference run continues where the text ended.
+        # Several runs, one bar: each continues where the previous ended.
         if on_progress:
             on_progress(written + done, total, 'pages')
 
@@ -140,14 +153,12 @@ def build_document_site(
         xml_path.write_bytes(
             etree.tostring(tree, xml_declaration=True, encoding='utf-8'),
         )
-        # The text first: its anchors let the reference run resolve a spec's
-        # pointers into the prose (`#SATSRN` → SA.html#SATSRN).
+        # In order, each run handed the anchors of those before it: the text
+        # first, so a spec page's pointers into the prose resolve
+        # (`#SATSRN` → SA.html#SATSRN).
         anchors: dict[str, str] = {}
-        for name in ('guidelines.toml', 'reference.toml'):
-            cfg = _run_config(name)
-            chunking = cfg.chunking
-            assert chunking is not None
-            chunking = replace(chunking, output_dir='.', odd=odd_path)
+        for position, run in enumerate(runs):
+            chunking = replace(run, output_dir='.', odd=odd_path)
             anchors = chunk_document(
                 module_path=None,
                 xml_path=xml_path,
@@ -156,9 +167,10 @@ def build_document_site(
                 template_path=chunking.template,
                 on_progress=_on_chunk_progress,
                 project_config=cfg,
-                xpath_extensions=_TAGDOCS_XPATH_EXTENSIONS,
+                xpath_extensions=extensions,
                 spec_index=index,
                 anchors=anchors,
+                merge_manifest=position > 0,
             )
             written = len(set(anchors.values()))
 
@@ -186,8 +198,12 @@ def prepare_document_tree(
     *,
     lang: str = 'en',
     title: str | None = None,
+    nav: Path | None = None,
 ) -> etree._Element:
     """Deep-copy *compiled* and add the nodes ``opm chunk`` needs as pages.
+
+    *nav* is the sidebar list to inject (``nav.xml``); the packaged one when
+    omitted.
 
     Two passes. First the tree is normalized: appendix dumps our catalogs
     replace are dropped, the title page becomes a chapter, and every node that
@@ -212,7 +228,7 @@ def prepare_document_tree(
     _ensure_spec_xml_ids(tree)
     _ensure_chapter_ids(tree)
     body = _ensure_body(tree)
-    _inject_nav(body)
+    _inject_nav(body, nav)
     _inject_home(
         body.getparent(),
         title=title or compiled.title or 'ODD documentation',
@@ -430,10 +446,12 @@ def _ensure_back(tree: etree._Element) -> etree._Element:
     return etree.SubElement(text, qn('back'))
 
 
-def _inject_nav(body: etree._Element) -> None:
-    data = resources.files('opm').joinpath('resources/document/nav.xml').read_bytes()
-    nav = etree.fromstring(data)
-    body.insert(0, nav)
+def _inject_nav(body: etree._Element, path: Path | None = None) -> None:
+    if path is not None and path.is_file():
+        data = path.read_bytes()
+    else:
+        data = resources.files('opm').joinpath('resources/document/nav.xml').read_bytes()
+    body.insert(0, etree.fromstring(data))
 
 
 _OPENING_TAGS = {'titlePage', 'p', 'opener', 'epigraph'}
@@ -518,14 +536,37 @@ def _write_idents(index: SpecIndex, output_dir: Path) -> None:
     )
 
 
-def _copy_assets(output_dir: Path) -> None:
-    root = resources.files('opm').joinpath('resources/document')
-    for name in ('document.css', 'fonts.css', 'search.js', 'theme.js', 'tei-logo.svg'):
-        data = root.joinpath(name).read_bytes()
-        (output_dir / name).write_bytes(data)
+#: The page assets a site directory provides, copied into every build.
+SITE_ASSETS = ('document.css', 'fonts.css', 'search.js', 'theme.js', 'tei-logo.svg')
+
+
+def site_assets_dir(cfg: ProjectConfig, config_file: Path) -> Path:
+    """Where the page assets and ``nav.xml`` live: beside the page template.
+
+    The first run with a template decides; without one, the directory of
+    *config_file*.
+    """
+    runs = cfg.chunking_runs or ((cfg.chunking,) if cfg.chunking else ())
+    for run in runs:
+        if run.template is not None:
+            return Path(run.template).parent
+    return config_file.parent
+
+
+def _copy_assets(output_dir: Path, site_dir: Path | None = None) -> None:
+    """The stylesheets, scripts, logo and fonts, from *site_dir* where it has
+    them — a project's own — else the packaged ones."""
+    packaged = resources.files('opm').joinpath('resources/document')
+
+    def source(name: str):
+        own = site_dir / name if site_dir is not None else None
+        return own if own is not None and own.exists() else packaged.joinpath(name)
+
+    for name in SITE_ASSETS:
+        (output_dir / name).write_bytes(source(name).read_bytes())
     fonts_dir = output_dir / 'fonts'
     fonts_dir.mkdir(exist_ok=True)
-    for entry in root.joinpath('fonts').iterdir():
+    for entry in source('fonts').iterdir():
         if entry.name.endswith('.woff2'):
             (fonts_dir / entry.name).write_bytes(entry.read_bytes())
 

@@ -22,6 +22,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from lxml import etree
 
@@ -199,15 +200,43 @@ class Spec:
     local_atts: list[AttDefView]
     suppressed_atts: set[str] = field(default_factory=set)
     models: list[ModelView] = field(default_factory=list)
-    contained_by: list[SpecRef] = field(default_factory=list)
-    may_contain: list[SpecRef] = field(default_factory=list)
-    members: list[SpecRef] = field(default_factory=list)
-    used_by: list[SpecRef] = field(default_factory=list)
-    attribute_tree: list[AttClassView] = field(default_factory=list)
+    #: The index this spec belongs to, set by [`SpecIndex`][opm.spec_index.SpecIndex].
+    index: SpecIndex | None = field(default=None, repr=False, compare=False)
 
     @property
     def href(self) -> str:
         return f'ref-{self.ident}.html'
+
+    # The relations below are not facts of the spec but readings of the graph,
+    # derived by the documentation layer from the index's primitives — see
+    # opm.runtime.spec_xpath_functions, where they can be changed. They stay
+    # here as properties so code written against the precomputed fields of
+    # earlier releases keeps working.
+
+    @property
+    def contained_by(self) -> list[SpecRef]:
+        """Elements whose content may hold this one (derived; see [`tp:contained_by`][opm.runtime.spec_xpath_functions.contained_by])."""
+        return _relation(self, 'contained_by')
+
+    @property
+    def may_contain(self) -> list[SpecRef]:
+        """What this spec's content allows (derived; see [`tp:may_contain`][opm.runtime.spec_xpath_functions.may_contain])."""
+        return _relation(self, 'may_contain')
+
+    @property
+    def members(self) -> list[SpecRef]:
+        """Specs claiming membership in this class (derived; see [`tp:members`][opm.runtime.spec_xpath_functions.members])."""
+        return _relation(self, 'members')
+
+    @property
+    def used_by(self) -> list[SpecRef]:
+        """Specs whose content models use this one (derived; see [`tp:used_by`][opm.runtime.spec_xpath_functions.used_by])."""
+        return _relation(self, 'used_by')
+
+    @property
+    def attribute_tree(self) -> list[AttClassView]:
+        """Inherited attribute classes (derived; see [`tp:attribute_tree`][opm.runtime.spec_xpath_functions.attribute_tree])."""
+        return _relation(self, 'attribute_tree')
 
     @property
     def is_model_class(self) -> bool:
@@ -230,23 +259,33 @@ class Spec:
         return [k for k in self.member_of_keys if k.startswith('att.')]
 
     def grouped(self, refs: list[SpecRef]) -> list[tuple[str, list[SpecRef]]]:
-        """Group *refs* by module, with character-data last."""
-        buckets: dict[str, list[SpecRef]] = {}
-        order: list[str] = []
-        for ref in refs:
-            key = 'Character data' if ref.is_text else (ref.module or '')
-            if key not in buckets:
-                buckets[key] = []
-                order.append(key)
-            buckets[key].append(ref)
-        named = sorted((k for k in order if k != 'Character data'), key=str.lower)
-        if 'Character data' in buckets:
-            named.append('Character data')
-        return [(k, buckets[k]) for k in named]
+        """Group *refs* by module, with character-data last (see ``_grouped`` in the ``tp:`` layer)."""
+        from opm.runtime import spec_xpath_functions
+
+        return spec_xpath_functions._grouped(refs)
+
+
+def _relation(spec: Spec, name: str) -> list:
+    """A derived relation of *spec*, computed by the documentation layer."""
+    if spec.index is None:
+        return []
+    from opm.runtime import spec_xpath_functions
+
+    return spec_xpath_functions._derive(spec.index, spec, name)
 
 
 class SpecIndex:
-    """Lookup table of specs plus precomputed membership / content relations."""
+    """The specs of a schema and the direct facts about them, indexed.
+
+    The primitives: specs by ident, direct class memberships and content-model
+    references, both inverted so that "who is a member of X" and "who refers
+    to X" are lookups rather than scans, and the two graph walks everything
+    else is built from. What those facts *mean* on a documentation page —
+    contained-by, may-contain, used-by, attribute inheritance — is derived on
+    top, in [`opm.runtime.spec_xpath_functions`][opm.runtime.spec_xpath_functions],
+    and cached in [`memo`][opm.spec_index.SpecIndex.memo]. It is the
+    counterpart of the indexes eXist gave the XQuery version of this code.
+    """
 
     def __init__(
         self,
@@ -266,7 +305,27 @@ class SpecIndex:
         #: ``xml:id`` → the chapter page it lands on, for every id inside a
         #: published chapter. Empty unless the site publishes chapter prose.
         self._chapter_anchors = chapter_anchors or {}
-        self._compute_relations()
+        self.memo: dict[Any, Any] = {}
+        """Cache for what layers above derive from the primitives, keyed by
+        whatever they choose (``('contained_by', 'p')``). Lives and dies with
+        the index, so a derivation is computed once per document."""
+        self._build_lookups()
+
+    def _build_lookups(self) -> None:
+        """Invert memberships and content references once, for O(1) primitives."""
+        self._members_of: dict[str, list[str]] = defaultdict(list)
+        self._referrers: dict[tuple[str, str], list[SpecRef]] = defaultdict(list)
+        self._content_refs: dict[str, list[tuple[str, str]]] = {}
+        for spec in self._specs.values():
+            spec.index = self
+            for key in spec.member_of_keys:
+                self._members_of[key].append(spec.ident)
+            refs = _content_refs(spec.content) if spec.content is not None else []
+            self._content_refs[spec.ident] = refs
+            for ref_kind, key in refs:
+                self._referrers[(ref_kind, key)].append(
+                    SpecRef(ident=spec.ident, kind=spec.kind, module=spec.module)
+                )
 
     @classmethod
     def from_tree(cls, root: etree._Element, *, lang: str = 'en', title: str = '') -> SpecIndex:
@@ -285,7 +344,7 @@ class SpecIndex:
         """Local page URL for *xml_id*, or ``None`` when it is not published.
 
         Ids are only known when the site documents the schema whose prose it
-        carries (``--guidelines``, a Guidelines ``p5.xml``, a Specs directory).
+        carries (TEI itself, a Guidelines ``p5.xml``, a Specs directory).
         A customization publishes no TEI chapters, so pointers into them stay
         external.
         """
@@ -356,6 +415,23 @@ class SpecIndex:
                 owners[att.ident].append(spec)
         return sorted(owners.items(), key=lambda kv: kv[0].lower())
 
+    def members_of(self, key: str) -> list[SpecRef]:
+        """Specs whose ``memberOf`` names *key* directly, A–Z."""
+        return unique_refs([self.ref(ident) for ident in self._members_of.get(key, ())])
+
+    def referrers(self, kind: str, key: str) -> list[SpecRef]:
+        """Specs whose content model refers to *key* directly.
+
+        *kind* is the reference: ``element`` (``elementRef``), ``class``
+        (``classRef``), ``macro`` (``macroRef``) or ``data`` (``dataRef``).
+        In document order, duplicates kept, as the references stand.
+        """
+        return list(self._referrers.get((kind, key), ()))
+
+    def content_refs(self, ident: str) -> list[tuple[str, str]]:
+        """``(kind, key)`` for every reference in *ident*'s content model."""
+        return list(self._content_refs.get(ident, ()))
+
     def class_members_transitive(self, ident: str) -> list[SpecRef]:
         """Elements in *ident* or any subclass, walking ``memberOf`` downward."""
         out: list[SpecRef] = []
@@ -366,14 +442,15 @@ class SpecIndex:
             if current in seen:
                 continue
             seen.add(current)
-            for spec in self._specs.values():
-                if current not in spec.member_of_keys:
+            for member in self._members_of.get(current, ()):
+                spec = self._specs.get(member)
+                if spec is None:
                     continue
                 if spec.kind == 'element':
                     out.append(self.ref(spec.ident))
                 elif spec.kind == 'class':
                     stack.append(spec.ident)
-        return _unique_refs(out)
+        return unique_refs(out)
 
     def expand_model_ancestors(self, keys: list[str]) -> list[str]:
         """Walk *up* model-class membership (``p`` → ``model.pLike`` → …)."""
@@ -392,136 +469,9 @@ class SpecIndex:
             stack.extend(spec.model_classes)
         return out
 
-    def _compute_relations(self) -> None:
-        content_parents: dict[tuple[str, str], list[SpecRef]] = defaultdict(list)
-        for spec in self._specs.values():
-            if spec.content is None:
-                continue
-            for ref_kind, key in _content_refs(spec.content):
-                content_parents[(ref_kind, key)].append(
-                    SpecRef(ident=spec.ident, kind=spec.kind, module=spec.module)
-                )
 
-        for spec in self._specs.values():
-            spec.members = _unique_refs([
-                self.ref(other.ident)
-                for other in self._specs.values()
-                if spec.ident in other.member_of_keys
-            ])
-            used_by = (content_parents.get(('class', spec.ident), [])
-                       + content_parents.get(('macro', spec.ident), [])
-                       + content_parents.get(('data', spec.ident), []))
-            if spec.is_model_class:
-                # A model class is also "used" by the classes it is a member of:
-                # a classRef to the parent matches this class's members too. The
-                # TEI Stylesheets list those parents alongside the content-model
-                # references, so model.persStateLike shows model.personPart.
-                used_by += [self.ref(key, kind='class') for key in spec.model_classes]
-            spec.used_by = _unique_refs(used_by)
-            if spec.kind == 'element':
-                spec.may_contain = self._expand_content(spec.content)
-                spec.contained_by = self._contained_by(spec, content_parents)
-                spec.attribute_tree = self._attribute_tree(spec)
-            elif spec.is_att_class:
-                spec.attribute_tree = self._attribute_tree(spec)
-            elif spec.kind in {'macro', 'datatype'}:
-                spec.may_contain = self._expand_content(spec.content)
-
-    def _expand_content(self, content: etree._Element | None) -> list[SpecRef]:
-        if content is None:
-            return []
-        return _unique_refs(self._walk_content(content, seen=set()))
-
-    def _walk_content(self, el: etree._Element, seen: set[str]) -> list[SpecRef]:
-        out: list[SpecRef] = []
-        tag = localname(el)
-        if tag == 'elementRef':
-            key = el.get('key')
-            if key:
-                out.append(self.ref(key, kind='element'))
-        elif tag == 'classRef':
-            key = el.get('key')
-            if key:
-                out.extend(self.class_members_transitive(key))
-        elif tag == 'macroRef':
-            key = el.get('key')
-            if key and key not in seen:
-                seen.add(key)
-                macro = self.get(key)
-                if macro is not None and macro.content is not None:
-                    out.extend(self._walk_content(macro.content, seen))
-        elif tag == 'dataRef':
-            key = el.get('key') or el.get('name')
-            if key:
-                out.append(self.ref(key, kind='datatype'))
-        elif tag == 'textNode':
-            out.append(SpecRef(ident=TEXT_IDENT, kind='text'))
-        for child in el:
-            out.extend(self._walk_content(child, seen))
-        return out
-
-    def _contained_by(
-        self,
-        spec: Spec,
-        content_parents: dict[tuple[str, str], list[SpecRef]],
-    ) -> list[SpecRef]:
-        parents: list[SpecRef] = []
-        parents.extend(content_parents.get(('element', spec.ident), []))
-        classes = self.expand_model_ancestors(spec.model_classes)
-        for cls in classes:
-            parents.extend(content_parents.get(('class', cls), []))
-        macros_to_chase = {spec.ident, *classes}
-        for other in self._specs.values():
-            if other.kind != 'macro' or other.content is None:
-                continue
-            refs = set(_content_refs(other.content))
-            if any((kind, key) in refs for kind in ('class', 'element') for key in macros_to_chase):
-                parents.extend(content_parents.get(('macro', other.ident), []))
-        return [
-            ref for ref in _unique_refs(parents)
-            if ref.kind == 'element' and ref.ident != spec.ident
-        ]
-
-    def _attribute_tree(self, spec: Spec) -> list[AttClassView]:
-        local_names = {a.ident for a in spec.local_atts}
-        views = [
-            self._att_class_view(key, local_names, spec.suppressed_atts)
-            for key in spec.att_classes
-        ]
-        return [v for v in views if v is not None]
-
-    def _att_class_view(
-        self,
-        ident: str,
-        local_names: set[str],
-        suppressed: set[str],
-    ) -> AttClassView | None:
-        spec = self.get(ident)
-        if spec is None:
-            return AttClassView(ident=ident)
-        atts = [
-            AttDefView(
-                ident=a.ident,
-                usage=a.usage,
-                datatype=a.datatype,
-                desc=a.desc,
-                gloss=a.gloss,
-                exemplum=a.exemplum,
-                overridden=a.ident in local_names,
-                node=a.node,
-            )
-            for a in spec.local_atts
-            if a.ident not in suppressed
-        ]
-        nested = [
-            view
-            for key in spec.att_classes
-            if (view := self._att_class_view(key, local_names, suppressed)) is not None
-        ]
-        return AttClassView(ident=ident, attributes=atts, nested=nested)
-
-
-def _unique_refs(refs: list[SpecRef]) -> list[SpecRef]:
+def unique_refs(refs: list[SpecRef]) -> list[SpecRef]:
+    """*refs* without repeats, character data first, then A–Z."""
     seen: set[tuple[str, str]] = set()
     out: list[SpecRef] = []
     for ref in refs:

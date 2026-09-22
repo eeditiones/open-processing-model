@@ -588,6 +588,7 @@ def _chunk_processor(
     chunking=None,
     xpath_env=None,
     webcomponents: bool = False,
+    anchors=None,
 ):
     """Build the chunker for *root*, or ``None`` when the project has no chunking.
 
@@ -609,18 +610,22 @@ def _chunk_processor(
         project_config=cfg,
         webcomponents=webcomponents,
         xpath_env=xpath_env,
+        anchors=anchors,
     )
     processor.select_chunks()
     return processor
 
 
-def _web_chunking(cfg: ProjectConfig, odd: Path | None, base_css: str | None):
-    """Compile the web (and per-fragment) modules ``opm chunk`` would use."""
+def _web_chunking(cfg: ProjectConfig, odd: Path | None, base_css: str | None, chunking=None):
+    """Compile the web (and per-fragment) modules ``opm chunk`` would use for a run.
+
+    *chunking* is the run, the first one when omitted.
+    """
     from dataclasses import replace
 
     from opm.odd_cache import resolve_transform_module
 
-    chunking = cfg.chunking
+    chunking = cfg.chunking if chunking is None else chunking
     web_odd = odd if odd is not None else (
         chunking.odd if chunking is not None and chunking.odd is not None
         else cfg.odd_for_type('web')
@@ -670,8 +675,16 @@ def _fragment_plain_text(html: str) -> str:
     return _clean(''.join(tree.itertext()))
 
 
-def _page_metadata(processor, fields: tuple[FieldSpec, ...], chunk, position: int, cache: dict) -> dict[str, str]:
-    """Evaluate ``fragment`` fields once for this page."""
+def _page_metadata(
+    processor, fields: tuple[FieldSpec, ...], chunk, position: int, cache: dict,
+    *, strict: bool = True,
+) -> dict[str, str]:
+    """Evaluate ``fragment`` fields once for this page.
+
+    Not *strict* — a ``[[chunking]]`` array — a field whose fragment only
+    another run declares is left out of this run's pages; loading the config
+    already checked that some run declares it.
+    """
     specs = [spec for spec in fields if spec.fragment]
     if not specs:
         return {}
@@ -684,6 +697,8 @@ def _page_metadata(processor, fields: tuple[FieldSpec, ...], chunk, position: in
     values: dict[str, str] = {}
     for spec in specs:
         fragment = available.get(spec.fragment)
+        if fragment is None and not strict:
+            continue
         if fragment is None:
             raise ValueError(
                 f'index.fields["{spec.name}"] names fragment {spec.fragment!r}, '
@@ -757,25 +772,36 @@ def index_document(
         return json.loads(payload).get('document', [])
 
     fragment_fields = any(spec.fragment for spec in options.fields)
-    chunking = cfg.chunking
-    processor_module = resolved.module_path
-    webcomponents = False
-    if fragment_fields:
-        processor_module, chunking = _web_chunking(cfg, odd, base_css)
-        webcomponents = bool(cfg.webcomponents_enabled)
-
-    processor = _chunk_processor(
-        root,
-        processor_module,
-        cfg,
-        project_root,
-        chunking=chunking,
-        xpath_env=xpath_env,
-        webcomponents=webcomponents,
-    )
+    webcomponents = bool(cfg.webcomponents_enabled) if fragment_fields else False
+    runs = cfg.chunking_runs or ((cfg.chunking,) if cfg.chunking is not None else ())
+    # One chunker per run, as `opm chunk` runs them: each is handed the anchors
+    # of the runs before it, so links between their pages resolve.
+    processors = []
+    anchors: dict[str, str] = {}
+    for run in runs or (None,):
+        processor_module, chunking = resolved.module_path, run
+        if fragment_fields:
+            processor_module, chunking = _web_chunking(cfg, odd, base_css, run)
+        processor = _chunk_processor(
+            root,
+            processor_module,
+            cfg,
+            project_root,
+            chunking=chunking,
+            xpath_env=xpath_env,
+            webcomponents=webcomponents,
+            anchors=anchors,
+        )
+        if processor is None:
+            continue
+        anchors = processor.build_anchor_index()
+        processors.append(processor)
+    strict = len(runs) < 2
     cache: dict = {}
 
-    def records_for(node, *, chunk_file: str | None, anchors: dict | None, position: int, context) -> list[dict]:
+    def records_for(
+        node, *, processor, chunk_file: str | None, anchors: dict | None, position: int, context,
+    ) -> list[dict]:
         return build_records(
             transform(node),
             doc_stem=xml_path.stem,
@@ -784,29 +810,33 @@ def index_document(
             anchors=anchors,
             chunk_file=chunk_file,
             page_metadata=_page_metadata(
-                processor, options.fields, context, position, cache,
+                processor, options.fields, context, position, cache, strict=strict,
             ) if fragment_fields else None,
             options=options,
         )
 
-    if processor is None or not processor.chunks:
+    if not any(processor.chunks for processor in processors):
         return records_for(
-            root, chunk_file=None, anchors=None, position=0, context=root,
+            root, processor=processors[0] if processors else None,
+            chunk_file=None, anchors=None, position=0, context=root,
         )
 
-    anchors = processor.build_anchor_index()
     records: list[dict] = []
-    for position, chunk in enumerate(processor.chunks):
-        metadata = processor.generate_chunk_metadata(chunk, position)
-        records.extend(
-            records_for(
-                chunk,
-                chunk_file=metadata.file,
-                anchors=anchors,
-                position=position,
-                context=chunk,
-            ),
-        )
+    for processor in processors:
+        # Rebuilt after every run exists, so each run sees the final map.
+        run_anchors = processor.build_anchor_index()
+        for position, chunk in enumerate(processor.chunks):
+            metadata = processor.generate_chunk_metadata(chunk, position)
+            records.extend(
+                records_for(
+                    chunk,
+                    processor=processor,
+                    chunk_file=metadata.file,
+                    anchors=run_anchors,
+                    position=position,
+                    context=chunk,
+                ),
+            )
     return records
 
 

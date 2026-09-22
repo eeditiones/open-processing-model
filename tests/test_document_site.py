@@ -287,8 +287,21 @@ def test_cli_document_default_output_uses_schema_ident(
     assert (dest / 'document.css').is_file()
 
 
-def test_cli_document_requires_input() -> None:
+def test_cli_document_without_input_documents_tei(tmp_path: Path, monkeypatch) -> None:
+    """No SOURCE, outside a documentation project: the TEI Guidelines."""
+    import opm.odd_schema as odd_schema
+
+    calls = []
+
+    def fake_compile(source=None, *, use_guidelines=False, **kwargs):
+        calls.append((source, use_guidelines))
+        raise odd_schema.SchemaError('stop here')
+
+    monkeypatch.setattr(odd_schema, 'compile_schema', fake_compile)
+    monkeypatch.chdir(tmp_path)
     assert main(['odd', 'document']) == 1
+    assert main(['odd', 'prepare']) == 1
+    assert calls == [(None, True), (None, True)]
 
 
 def test_guidelines_chapters_are_written(tmp_path: Path) -> None:
@@ -836,7 +849,7 @@ def test_eg_element_renders_as_source_block(tmp_path: Path) -> None:
 def test_tei_publishes_the_artifact_chapters(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
-    """``--guidelines`` documents TEI, so the artifact's chapters are the site's."""
+    """Documenting TEI itself, so the artifact's chapters are the site's."""
     artifact = tmp_path / 'p5all.xml'
     artifact.write_text(
         '''<?xml version="1.0" encoding="UTF-8"?>
@@ -1268,3 +1281,159 @@ def test_non_spec_element_yields_its_ref_id_to_the_spec(tmp_path: Path) -> None:
         if el.get('target', '').startswith('#ref-faith')
     ]
     assert targets == ['#ref-faith-figure']
+
+
+def test_a_plain_chunk_run_builds_the_spec_index_once(tmp_path: Path, monkeypatch) -> None:
+    """Without ``opm odd document`` handing it an index, one is built per document.
+
+    The chunker renders each page through a fresh environment view, so an
+    index cached on the environment would be rebuilt for every page.
+    """
+    from dataclasses import replace
+
+    from opm.chunking import chunk_document
+    from opm.config import load_project_config
+    from opm.document_site import _TAGDOCS_XPATH_EXTENSIONS
+    from opm.resources import packaged_document_dir
+    from opm.runtime import spec_primitives
+    from opm.spec_index import SpecIndex
+
+    xml = tmp_path / 'schema.xml'
+    xml.write_bytes(etree.tostring(prepare_document_tree(compile_schema(MINI))))
+    built = []
+    original = SpecIndex.from_tree.__func__
+
+    def counting(cls, root, **kwargs):
+        built.append(root)
+        return original(cls, root, **kwargs)
+
+    monkeypatch.setattr(SpecIndex, 'from_tree', classmethod(counting))
+    monkeypatch.setattr(spec_primitives, '_INDEXES', {})
+
+    cfg = load_project_config(packaged_document_dir() / 'opm.toml')
+    reference = next(run for run in cfg.chunking_runs if run.name == 'reference')
+    out = tmp_path / 'out'
+    chunk_document(
+        module_path=None,
+        xml_path=xml,
+        config=replace(reference, output_dir='.'),
+        project_root=out,
+        template_path=reference.template,
+        project_config=cfg,
+        xpath_extensions=_TAGDOCS_XPATH_EXTENSIONS,
+    )
+
+    pages = list(out.glob('ref-*.html'))
+    assert len(pages) > 1
+    assert len(built) == 1
+
+
+# ── documentation projects (opm init --example odd) ───────────────────────
+
+
+def test_documentation_project_starts_with_the_packaged_runs(tmp_path: Path) -> None:
+    """The scaffold copies the runs `opm odd document` uses, re-rooted — no drift."""
+    from opm.config import load_project_config
+    from opm.resources import packaged_document_dir
+    from opm.scaffold import InitOptions, scaffold
+
+    result = scaffold(InitOptions(directory=tmp_path / 'site-project', example='odd'))
+    root = result.directory
+    for rel in (
+        'opm.toml', 'odd/tagdocs.odd', 'odd/tagdocs.css', 'extensions/tagdocs.py',
+        'templates/page.html.j2', 'templates/nav.xml', 'templates/document.css',
+    ):
+        assert (root / rel).is_file(), rel
+
+    project = load_project_config(root / 'opm.toml')
+    packaged = load_project_config(packaged_document_dir() / 'opm.toml')
+    assert project.document is not None and project.document.source is None
+    assert project.xpath_extensions[-1] == 'extensions.tagdocs'
+
+    def shape(runs):
+        return [
+            (run.name, run.xpath, run.file_pattern, run.template.name if run.template else None,
+             [(f.name, f.xpath) for f in run.fragments or ()])
+            for run in runs
+        ]
+
+    assert shape(project.chunking_runs) == shape(packaged.chunking_runs)
+    assert {run.output_dir for run in project.chunking_runs} == {'site'}
+    assert project.chunking_runs[0].template == root / 'templates' / 'page.html.j2'
+
+
+def test_odd_document_builds_with_the_project_it_runs_in(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """Inside a documentation project the project's ODD, assets and tp: functions win."""
+    import sys
+
+    from opm.scaffold import InitOptions, scaffold
+
+    root = scaffold(InitOptions(directory=tmp_path / 'proj', example='odd')).directory
+    config = (root / 'opm.toml').read_text(encoding='utf-8')
+    config = config.replace('# source = "my-customization.odd"', f'source = "{MINI.as_posix()}"')
+    (root / 'opm.toml').write_text(config, encoding='utf-8')
+    # A replaced tp: function, a changed ODD model, a changed asset.
+    (root / 'extensions' / 'tagdocs.py').write_text(
+        'from opm.runtime import spec_xpath_functions as packaged\n\n'
+        'def usage_label(usage):\n'
+        '    return "PROJECT-" + packaged.usage_label(usage)\n',
+        encoding='utf-8',
+    )
+    odd = root / 'odd' / 'tagdocs.odd'
+    odd.write_text(
+        odd.read_text(encoding='utf-8').replace(
+            '<h1>[[number]]Attributes</h1>', '<h1>[[number]]Project attributes</h1>',
+        ),
+        encoding='utf-8',
+    )
+    (root / 'templates' / 'document.css').write_text('/* project css */\n', encoding='utf-8')
+
+    # `extensions` is also the package name of ordinary scaffolded projects.
+    for name in [m for m in sys.modules if m == 'extensions' or m.startswith('extensions.')]:
+        monkeypatch.delitem(sys.modules, name)
+    monkeypatch.setattr(sys, 'path', list(sys.path))
+    monkeypatch.chdir(root)
+
+    assert main(['odd', 'document', '--force']) == 0
+
+    site = root / 'site'
+    assert 'PROJECT-Optional' in (site / 'ref-p.html').read_text(encoding='utf-8')
+    assert 'Project attributes' in (site / 'REF-ATTS.html').read_text(encoding='utf-8')
+    assert (site / 'document.css').read_text(encoding='utf-8') == '/* project css */\n'
+    # Not in the project, so the packaged ones: fonts and logo.
+    assert (site / 'tei-logo.svg').is_file()
+    assert any((site / 'fonts').glob('*.woff2'))
+
+
+def test_prepare_then_chunk_gives_a_static_site_builder_both_runs(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """`opm odd prepare` + `opm chunk --format json` in a documentation project."""
+    import json
+    import sys
+
+    from opm.scaffold import InitOptions, scaffold
+
+    root = scaffold(InitOptions(directory=tmp_path / 'proj', example='odd')).directory
+    config = (root / 'opm.toml').read_text(encoding='utf-8')
+    (root / 'opm.toml').write_text(
+        config.replace('# source = "my-customization.odd"', f'source = "{MINI.as_posix()}"'), encoding='utf-8',
+    )
+    for name in [m for m in sys.modules if m == 'extensions' or m.startswith('extensions.')]:
+        monkeypatch.delitem(sys.modules, name)
+    monkeypatch.setattr(sys, 'path', list(sys.path))
+    monkeypatch.chdir(root)
+
+    assert main(['odd', 'prepare', '-o', 'schema.xml']) == 0
+    assert main(['chunk', 'schema.xml', '--format', 'json', '--force']) == 0
+
+    out = root / 'site' / 'schema.xml'
+    manifest = json.loads((out / 'manifest.json').read_text(encoding='utf-8'))
+    assert {chunk['run'] for chunk in manifest['chunks']} == {'guidelines', 'reference'}
+    assert (out / 'index.json').is_file()
+    ref = json.loads((out / 'ref-p.json').read_text(encoding='utf-8'))
+    assert 'paragraph' in ref['content']
+    # A second prepare refuses to overwrite without --force.
+    assert main(['odd', 'prepare', '-o', 'schema.xml']) != 0

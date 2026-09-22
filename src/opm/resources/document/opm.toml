@@ -1,0 +1,77 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: CC0-1.0
+#
+# Packaged config for `opm odd document`. Paths are relative to this file
+# (resources/document/), which also holds the page template, the site's
+# stylesheets, scripts and fonts, and the sidebar list (nav.xml).
+#
+# `opm init --example odd` scaffolds a project with the same two runs, whose
+# files a user owns and edits; `opm odd document` run inside it uses those
+# instead of these.
+
+[transform]
+odd = "../odd/tagdocs.odd"
+# Later modules win on a name clash: a project lists its own module last to
+# replace a tp: function. spec_primitives are the index lookups the
+# documentation functions in spec_xpath_functions are composed from.
+xpath_extensions = [
+    "opm.runtime.common_xpath_functions",
+    "opm.runtime.spec_primitives",
+    "opm.runtime.spec_xpath_functions",
+]
+
+# ── Run 1: the Guidelines read as a text ────────────────────────────────────
+# Every top-level division of the text is a page — chapters, front matter and
+# the back-matter appendices, the A–Z catalogs among them — plus the home page,
+# which the site builder puts directly under `text` because it is no division
+# of the text itself. Specs inside the prose are left to the reference run.
+[[chunking]]
+name = "guidelines"
+xpath = "/TEI/text/div | /TEI/text/(front|body|back)/div"
+file_pattern = "{xml_id}.html"
+template = "page.html.j2"
+
+[[chunking.fragments]]
+name = "nav"
+scope = "global"
+xpath = "//list[@type='siteNav']"
+parameters = { mode = "nav" }
+
+# Per-chunk: the compact previous/next pair the right-hand rail shows under
+# "On this page". Selects nothing on the home page, so the fragment is empty
+# there.
+[[chunking.fragments]]
+name = "chapternav"
+scope = "per-chunk"
+xpath = "self::div[parent::front or parent::body or parent::back]"
+parameters = { mode = "chapnav" }
+
+# Per-chunk: the full-width previous/next cards that close a chapter. Rendered
+# after the chunk body so footnotes stay with the prose that cites them.
+[[chunking.fragments]]
+name = "chapterend"
+scope = "per-chunk"
+xpath = "self::div[parent::front or parent::body or parent::back]"
+parameters = { mode = "chapnav-end" }
+
+# ── Run 2: one reference page per element, class, macro and datatype ───────
+# Handed run 1's anchors, so a spec's pointers into the prose (`#SATSRN`) land
+# on the chapter page that holds them. The site builder stamps `ref-{ident}` on
+# one copy of each spec; the copies it leaves unstamped (a spec both declared
+# and quoted) are not pages.
+[[chunking]]
+name = "reference"
+xpath = """
+  //elementSpec[starts-with(@xml:id,'ref-')]
+  | //classSpec[starts-with(@xml:id,'ref-')]
+  | //macroSpec[starts-with(@xml:id,'ref-')]
+  | //dataSpec[starts-with(@xml:id,'ref-')]
+"""
+file_pattern = "{xml_id}.html"
+template = "page.html.j2"
+
+[[chunking.fragments]]
+name = "nav"
+scope = "global"
+xpath = "//list[@type='siteNav']"
+parameters = { mode = "nav" }

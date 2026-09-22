@@ -420,18 +420,9 @@
                         <param name="uri" value="concat('ref-', parent::list/parent::item/ident, '.html#', @n)"/>
                         <pb:template xmlns=""><a href="[[uri]]">[[name]]</a></pb:template>
                     </model>
-                    <!-- The label is taken as a string: letting the ref render
-                         itself would nest an <a> inside the chip's own anchor,
-                         which the browser then splits into two links. -->
-                    <model predicate="parent::list[@type='listRef'] and ref/@type='local'" behaviour="pass-through">
-                        <param name="uri" value="ref/@target"/>
-                        <param name="label" value="string(ref)"/>
-                        <pb:template xmlns=""><a class="spec__chip" href="[[uri]]">[[label]]</a></pb:template>
-                    </model>
+                    <!-- The chip itself is the ref's to draw: see ref below. -->
                     <model predicate="parent::list[@type='listRef']" behaviour="pass-through">
-                        <param name="uri" value="ref/@target"/>
-                        <param name="label" value="string(ref)"/>
-                        <pb:template xmlns=""><a class="spec__chip" href="[[uri]]" rel="external">[[label]]</a></pb:template>
+                        <param name="content" value="ref"/>
                     </model>
                     <model predicate="parent::list[@type='chips'] and @type='module'" behaviour="pass-through">
                         <param name="module" value="."/>
@@ -439,6 +430,27 @@
                     </model>
                     <model predicate="@type='charData'" behaviour="inline" cssClass="muted"/>
                     <model behaviour="listItem"/>
+                </elementSpec>
+                <elementSpec ident="ref" mode="change">
+                    <!-- A Guidelines chapter a spec cites (tp:list_ref), drawn
+                         as a chip: inside the site when it publishes that
+                         chapter, on tei-c.org otherwise. -->
+                    <model predicate="parent::item/parent::list[@type='listRef'] and @type='local'" behaviour="pass-through">
+                        <param name="uri" value="@target"/>
+                        <param name="label" value="string(.)"/>
+                        <pb:template xmlns=""><a class="spec__chip" href="[[uri]]">[[label]]</a></pb:template>
+                    </model>
+                    <model predicate="parent::item/parent::list[@type='listRef']" behaviour="pass-through">
+                        <param name="uri" value="@target"/>
+                        <param name="label" value="string(.)"/>
+                        <pb:template xmlns=""><a class="spec__chip" href="[[uri]]" rel="external">[[label]]</a></pb:template>
+                    </model>
+                    <!-- Declaring models replaces the inherited ones: keep
+                         teipublisher.odd's plain link and inline fallbacks. -->
+                    <model predicate="@target" behaviour="link">
+                        <param name="uri" value="@target"/>
+                    </model>
+                    <model behaviour="inline"/>
                 </elementSpec>
                 <elementSpec ident="elementSpec" mode="add">
                     <desc>Full reference page for an element. Nested copies in

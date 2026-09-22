@@ -304,7 +304,7 @@ def compile_schema(
     input_path: Path | None = Path(path).resolve() if path else None
     if input_path is None and not use_guidelines:
         raise SchemaError(
-            'Pass an ODD / compiled spec document, or --guidelines to document the TEI schema.'
+            'Pass an ODD / compiled spec document, or use_guidelines=True to document the TEI schema.'
         )
 
     root: etree._Element | None = None
@@ -382,7 +382,7 @@ def compile_schema(
         )
     else:
         raise SchemaError(
-            'Pass an ODD / compiled spec document, or --guidelines to document the TEI schema.'
+            'Pass an ODD / compiled spec document, or use_guidelines=True to document the TEI schema.'
         )
 
     for overlay_path in overlays:

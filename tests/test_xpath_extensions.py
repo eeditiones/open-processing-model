@@ -343,3 +343,37 @@ def test_tp_spec_functions_use_spec_index() -> None:
     assert env.select(p, 'tp:spec_section("ref-x", "X", nonesuch)') == []
     assert env.select(p, 'tp:has_attribute_tree(.)')
     assert env.select(p, 'tp:usage_label("opt")') == 'Optional'
+
+
+PRIMITIVES = ('opm.runtime.spec_primitives',)
+
+
+def test_spec_primitives_answer_from_the_index() -> None:
+    """The lookups the documentation functions are composed from, from XPath.
+
+    Membership and references are direct; the two walks follow classes down to
+    their elements and up to their ancestors.
+    """
+    from pathlib import Path
+
+    root = etree.parse(
+        str(Path(__file__).resolve().parent / 'fixtures' / 'mini_schema.odd'),
+    ).getroot()
+    env = XPathEnvironment(extensions=PRIMITIVES)
+
+    def strings(expr: str) -> list[str]:
+        result = env.select(root, expr)
+        # A one-item sequence comes back unwrapped.
+        items = result if isinstance(result, list) else [result]
+        return [str(item) for item in items]
+
+    assert strings("tp:spec_members_of('model.pLike', .)") == ['p']
+    assert strings("tp:spec_class_members('model.divPart', .)") == ['p']
+    assert strings("tp:spec_model_ancestors('model.pLike', .)") == ['model.pLike', 'model.divPart']
+    assert strings("tp:spec_referrers('class', 'model.pLike', .)") == ['div']
+    assert strings("tp:spec_content_refs('macro.paraContent', 'class', .)") == ['model.phrase']
+    # Composable in plain XPath: who admits <hi>, through the macro its class is in.
+    assert strings(
+        "for $m in tp:spec_referrers('class', 'model.phrase', .) "
+        "return tp:spec_referrers('macro', $m, .)"
+    ) == ['p']

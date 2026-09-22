@@ -1241,10 +1241,12 @@ def test_init_example_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
 def test_example_catalogue_matches_shipped_directories() -> None:
     """The picker's catalogue and the bundled trees must not drift apart."""
     from opm.resources import example_dir, example_names
-    from opm.scaffold import EXAMPLE_NAMES, EXAMPLES
+    from opm.scaffold import EXAMPLES
 
-    assert sorted(EXAMPLE_NAMES) == example_names()
+    assert sorted(e.name for e in EXAMPLES if not e.packaged) == example_names()
     for example in EXAMPLES:
+        if example.packaged:
+            continue
         root = example_dir(example.name)
         assert (root / 'opm.toml').is_file()
         # The "Next:" hint has to name a document that is actually there.

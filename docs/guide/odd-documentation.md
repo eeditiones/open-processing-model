@@ -20,7 +20,7 @@ By default the site is written to `odd/<schemaSpec ident>` (the ODD's
 opm odd document my.odd --force --preview
 
 # TEI itself, no customization
-opm odd document --guidelines -o tei-ref --force --preview
+opm odd document -o tei-ref --force --preview
 ```
 
 One can use ODD to process non-TEI documents: `opm` currently supports
@@ -45,13 +45,50 @@ division's position among its siblings, so a title page carries no number, and
 neither do the pages `opm` adds itself. The A–Z catalogs are appendices, in the
 order they appear in the sidebar.
 
+## Customizing the output
+
+Everything `opm odd document` builds with can be copied into a project and
+edited there:
+
+```bash
+opm init my-docs --example odd
+cd my-docs
+opm odd document my-odd.odd --force --preview
+```
+
+Omitting `my-odd.odd` generates the full TEI P5 guidelines in its latest version.
+`opm` caches the full guidelines ODD anyway, because it needs it as a base.
+
+The project holds the processing ODD (`odd/tagdocs.odd`), the two chunking
+runs in `opm.toml` — the text, then one reference page per spec — the page
+template and the site's stylesheet and scripts (`templates/`), the sidebar list
+(`templates/nav.xml`), and `extensions/tagdocs.py` for `tp:` functions of your
+own. `[document]` in `opm.toml` says what to document, the TEI Guidelines
+unless it names a `source`; SOURCE on the command line still wins.
+
+Rendering works as follows:
+
+* the ODD is parsed into a python object model with all references resolved to allow fast lookups
+* the resulting object model is passed to `tagdocs.odd` via XPath extension functions
+* most extension functions return TEI: for example, [`tp:may_contain()`](/api/spec-index/#opm.runtime.spec_xpath_functions.may_contain) called on an `<elementSpec>`
+will return a TEI `<list>`, which is then further processed by the ODD
+
+## JSON for a static site generator
+
+Inside a documentation project, the same runs produce JSON:
+
+```bash
+opm odd prepare -o schema.xml          # the tree `odd document` chunks
+opm chunk schema.xml --format json     # both runs, links between them resolved
+```
+
 ## Example: the TEI Guidelines
 
 The [TEI Guidelines](../guidelines/index.html) published alongside this
 documentation are the unedited output of
 
 ```bash
-opm odd document --guidelines
+opm odd document
 ```
 
 `scripts/build_guidelines_docs.sh` runs it into `docs/guidelines/`, from where

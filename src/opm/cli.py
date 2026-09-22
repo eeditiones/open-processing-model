@@ -167,7 +167,7 @@ def init_cmd(
         ),
     ] = False,
 ) -> None:
-    """Create a local project: an empty one, or a copy of a bundled example."""
+    """Create a local project: an empty one or a copy of a bundled example."""
     if list_examples:
         _print_examples()
         return
@@ -179,7 +179,7 @@ def init_cmd(
         vocabulary, example = _choose_start()
         # A bare `opm init` settles the shells in the same breath as the
         # starting point; --templates has already answered the question.
-        if not templates:
+        if not templates and example != 'odd':
             templates = _ask_extra_templates()
 
     if example is not None and copy_base_odd:
@@ -219,6 +219,10 @@ def init_cmd(
     sample = result.sample_path
     typer.echo('')
     typer.echo('Next:')
+    if result.example == 'odd':
+        typer.echo(f'  cd {result.directory}')
+        typer.echo('  opm odd document --force --preview')
+        return
     typer.echo(f'  opm transform {sample} --preview')
     if result.example is None:
         typer.echo(f'  opm chunk {sample} --force --preview')
@@ -787,6 +791,23 @@ def _chunk_progress() -> Progress:
         console=console,
         disable=not console.is_terminal,
     )
+
+
+def _documentation_project():
+    """``(opm.toml, config)`` when the current directory is a documentation
+    project — its config has a ``[document]`` table — else ``(None, None)``."""
+    from opm.config import load_project_config
+
+    config_file = Path.cwd() / 'opm.toml'
+    if not config_file.is_file():
+        return None, None
+    try:
+        config = load_project_config(config_file)
+    except ValueError as exc:
+        _die(str(exc), cause=exc)
+    if config.document is None:
+        return None, None
+    return config_file, config
 
 
 def _document_output_dir(compiled, output_dir: Path | None) -> Path:
@@ -1651,6 +1672,66 @@ def _render_coverage(report, *, limit: int | None = 20) -> None:
 
 
 
+@odd_app.command('prepare')
+def prepare_cmd(
+    source: Annotated[
+        Optional[Path],
+        typer.Argument(
+            help=(
+                'ODD, compiled spec document or directory of Specs. Omit to '
+                'document the TEI Guidelines.'
+            ),
+        ),
+    ] = None,
+    output: Annotated[
+        Path,
+        typer.Option('--output', '-o', help='Where to write the prepared tree.'),
+    ] = Path('schema.xml'),
+    lang: Annotated[
+        Optional[str],
+        typer.Option('--lang', help='xml:lang to prefer in headings (default: en).'),
+    ] = None,
+    force: Annotated[
+        bool,
+        typer.Option('--force', help='Overwrite the output file if it exists.'),
+    ] = False,
+) -> None:
+    """Write the tree `opm odd document` chunks, for `opm chunk` to take over.
+
+    The schema merged onto TEI, ids stamped, and the pages the site adds — the
+    home page and the A–Z catalogs — injected. Run inside a documentation
+    project (`opm init --example odd`), `opm chunk` over the result then
+    writes that project's runs in any of its formats, e.g. `--format json` for
+    a static site generator; SOURCE and --lang default to the
+    project's [document] settings.
+    """
+    from lxml import etree
+
+    from opm.document_site import prepare_document_tree, site_assets_dir
+    from opm.odd_schema import SchemaError, compile_schema
+
+    project_file, project = _documentation_project()
+    nav = None
+    if project is not None and project.document is not None:
+        source = source or project.document.source
+        lang = lang or project.document.lang
+        nav = site_assets_dir(project, project_file) / 'nav.xml'
+    if output.exists() and not force:
+        _die(f'{output} already exists; pass --force to overwrite it.')
+
+    try:
+        compiled = compile_schema(source, use_guidelines=source is None)
+    except SchemaError as exc:
+        _die(str(exc), cause=exc)
+    for warning in compiled.warnings:
+        _note(warning)
+
+    tree = prepare_document_tree(compiled, lang=lang or 'en', nav=nav)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_bytes(etree.tostring(tree, xml_declaration=True, encoding='utf-8'))
+    typer.echo(f'Wrote {output}')
+
+
 @odd_app.command('document')
 def document_cmd(
     source: Annotated[
@@ -1658,23 +1739,12 @@ def document_cmd(
         typer.Argument(
             help=(
                 'ODD, compiled spec document (p5subset.xml / Guidelines p5.xml), '
-                'or a directory of Specs. Omit with --guidelines to document '
-                'the TEI schema.'
+                'or a directory of Specs. Omit to document the TEI Guidelines, '
+                'downloaded (specs plus prose, ~2 MB) into the user cache on '
+                'first use; TEI-targeting ODDs merge onto the same schema.'
             ),
         ),
     ] = None,
-    guidelines: Annotated[
-        bool,
-        typer.Option(
-            '--guidelines',
-            help=(
-                'Document TEI alone (no SOURCE). Downloads the TEI schema '
-                '(specs plus Guidelines prose, ~2 MB) into the user cache on '
-                'first use; it is not shipped in the wheel. TEI-targeting ODDs '
-                'merge onto it by default.'
-            ),
-        ),
-    ] = False,
     output_dir: Annotated[
         Optional[Path],
         typer.Option(
@@ -1684,9 +1754,9 @@ def document_cmd(
         ),
     ] = None,
     lang: Annotated[
-        str,
+        Optional[str],
         typer.Option('--lang', help='xml:lang to prefer on gloss/desc/remarks (default: en).'),
-    ] = 'en',
+    ] = None,
     odd: Annotated[
         Optional[Path],
         typer.Option(
@@ -1716,26 +1786,36 @@ def document_cmd(
 
     Follows ``schemaSpec/@source`` (processing-model chains included). A
     TEI-targeting ODD (``schemaSpec/@ns`` absent or the TEI namespace) is merged
-    onto the cached TEI schema; --guidelines documents TEI alone. Writes
+    onto the cached TEI schema; without SOURCE, TEI alone is documented. Writes
     reference pages plus A–Z catalogs. Processing models are listed on each
     elementSpec.
 
     Chapter prose from the input is always kept, and when the input is itself
-    the schema being documented (--guidelines, a Guidelines p5.xml, a Specs
+    the schema being documented (no SOURCE, a Guidelines p5.xml, a Specs
     directory)
     its chapters are published too. A customization documents itself, so TEI's
     chapters stay out of its site. An ODD pinning an older TEI/@version is
     compiled against the shipped snapshot, with a warning.
+
+    Run inside a project made by `opm init --example odd`, the site is built
+    with that project's ODD, runs, template, assets and extension modules, and
+    what to document, the language and the output directory default to its
+    [document] and [[chunking]] settings.
     PDF, Markdown and print channels are planned.
     """
     from opm.document_site import build_document_site
     from opm.odd_schema import SchemaError, compile_schema
 
-    if source is None and not guidelines:
-        _die('pass an ODD / spec document, or --guidelines to document the TEI schema.')
+    project_file, project = _documentation_project()
+    if project is not None and project.document is not None:
+        source = source or project.document.source
+        lang = lang or project.document.lang
+        if output_dir is None and project.chunking is not None:
+            output_dir = project_file.parent / project.chunking.output_dir
+    lang = lang or 'en'
 
     try:
-        compiled = compile_schema(source, use_guidelines=guidelines)
+        compiled = compile_schema(source, use_guidelines=source is None)
     except SchemaError as exc:
         _die(str(exc), cause=exc)
 
@@ -1764,6 +1844,7 @@ def document_cmd(
             lang=lang,
             odd=odd,
             on_progress=_on_progress,
+            config_path=project_file if project is not None else None,
         )
 
     typer.echo(

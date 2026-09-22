@@ -78,6 +78,27 @@ class ChunkRun:
     """The ``index.html`` an HTML run writes at the output root."""
 
 
+def _document_config(run: ChunkingConfig, xml_file: Path, format: str) -> ChunkingConfig:
+    """*run* as it applies to one document: where its pages go, and ``{doc}``."""
+    if format == 'pb-view':
+        # pb-view keeps its own layout: the data is fetched by path rather than
+        # served as pages, and `doc_path` places it.
+        return run
+    if Path(run.output_dir).name == xml_file.name:
+        # The output directory already names the document (-o site/doc.xml), so
+        # take it as the per-document directory instead of nesting twice.
+        return replace(run, link_doc=xml_file.name)
+    # One document or many, pages go to <output>/<name>.xml/ with the
+    # stylesheets, assets and index shared at the root. Chunking a single file
+    # therefore publishes the same URLs it will still publish once a second
+    # document joins it.
+    return replace(
+        run,
+        output_dir=f'{run.output_dir.rstrip("/")}/{xml_file.name}',
+        link_doc=xml_file.name,
+    )
+
+
 def chunk_input_files(source: Path) -> list[Path]:
     """The XML files a chunk run over *source* reads.
 
@@ -339,6 +360,11 @@ class Project:
             raise ValueError('no [chunking] section found in config.')
         return self.config.chunking
 
+    def _chunking_runs(self) -> tuple[ChunkingConfig, ...]:
+        """Every run, in order; a config built by hand may set only ``chunking``."""
+        first = self._chunking()
+        return self.config.chunking_runs or (first,)
+
     def chunk_output_dir(self, output_dir: Path | str | None = None) -> Path:
         """Where [`chunk`][opm.project.Project.chunk] writes: *output_dir*, else ``[chunking] output_dir``, below [`root`][opm.project.Project.root]."""
         return self.root / (output_dir if output_dir is not None else self._chunking().output_dir)
@@ -347,12 +373,17 @@ class Project:
         """Compile the modules a chunk run uses: the main one, then one per fragment ODD.
 
         The main ODD is *odd*, else ``[chunking] odd``, else the packaged one.
-        Fragments without an ODD of their own use the main module.
+        Fragments without an ODD of their own use the main module. For a
+        ``[[chunking]]`` array this is the first run's set.
 
         Raises:
             ValueError: The config has no ``[chunking]`` section.
         """
-        chunking = self._chunking()
+        return self._run_modules(self._chunking(), odd)
+
+    def _run_modules(
+        self, chunking: ChunkingConfig, odd: Path | str | None = None,
+    ) -> tuple[ResolvedTransform, ...]:
         main_odd = Path(odd) if odd is not None else chunking.odd
         main = self._resolve('web', main_odd, packaged_default=main_odd is None)
         fragments = tuple(
@@ -425,24 +456,32 @@ class Project:
         if by_directory and not files:
             raise ValueError(f'no XML files found in directory {source}.')
 
-        modules = self.chunk_modules(odd)
-        chunking = self._chunking()
-        changes: dict[str, Any] = {'module': modules[0].module_path}
+        overrides: dict[str, Any] = {}
         if output_dir is not None:
-            changes['output_dir'] = str(output_dir)
+            overrides['output_dir'] = str(output_dir)
         if template is not None:
-            changes['template'] = Path(template)
+            overrides['template'] = Path(template)
         if depth is not None:
-            changes['depth'] = depth
+            overrides['depth'] = depth
         if odd is not None:
-            changes['odd'] = Path(odd)
-        if chunking.fragments:
-            compiled = iter(modules[1:])
-            changes['fragments'] = [
-                replace(fragment, module=next(compiled).module_path if fragment.odd else None)
-                for fragment in chunking.fragments
-            ]
-        chunking = replace(chunking, **changes)
+            overrides['odd'] = Path(odd)
+
+        # One or several runs ([[chunking]]), each with its modules compiled
+        # and the call's overrides applied. They share the output directory.
+        runs: list[ChunkingConfig] = []
+        all_modules: list[ResolvedTransform] = []
+        for run in self._chunking_runs():
+            modules = self._run_modules(run, odd)
+            all_modules.extend(modules)
+            changes: dict[str, Any] = {'module': modules[0].module_path, **overrides}
+            if run.fragments:
+                compiled = iter(modules[1:])
+                changes['fragments'] = [
+                    replace(fragment, module=next(compiled).module_path if fragment.odd else None)
+                    for fragment in run.fragments
+                ]
+            runs.append(replace(run, **changes))
+        chunking = runs[0]
 
         out_dir = self.chunk_output_dir(chunking.output_dir)
         _clear_output_dir(out_dir, overwrite)
@@ -460,24 +499,6 @@ class Project:
         for position, xml_file in enumerate(files):
             if on_document is not None:
                 on_document(position, xml_file)
-            if format == 'pb-view':
-                # pb-view keeps its own layout: the data is fetched by path
-                # rather than served as pages, and `doc_path` places it.
-                document_config = chunking
-            elif Path(chunking.output_dir).name == xml_file.name:
-                # The output directory already names the document (-o site/doc.xml),
-                # so take it as the per-document directory instead of nesting twice.
-                document_config = replace(chunking, link_doc=xml_file.name)
-            else:
-                # One document or many, pages go to <output>/<name>.xml/ with the
-                # stylesheets, assets and index shared at the root. Chunking a
-                # single file therefore publishes the same URLs it will still
-                # publish once a second document joins it.
-                document_config = replace(
-                    chunking,
-                    output_dir=f'{chunking.output_dir.rstrip("/")}/{xml_file.name}',
-                    link_doc=xml_file.name,
-                )
             if by_directory and format == 'pb-view':
                 document_doc_path = (
                     f'{base_doc_path.rstrip("/")}/{xml_file.name}' if base_doc_path
@@ -486,20 +507,33 @@ class Project:
             else:
                 document_doc_path = base_doc_path
 
-            chunk_document(
-                module_path=chunking.module,
-                xml_path=xml_file,
-                config=document_config,
-                project_root=self.root,
-                template_path=chunking.template,
-                on_progress=on_progress,
-                project_config=self.config,
-                webcomponents=enabled,
-                xpath_extensions=extensions,
-                output_format=format,
-                doc_path=document_doc_path,
-                documents=names,
-            )
+            # Each run of this document is handed the anchors of the runs
+            # before it, so links between their pages resolve.
+            anchors: dict[str, str] = {}
+            written = 0
+            for index, run in enumerate(runs):
+                progress = on_progress
+                if on_progress is not None and written:
+                    # One count per document across its runs.
+                    def progress(done: int, total: int, _base: int = written) -> None:
+                        on_progress(_base + done, _base + total)
+                anchors = chunk_document(
+                    module_path=run.module,
+                    xml_path=xml_file,
+                    config=_document_config(run, xml_file, format),
+                    project_root=self.root,
+                    template_path=run.template,
+                    on_progress=progress,
+                    project_config=self.config,
+                    webcomponents=enabled,
+                    xpath_extensions=extensions,
+                    output_format=format,
+                    doc_path=document_doc_path,
+                    documents=names,
+                    anchors=anchors,
+                    merge_manifest=index > 0,
+                ) or {}  # a wrapped or stubbed chunk_document may still return None
+                written = len(set(anchors.values()))
 
         # Every HTML run leaves one subdirectory per document, which a web
         # server would otherwise show as a bare listing.
@@ -519,7 +553,7 @@ class Project:
             output_dir=out_dir,
             documents=tuple(files),
             format=format,
-            modules=modules,
+            modules=tuple(all_modules),
             index_file=index_file,
         )
 

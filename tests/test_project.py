@@ -336,3 +336,102 @@ def test_coverage_reports_on_the_configured_odd(tmp_path: Path) -> None:
     assert report.channel == 'web'
     assert report.documents == [xml]
     assert project.coverage(xml, mode='json-print').channel == 'print'
+
+
+# ── several chunking runs ([[chunking]]) ────────────────────────────────────
+
+_TWO_RUN_DOC = (
+    '<doc><text><body>'
+    '<div type="chapter" xml:id="intro"><p>The introduction, long enough to be a page.</p>'
+    '<div xml:id="intro-sec"><p>A section inside it.</p></div></div>'
+    '<div type="ref" xml:id="ref-p"><p>A reference entry that points '
+    '<ref target="#intro-sec">into the introduction</ref>.</p></div>'
+    '</body></text></doc>'
+)
+
+
+def _two_run_project(tmp_path: Path, runs: str) -> Project:
+    # A link model that carries its target, so a resolved cross-run link shows.
+    _odd(tmp_path / 'tiny.odd', _MODELS.replace(
+        '<elementSpec ident="ref"><model behaviour="link"/></elementSpec>',
+        '<elementSpec ident="ref"><model behaviour="link">'
+        '<param name="uri" value="@target"/></model></elementSpec>',
+    ))
+    config = tmp_path / 'opm.toml'
+    config.write_text('[transform]\nodd = "tiny.odd"\n\n' + runs, encoding='utf-8')
+    return Project.load(config)
+
+
+_TWO_RUNS = (
+    '[[chunking]]\nname = "text"\noutput_dir = "site"\n'
+    'xpath = "//body/div[@type=\'chapter\']"\nfile_pattern = "{xml_id}.html"\n\n'
+    '[[chunking.fragments]]\nname = "toc"\nscope = "global"\nxpath = "."\n\n'
+    '[[chunking]]\nname = "reference"\n'
+    'xpath = "//body/div[@type=\'ref\']"\nfile_pattern = "{xml_id}.html"\n'
+)
+
+
+def test_a_chunking_table_is_one_run(tmp_path: Path) -> None:
+    """The form every existing project uses reads exactly as before."""
+    project = _project(tmp_path)
+    assert project.config.chunking_runs == (project.config.chunking,)
+    assert project.config.chunking.name is None
+
+
+def test_a_chunking_array_is_several_runs(tmp_path: Path) -> None:
+    project = _two_run_project(tmp_path, _TWO_RUNS)
+    runs = project.config.chunking_runs
+    assert [run.name for run in runs] == ['text', 'reference']
+    # Fragments attach to the run they follow; the ODD and output directory
+    # reach every run.
+    assert [f.name for f in runs[0].fragments or ()] == ['toc']
+    assert runs[1].fragments is None
+    assert {run.output_dir for run in runs} == {'site'}
+    assert {run.odd for run in runs} == {tmp_path / 'tiny.odd'}
+    assert project.config.chunking is runs[0]
+
+
+def test_a_later_run_cannot_move_the_output(tmp_path: Path) -> None:
+    runs = _TWO_RUNS.replace('name = "reference"\n', 'name = "reference"\noutput_dir = "elsewhere"\n')
+    with pytest.raises(ValueError, match=r'"reference".*output_dir'):
+        _two_run_project(tmp_path, runs)
+
+
+def test_chunking_must_be_a_table_or_an_array_of_tables(tmp_path: Path) -> None:
+    config = tmp_path / 'opm.toml'
+    # Top level, before any table header, or TOML files it under that table.
+    config.write_text('chunking = "pages"\n', encoding='utf-8')
+    with pytest.raises(ValueError, match=r'\[chunking\] table or a \[\[chunking\]\] array'):
+        Project.load(config)
+
+
+def test_runs_share_one_directory_and_resolve_each_others_links(tmp_path: Path) -> None:
+    project = _two_run_project(tmp_path, _TWO_RUNS)
+    xml = tmp_path / 'doc.xml'
+    xml.write_text(_TWO_RUN_DOC, encoding='utf-8')
+
+    project.chunk(xml, format='json')
+
+    out = tmp_path / 'site' / 'doc.xml'
+    assert (out / 'intro.json').is_file() and (out / 'ref-p.json').is_file()
+    # The reference run was handed the text run's anchors.
+    ref = json.loads((out / 'ref-p.json').read_text(encoding='utf-8'))
+    assert 'intro.html#intro-sec' in ref['content']
+    manifest = json.loads((out / 'manifest.json').read_text(encoding='utf-8'))
+    assert [(c['file'], c['run']) for c in manifest['chunks']] == [
+        ('intro.html', 'text'), ('ref-p.html', 'reference'),
+    ]
+    assert manifest['anchors']['intro-sec'] == 'intro.html'
+    assert 'toc' in manifest['fragments']
+
+
+def test_the_search_index_covers_every_run(tmp_path: Path) -> None:
+    """A documentation site's search finds chapters and reference pages alike."""
+    project = _two_run_project(tmp_path, _TWO_RUNS)
+    xml = tmp_path / 'doc.xml'
+    xml.write_text(_TWO_RUN_DOC, encoding='utf-8')
+
+    records = project.index(xml)
+
+    files = {record['metadata'].get('chunk') for record in records}
+    assert {'intro.html', 'ref-p.html'} <= files, sorted(map(str, files))

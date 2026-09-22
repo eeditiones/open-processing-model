@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: CC0-1.0
+#
+# A documentation site for an ODD, made by `opm init --example odd`. Run
+# `opm odd document` in this directory: it builds with the ODD, runs, page
+# template, assets and extension modules of this project rather than the
+# packaged ones. Anything you delete from templates/ falls back to the packaged
+# file of the same name.
+
+# What to document: without a source, the TEI Guidelines. `opm odd document
+# SOURCE` on the command line wins over this.
+[document]
+# source = "my-customization.odd"
+lang = "{{ lang }}"
+
+[project]
+pythonpath = ["."]
+
+[transform]
+odd = "odd/tagdocs.odd"
+xpath_extensions = [
+    "opm.runtime.common_xpath_functions",
+    # The index lookups everything below is composed from.
+    "opm.runtime.spec_primitives",
+    # The packaged tp: functions: contained-by, catalogs, numbering, …
+    "opm.runtime.spec_xpath_functions",
+    # Yours, listed last, so a function there replaces a packaged one of the
+    # same name. See extensions/tagdocs.py.
+    "extensions.tagdocs",
+]
+
+# What `opm odd document` passes the ODD itself; set here too, so a plain
+# `opm chunk` over a prepared tree (`opm odd prepare`) renders the same.
+[transform.parameters]
+lng = "{{ lang }}"
+mode = "ref"
+
+{{ runs }}

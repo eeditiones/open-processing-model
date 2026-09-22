@@ -25,7 +25,7 @@ opm [OPTIONS] COMMAND [ARGS]...
 
 **Commands:**
 
-- [`init`](#opm-init): Create a local project: an empty one, or a...
+- [`init`](#opm-init): Create a local project: an empty one or a...
 - [`transform`](#opm-transform): Transform an XML document via an ODD with...
 - [`chunk`](#opm-chunk): Chunk a large XML document into smaller...
 - [`index`](#opm-index): Emit embedding-ready JSONL records for a...
@@ -34,7 +34,7 @@ opm [OPTIONS] COMMAND [ARGS]...
 
 ### `opm init`
 
-Create a local project: an empty one, or a copy of a bundled example.
+Create a local project: an empty one or a copy of a bundled example.
 
 **Usage:**
 
@@ -55,7 +55,7 @@ opm init [OPTIONS] [DIRECTORY]
 | --- | --- |
 | `--force` | Overwrite existing generated files. |
 | `--vocabulary TEXT` | Empty project for this vocabulary: tei, docbook, jats (default: tei). |
-| `--example, -e TEXT` | Start from a bundled example project instead of an empty one: jats, docbook, serafin, shakespeare. |
+| `--example, -e TEXT` | Start from a bundled example project instead of an empty one: jats, docbook, serafin, shakespeare, odd. |
 | `--list-examples` | List the bundled example projects and exit. |
 | `--copy-base-odd` | TEI only: also copy packaged teipublisher.odd and tp.css into odd/. |
 | `--templates` | Also copy the alternative HTML shells (chapbook, journal, handbook, tufte, bootstrap) beside the one wired up. |
@@ -205,8 +205,42 @@ opm odd [OPTIONS] COMMAND [ARGS]...
 
 **Commands:**
 
+- [`prepare`](#opm-odd-prepare): Write the tree `opm odd document` chunks,...
 - [`document`](#opm-odd-document): Generate a static HTML documentation site...
 - [`coverage`](#opm-odd-coverage): Diagnose an ODD against a corpus: what...
+
+#### `opm odd prepare`
+
+Write the tree `opm odd document` chunks, for `opm chunk` to take over.
+
+The schema merged onto TEI, ids stamped, and the pages the site adds — the
+home page and the A–Z catalogs — injected. Run inside a documentation
+project (`opm init --example odd`), `opm chunk` over the result then
+writes that project's runs in any of its formats, e.g. `--format json` for
+a static site generator; SOURCE and --lang default to the
+project's [document] settings.
+
+**Usage:**
+
+```text
+opm odd prepare [OPTIONS] [SOURCE]
+```
+
+**Arguments:**
+
+| Argument | Description |
+| --- | --- |
+| `SOURCE` | ODD, compiled spec document or directory of Specs. Omit to document the TEI Guidelines. |
+
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--output, -o PATH` | Where to write the prepared tree. |
+| `--lang TEXT` | xml:lang to prefer in headings (default: en). |
+| `--force` | Overwrite the output file if it exists. |
+| `--help` | Show this message and exit. |
 
 #### `opm odd document`
 
@@ -214,16 +248,21 @@ Generate a static HTML documentation site from an ODD.
 
 Follows ``schemaSpec/@source`` (processing-model chains included). A
 TEI-targeting ODD (``schemaSpec/@ns`` absent or the TEI namespace) is merged
-onto the cached TEI schema; --guidelines documents TEI alone. Writes
+onto the cached TEI schema; without SOURCE, TEI alone is documented. Writes
 reference pages plus A–Z catalogs. Processing models are listed on each
 elementSpec.
 
 Chapter prose from the input is always kept, and when the input is itself
-the schema being documented (--guidelines, a Guidelines p5.xml, a Specs
+the schema being documented (no SOURCE, a Guidelines p5.xml, a Specs
 directory)
 its chapters are published too. A customization documents itself, so TEI's
 chapters stay out of its site. An ODD pinning an older TEI/@version is
 compiled against the shipped snapshot, with a warning.
+
+Run inside a project made by `opm init --example odd`, the site is built
+with that project's ODD, runs, template, assets and extension modules, and
+what to document, the language and the output directory default to its
+[document] and [[chunking]] settings.
 PDF, Markdown and print channels are planned.
 
 **Usage:**
@@ -236,14 +275,13 @@ opm odd document [OPTIONS] [SOURCE]
 
 | Argument | Description |
 | --- | --- |
-| `SOURCE` | ODD, compiled spec document (p5subset.xml / Guidelines p5.xml), or a directory of Specs. Omit with --guidelines to document the TEI schema. |
+| `SOURCE` | ODD, compiled spec document (p5subset.xml / Guidelines p5.xml), or a directory of Specs. Omit to document the TEI Guidelines, downloaded (specs plus prose, ~2 MB) into the user cache on first use; TEI-targeting ODDs merge onto the same schema. |
 
 
 **Options:**
 
 | Option | Description |
 | --- | --- |
-| `--guidelines` | Document TEI alone (no SOURCE). Downloads the TEI schema (specs plus Guidelines prose, ~2 MB) into the user cache on first use; it is not shipped in the wheel. TEI-targeting ODDs merge onto it by default. |
 | `--output-dir, -o PATH` | Output directory (default: odd/<schemaSpec ident>). |
 | `--lang TEXT` | xml:lang to prefer on gloss/desc/remarks (default: en). |
 | `--odd, -d PATH` | Processing ODD used to render nested TEI (default: packaged tagdocs.odd). |

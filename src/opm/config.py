@@ -104,9 +104,16 @@ class ChunkingConfig:
 
     Relative paths are resolved against the config file's directory, except
     ``output_dir``, which is relative to the project root.
+
+    One ``[chunking]`` table is one run. A ``[[chunking]]`` array declares
+    several, executed in order over each document into one output directory
+    (see [`ProjectConfig.chunking_runs`][opm.config.ProjectConfig.chunking_runs]).
     """
 
     xpath: str | None = None
+    name: str | None = None
+    """Optional label of a run, for ``[[chunking]]`` arrays: tags the run's
+    entries in ``manifest.json`` and names it in progress and error messages."""
     xpath_dynamic: str | None = None
     """The ``xpath`` the consuming ``pb-view`` sends, when it differs from *xpath*.
 
@@ -217,6 +224,22 @@ class ChunkingConfig:
 
 
 @dataclass
+class DocumentConfig:
+    """The ``[document]`` table: this project is an ``opm odd document`` site.
+
+    ``opm init --example odd`` writes it. Run inside such a project,
+    ``opm odd document`` builds with the project's ODD, runs, template, page
+    assets and extension modules instead of the packaged ones, and takes what
+    to document from here unless the command line says otherwise.
+    """
+
+    source: Path | None = None
+    """The ODD, compiled spec document or Specs directory to document."""
+    lang: str | None = None
+    """``xml:lang`` to prefer on gloss/desc/remarks (``--lang``)."""
+
+
+@dataclass
 class CollectionConfig:
     """One ``fn:collection`` URI and the documents it contains.
 
@@ -297,12 +320,122 @@ def _index_fields(index_data: dict) -> tuple:
     return tuple(specs)
 
 
-def _check_index_fragment_fields(fields: tuple, chunking: ChunkingConfig | None) -> None:
-    """A `fragment` field must name an existing ``[[chunking.fragments]]`` entry."""
+def _document_config(value: Any, config_path: Path) -> DocumentConfig | None:
+    """``[document]``, with paths resolved against the config's directory."""
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError('opm.toml: [document] must be a table')
+    source = value.get('source')
+    lang = value.get('lang')
+    return DocumentConfig(
+        source=config_path.parent / str(source) if source else None,
+        lang=str(lang) if lang else None,
+    )
+
+
+def _chunking_tables(value: Any) -> list[dict[str, Any]]:
+    """The chunking runs as TOML tables: one for ``[chunking]``, several for ``[[chunking]]``.
+
+    TOML itself keeps the forms apart — a table parses to a dict, an array of
+    tables to a list of dicts — so a project written before arrays existed
+    reads exactly as it did.
+    """
+    if value is None:
+        return []
+    if isinstance(value, dict):
+        return [value] if value else []
+    if isinstance(value, list) and all(isinstance(item, dict) for item in value):
+        return list(value)
+    raise ValueError(
+        'opm.toml: chunking must be a [chunking] table or a [[chunking]] array of tables'
+    )
+
+
+def _parse_chunking(data: dict[str, Any], config_path: Path) -> ChunkingConfig:
+    """One chunking run from its ``[chunking]`` / ``[[chunking]]`` table."""
+    fragments: list[FragmentConfig] = []
+    for frag_data in data.get('fragments', []):
+        if not isinstance(frag_data, dict):
+            continue
+        raw_frag_odd = frag_data.get('odd')
+        fragment = FragmentConfig(
+            name=frag_data.get('name', ''),
+            scope=frag_data.get('scope', 'per-chunk'),
+            xpath=frag_data.get('xpath', '.'),
+            xpath_dynamic=frag_data.get('xpath_dynamic'),
+            parameters=frag_data.get('parameters'),
+            odd=config_path.parent / str(raw_frag_odd) if raw_frag_odd else None,
+            mode=str(frag_data.get('mode', 'web')).strip().lower() or 'web',
+        )
+        if fragment.name and fragment.scope in ('global', 'per-chunk'):
+            fragments.append(fragment)
+
+    template = data.get('template')
+    index_template = data.get('index_template')
+    raw_odd = data.get('odd')
+    raw_name = data.get('name')
+    return ChunkingConfig(
+        xpath=data.get('xpath'),
+        name=str(raw_name) if raw_name else None,
+        xpath_dynamic=data.get('xpath_dynamic'),
+        selector=data.get('selector'),
+        depth=data.get('depth', 1),
+        output_dir=data.get('output_dir', 'chunks'),
+        template=config_path.parent / str(template) if template else None,
+        index_template=(
+            config_path.parent / str(index_template) if index_template else None
+        ),
+        index_title=data.get('index_title'),
+        assets=tuple(
+            config_path.parent / str(asset)
+            for asset in (data.get('assets') or ())
+        ),
+        fragments=fragments if fragments else None,
+        file_pattern=data.get('file_pattern'),
+        link_pattern=data.get('link_pattern'),
+        odd=config_path.parent / str(raw_odd) if raw_odd else None,
+        view=data.get('view', 'div'),
+        map=data.get('map'),
+        parameters=data.get('parameters'),
+        doc_path=data.get('doc_path'),
+    )
+
+
+def _check_run_output_dirs(
+    runs: list[ChunkingConfig], tables: list[dict[str, Any]],
+) -> None:
+    """All runs write into one directory; a later run may repeat it but not move it.
+
+    A run that leaves ``output_dir`` unset inherits the first run's, which is
+    what makes a later run's pages siblings of the earlier ones and lets the
+    links between them resolve.
+    """
+    if len(runs) < 2:
+        return
+    first = runs[0].output_dir
+    for position, (run, table) in enumerate(zip(runs[1:], tables[1:]), start=2):
+        if 'output_dir' in table and run.output_dir != first:
+            label = f'"{run.name}"' if run.name else f'#{position}'
+            raise ValueError(
+                f'opm.toml: [[chunking]] run {label} sets output_dir = '
+                f'"{run.output_dir}", but every run writes into the first run\'s '
+                f'"{first}" — set output_dir on the first run only'
+            )
+    for position in range(1, len(runs)):
+        runs[position] = replace(runs[position], output_dir=first)
+
+
+def _check_index_fragment_fields(
+    fields: tuple, runs: list[ChunkingConfig] | tuple[ChunkingConfig, ...],
+) -> None:
+    """A `fragment` field must name a ``[[chunking.fragments]]`` entry of some run."""
     wanted = [spec for spec in fields if spec.fragment]
     if not wanted:
         return
-    available = {frag.name for frag in (chunking.fragments or [])} if chunking else set()
+    available = {
+        frag.name for run in runs for frag in (run.fragments or [])
+    }
     for spec in wanted:
         if spec.fragment not in available:
             raise ValueError(
@@ -448,6 +581,18 @@ class ProjectConfig:
     parameters: dict[str, str] = field(default_factory=dict)
     """User parameters bound to XPath ``$parameters`` (from ``[transform.parameters]``)."""
     chunking: ChunkingConfig | None = None
+    """The first chunking run — for a ``[chunking]`` table, the only one.
+
+    Kept as a single config so code written before ``[[chunking]]`` arrays sees
+    exactly what it saw then. Code that chunks should use
+    [`chunking_runs`][opm.config.ProjectConfig.chunking_runs].
+    """
+    chunking_runs: tuple[ChunkingConfig, ...] = ()
+    """Every chunking run, in order: one per ``[[chunking]]`` entry, or the
+    single ``[chunking]`` table. Later runs are handed the anchors of earlier
+    ones, so links between their pages resolve."""
+    document: DocumentConfig | None = None
+    """``[document]``: set when the project is an ``opm odd document`` site."""
     index_max_chars: int = 1500
     """``[index] max_chars`` — split a section longer than this for ``opm index``."""
     index_min_chars: int = 40
@@ -508,7 +653,12 @@ class ProjectConfig:
 
     @property
     def epub_chunking(self) -> ChunkingConfig | None:
-        """Chunking config the EPUB packager selects chapters with."""
+        """Chunking config the EPUB packager selects chapters with.
+
+        With a ``[[chunking]]`` array, the first run: a book has one reading
+        order, and further runs (reference pages, registers) are a website's
+        concern rather than chapters.
+        """
         if self.chunking is None or not self.epub_chunk_overrides:
             return self.chunking
         return replace(self.chunking, **self.epub_chunk_overrides)
@@ -548,9 +698,10 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         data = tomllib.load(f)
 
     transform = _section_table(data.get('transform'))
-    chunking_data = _section_table(data.get('chunking'))
+    chunking_tables = _chunking_tables(data.get('chunking'))
     index_data = _section_table(data.get('index'))
     project_data = _section_table(data.get('project'))
+    document_data = data.get('document')
 
     # Per-type tables: prefer [transform.<type>], accept legacy top-level [<type>].
     type_sections = {
@@ -705,55 +856,10 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         if not isinstance(value, dict)
     }
 
-    # Parse chunking configuration
-    chunking: ChunkingConfig | None = None
-    if chunking_data:
-        fragments: list[FragmentConfig] = []
-        for frag_data in chunking_data.get('fragments', []):
-            if not isinstance(frag_data, dict):
-                continue
-            raw_frag_odd = frag_data.get('odd')
-            fragment = FragmentConfig(
-                name=frag_data.get('name', ''),
-                scope=frag_data.get('scope', 'per-chunk'),
-                xpath=frag_data.get('xpath', '.'),
-                xpath_dynamic=frag_data.get('xpath_dynamic'),
-                parameters=frag_data.get('parameters'),
-                odd=config_path.parent / str(raw_frag_odd) if raw_frag_odd else None,
-                mode=str(frag_data.get('mode', 'web')).strip().lower() or 'web',
-            )
-            if fragment.name and fragment.scope in ('global', 'per-chunk'):
-                fragments.append(fragment)
-
-        chunking_template = chunking_data.get('template')
-        chunking_index_template = chunking_data.get('index_template')
-        raw_chunking_odd = chunking_data.get('odd')
-        chunking = ChunkingConfig(
-            xpath=chunking_data.get('xpath'),
-            xpath_dynamic=chunking_data.get('xpath_dynamic'),
-            selector=chunking_data.get('selector'),
-            depth=chunking_data.get('depth', 1),
-            output_dir=chunking_data.get('output_dir', 'chunks'),
-            template=config_path.parent / str(chunking_template) if chunking_template else None,
-            index_template=(
-                config_path.parent / str(chunking_index_template)
-                if chunking_index_template
-                else None
-            ),
-            index_title=chunking_data.get('index_title'),
-            assets=tuple(
-                config_path.parent / str(asset)
-                for asset in (chunking_data.get('assets') or ())
-            ),
-            fragments=fragments if fragments else None,
-            file_pattern=chunking_data.get('file_pattern'),
-            link_pattern=chunking_data.get('link_pattern'),
-            odd=config_path.parent / str(raw_chunking_odd) if raw_chunking_odd else None,
-            view=chunking_data.get('view', 'div'),
-            map=chunking_data.get('map'),
-            parameters=chunking_data.get('parameters'),
-            doc_path=chunking_data.get('doc_path'),
-        )
+    chunking_runs = [
+        _parse_chunking(table, config_path) for table in chunking_tables
+    ]
+    _check_run_output_dirs(chunking_runs, chunking_tables)
 
     raw_pythonpath = project_data.get('pythonpath', [])
     if isinstance(raw_pythonpath, str):
@@ -777,11 +883,15 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         transform_odd = transform_odds.get('web')
 
     # Chunking inherits the shared transform ODD when [chunking].odd is omitted.
-    if chunking is not None and chunking.odd is None and transform_odd is not None:
-        chunking = replace(chunking, odd=transform_odd)
+    if transform_odd is not None:
+        chunking_runs = [
+            replace(run, odd=transform_odd) if run.odd is None else run
+            for run in chunking_runs
+        ]
+    chunking = chunking_runs[0] if chunking_runs else None
 
     index_fields = _index_fields(index_data)
-    _check_index_fragment_fields(index_fields, chunking)
+    _check_index_fragment_fields(index_fields, chunking_runs)
 
     return ProjectConfig(
         webcomponents_enabled=webcomponents_enabled,
@@ -808,6 +918,8 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         xpath_namespaces=xpath_namespaces,
         parameters=parameters,
         chunking=chunking,
+        chunking_runs=tuple(chunking_runs),
+        document=_document_config(document_data, config_path),
         index_max_chars=int(index_data.get('max_chars', 1500)),
         index_min_chars=int(index_data.get('min_chars', 40)),
         index_overlap=int(index_data.get('overlap', 1)),

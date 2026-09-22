@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the TEI Guidelines reference with `opm odd document --guidelines` and
+# Builds the TEI Guidelines reference with `opm odd document` and
 # drops it into docs/guidelines/, where the documentation build copies it
 # verbatim: the site ends up served at /guidelines/. It is deliberately
 # absent from the mkdocs.yml nav — static files are copied whether or not
@@ -17,9 +17,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "Generating TEI Guidelines reference docs into $ROOT/docs/guidelines/"
 
-# --guidelines pulls the TEI schema (specs plus Guidelines prose) into the user
+# Without a SOURCE it pulls the TEI schema (specs plus Guidelines prose) into the user
 # cache on first use, so the first run is slower and needs network access.
-uv run --project "$ROOT" opm odd document --guidelines \
+uv run --project "$ROOT" opm odd document \
     -o "$ROOT/docs/guidelines" --force
 
 echo "Wrote $ROOT/docs/guidelines"

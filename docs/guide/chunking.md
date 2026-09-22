@@ -162,6 +162,40 @@ link_pattern = "/{doc}/{file}"          # /serafin01.xml/001.html
 link_pattern = "/letters/{doc_stem}/{stem}/#{anchor}"   # /letters/serafin01/001/
 ```
 
+## Several runs
+
+One `[chunking]` table splits a document one way. When one document should
+yield pages of different kinds — chapters and reference entries, letters and
+the persons they mention — declare the table as an array instead, one
+`[[chunking]]` entry per run:
+
+```toml
+[[chunking]]
+name = "text"
+output_dir = "site"
+xpath = "//body/div"
+file_pattern = "{xml_id}.html"
+
+[[chunking.fragments]]      # belongs to the run above it
+name = "toc"
+scope = "global"
+xpath = "."
+
+[[chunking]]
+name = "register"
+xpath = "//listPerson/person"
+file_pattern = "{xml_id}.html"
+```
+
+The runs execute in order, over each document, into one output directory:
+only the first may set `output_dir`. Each run is handed the anchors of the runs
+before it, so a register entry's `#chapter-3` link resolves to the text run's
+page. `manifest.json` lists every run's chunks, each tagged with its `run`
+name. The search index (`opm index`) covers all runs; an EPUB is built from the
+first.
+
+A single `[chunking]` table works exactly as before.
+
 ## `$parameters?root`
 
 While a chunk is transformed, `$parameters?root` is the **original node** that

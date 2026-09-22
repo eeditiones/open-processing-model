@@ -120,8 +120,12 @@ class ChunkProcessor:
         documents: Collection[str] | None = None,
         document: str | None = None,
         anchors: Mapping[str, str] | None = None,
+        merge_manifest: bool = False,
     ):
         self.module = load_transform_module(module_path)
+        # A later run of a multi-run config: add to the manifest an earlier run
+        # of the same invocation wrote, rather than replace it.
+        self.merge_manifest = merge_manifest
         # Ids owned by pages another run wrote into the same directory (id →
         # file), so `#id` links into them resolve here too. This run's own
         # chunks win where both know an id.
@@ -985,9 +989,31 @@ class ChunkProcessor:
         manifest = self.generate_manifest(standalone_global_fragments)
         manifest_file = self.output_dir / "manifest.json"
         manifest_file.write_text(
-            json.dumps(asdict(manifest), indent=2, ensure_ascii=False),
+            json.dumps(self._manifest_payload(manifest, manifest_file), indent=2, ensure_ascii=False),
             encoding='utf-8'
         )
+
+    def _manifest_payload(self, manifest: ManifestData, manifest_file: Path) -> dict[str, Any]:
+        """The manifest as written: this run's, or merged onto an earlier run's.
+
+        A named run tags its chunk entries with ``run``. A single unnamed run
+        writes exactly what it always did. When merging, chunks are appended in
+        run order, a global fragment keeps the first run's content under its
+        name, and for an id both runs know the anchor is the later run's — the
+        one the later run's own links resolved to.
+        """
+        payload = asdict(manifest)
+        if self.config.name:
+            for entry in payload['chunks']:
+                entry['run'] = self.config.name
+        if not (self.merge_manifest and manifest_file.is_file()):
+            return payload
+        earlier = json.loads(manifest_file.read_text(encoding='utf-8'))
+        return {
+            'chunks': [*(earlier.get('chunks') or []), *payload['chunks']],
+            'fragments': {**payload['fragments'], **(earlier.get('fragments') or {})},
+            'anchors': {**(earlier.get('anchors') or {}), **payload['anchors']},
+        }
 
     def _pb_view_base_params(self) -> dict[str, str]:
         """Build the constant part of the pb-view lookup key.
@@ -1376,6 +1402,7 @@ def chunk_document(
     documents: Collection[str] | None = None,
     spec_index=None,
     anchors: Mapping[str, str] | None = None,
+    merge_manifest: bool = False,
 ) -> dict[str, str]:
     """Chunk a document using the specified configuration.
 
@@ -1390,7 +1417,8 @@ def chunk_document(
 
     Returns the run's anchor map, ``xml:id`` → chunk file. Pass it as
     *anchors* to a later run over the same output directory, and ``#id``
-    links there into this run's pages resolve as if both were one run.
+    links there into this run's pages resolve as if both were one run. Pass
+    *merge_manifest* for that later run, so ``manifest.json`` lists both.
     """
     from dataclasses import replace
 
@@ -1438,6 +1466,7 @@ def chunk_document(
         documents=documents if documents is not None else (xml_path.name,),
         document=xml_path.name,
         anchors=anchors,
+        merge_manifest=merge_manifest,
     )
     if output_format == 'pb-view':
         processor.export_pb_view(doc_path=doc_path, on_progress=on_progress)
