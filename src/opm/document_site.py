@@ -4,11 +4,14 @@
 """Build a static HTML documentation site from a compiled ODD / Guidelines document.
 
 The site is two [`chunk_document`][opm.chunking.chunk_document] runs over
-one prepared tree: a short prepare step stamps ``xml:id`` values, the home page
-and catalog stubs onto the compiled tree, then ``tagdocs.odd`` renders the
-text — every top-level division, per ``resources/document/guidelines.toml`` —
-and the reference pages, one per spec, per ``reference.toml``. Contained-by / may-contain / members stay in
-[`SpecIndex`][opm.spec_index.SpecIndex], exposed to the ODD as ``tp:`` functions.
+one prepared tree. The prepare step stamps ``xml:id`` values and adds the home
+page and the catalog pages to the compiled tree, then
+[`expand_document_tree`][opm.odd_expand.expand_document_tree] writes into it
+everything the pages show that depends on the schema as a whole: the
+relations of each spec, the A–Z lists, the table of contents, heading numbers
+and link targets. ``tagdocs.odd`` then renders the text — every top-level
+division — and the reference pages, one per spec, as the two runs in
+``resources/document/opm.toml`` select them.
 """
 
 from __future__ import annotations
@@ -28,6 +31,7 @@ from lxml import etree
 from opm.chunking import chunk_document
 from opm.config import ProjectConfig, load_project_config
 from opm.odd_cache import ensure_compiled_module
+from opm.odd_expand import CATALOGS, expand_document_tree
 from opm.odd_schema import CompiledSchema, iter_guideline_chapters
 from opm.resources import packaged_document_dir, packaged_odd
 from opm.spec_index import (
@@ -45,21 +49,10 @@ ProgressFn = Callable[[int, int, str], None]
 
 _TAGDOCS_XPATH_EXTENSIONS = (
     'opm.runtime.common_xpath_functions',
-    'opm.runtime.spec_primitives',
     'opm.runtime.spec_xpath_functions',
 )
 
-#: ``xml:id``, ``@subtype``, heading — one row per catalog page. The ids are
-#: TEI's own for the appendices these replace; tagdocs picks its catalog
-#: templates by them.
-_CATALOGS = (
-    ('REF-ELEMENTS', 'elements', 'Elements'),
-    ('REF-CLASSES-MODEL', 'model', 'Model classes'),
-    ('REF-CLASSES-ATTS', 'atts', 'Attribute classes'),
-    ('REF-MACROS', 'macro', 'Macros and datatypes'),
-    ('REF-ATTS', None, 'Attributes'),
-)
-_CATALOG_IDS = {xml_id for xml_id, _subtype, _heading in _CATALOGS}
+_CATALOG_IDS = {xml_id for xml_id, _subtype, _heading in CATALOGS}
 
 
 @dataclass
@@ -99,12 +92,7 @@ def build_document_site(
     base_cfg = load_project_config(config_file)
     site_dir = site_assets_dir(base_cfg, config_file)
 
-    tree = prepare_document_tree(compiled, lang=lang, title=title, nav=site_dir / 'nav.xml')
-    index = SpecIndex.from_tree(
-        tree,
-        lang=lang,
-        title=title or compiled.title or 'ODD documentation',
-    )
+    tree, index = _prepare(compiled, lang=lang, title=title, nav=site_dir / 'nav.xml')
     site_title = title or index.title
     if odd:
         odd_path = Path(odd)
@@ -168,7 +156,6 @@ def build_document_site(
                 on_progress=_on_chunk_progress,
                 project_config=cfg,
                 xpath_extensions=extensions,
-                spec_index=index,
                 anchors=anchors,
                 merge_manifest=position > 0,
             )
@@ -200,12 +187,13 @@ def prepare_document_tree(
     title: str | None = None,
     nav: Path | None = None,
 ) -> etree._Element:
-    """Deep-copy *compiled* and add the nodes ``opm chunk`` needs as pages.
+    """Deep-copy *compiled*, add the nodes ``opm chunk`` needs as pages, and
+    expand it for rendering.
 
     *nav* is the sidebar list to inject (``nav.xml``); the packaged one when
     omitted.
 
-    Two passes. First the tree is normalized: appendix dumps our catalogs
+    Three passes. First the tree is normalized: appendix dumps our catalogs
     replace are dropped, the title page becomes a chapter, and every node that
     will be a page gets an ``xml:id`` — specs get ``ref-{ident}`` so
     ``file_pattern = "{xml_id}.html"`` yields the URLs tagdocs links to.
@@ -218,7 +206,22 @@ def prepare_document_tree(
     keeps it out of the numbering and the chapter sequence. The A–Z catalogs
     go to ``text/back``, where the appendices they replace stood, and are
     chapters like any other. The sidebar list goes to ``text/body``.
+
+    Last, [`expand_document_tree`][opm.odd_expand.expand_document_tree] fills
+    the pages in, so the tree holds everything they show.
     """
+    return _prepare(compiled, lang=lang, title=title, nav=nav)[0]
+
+
+def _prepare(
+    compiled: CompiledSchema,
+    *,
+    lang: str,
+    title: str | None,
+    nav: Path | None,
+) -> tuple[etree._Element, SpecIndex]:
+    """[`prepare_document_tree`][opm.document_site.prepare_document_tree], and
+    the index it expanded the tree from."""
     tree = deepcopy(compiled.tree)
     _drop_schema_catalog_chapters(tree)
     # Collected before the title page is wrapped into a chapter of its own,
@@ -235,7 +238,14 @@ def prepare_document_tree(
         opening=opening,
     )
     _inject_catalogs(_ensure_back(tree))
-    return tree
+    # Built before the expansion, so nothing it adds feeds back into the index.
+    index = SpecIndex.from_tree(
+        tree,
+        lang=lang,
+        title=title or compiled.title or 'ODD documentation',
+    )
+    expand_document_tree(tree, index, lang=lang)
+    return tree, index
 
 
 def _drop_schema_catalog_chapters(tree: etree._Element) -> None:
@@ -507,14 +517,15 @@ def _opening_nodes(tree: etree._Element) -> list[etree._Element]:
 
 
 def _inject_catalogs(back: etree._Element) -> None:
-    """The A–Z catalog stubs, as the first divs of ``text/back``.
+    """The A–Z catalog pages, as the first divs of ``text/back``.
 
     They stand in for the Guidelines' own reference appendices, which
     [`_drop_schema_catalog_chapters`][opm.document_site._drop_schema_catalog_chapters]
     removed, so they belong to the back matter and are numbered with it
     (Appendix A…). Document order is unchanged either way: back follows body.
+    The lists come later, from the expansion.
     """
-    for offset, (xml_id, subtype, heading) in enumerate(_CATALOGS):
+    for offset, (xml_id, subtype, heading) in enumerate(CATALOGS):
         div = etree.Element(qn('div'))
         div.set(XML_ID, xml_id)
         if subtype:

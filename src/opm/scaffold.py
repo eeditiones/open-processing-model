@@ -190,7 +190,7 @@ def _documentation_runs() -> str:
 
 
 def _scaffold_documentation(options: InitOptions) -> ScaffoldResult:
-    """A project whose ODD, runs, template, assets and tp: functions document an ODD."""
+    """A project whose ODD, runs, template and assets document an ODD."""
     dest_dir = options.directory.expanduser().resolve()
     dest_dir.mkdir(parents=True, exist_ok=True)
     config_path = dest_dir / 'opm.toml'
@@ -224,7 +224,6 @@ def _scaffold_documentation(options: InitOptions) -> ScaffoldResult:
     copies = [
         ('odd/tagdocs.odd', dest_dir / 'odd' / 'tagdocs.odd'),
         ('odd/tagdocs.css', dest_dir / 'odd' / 'tagdocs.css'),
-        ('scaffold/documentation/tagdocs.py', dest_dir / 'extensions' / 'tagdocs.py'),
         *(
             (f'document/{name}', dest_dir / 'templates' / name)
             for name in _DOCUMENTATION_SITE_FILES
@@ -232,19 +231,6 @@ def _scaffold_documentation(options: InitOptions) -> ScaffoldResult:
     ]
     for src_rel, dest in copies:
         _record(dest, written, skipped, _copy_packaged(src_rel, dest, force=force))
-    init_file = dest_dir / 'extensions' / '__init__.py'
-    _record(
-        init_file, written, skipped,
-        _write_text(
-            init_file,
-            # REUSE-IgnoreStart
-            '# SPDX-FileCopyrightText: 2026 e-editiones\n'
-            '# SPDX-License-Identifier: CC0-1.0\n\n'
-            # REUSE-IgnoreEnd
-            '"""Project-local XPath extension modules (imported via [project] pythonpath)."""\n',
-            force=force,
-        ),
-    )
 
     return ScaffoldResult(
         directory=dest_dir,

@@ -189,10 +189,9 @@ class Spec:
     kind: str
     module: str | None
     class_type: str | None
-    #: The canonical spec element. ``gloss``, ``desc``, ``remarks``,
-    #: ``exemplum`` and ``constraintSpec`` are read off it by the ODD, through
-    #: [`tp:spec`][opm.runtime.spec_xpath_functions.spec] — the xml:lang
-    #: preference lives there, next to the markup it feeds.
+    #: The canonical spec element: the copy that gets a reference page, and
+    #: that [`expand_document_tree`][opm.odd_expand.expand_document_tree]
+    #: writes the relations into.
     node: etree._Element
     content: etree._Element | None
     list_refs: list[str]
@@ -208,34 +207,33 @@ class Spec:
         return f'ref-{self.ident}.html'
 
     # The relations below are not facts of the spec but readings of the graph,
-    # derived by the documentation layer from the index's primitives — see
-    # opm.runtime.spec_xpath_functions, where they can be changed. They stay
-    # here as properties so code written against the precomputed fields of
-    # earlier releases keeps working.
+    # derived from the index's primitives in opm.odd_expand. They stay here as
+    # properties so code written against the precomputed fields of earlier
+    # releases keeps working.
 
     @property
     def contained_by(self) -> list[SpecRef]:
-        """Elements whose content may hold this one (derived; see [`tp:contained_by`][opm.runtime.spec_xpath_functions.contained_by])."""
+        """Elements whose content may hold this one (derived; see [`contained_by`][opm.odd_expand.contained_by])."""
         return _relation(self, 'contained_by')
 
     @property
     def may_contain(self) -> list[SpecRef]:
-        """What this spec's content allows (derived; see [`tp:may_contain`][opm.runtime.spec_xpath_functions.may_contain])."""
+        """What this spec's content allows (derived; see [`may_contain`][opm.odd_expand.may_contain])."""
         return _relation(self, 'may_contain')
 
     @property
     def members(self) -> list[SpecRef]:
-        """Specs claiming membership in this class (derived; see [`tp:members`][opm.runtime.spec_xpath_functions.members])."""
+        """Specs claiming membership in this class (derived; see [`members`][opm.odd_expand.members])."""
         return _relation(self, 'members')
 
     @property
     def used_by(self) -> list[SpecRef]:
-        """Specs whose content models use this one (derived; see [`tp:used_by`][opm.runtime.spec_xpath_functions.used_by])."""
+        """Specs whose content models use this one (derived; see [`used_by`][opm.odd_expand.used_by])."""
         return _relation(self, 'used_by')
 
     @property
     def attribute_tree(self) -> list[AttClassView]:
-        """Inherited attribute classes (derived; see [`tp:attribute_tree`][opm.runtime.spec_xpath_functions.attribute_tree])."""
+        """Inherited attribute classes (derived; see [`attribute_tree`][opm.odd_expand.attribute_tree])."""
         return _relation(self, 'attribute_tree')
 
     @property
@@ -259,19 +257,19 @@ class Spec:
         return [k for k in self.member_of_keys if k.startswith('att.')]
 
     def grouped(self, refs: list[SpecRef]) -> list[tuple[str, list[SpecRef]]]:
-        """Group *refs* by module, with character-data last (see ``_grouped`` in the ``tp:`` layer)."""
-        from opm.runtime import spec_xpath_functions
+        """Group *refs* by module, with character-data last (see [`grouped`][opm.odd_expand.grouped])."""
+        from opm.odd_expand import grouped
 
-        return spec_xpath_functions._grouped(refs)
+        return grouped(refs)
 
 
 def _relation(spec: Spec, name: str) -> list:
-    """A derived relation of *spec*, computed by the documentation layer."""
+    """A derived relation of *spec*, computed by [`opm.odd_expand`][opm.odd_expand]."""
     if spec.index is None:
         return []
-    from opm.runtime import spec_xpath_functions
+    from opm.odd_expand import relation
 
-    return spec_xpath_functions._derive(spec.index, spec, name)
+    return relation(spec.index, spec, name)
 
 
 class SpecIndex:
@@ -282,7 +280,7 @@ class SpecIndex:
     to X" are lookups rather than scans, and the two graph walks everything
     else is built from. What those facts *mean* on a documentation page —
     contained-by, may-contain, used-by, attribute inheritance — is derived on
-    top, in [`opm.runtime.spec_xpath_functions`][opm.runtime.spec_xpath_functions],
+    top, in [`opm.odd_expand`][opm.odd_expand],
     and cached in [`memo`][opm.spec_index.SpecIndex.memo]. It is the
     counterpart of the indexes eXist gave the XQuery version of this code.
     """

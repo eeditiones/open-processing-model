@@ -194,17 +194,3 @@ def test_normalize_egxml_dedents_plain_eg() -> None:
     assert body.startswith('CHAPTER 38')
     assert '\n            READER' not in body
     assert 'par-\nson and clerk' in body
-
-
-def test_composition_layer_uses_only_public_primitives() -> None:
-    """The tp: functions derive from the index's public lookups, never its
-    internals — that is what lets a project reimplement them, and what a later
-    XQuery port of them needs."""
-    import re
-    from pathlib import Path
-
-    import opm.runtime.spec_xpath_functions as composition
-
-    source = Path(composition.__file__).read_text(encoding='utf-8')
-    private = re.findall(r'\bindex\._[a-z]\w*', source)
-    assert private == []

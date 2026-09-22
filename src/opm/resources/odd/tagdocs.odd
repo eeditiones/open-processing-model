@@ -49,27 +49,28 @@
                          the catalog appendices included, whose own models below carry no
                          mode guard. -->
                     <!-- Compact previous/next pair for the right-hand rail, under the
-                         on-this-page list. Emitted as the per-chunk `chapternav` fragment,
-                         so the chapter body itself is not re-rendered here. -->
+                         on-this-page list, from the chapterNav list prepare adds.
+                         Emitted as the per-chunk `chapternav` fragment, so the
+                         chapter body itself is not re-rendered here. -->
                     <model predicate="$parameters?mode='chapnav' and (parent::front or parent::body or parent::back)" behaviour="pass-through">
-                        <param name="prevHref" value="let $p := preceding::div[parent::front or parent::body or parent::back][1] return if (exists($p/@xml:id)) then concat($p/@xml:id, '.html') else ''"/>
-                        <param name="prevTitle" value="let $p := preceding::div[parent::front or parent::body or parent::back][1] return if (exists($p/head)) then normalize-space($p/head[1]) else ''"/>
-                        <param name="prevNum" value="let $p := preceding::div[parent::front or parent::body or parent::back][1] return tp:heading_label($p)"/>
-                        <param name="nextHref" value="let $n := following::div[parent::front or parent::body or parent::back][1] return if (exists($n/@xml:id)) then concat($n/@xml:id, '.html') else ''"/>
-                        <param name="nextTitle" value="let $n := following::div[parent::front or parent::body or parent::back][1] return if (exists($n/head)) then normalize-space($n/head[1]) else ''"/>
-                        <param name="nextNum" value="let $n := following::div[parent::front or parent::body or parent::back][1] return tp:heading_label($n)"/>
+                        <param name="prevHref" value="string(list[@type='chapterNav']/item[@n='prev']/ref/@target)"/>
+                        <param name="prevTitle" value="string(list[@type='chapterNav']/item[@n='prev']/ref)"/>
+                        <param name="prevNum" value="string(list[@type='chapterNav']/item[@n='prev']/ref/@n)"/>
+                        <param name="nextHref" value="string(list[@type='chapterNav']/item[@n='next']/ref/@target)"/>
+                        <param name="nextTitle" value="string(list[@type='chapterNav']/item[@n='next']/ref)"/>
+                        <param name="nextNum" value="string(list[@type='chapterNav']/item[@n='next']/ref/@n)"/>
                         <pb:template xmlns=""><nav class="chapter-nav chapter-nav--rail" aria-label="Chapter"><a class="chapter-nav__prev" href="[[prevHref]]" rel="prev"><span class="chapter-nav__label">Previous</span><span class="chapter-nav__title"><span class="chapter-nav__num">[[prevNum]]</span>[[prevTitle]]</span></a><a class="chapter-nav__next" href="[[nextHref]]" rel="next"><span class="chapter-nav__label">Next</span><span class="chapter-nav__title"><span class="chapter-nav__num">[[nextNum]]</span>[[nextTitle]]</span></a></nav></pb:template>
                     </model>
                     <!-- Full-width previous/next cards closing the chapter. Kept out of the
                          chunk body so the runtime appends footnotes to the article, above
                          these links, rather than into the card grid. -->
                     <model predicate="$parameters?mode='chapnav-end' and (parent::front or parent::body or parent::back)" behaviour="pass-through">
-                        <param name="prevHref" value="let $p := preceding::div[parent::front or parent::body or parent::back][1] return if (exists($p/@xml:id)) then concat($p/@xml:id, '.html') else ''"/>
-                        <param name="prevTitle" value="let $p := preceding::div[parent::front or parent::body or parent::back][1] return if (exists($p/head)) then normalize-space($p/head[1]) else ''"/>
-                        <param name="prevNum" value="let $p := preceding::div[parent::front or parent::body or parent::back][1] return tp:heading_label($p)"/>
-                        <param name="nextHref" value="let $n := following::div[parent::front or parent::body or parent::back][1] return if (exists($n/@xml:id)) then concat($n/@xml:id, '.html') else ''"/>
-                        <param name="nextTitle" value="let $n := following::div[parent::front or parent::body or parent::back][1] return if (exists($n/head)) then normalize-space($n/head[1]) else ''"/>
-                        <param name="nextNum" value="let $n := following::div[parent::front or parent::body or parent::back][1] return tp:heading_label($n)"/>
+                        <param name="prevHref" value="string(list[@type='chapterNav']/item[@n='prev']/ref/@target)"/>
+                        <param name="prevTitle" value="string(list[@type='chapterNav']/item[@n='prev']/ref)"/>
+                        <param name="prevNum" value="string(list[@type='chapterNav']/item[@n='prev']/ref/@n)"/>
+                        <param name="nextHref" value="string(list[@type='chapterNav']/item[@n='next']/ref/@target)"/>
+                        <param name="nextTitle" value="string(list[@type='chapterNav']/item[@n='next']/ref)"/>
+                        <param name="nextNum" value="string(list[@type='chapterNav']/item[@n='next']/ref/@n)"/>
                         <pb:template xmlns=""><nav class="chapter-nav" aria-label="Chapter navigation"><a class="chapter-nav__prev" href="[[prevHref]]" rel="prev"><span class="chapter-nav__label">Previous chapter</span><span class="chapter-nav__title"><span class="chapter-nav__num">[[prevNum]]</span>[[prevTitle]]</span></a><a class="chapter-nav__next" href="[[nextHref]]" rel="next"><span class="chapter-nav__label">Next chapter</span><span class="chapter-nav__title"><span class="chapter-nav__num">[[nextNum]]</span>[[nextTitle]]</span></a></nav></pb:template>
                     </model>
                     <model predicate="parent::text" behaviour="pass-through">
@@ -81,24 +82,19 @@
                              only exist in TEI's own build. -->
                         <param name="edition" value="normalize-space(root($parameters?root)/*/teiHeader/fileDesc/editionStmt/edition)"/>
                         <param name="lead" value="if (empty((titlePage, p, opener, epigraph))) then 'Reference documentation generated from the ODD.' else ''"/>
-                        <param name="toc" value="tp:guidelines_toc(.)"/>
-                        <param name="nElements" value="tp:spec_count('element', .)"/>
-                        <param name="nModel" value="tp:spec_count('model', .)"/>
-                        <param name="nAtts" value="tp:spec_count('atts', .)"/>
-                        <param name="nAttributes" value="tp:spec_count('attributes', .)"/>
-                        <param name="nMacros" value="tp:spec_count('macro', .)"/>
-                        <pb:template xmlns=""><section class="home"><h1>[[title]]</h1>[[blurb]]<p class="home-edition">[[edition]]</p><p class="lead">[[lead]]</p>[[toc]]<h2>Reference</h2><ul class="toc"><li><a href="REF-ELEMENTS.html">Elements</a> <span class="muted">[[nElements]]</span></li><li><a href="REF-CLASSES-MODEL.html">Model classes</a> <span class="muted">[[nModel]]</span></li><li><a href="REF-CLASSES-ATTS.html">Attribute classes</a> <span class="muted">[[nAtts]]</span></li><li><a href="REF-ATTS.html">Attributes</a> <span class="muted">[[nAttributes]]</span></li><li><a href="REF-MACROS.html">Macros and datatypes</a> <span class="muted">[[nMacros]]</span></li></ul></section></pb:template>
+                        <param name="toc" value="div[@type='guidelines-toc']"/>
+                        <param name="reference" value="list[@type='reference']"/>
+                        <pb:template xmlns=""><section class="home"><h1>[[title]]</h1>[[blurb]]<p class="home-edition">[[edition]]</p><p class="lead">[[lead]]</p>[[toc]]<h2>Reference</h2>[[reference]]</section></pb:template>
                     </model>
                     <model predicate="@xml:id = ('REF-ELEMENTS', 'REF-CLASSES-MODEL', 'REF-CLASSES-ATTS', 'REF-MACROS')" behaviour="pass-through">
-                        <param name="heading" value="normalize-space(head)"/>
-                        <param name="number" value="tp:heading_mark(.)"/>
-                        <param name="catalog" value="tp:spec_catalog(@subtype, .)"/>
-                        <pb:template xmlns=""><section class="catalog"><h1>[[number]][[heading]]</h1>[[catalog]]</section></pb:template>
+                        <param name="heading" value="head/node()"/>
+                        <param name="catalog" value="list[@type='catalog']"/>
+                        <pb:template xmlns=""><section class="catalog"><h1>[[heading]]</h1>[[catalog]]</section></pb:template>
                     </model>
                     <model predicate="@xml:id = 'REF-ATTS'" behaviour="pass-through">
-                        <param name="number" value="tp:heading_mark(.)"/>
-                        <param name="catalog" value="tp:attribute_catalog(.)"/>
-                        <pb:template xmlns=""><section class="catalog"><h1>[[number]]Attributes</h1>[[catalog]]</section></pb:template>
+                        <param name="heading" value="head/node()"/>
+                        <param name="catalog" value="list[@type='attCatalog']"/>
+                        <pb:template xmlns=""><section class="catalog"><h1>[[heading]]</h1>[[catalog]]</section></pb:template>
                     </model>
                     <model predicate="@type='guidelines-toc' and count(list)=1" behaviour="pass-through">
                         <param name="content" value="list"/>
@@ -112,6 +108,20 @@
                         <param name="anchor" value="@n"/>
                         <param name="content" value="*[not(self::head)]"/>
                         <pb:template xmlns=""><section class="spec-section" id="[[anchor]]"><h2>[[heading]]</h2><ol class="pm">[[content]]</ol></section></pb:template>
+                    </model>
+                    <!-- Notes and examples keep every language variant; the page
+                         shows the one for $parameters?lng. -->
+                    <model predicate="@type='spec-section' and @n='ref-notes'" behaviour="pass-through">
+                        <param name="heading" value="normalize-space(head)"/>
+                        <param name="anchor" value="@n"/>
+                        <param name="content" value="(remarks[@xml:lang=$parameters?lng], remarks[not(@xml:lang)], remarks)[1]"/>
+                        <pb:template xmlns=""><section class="spec-section" id="[[anchor]]"><h2>[[heading]]</h2>[[content]]</section></pb:template>
+                    </model>
+                    <model predicate="@type='spec-section' and @n='ref-examples'" behaviour="pass-through">
+                        <param name="heading" value="if (count(if (exemplum[not(@xml:lang) or @xml:lang=$parameters?lng]) then exemplum[not(@xml:lang) or @xml:lang=$parameters?lng] else exemplum[1]) eq 1) then 'Example' else 'Examples'"/>
+                        <param name="anchor" value="@n"/>
+                        <param name="content" value="if (exemplum[not(@xml:lang) or @xml:lang=$parameters?lng]) then exemplum[not(@xml:lang) or @xml:lang=$parameters?lng] else exemplum[1]"/>
+                        <pb:template xmlns=""><section class="spec-section" id="[[anchor]]"><h2>[[heading]]</h2>[[content]]</section></pb:template>
                     </model>
                     <model predicate="@type='spec-section'" behaviour="pass-through">
                         <param name="heading" value="normalize-space(head)"/>
@@ -131,23 +141,25 @@
                         <pb:template xmlns=""><a href="[[uri]]">[[head]]</a></pb:template>
                     </model>
                     <model predicate="(parent::front or parent::body or parent::back)" behaviour="pass-through">
-                        <param name="content" value="if (titlePage) then *[not(self::head)] else *"/>
+                        <param name="content" value="if (titlePage) then *[not(self::head or self::list[@type='chapterNav'])] else *[not(self::list[@type='chapterNav'])]"/>
                         <pb:template xmlns=""><article class="doc-chapter">[[content]]</article></pb:template>
                     </model>
                     <model predicate="parent::body or parent::front or parent::back" behaviour="section"/>
                     <model behaviour="block"/>
                 </elementSpec>
                 <elementSpec ident="head" mode="change">
-                    <model predicate="$parameters?mode=('toc', 'nav')" behaviour="inline"/>
+                    <model predicate="$parameters?mode=('toc', 'nav')" behaviour="inline">
+                        <param name="content" value="node()[not(self::seg[@type='headingNumber'])]"/>
+                    </model>
                     <model predicate="parent::figure" behaviour="block" cssClass="figure-head"/>
                     <model predicate="parent::table" behaviour="block" cssClass="table-head"/>
                     <model predicate="parent::lg" behaviour="block" cssClass="lg-head"/>
                     <model predicate="parent::list" behaviour="block" cssClass="list-head"/>
                     <model predicate="parent::div" behaviour="heading">
                         <param name="level" value="count(ancestor::div)"/>
-                        <!-- Outline label ("1.2.1", "iv.1.", "Appendix A.1"), as in
-                             the published Guidelines. Empty outside front/body/back. -->
-                        <param name="content" value="(tp:heading_mark(parent::div), node())"/>
+                        <!-- Opens with the outline label ("1.2.1", "iv.1.", "Appendix
+                             A.1") prepare put there, as in the published Guidelines. -->
+                        <param name="content" value="node()"/>
                     </model>
                     <model behaviour="block"/>
                 </elementSpec>
@@ -155,7 +167,7 @@
                     <model predicate="$parameters?mode='nav'" behaviour="list"/>
                     <model predicate="$parameters?mode='toc'" behaviour="omit"/>
                     <model predicate="@type=('containedBy','mayContain')" behaviour="pass-through" cssClass="module-groups">
-                        <param name="content" value="item"/>
+                        <param name="content" value="item|seg"/>
                     </model>
                     <model predicate="@type=('members','usedBy','memberOf')" behaviour="pass-through" cssClass="spec-links">
                         <param name="content" value="item"/>
@@ -180,6 +192,10 @@
                     </model>
                     <model predicate="@type='listRef'" behaviour="pass-through">
                         <param name="content" value="item"/>
+                    </model>
+                    <model predicate="@type='reference'" behaviour="pass-through">
+                        <param name="content" value="item"/>
+                        <pb:template xmlns=""><ul class="toc">[[content]]</ul></pb:template>
                     </model>
                     <model predicate="parent::div[@type='guidelines-toc'] and @n and count(../list) &gt; 1" behaviour="pass-through">
                         <param name="heading" value="if (@n='front') then 'Front Matter' else if (@n='back') then 'Back Matter' else 'Text Body'"/>
@@ -277,18 +293,26 @@
                 </elementSpec>
 
                 <elementSpec ident="gi" mode="add">
-                    <model predicate="tp:spec_exists(normalize-space(.), .)"
-                        behaviour="link" cssClass="gi">
-                        <param name="uri" value="concat('ref-', normalize-space(.), '.html')"/>
+                    <model predicate="@target" behaviour="link" cssClass="gi">
+                        <param name="uri" value="@target"/>
                     </model>
                     <model behaviour="inline" cssClass="gi"/>
                 </elementSpec>
                 <elementSpec ident="ident" mode="add">
-                    <model predicate="@type = ('class', 'macro', 'datatype', 'schema') and tp:spec_exists(normalize-space(.), .)"
-                        behaviour="link" cssClass="ident">
-                        <param name="uri" value="concat('ref-', normalize-space(.), '.html')"/>
+                    <model predicate="@target" behaviour="link" cssClass="ident">
+                        <param name="uri" value="@target"/>
                     </model>
                     <model behaviour="inline" cssClass="ident"/>
+                </elementSpec>
+                <elementSpec ident="dataRef" mode="add">
+                    <desc>An attribute's datatype, linked when it has a page.</desc>
+                    <model predicate="@target" behaviour="link" cssClass="ident">
+                        <param name="uri" value="@target"/>
+                        <param name="content" value="string(@key)"/>
+                    </model>
+                    <model behaviour="inline" cssClass="ident">
+                        <param name="content" value="string((@key, @name)[1])"/>
+                    </model>
                 </elementSpec>
                 <elementSpec ident="att" mode="add">
                     <model behaviour="inline" cssClass="att">
@@ -303,18 +327,18 @@
                         fragment id, and heading text for empty pointers.</desc>
                     <model predicate="@target" behaviour="link">
                         <param name="uri" value="let $id := replace(@target, '^#', ''), $hit := id($id), $chap := $hit/ancestor-or-self::div[parent::body or parent::front or parent::back][1] return if ($chap/@xml:id) then concat($chap/@xml:id, '.html', if ($chap/@xml:id = $id) then '' else concat('#', $id)) else @target"/>
-                        <param name="content" value="if (normalize-space(.)) then node() else let $id := replace(@target, '^#', ''), $hit := id($id) return ($hit/head[1]/node(), $id)[1]"/>
+                        <param name="content" value="if (normalize-space(.)) then node() else let $id := replace(@target, '^#', ''), $hit := id($id) return ($hit/head[1]/node()[not(self::seg[@type='headingNumber'])], $id)[1]"/>
                     </model>
                 </elementSpec>
                 <elementSpec ident="specDesc" mode="add">
-                    <desc>Look up gloss/desc on the compiled schema
-                        (``$parameters?root``) like the TEI Stylesheets' show mode.</desc>
+                    <desc>The spec's gloss and desc, which prepare copied in, like
+                        the TEI Stylesheets' show mode.</desc>
                     <model predicate="@key" behaviour="pass-through">
                         <param name="uri" value="concat('ref-', @key, '.html')"/>
                         <param name="ident" value="@key"/>
-                        <param name="rend" value="let $s := tp:spec(@key, .) return if ($s) then local-name($s) else 'elementSpec'"/>
-                        <param name="gloss" value="let $s := tp:spec(@key, .), $g := normalize-space(($s/gloss[@xml:lang=$parameters?lng], $s/gloss[not(@xml:lang)], $s/gloss)[1]) return if ($g) then concat('(', $g, ') ') else ''"/>
-                        <param name="desc" value="let $s := tp:spec(@key, .) return ($s/desc[@xml:lang=$parameters?lng], $s/desc[not(@xml:lang)], $s/desc)[1]"/>
+                        <param name="rend" value="(@rend, 'elementSpec')[1]"/>
+                        <param name="gloss" value="let $g := normalize-space((gloss[@xml:lang=$parameters?lng], gloss[not(@xml:lang)], gloss)[1]) return if ($g) then concat('(', $g, ') ') else ''"/>
+                        <param name="desc" value="(desc[@xml:lang=$parameters?lng], desc[not(@xml:lang)], desc)[1]"/>
                         <pb:template xmlns=""><li class="specDesc"><span class="specList-[[rend]]"><a href="[[uri]]">[[ident]]</a></span> [[gloss]][[desc]]</li></pb:template>
                     </model>
                 </elementSpec>
@@ -383,6 +407,12 @@
                         <param name="owners" value="gi|ident"/>
                         <pb:template xmlns=""><tr><td><code>@[[ident]]</code></td><td>[[owners]]</td></tr></pb:template>
                     </model>
+                    <model predicate="parent::list[@type='reference']" behaviour="pass-through">
+                        <param name="uri" value="ref/@target"/>
+                        <param name="label" value="string(ref)"/>
+                        <param name="count" value="string(num)"/>
+                        <pb:template xmlns=""><li><a href="[[uri]]">[[label]]</a> <span class="muted">[[count]]</span></li></pb:template>
+                    </model>
                     <model predicate="parent::list[@type='catalog']" behaviour="pass-through">
                         <param name="letter" value="@n"/>
                         <param name="content" value="list"/>
@@ -432,7 +462,7 @@
                     <model behaviour="listItem"/>
                 </elementSpec>
                 <elementSpec ident="ref" mode="change">
-                    <!-- A Guidelines chapter a spec cites (tp:list_ref), drawn
+                    <!-- A Guidelines chapter a spec cites (list[@type='listRef']), drawn
                          as a chip: inside the site when it publishes that
                          chapter, on tei-c.org otherwise. -->
                     <model predicate="parent::item/parent::list[@type='listRef'] and @type='local'" behaviour="pass-through">
@@ -461,18 +491,18 @@
                         <param name="gloss" value="(gloss[@xml:lang=$parameters?lng], gloss[not(@xml:lang)], gloss)[1]"/>
                         <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
                         <param name="module" value="@module"/>
-                        <param name="listRef" value="tp:list_ref(.)"/>
-                        <param name="attTree" value="tp:attribute_tree(.)"/>
+                        <param name="listRef" value="list[@type='listRef']"/>
+                        <param name="attTree" value="list[@type='attTree']"/>
                         <param name="localAtts" value="attList/attDef[not(@mode='delete')]"/>
-                        <param name="attEmpty" value="if (attList/attDef[not(@mode='delete')] or tp:has_attribute_tree(.)) then '' else 'None beyond the global attributes.'"/>
-                        <param name="memberOf" value="tp:member_of(.)"/>
-                        <param name="mayContain" value="tp:may_contain(.)"/>
-                        <param name="containedBy" value="tp:contained_by(.)"/>
-                        <param name="models" value="tp:spec_section('ref-models', 'Processing model', model|modelGrp|modelSequence)"/>
-                        <param name="notes" value="tp:spec_section('ref-notes', 'Note', (remarks[@xml:lang=$parameters?lng], remarks[not(@xml:lang)], remarks)[1])"/>
-                        <param name="examples" value="let $ex := (if (exemplum[not(@xml:lang) or @xml:lang=$parameters?lng]) then exemplum[not(@xml:lang) or @xml:lang=$parameters?lng] else exemplum[1]) return tp:spec_section('ref-examples', if (count($ex) eq 1) then 'Example' else 'Examples', $ex)"/>
-                        <param name="constraints" value="tp:spec_section('ref-constraints', 'Schematron', constraintSpec)"/>
-                        <param name="schema" value="tp:spec_section('ref-schema', 'Content model', content)"/>
+                        <param name="attEmpty" value="if (attList/attDef[not(@mode='delete')] or list[@type='attTree']/item) then '' else 'None beyond the global attributes.'"/>
+                        <param name="memberOf" value="list[@type='memberOf']"/>
+                        <param name="mayContain" value="list[@type='mayContain']"/>
+                        <param name="containedBy" value="list[@type='containedBy']"/>
+                        <param name="models" value="div[@n='ref-models']"/>
+                        <param name="notes" value="div[@n='ref-notes']"/>
+                        <param name="examples" value="div[@n='ref-examples']"/>
+                        <param name="constraints" value="div[@n='ref-constraints']"/>
+                        <param name="schema" value="div[@n='ref-schema']"/>
                         <pb:template xmlns=""><article class="spec spec--element"><h1><span class="spec__ident">&lt;[[ident]]&gt;</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span>[[listRef]]</div><section class="spec-section" id="ref-attributes"><h2>Attributes</h2><div class="spec-note">Global and inherited attributes:[[attTree]]</div><dl class="att-def">[[localAtts]]</dl><p class="spec-note">[[attEmpty]]</p></section><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt id="ref-memberOf">Member of</dt><dd><div class="spec-links">[[memberOf]]</div></dd><dt id="ref-mayContain">May contain</dt><dd>[[mayContain]]</dd><dt id="ref-containedBy">Contained by</dt><dd>[[containedBy]]</dd></dl></section>[[models]][[notes]][[examples]][[constraints]][[schema]]</article></pb:template>
                     </model>
                 </elementSpec>
@@ -483,12 +513,12 @@
                         <param name="gloss" value="(gloss[@xml:lang=$parameters?lng], gloss[not(@xml:lang)], gloss)[1]"/>
                         <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
                         <param name="module" value="@module"/>
-                        <param name="attTree" value="tp:attribute_tree(.)"/>
+                        <param name="attTree" value="list[@type='attTree']"/>
                         <param name="localAtts" value="attList/attDef[not(@mode='delete')]"/>
-                        <param name="usedBy" value="tp:used_by(.)"/>
-                        <param name="members" value="tp:members(.)"/>
-                        <param name="notes" value="tp:spec_section('ref-notes', 'Note', (remarks[@xml:lang=$parameters?lng], remarks[not(@xml:lang)], remarks)[1])"/>
-                        <param name="examples" value="let $ex := (if (exemplum[not(@xml:lang) or @xml:lang=$parameters?lng]) then exemplum[not(@xml:lang) or @xml:lang=$parameters?lng] else exemplum[1]) return tp:spec_section('ref-examples', if (count($ex) eq 1) then 'Example' else 'Examples', $ex)"/>
+                        <param name="usedBy" value="list[@type='usedBy']"/>
+                        <param name="members" value="list[@type='members']"/>
+                        <param name="notes" value="div[@n='ref-notes']"/>
+                        <param name="examples" value="div[@n='ref-examples']"/>
                         <pb:template xmlns=""><article class="spec spec--class"><h1><span class="spec__ident">[[ident]]</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span></div><section class="spec-section" id="ref-attributes"><h2>Attributes</h2>[[attTree]]<dl class="att-def">[[localAtts]]</dl></section><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt id="ref-usedBy">Used by</dt><dd><div class="spec-links">[[usedBy]]</div></dd><dt id="ref-members">Members</dt><dd><div class="spec-links">[[members]]</div></dd></dl></section>[[notes]][[examples]]</article></pb:template>
                     </model>
                     <model behaviour="pass-through">
@@ -496,10 +526,10 @@
                         <param name="gloss" value="(gloss[@xml:lang=$parameters?lng], gloss[not(@xml:lang)], gloss)[1]"/>
                         <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
                         <param name="module" value="@module"/>
-                        <param name="usedBy" value="tp:used_by(.)"/>
-                        <param name="members" value="tp:members(.)"/>
-                        <param name="notes" value="tp:spec_section('ref-notes', 'Note', (remarks[@xml:lang=$parameters?lng], remarks[not(@xml:lang)], remarks)[1])"/>
-                        <param name="examples" value="let $ex := (if (exemplum[not(@xml:lang) or @xml:lang=$parameters?lng]) then exemplum[not(@xml:lang) or @xml:lang=$parameters?lng] else exemplum[1]) return tp:spec_section('ref-examples', if (count($ex) eq 1) then 'Example' else 'Examples', $ex)"/>
+                        <param name="usedBy" value="list[@type='usedBy']"/>
+                        <param name="members" value="list[@type='members']"/>
+                        <param name="notes" value="div[@n='ref-notes']"/>
+                        <param name="examples" value="div[@n='ref-examples']"/>
                         <pb:template xmlns=""><article class="spec spec--class"><h1><span class="spec__ident">[[ident]]</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span></div><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt id="ref-usedBy">Used by</dt><dd><div class="spec-links">[[usedBy]]</div></dd><dt id="ref-members">Members</dt><dd><div class="spec-links">[[members]]</div></dd></dl></section>[[notes]][[examples]]</article></pb:template>
                     </model>
                 </elementSpec>
@@ -511,10 +541,10 @@
                         <param name="gloss" value="(gloss[@xml:lang=$parameters?lng], gloss[not(@xml:lang)], gloss)[1]"/>
                         <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
                         <param name="module" value="@module"/>
-                        <param name="usedBy" value="tp:used_by(.)"/>
-                        <param name="notes" value="tp:spec_section('ref-notes', 'Note', (remarks[@xml:lang=$parameters?lng], remarks[not(@xml:lang)], remarks)[1])"/>
-                        <param name="examples" value="let $ex := (if (exemplum[not(@xml:lang) or @xml:lang=$parameters?lng]) then exemplum[not(@xml:lang) or @xml:lang=$parameters?lng] else exemplum[1]) return tp:spec_section('ref-examples', if (count($ex) eq 1) then 'Example' else 'Examples', $ex)"/>
-                        <param name="schema" value="tp:spec_section('ref-schema', 'Content model', content)"/>
+                        <param name="usedBy" value="list[@type='usedBy']"/>
+                        <param name="notes" value="div[@n='ref-notes']"/>
+                        <param name="examples" value="div[@n='ref-examples']"/>
+                        <param name="schema" value="div[@n='ref-schema']"/>
                         <pb:template xmlns=""><article class="spec spec--macro"><h1><span class="spec__ident">[[ident]]</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span></div><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt id="ref-usedBy">Used by</dt><dd><div class="spec-links">[[usedBy]]</div></dd></dl></section>[[notes]][[examples]][[schema]]</article></pb:template>
                     </model>
                 </elementSpec>
@@ -525,9 +555,9 @@
                         <param name="gloss" value="(gloss[@xml:lang=$parameters?lng], gloss[not(@xml:lang)], gloss)[1]"/>
                         <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
                         <param name="module" value="@module"/>
-                        <param name="usedBy" value="tp:used_by(.)"/>
-                        <param name="notes" value="tp:spec_section('ref-notes', 'Note', (remarks[@xml:lang=$parameters?lng], remarks[not(@xml:lang)], remarks)[1])"/>
-                        <param name="schema" value="tp:spec_section('ref-schema', 'Content model', content)"/>
+                        <param name="usedBy" value="list[@type='usedBy']"/>
+                        <param name="notes" value="div[@n='ref-notes']"/>
+                        <param name="schema" value="div[@n='ref-schema']"/>
                         <pb:template xmlns=""><article class="spec spec--datatype"><h1><span class="spec__ident">[[ident]]</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span></div><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt id="ref-usedBy">Used by</dt><dd><div class="spec-links">[[usedBy]]</div></dd></dl></section>[[notes]][[schema]]</article></pb:template>
                     </model>
                 </elementSpec>
@@ -536,8 +566,8 @@
                         <param name="ident" value="@ident"/>
                         <param name="anchor" value="concat('att-', translate(@ident, ':', '-'))"/>
                         <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
-                        <param name="usage" value="tp:usage_label(@usage)"/>
-                        <param name="datatype" value="tp:att_datatype(.)"/>
+                        <param name="usage" value="let $u := normalize-space(@usage) return (map { 'opt': 'Optional', 'req': 'Required', 'rec': 'Recommended', 'mwa': 'Mandatory when applicable' }($u), $u)[1]"/>
+                        <param name="datatype" value="(.//dataRef)[1]"/>
                         <param name="exemplum" value="(exemplum[@xml:lang=$parameters?lng], exemplum[not(@xml:lang)], exemplum)[1]"/>
                         <pb:template xmlns=""><dt id="[[anchor]]"><span class="att-def__name">@[[ident]]</span>[[desc]]</dt><dd><dl><dt>Status</dt><dd>[[usage]]</dd><dt>Datatype</dt><dd>[[datatype]]</dd></dl>[[exemplum]]</dd></pb:template>
                     </model>

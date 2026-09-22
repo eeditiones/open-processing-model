@@ -23,16 +23,9 @@ opm odd document my.odd --force --preview
 opm odd document -o tei-ref --force --preview
 ```
 
-One can use ODD to process non-TEI documents: `opm` currently supports
-Docbook and JATS out of the box. Obviously calling `opm odd document` on any of those ODDs will 
-result in a flat structure as the schema is not expressed in the ODD: consequently the _contained by_ 
-and _may contain_ sections will be empty.
-
 ODDs which are real TEI customizations will always be merged with the full TEI ODD before being
 processed. `opm` in this case uses a pinned TEI release, specified in the `tei-version` file
 of this repository.
-If the ODD to be document does reference a different version (`@version` tag on the `TEI` root
-element), a warning will be printed.
 
 If your ODD contains prose, i.e. documentation chapters, it will be
 extracted and displayed first.
@@ -44,6 +37,26 @@ matter (`Appendix A`, `Appendix A.1`). The index at each level is the
 division's position among its siblings, so a title page carries no number, and
 neither do the pages `opm` adds itself. The A–Z catalogs are appendices, in the
 order they appear in the sidebar.
+
+One can use ODD to process non-TEI documents: `opm` currently supports
+Docbook and JATS out of the box. Obviously calling `opm odd document` on any of those ODDs will 
+result in a flat structure as the schema is not expressed in the ODD: consequently the _contained by_ 
+and _may contain_ sections will be empty.
+
+## How does it work?
+
+ODD is a complex format, containing a lot of cross-references between different parts of the specification. 
+`opm odd document` therefore explodes the ODD before rendering: it resolves class memberships, attribute lists, references etc.
+and outputs them as expanded lists. The resulting document can then be processed as a sequential text like any _normal_ TEI document.
+
+If you would like to read the exploded ODD, e.g. to customize the presentation, use the `opm odd prepare` command:
+
+```bash
+opm odd prepare my.odd
+```
+
+By default this writes a file, `schema.xml`, into the current directory, containing the exploded ODD. Pass parameter `-o` to select
+a different output location.
 
 ## Customizing the output
 
@@ -61,17 +74,9 @@ Omitting `my-odd.odd` generates the full TEI P5 guidelines in its latest version
 
 The project holds the processing ODD (`odd/tagdocs.odd`), the two chunking
 runs in `opm.toml` — the text, then one reference page per spec — the page
-template and the site's stylesheet and scripts (`templates/`), the sidebar list
-(`templates/nav.xml`), and `extensions/tagdocs.py` for `tp:` functions of your
-own. `[document]` in `opm.toml` says what to document, the TEI Guidelines
+template and the site's stylesheet and scripts (`templates/`), and the sidebar
+list (`templates/nav.xml`). `[document]` in `opm.toml` says what to document, the TEI Guidelines
 unless it names a `source`; SOURCE on the command line still wins.
-
-Rendering works as follows:
-
-* the ODD is parsed into a python object model with all references resolved to allow fast lookups
-* the resulting object model is passed to `tagdocs.odd` via XPath extension functions
-* most extension functions return TEI: for example, [`tp:may_contain()`](/api/spec-index/#opm.runtime.spec_xpath_functions.may_contain) called on an `<elementSpec>`
-will return a TEI `<list>`, which is then further processed by the ODD
 
 ## JSON for a static site generator
 

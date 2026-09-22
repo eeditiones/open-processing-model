@@ -11,12 +11,10 @@
 
 [transform]
 odd = "../odd/tagdocs.odd"
-# Later modules win on a name clash: a project lists its own module last to
-# replace a tp: function. spec_primitives are the index lookups the
-# documentation functions in spec_xpath_functions are composed from.
+# The tree tagdocs renders already holds every relation and link (see
+# opm.odd_expand); these are only the formatting helpers it calls.
 xpath_extensions = [
     "opm.runtime.common_xpath_functions",
-    "opm.runtime.spec_primitives",
     "opm.runtime.spec_xpath_functions",
 ]
 

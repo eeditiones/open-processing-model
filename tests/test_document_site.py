@@ -791,8 +791,7 @@ def test_unsupported_expressions_in_own_odd_are_reported(tmp_path: Path) -> None
     packaged = Path(packaged_odd('tagdocs')).read_text(encoding='utf-8')
     odd.write_text(
         packaged.replace(
-            'let $s := tp:spec(@key, .) return '
-            '($s/desc[@xml:lang=$parameters?lng], $s/desc[not(@xml:lang)], $s/desc)[1]',
+            "(@rend, 'elementSpec')[1]",
             'current()',
         ),
         encoding='utf-8',
@@ -800,7 +799,7 @@ def test_unsupported_expressions_in_own_odd_are_reported(tmp_path: Path) -> None
 
     site = build_document_site(compile_schema(MINI), tmp_path / 'out', odd=odd)
     reasons = {(e['element'], e['where'], e['reason']) for e in site.unsupported}
-    assert reasons == {('specDesc', 'param desc', 'unknown function current()')}
+    assert reasons == {('specDesc', 'param rend', 'unknown function current()')}
 
 
 def test_eg_element_renders_as_source_block(tmp_path: Path) -> None:
@@ -1226,9 +1225,14 @@ def test_chapter_ids_do_not_collide(tmp_path: Path) -> None:
 
 
 def _chapter_head(div: etree._Element) -> str:
+    """The heading text, without the outline number prepare puts in front."""
     for child in div:
         if child.tag.endswith('head'):
-            return ' '.join(child.itertext()).strip()
+            text = [child.text or ''] + [
+                ('' if el.get('type') == 'headingNumber' else ''.join(el.itertext())) + (el.tail or '')
+                for el in child
+            ]
+            return ' '.join(''.join(text).split())
     return ''
 
 
@@ -1283,19 +1287,15 @@ def test_non_spec_element_yields_its_ref_id_to_the_spec(tmp_path: Path) -> None:
     assert targets == ['#ref-faith-figure']
 
 
-def test_a_plain_chunk_run_builds_the_spec_index_once(tmp_path: Path, monkeypatch) -> None:
-    """Without ``opm odd document`` handing it an index, one is built per document.
-
-    The chunker renders each page through a fresh environment view, so an
-    index cached on the environment would be rebuilt for every page.
-    """
+def test_a_plain_chunk_run_needs_no_spec_index(tmp_path: Path, monkeypatch) -> None:
+    """The prepared tree holds everything the pages show, so rendering it
+    never builds a SpecIndex."""
     from dataclasses import replace
 
     from opm.chunking import chunk_document
     from opm.config import load_project_config
     from opm.document_site import _TAGDOCS_XPATH_EXTENSIONS
     from opm.resources import packaged_document_dir
-    from opm.runtime import spec_primitives
     from opm.spec_index import SpecIndex
 
     xml = tmp_path / 'schema.xml'
@@ -1308,7 +1308,6 @@ def test_a_plain_chunk_run_builds_the_spec_index_once(tmp_path: Path, monkeypatc
         return original(cls, root, **kwargs)
 
     monkeypatch.setattr(SpecIndex, 'from_tree', classmethod(counting))
-    monkeypatch.setattr(spec_primitives, '_INDEXES', {})
 
     cfg = load_project_config(packaged_document_dir() / 'opm.toml')
     reference = next(run for run in cfg.chunking_runs if run.name == 'reference')
@@ -1325,7 +1324,8 @@ def test_a_plain_chunk_run_builds_the_spec_index_once(tmp_path: Path, monkeypatc
 
     pages = list(out.glob('ref-*.html'))
     assert len(pages) > 1
-    assert len(built) == 1
+    assert built == []
+    assert 'ref-hi.html' in (out / 'ref-p.html').read_text(encoding='utf-8')
 
 
 # ── documentation projects (opm init --example odd) ───────────────────────
@@ -1340,7 +1340,7 @@ def test_documentation_project_starts_with_the_packaged_runs(tmp_path: Path) -> 
     result = scaffold(InitOptions(directory=tmp_path / 'site-project', example='odd'))
     root = result.directory
     for rel in (
-        'opm.toml', 'odd/tagdocs.odd', 'odd/tagdocs.css', 'extensions/tagdocs.py',
+        'opm.toml', 'odd/tagdocs.odd', 'odd/tagdocs.css',
         'templates/page.html.j2', 'templates/nav.xml', 'templates/document.css',
     ):
         assert (root / rel).is_file(), rel
@@ -1348,7 +1348,8 @@ def test_documentation_project_starts_with_the_packaged_runs(tmp_path: Path) -> 
     project = load_project_config(root / 'opm.toml')
     packaged = load_project_config(packaged_document_dir() / 'opm.toml')
     assert project.document is not None and project.document.source is None
-    assert project.xpath_extensions[-1] == 'extensions.tagdocs'
+    assert project.xpath_extensions == packaged.xpath_extensions
+    assert not (root / 'extensions').exists()
 
     def shape(runs):
         return [
@@ -1365,7 +1366,7 @@ def test_documentation_project_starts_with_the_packaged_runs(tmp_path: Path) -> 
 def test_odd_document_builds_with_the_project_it_runs_in(
     tmp_path: Path, monkeypatch,
 ) -> None:
-    """Inside a documentation project the project's ODD, assets and tp: functions win."""
+    """Inside a documentation project the project's ODD and assets win."""
     import sys
 
     from opm.scaffold import InitOptions, scaffold
@@ -1374,17 +1375,14 @@ def test_odd_document_builds_with_the_project_it_runs_in(
     config = (root / 'opm.toml').read_text(encoding='utf-8')
     config = config.replace('# source = "my-customization.odd"', f'source = "{MINI.as_posix()}"')
     (root / 'opm.toml').write_text(config, encoding='utf-8')
-    # A replaced tp: function, a changed ODD model, a changed asset.
-    (root / 'extensions' / 'tagdocs.py').write_text(
-        'from opm.runtime import spec_xpath_functions as packaged\n\n'
-        'def usage_label(usage):\n'
-        '    return "PROJECT-" + packaged.usage_label(usage)\n',
-        encoding='utf-8',
-    )
+    # Changed ODD models, a changed asset.
     odd = root / 'odd' / 'tagdocs.odd'
     odd.write_text(
-        odd.read_text(encoding='utf-8').replace(
-            '<h1>[[number]]Attributes</h1>', '<h1>[[number]]Project attributes</h1>',
+        odd.read_text(encoding='utf-8')
+        .replace("'opt': 'Optional'", "'opt': 'PROJECT-Optional'")
+        .replace(
+            '<param name="catalog" value="list[@type=\'attCatalog\']"/>',
+            '<param name="catalog" value="(\'Project attributes\', list[@type=\'attCatalog\'])"/>',
         ),
         encoding='utf-8',
     )

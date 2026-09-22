@@ -1400,7 +1400,6 @@ def chunk_document(
     output_format: str = 'html',
     doc_path: str | None = None,
     documents: Collection[str] | None = None,
-    spec_index=None,
     anchors: Mapping[str, str] | None = None,
     merge_manifest: bool = False,
 ) -> dict[str, str]:
@@ -1454,8 +1453,6 @@ def chunk_document(
     cfg = project_config or ProjectConfig()
 
     xpath_env = project_xpath_env(cfg, xml_path, extensions=xpath_extensions)
-    if spec_index is not None:
-        xpath_env = xpath_env.with_spec_index(spec_index)
 
     processor = ChunkProcessor(
         resolved_module, root, config, project_root,
