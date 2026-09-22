@@ -1,0 +1,75 @@
+{#
+  SPDX-FileCopyrightText: 2026 e-editiones
+  SPDX-License-Identifier: CC0-1.0
+-#}
+// Typst shell for ODD documentation: `opm odd prepare`, then
+// `opm transform schema.xml -t typst -o docs.pdf`.
+// odd/tagdocs.odd writes the body; this adds the cover, the table of contents
+// and the page layout, with the ilm template the DocBook example uses too.
+
+#import "@preview/ilm:2.1.0": *
+
+{% set _title = (metadata.get('title') or ['ODD documentation'])[0] -%}
+{% set _edition = (metadata.get('edition') or [''])[0] -%}
+#set text(lang: "{{ parameters.get('lng', 'en') }}")
+
+#show: ilm.with(
+  title: [{{ _title }}],
+  authors: "",
+  date: none,
+  abstract: {% if _edition %}[#set par(justify: false)
+    {{ _edition }}]{% else %}none{% endif %},
+  table-of-contents: outline(depth: 2),
+  raw-text: (font: ("DejaVu Sans Mono", "Menlo", "Courier New"), size: 0.82em),
+)
+
+{% include "opm_css_fns_default.typ.j2" %}
+
+// No margin notes in the documentation: keep the outer column narrow.
+#show: marginalia.setup.with(
+  inner: (far: 2.2cm),
+  outer: (far: 1.6cm, width: 0.4cm, sep: 0.4em),
+  top: 2.4cm,
+  bottom: 2.4cm,
+)
+
+{% include "opm_css.typ.j2" %}
+
+{{ odd_typst }}
+
+// ilm's body size is set for a thesis; a reference of this length reads
+// better smaller.
+#set text(size: 10pt)
+// The outline labels are part of each heading already ("Chapter 3", "iv.1.",
+// "Appendix A"): no numbering of ilm's on top.
+#set heading(numbering: none)
+#show heading.where(level: 2): set text(size: 1.15em)
+#show heading.where(level: 3): set text(size: 1em)
+#show raw.where(block: true): block.with(
+  width: 100%,
+  inset: 0.6em,
+  radius: 2pt,
+  fill: luma(246),
+)
+// Links into the document (element names, pointers) and out of it.
+#show link: set text(fill: rgb("#1f4e79"))
+
+// Running footer: the page number on the outer edge, the current chapter
+// beside it — ilm's alternating footer, which only names numbered chapters.
+#set page(footer: context {
+  let page-number = counter(page).get().first()
+  let chapters = heading.where(level: 1)
+  let opens-chapter = query(chapters).any(it => it.location().page() == here().page())
+  let before = query(chapters.before(here()))
+  let chapter = if not opens-chapter and before.len() > 0 {
+    upper(text(size: 0.68em, before.last().body))
+  }
+  let gap = 1.75em
+  if calc.odd(here().page()) {
+    align(right, [#chapter #h(gap) #page-number])
+  } else {
+    align(left, [#page-number #h(gap) #chapter])
+  }
+})
+
+{{ content_typst }}

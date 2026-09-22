@@ -15,6 +15,9 @@ renders each node from its own children, in document order.
 
 What depends on the language is left for the ODD to choose: every
 ``xml:lang`` variant of a note, an example or a description stays in the tree.
+So is what depends on the output format: links are plain pointers to an id
+(``#ref-p``, ``#COEDADD``), which the web and the PDF each resolve their own
+way.
 """
 
 from __future__ import annotations
@@ -451,14 +454,13 @@ def attribute_tree(index: SpecIndex, spec: Spec) -> etree._Element:
 def list_ref(index: SpecIndex, spec: Spec, *, lang: str = 'en') -> etree._Element:
     """The Guidelines sections *spec*'s ``listRef`` cites, as ``ref`` links.
 
-    When the site publishes that section itself the link stays inside the site
-    (``ref/@type='local'``); otherwise it points at the published P5
-    documentation on tei-c.org, in *lang*. For ``abbr``, on a site that
-    publishes the Guidelines:
+    When the document carries that section itself the link points at it
+    (``ref/@type='local'``); otherwise at the published P5 documentation on
+    tei-c.org, in *lang*. For ``abbr``, documenting the Guidelines:
 
     ```xml
     <list type="listRef">
-      <item><ref type="local" target="CO.html#CONAAB">CONAAB</ref></item>
+      <item><ref type="local" target="#CONAAB">CONAAB</ref></item>
     </list>
     ```
 
@@ -487,7 +489,7 @@ def list_ref(index: SpecIndex, spec: Spec, *, lang: str = 'en') -> etree._Elemen
         ref = etree.SubElement(item, qn('ref'))
         if local is not None:
             ref.set('type', 'local')
-            ref.set('target', local)
+            ref.set('target', f'#{code}')
         else:
             ref.set('target', f'{_TEI_P5_DOC}/{lang}/html/{chapter}.html#{code}')
         ref.text = code
@@ -745,14 +747,14 @@ def guidelines_toc(root: etree._Element) -> etree._Element | None:
     ```xml
     <div type="guidelines-toc">
       <list type="toc" n="front">
-        <item><ref target="Title.html">Title</ref></item>
+        <item><ref target="#Title">Title</ref></item>
         <item>
           <seg type="headingNumber">iv. </seg>
-          <ref target="AB.html">About These Guidelines</ref>
+          <ref target="#AB">About These Guidelines</ref>
           <list type="toc">
             <item>
               <seg type="headingNumber">iv.1. </seg>
-              <ref target="AB.html#ABSTRUNC">Structure and Notational Conventions of this Document</ref>
+              <ref target="#ABSTRUNC">Structure and Notational Conventions of this Document</ref>
             </item>
             <!-- … -->
           </list>
@@ -789,7 +791,7 @@ def _toc_item(div: etree._Element) -> etree._Element:
     item = _tei('item')
     _append_mark(item, div)
     ref = etree.SubElement(item, qn('ref'))
-    ref.set('target', f'{xml_id}.html' if xml_id else '#')
+    ref.set('target', f'#{xml_id}' if xml_id else '#')
     ref.text = _heading_text(div) or xml_id
     nested = [
         child for child in div
@@ -803,12 +805,7 @@ def _toc_item(div: etree._Element) -> etree._Element:
             sub = etree.SubElement(inner, qn('item'))
             _append_mark(sub, child)
             sub_ref = etree.SubElement(sub, qn('ref'))
-            if xml_id and child_id and child_id != xml_id:
-                sub_ref.set('target', f'{xml_id}.html#{child_id}')
-            elif child_id:
-                sub_ref.set('target', f'{child_id}.html')
-            else:
-                sub_ref.set('target', '#')
+            sub_ref.set('target', f'#{child_id}' if child_id else '#')
             sub_ref.text = _heading_text(child) or child_id
     return item
 
@@ -932,11 +929,11 @@ def _pageless(el: etree._Element) -> bool:
 
 
 def _link_spec_names(root: etree._Element, index: SpecIndex) -> None:
-    """``@target`` on every ``gi``/``ident`` that names a spec with a page, and
-    on the ``dataRef`` of an attribute's datatype."""
+    """``@target="#ref-{ident}"`` on every ``gi``/``ident`` that names a spec
+    with a page, and on the ``dataRef`` of an attribute's datatype."""
     def page(ident: str) -> str | None:
         spec = index.get(ident)
-        return spec.href if spec is not None and spec.kind in PAGE_KINDS else None
+        return f'#ref-{spec.ident}' if spec is not None and spec.kind in PAGE_KINDS else None
 
     for el in root.iter(qn('gi'), qn('ident')):
         if el.get('target') or _pageless(el):
@@ -967,6 +964,9 @@ def _describe_spec_refs(root: etree._Element, index: SpecIndex) -> None:
             if localname(child) in {'gloss', 'desc'}:
                 copy = deepcopy(child)
                 copy.tail = None
+                # A copy must not repeat the ids of the original.
+                for el in copy.iter():
+                    el.attrib.pop(XML_ID, None)
                 spec_desc.append(copy)
 
 
@@ -977,8 +977,8 @@ def _link_chapters(root: etree._Element) -> None:
 
     ```xml
     <list type="chapterNav">
-      <item n="prev"><ref target="AB.html" n="iv.">About These Guidelines</ref></item>
-      <item n="next"><ref target="CO.html" n="2">Elements Available in All TEI Documents</ref></item>
+      <item n="prev"><ref target="#AB" n="iv.">About These Guidelines</ref></item>
+      <item n="next"><ref target="#CO" n="2">Elements Available in All TEI Documents</ref></item>
     </list>
     ```
 
@@ -1001,7 +1001,7 @@ def _link_chapters(root: etree._Element) -> None:
             item = etree.SubElement(nav, qn('item'))
             item.set('n', n)
             ref = etree.SubElement(item, qn('ref'))
-            ref.set('target', f'{other.get(XML_ID)}.html' if other.get(XML_ID) else '')
+            ref.set('target', f'#{other.get(XML_ID)}' if other.get(XML_ID) else '')
             label = heading_label(other)
             if label:
                 ref.set('n', label)
@@ -1024,7 +1024,7 @@ def _fill_home(root: etree._Element, index: SpecIndex, toc: etree._Element | Non
 
     ```xml
     <list type="reference">
-      <item><ref target="REF-ELEMENTS.html">Elements</ref> <num>590</num></item>
+      <item><ref target="#REF-ELEMENTS">Elements</ref> <num>590</num></item>
       <!-- … -->
     </list>
     ```
@@ -1038,7 +1038,7 @@ def _fill_home(root: etree._Element, index: SpecIndex, toc: etree._Element | Non
     for xml_id, label, kind in _REFERENCE:
         item = etree.SubElement(reference, qn('item'))
         ref = etree.SubElement(item, qn('ref'))
-        ref.set('target', f'{xml_id}.html')
+        ref.set('target', f'#{xml_id}')
         ref.text = label
         ref.tail = ' '
         num = etree.SubElement(item, qn('num'))
@@ -1055,7 +1055,7 @@ def expand_document_tree(root: etree._Element, index: SpecIndex, *, lang: str = 
     the catalog pages get their A–Z lists and the home page its table of
     contents and reference list; each chapter learns the previous and next
     one; numbered headings get their label; and every
-    ``gi``/``ident`` naming a spec gets the ``@target`` of its page.
+    ``gi``/``ident`` naming a spec points at it.
     """
     toc = guidelines_toc(root)
     for spec in index.all():

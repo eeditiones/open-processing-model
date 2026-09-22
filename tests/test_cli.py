@@ -1243,14 +1243,13 @@ def test_example_catalogue_matches_shipped_directories() -> None:
     from opm.resources import example_dir, example_names
     from opm.scaffold import EXAMPLES
 
-    assert sorted(e.name for e in EXAMPLES if not e.packaged) == example_names()
+    assert sorted(e.name for e in EXAMPLES) == example_names()
     for example in EXAMPLES:
-        if example.packaged:
-            continue
         root = example_dir(example.name)
         assert (root / 'opm.toml').is_file()
-        # The "Next:" hint has to name a document that is actually there.
-        assert (root / example.sample).is_file()
+        # The "Next:" hint has to name a document that is actually there
+        # (the ODD documentation example documents the Guidelines by default).
+        assert not example.sample or (root / example.sample).is_file()
 
 
 def test_examples_are_packaged_by_the_build_hook() -> None:

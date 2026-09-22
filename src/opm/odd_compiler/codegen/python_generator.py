@@ -215,19 +215,22 @@ class PythonGenerator(CodeGenerator):
 
         prefix_by_ns = self._prefix_by_ns(parsed)
         prefix_by_ns_literal = self._python_dict_literal(prefix_by_ns)
+        # What a foreign element without a model becomes: itself, copied into
+        # the output, or — where the output cannot carry it — its content.
+        foreign = 'return [node]' if mode.copies_foreign else fallthrough
         if cases:
             # Foreign-namespace specs use ``prefix:local`` idents (e.g. eg:egXML);
             # unmatched names in a mapped foreign NS are copied through, while
             # schema-NS unknowns still recurse into children.
             default_arm = (
                 f'            if _ns(node) != {schema_ns!r}:\n'
-                f'                return [node]\n'
+                f'                {foreign}\n'
                 f'            {fallthrough}'
             )
             dispatch_body = (
                 '    key = _element_key(node)\n'
                 '    if key is None:\n'
-                '        return [node]\n'
+                f'        {foreign}\n'
                 '    match key:\n'
                 + '\n'.join(cases) + '\n'
                 '        case _:\n'

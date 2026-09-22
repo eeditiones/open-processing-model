@@ -49,6 +49,7 @@ uv run opm serve -d chunks/
 cd examples/serafin && uv run opm chunk data/letters/serafin01.xml --force --preview
 cd examples/docbook && uv run opm chunk data/doc/quickstart.xml --force --preview
 cd examples/jats && uv run opm chunk data/article/hertziana-digital-editions.xml --force --preview
+cd examples/odd && uv run opm odd document --force --preview   # the TEI Guidelines
 ```
 
 ### `opm` without `uv run`

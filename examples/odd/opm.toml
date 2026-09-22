@@ -1,28 +1,37 @@
 # SPDX-FileCopyrightText: 2026 e-editiones
 # SPDX-License-Identifier: CC0-1.0
 #
-# Packaged config for `opm odd document`. Paths are relative to this file
-# (resources/document/), which also holds the page template, the site's
-# stylesheets, scripts and fonts, and the sidebar list (nav.xml).
-#
-# examples/odd is a project with the same runs, ODD and templates, whose files
-# a user owns and edits (`opm init --example odd` copies it); `opm odd
-# document` run inside it uses those instead of these. A test keeps the two in
-# step.
+# Documentation for an ODD: a website with `opm odd document`, a PDF with
+# `opm odd prepare` and `opm transform -t typst`. Both build with the ODD, runs,
+# templates and assets of this project rather than the packaged ones; anything
+# you delete from templates/ falls back to the packaged file of the same name.
+# `opm init --example odd` starts a project of your own from this one.
+
+# What to document: without a source, the TEI Guidelines. `opm odd document
+# SOURCE` on the command line wins over this.
+[document]
+# source = "my-customization.odd"
+lang = "en"
 
 [transform]
-odd = "../odd/tagdocs.odd"
-# The tree tagdocs renders already holds every relation and link (see
-# opm.odd_expand); these are only the formatting helpers it calls.
+odd = "odd/tagdocs.odd"
+# The formatting helpers odd/tagdocs.odd calls. Relations, catalogs and links
+# are already in the tree it renders: `opm odd prepare` shows it.
 xpath_extensions = [
     "opm.runtime.common_xpath_functions",
     "opm.runtime.spec_xpath_functions",
 ]
 
 # PDF: `opm odd prepare -o schema.xml`, then
-# `opm transform schema.xml -t typst -o docs.pdf`.
+# `opm transform schema.xml -t typst -o docs.pdf` (or --preview).
 [transform.typst]
-template = "tagdocs.typ.j2"
+template = "templates/tagdocs.typ.j2"
+
+# What `opm odd document` passes the ODD itself; set here too, so a plain
+# `opm chunk` over a prepared tree (`opm odd prepare`) renders the same.
+[transform.parameters]
+lng = "en"
+mode = "ref"
 
 # ── Run 1: the Guidelines read as a text ────────────────────────────────────
 # Every top-level division of the text is a page — chapters, front matter and
@@ -31,9 +40,10 @@ template = "tagdocs.typ.j2"
 # of the text itself. Specs inside the prose are left to the reference run.
 [[chunking]]
 name = "guidelines"
+output_dir = "site"
 xpath = "/TEI/text/div | /TEI/text/(front|body|back)/div"
 file_pattern = "{xml_id}.html"
-template = "page.html.j2"
+template = "templates/page.html.j2"
 
 [[chunking.fragments]]
 name = "nav"
@@ -72,10 +82,11 @@ xpath = """
   | //dataSpec[starts-with(@xml:id,'ref-')]
 """
 file_pattern = "{xml_id}.html"
-template = "page.html.j2"
+template = "templates/page.html.j2"
 
 [[chunking.fragments]]
 name = "nav"
 scope = "global"
 xpath = "//list[@type='siteNav']"
 parameters = { mode = "nav" }
+

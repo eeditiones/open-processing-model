@@ -69,6 +69,11 @@ class OutputMode:
     packaged: bool = False
     #: The output is ``bytes``, not text.
     binary: bool = False
+    #: An element in a namespace the ODD has no model for (SVG, MathML, a
+    #: Schematron rule, an example) is copied into the output as markup. Where
+    #: the output cannot carry foreign markup, its content is rendered like
+    #: that of any element without a model, its text escaped.
+    copies_foreign: bool = True
     #: File extension of the output.
     extension: str = ''
     #: How ``--preview`` shows the output: ``'browser'``, ``'markdown'``,
@@ -185,6 +190,7 @@ RENDER_MODES: dict[str, OutputMode] = {
             template_setting='typst_template',
             default_template='default_document.typ.j2',
             collects_metadata=True,
+            copies_foreign=False,
             extension='.typ',
             scaffold=True,
             compiler='typst',

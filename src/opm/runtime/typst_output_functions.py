@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import html
 import re
 
 from lxml import etree
@@ -46,7 +45,9 @@ def _param_str(value) -> str:
 
 
 _HTML_COMMENT_RE = re.compile(r'<!--.*?-->', re.DOTALL)
-_HTML_TAG_RE = re.compile(r'<[^>]+>')
+# A tag leaked from a web template: `<name …>` or `</name>`. Not an escaped `\<`
+# from document text ("LESS-THAN SIGN (<) and …").
+_HTML_TAG_RE = re.compile(r'(?<!\\)</?[A-Za-z][^<>]*>')
 _FENCED_CODE_RE = re.compile(r'```[^\n]*\n.*?```', re.DOTALL)
 
 
@@ -114,12 +115,19 @@ def escape_typst_text_node(text: str) -> str:
     No protect/restore is needed because these strings contain no pre-generated
     Typst identifiers or markup.
     """
-    text = text.replace('#', '\\#')
-    text = text.replace('$', '\\$')
-    text = text.replace('@', '\\@')
-    text = text.replace('*', '\\*')
-    text = text.replace('_', '\\_')
-    return text
+    # Backslash first, so the escapes added below are not escaped again.
+    text = text.replace('\\', '\\\\')
+    for ch in '#$@*_[]<`~(':
+        # [ ] end or open content blocks, < a label, ` raw text, ~ a
+        # non-breaking space; ( right after a call (`#link(…)[…](no date)`)
+        # would be read as more arguments.
+        text = text.replace(ch, '\\' + ch)
+    # A text node can follow a call (`#strong[…]`); a leading `.word` would be
+    # read as field access on its result.
+    if text.startswith('.'):
+        text = '\\' + text
+    # // opens a comment, which also swallows the rest of a bare URL.
+    return text.replace('//', '/\\/')
 
 
 def escape_typst_underscores(text: str) -> str:
@@ -316,7 +324,8 @@ def strip_html_markup(text: str) -> str:
         return text
     text = _HTML_COMMENT_RE.sub('', text)
     text = _HTML_TAG_RE.sub('', text)
-    text = html.unescape(text)
+    # No html.unescape: template markup reaches here already parsed, so an
+    # entity left in the text is the document's own (`&lt;` quoted in an example).
     text = re.sub(r'[ \t]+\n', '\n', text)
     return text
 
@@ -520,7 +529,12 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         else:
             href = uri
         href_s = str(href) if href else ''
-        out: list = [f'#link("{href_s}")[']
+        if href_s.startswith('#') and len(href_s) > 1:
+            # A pointer into the document: a link to its label when the
+            # document carries it, plain text when not (see `opm-xref`).
+            out: list = [f'#opm-xref({_typst_string_literal(href_s[1:])})[']
+        else:
+            out = [f'#link({_typst_string_literal(href_s)})[']
         body: list = []
         config.apply_children(config, node, content, body)
         out.append(_wrap_typst_classes(config, _cls_without_names(cls, 'link'), _join_buf(body)))
@@ -661,8 +675,10 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         return ['#linebreak();']
 
     def anchor(self, config, node, cls, content, id=None) -> PMResult:
+        # A label of its own, so it needs no element before it to attach to,
+        # and given as a string, so any xml:id is a valid one.
         sid = str(id) if id else ''
-        return [f'<{sid}>\n']
+        return [f'#metadata(none)#label({_typst_string_literal(sid)})\n']
 
     def alternate(self, config, node, cls, content, default, alternate, optional=None) -> PMResult:
         _ = alternate, optional

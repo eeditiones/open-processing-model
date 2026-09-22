@@ -71,12 +71,40 @@ opm odd document my-odd.odd --force --preview
 
 Omitting `my-odd.odd` generates the full TEI P5 guidelines in its latest version.
 `opm` caches the full guidelines ODD anyway, because it needs it as a base.
+In a clone of the repository, `examples/odd` is that project: change into it
+and the same commands work there.
 
 The project holds the processing ODD (`odd/tagdocs.odd`), the two chunking
 runs in `opm.toml` — the text, then one reference page per spec — the page
 template and the site's stylesheet and scripts (`templates/`), and the sidebar
 list (`templates/nav.xml`). `[document]` in `opm.toml` says what to document, the TEI Guidelines
 unless it names a `source`; SOURCE on the command line still wins.
+
+## PDF
+
+Inside a documentation project, the same prepared tree becomes a PDF through
+Typst (the `typst` command must be on your `PATH`):
+
+```bash
+opm odd prepare -o schema.xml
+opm transform schema.xml -t typst -o docs.pdf   # --preview opens it, -o docs.typ keeps the source
+```
+
+The text comes first, in document order, then the reference part: each
+catalog appendix lists its elements, classes or macros in full, in A–Z order.
+`-p part=reference` prints only the reference part, `-p part=text` only the
+text:
+
+```bash
+opm transform schema.xml -t typst -p part=reference -o reference.pdf
+```
+
+`odd/tagdocs.odd` decides this with its `output="typst"` models, and
+`templates/tagdocs.typ.j2` adds the cover, the table of contents, a running
+footer with the current chapter, and the page layout, using the
+[ilm](https://typst.app/universe/package/ilm) template. Element names and pointers become links inside the PDF. A
+pointer to something the PDF leaves out stays plain text, and a missing
+image is shown as a placeholder.
 
 ## JSON for a static site generator
 

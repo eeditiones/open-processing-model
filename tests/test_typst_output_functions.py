@@ -190,9 +190,18 @@ def test_typst_heading_wraps_output_rendition() -> None:
     assert text == '\n= #opm-css("doc_title")[#tei_title9[My Title]]\n\n'
 
 
-def test_strip_html_markup_removes_tags_and_unescapes() -> None:
-    raw = 'before <span class="tei-add">added</span> &amp; after'
+def test_strip_html_markup_removes_tags() -> None:
+    raw = 'before <span class="tei-add">added</span> & after'
     assert strip_html_markup(raw) == 'before added & after'
+
+
+def test_strip_html_markup_keeps_entities_the_document_quotes() -> None:
+    """An example showing escaping ("&lt;0&amp;&gt;1") must print as written,
+    and must not turn into an unescaped < that Typst reads as a label."""
+    from opm.runtime.typst_output_functions import escape_typst_text_node
+
+    text = escape_typst_text_node(r'$\cr&lt;0&amp;&gt;1$')
+    assert strip_html_markup(text) == text
 
 
 def test_apply_typst_finish_cleanup_strips_pb_popover() -> None:
@@ -401,6 +410,12 @@ def test_escape_typst_text_node_escapes_special_chars() -> None:
     assert escape_typst_text_node('cost $5') == 'cost \\$5'
     assert escape_typst_text_node('foo * bar') == 'foo \\* bar'
     assert escape_typst_text_node('foo_bar') == 'foo\\_bar'
+    assert escape_typst_text_node('1] no; [x]') == '1\\] no; \\[x\\]'
+    assert escape_typst_text_node('<p> (no date)') == '\\<p> \\(no date)'
+    # A bare URL would open a comment at //.
+    assert escape_typst_text_node('see http://tei-c.org') == 'see http:/\\/tei-c.org'
+    assert escape_typst_text_node('a\\d') == 'a\\\\d'
+    assert escape_typst_text_node('.texts as') == '\\.texts as'
 
 
 def test_apply_typst_finish_cleanup_does_not_escape_chars_in_prose() -> None:
@@ -584,7 +599,7 @@ def test_lb_pass_through_template_for_typst(tmp_path) -> None:
     body = run_transform(mod, root, apply_template=False)
     assert '#opm-css("lb")' not in body
     assert 'son-#linebreak();dern' in body
-    assert 'Title#linebreak();(subtitle)' in body
+    assert 'Title#linebreak();\\(subtitle)' in body
     # Bare -\\ before ] would escape Typst's closing bracket (e.g. #footnote).
     assert '-\\' not in body
     assert '\\]' not in body
@@ -736,7 +751,8 @@ def test_jats_typst_metadata_carries_the_citation_apparatus(tmp_path) -> None:
     assert meta['date'] == 'December 2022'
     # The bare DOI, so a shell can build both the link and the display text.
     assert meta['doi'] == '10.48352/uobxjah.00004200'
-    assert meta['license'] == 'https://creativecommons.org/licenses/by-nc/4.0/'
+    # Markup-escaped like all metadata; the shell's tstr() strips the escapes.
+    assert meta['license'] == 'https:/\\/creativecommons.org/licenses/by-nc/4.0/'
 
 
 def test_jats_typst_authors_key_stays_a_plain_name(tmp_path) -> None:
@@ -771,3 +787,33 @@ def test_jats_web_publication_date_is_formatted(tmp_path) -> None:
         )
     )
     assert 'December 2022' in out
+
+
+def test_strip_html_markup_keeps_escaped_angle_brackets() -> None:
+    from opm.runtime.typst_output_functions import escape_typst_text_node, strip_html_markup
+
+    text = escape_typst_text_node('LESS-THAN SIGN (<) and AMPERSAND (&); any')
+    assert strip_html_markup(text) == text
+    assert strip_html_markup('<span class="x">kept</span>') == 'kept'
+
+
+def test_typst_renders_foreign_elements_as_escaped_text(tmp_path) -> None:
+    """A Schematron rule or example without a model: its text, escaped for Typst.
+
+    The web copies such markup through; Typst cannot carry it, and its raw text
+    (`<desc type="…">`, `$120m`) would break the compile.
+    """
+    from opm.odd_compiler import compile_odd
+    from opm.transform import load_transform_module, run_transform
+
+    tei = 'http://www.tei-c.org/ns/1.0'
+    sch = 'http://purl.oclc.org/dsdl/schematron'
+    root = etree.fromstring(
+        f'<TEI xmlns="{tei}" xmlns:sch="{sch}"><text><body>'
+        f'<p>Rule: <sch:assert test="x">no child &lt;desc type="d"&gt; for $120m</sch:assert></p>'
+        f'</body></text></TEI>'.encode()
+    )
+    mod_path = tmp_path / 'tei_typst.py'
+    mod_path.write_text(compile_odd(str(packaged_odd('teipublisher')), output_mode='typst'), encoding='utf-8')
+    out = run_transform(load_transform_module(mod_path), root, apply_template=False)
+    assert 'no child \\<desc type="d"> for \\$120m' in out

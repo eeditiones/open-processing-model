@@ -103,7 +103,7 @@ def test_catalog_pages_and_home_are_filled(tree: etree._Element) -> None:
     home = _one(tree, "//t:div[@xml:id='index']")
     reference = home.find("t:list[@type='reference']", NS)
     rows = [(item.find('t:ref', NS).get('target'), item.find('t:num', NS).text) for item in reference]
-    assert rows[0] == ('REF-ELEMENTS.html', '3')
+    assert rows[0] == ('#REF-ELEMENTS', '3')
 
 
 def test_headings_open_with_their_number(tree: etree._Element) -> None:
@@ -116,5 +116,11 @@ def test_headings_open_with_their_number(tree: etree._Element) -> None:
 
 def test_names_of_specs_link_to_their_page(tree: etree._Element) -> None:
     gis = tree.xpath("//t:elementSpec[@xml:id='ref-p']//t:gi[.='hi']", namespaces=NS)
-    assert gis and all(gi.get('target') == 'ref-hi.html' for gi in gis)
+    assert gis and all(gi.get('target') == '#ref-hi' for gi in gis)
     assert not tree.xpath("//t:gi[.='no-such-element'][@target]", namespaces=NS)
+
+
+def test_the_prepared_tree_has_unique_ids(tree: etree._Element) -> None:
+    """Copies the expansion adds (a spec's desc in a specDesc) drop their ids."""
+    ids = tree.xpath('//@xml:id')
+    assert len(ids) == len(set(ids))

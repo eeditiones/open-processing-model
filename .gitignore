@@ -44,3 +44,8 @@ output/
 # ``opm odd document --guidelines`` output, generated into the docs tree by
 # scripts/build_guidelines_docs.sh and published at /guidelines/.
 /docs/guidelines/
+
+# Built by the ODD documentation example (examples/odd/README.md).
+examples/odd/schema.xml
+examples/odd/docs.pdf
+examples/odd/docs.typ

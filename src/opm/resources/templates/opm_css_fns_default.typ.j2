@@ -50,6 +50,14 @@
   },
 )
 
+// A pointer into the document (`#id` in the source): a link to its label when
+// the document carries one, else just the text. A link to a missing label
+// aborts `typst compile`, and not every id a source points at gets a label.
+#let opm-xref(id, body) = context {
+  let target = label(id)
+  if query(target).len() > 0 { link(target, body) } else { body }
+}
+
 // Missing image files abort `typst compile`. Shadow `image` with a layout-retry
 // helper (laurmaedje): the first pass tries `std.image`; if that fails, later
 // passes substitute a placeholder. After this point `#set image(...)` must use

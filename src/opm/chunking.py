@@ -520,11 +520,14 @@ class ChunkProcessor:
             return target
 
         anchor = target[1:]
-        target_file = self._chunk_anchor_map.get(anchor)
+        # An id outside ASCII reaches here percent-encoded (`formul%C3%A6`).
+        target_file = self._chunk_anchor_map.get(anchor) or self._chunk_anchor_map.get(unquote(anchor))
         if target_file is None:
             return target
         if current_file is not None and target_file == current_file:
             return f'#{anchor}'
+        # The anchor names the page itself (`{xml_id}.html`): link to the page.
+        fragment = '' if Path(target_file).stem in {anchor, unquote(anchor)} else f'#{anchor}'
 
         pattern = self.config.link_pattern
         if pattern:
@@ -546,7 +549,7 @@ class ChunkProcessor:
                     while '//' in url:
                         url = url.replace('//', '/')
             return url
-        return f'{target_file}#{anchor}'
+        return f'{target_file}{fragment}'
 
     def _rewrite_html_fragment(
         self,

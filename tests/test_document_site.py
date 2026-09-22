@@ -1331,6 +1331,41 @@ def test_a_plain_chunk_run_needs_no_spec_index(tmp_path: Path, monkeypatch) -> N
 # ── documentation projects (opm init --example odd) ───────────────────────
 
 
+def test_the_odd_example_matches_the_packaged_site() -> None:
+    """examples/odd carries copies of what `opm odd document` builds with outside
+    a project; the two must not drift apart."""
+    from opm.config import load_project_config
+    from opm.resources import example_dir, packaged_document_dir
+
+    example = example_dir('odd')
+    packaged = packaged_document_dir()
+    odd_dir = Path(packaged_odd('tagdocs')).parent
+    pairs = [
+        (example / 'odd' / 'tagdocs.odd', odd_dir / 'tagdocs.odd'),
+        (example / 'odd' / 'tagdocs.css', odd_dir / 'tagdocs.css'),
+        *(
+            (example / 'templates' / name, packaged / name)
+            for name in ('page.html.j2', 'nav.xml', 'document.css', 'search.js',
+                         'theme.js', 'tagdocs.typ.j2')
+        ),
+    ]
+    for own, original in pairs:
+        assert own.read_bytes() == original.read_bytes(), f'{own} differs from {original}'
+
+    project = load_project_config(example / 'opm.toml')
+    reference = load_project_config(packaged / 'opm.toml')
+    assert project.xpath_extensions == reference.xpath_extensions
+
+    def shape(runs):
+        return [
+            (run.name, run.xpath, run.file_pattern, run.template.name if run.template else None,
+             [(f.name, f.xpath, f.scope) for f in run.fragments or ()])
+            for run in runs
+        ]
+
+    assert shape(project.chunking_runs) == shape(reference.chunking_runs)
+
+
 def test_documentation_project_starts_with_the_packaged_runs(tmp_path: Path) -> None:
     """The scaffold copies the runs `opm odd document` uses, re-rooted — no drift."""
     from opm.config import load_project_config
@@ -1342,6 +1377,7 @@ def test_documentation_project_starts_with_the_packaged_runs(tmp_path: Path) -> 
     for rel in (
         'opm.toml', 'odd/tagdocs.odd', 'odd/tagdocs.css',
         'templates/page.html.j2', 'templates/nav.xml', 'templates/document.css',
+        'templates/tagdocs.typ.j2',
     ):
         assert (root / rel).is_file(), rel
 
@@ -1361,6 +1397,7 @@ def test_documentation_project_starts_with_the_packaged_runs(tmp_path: Path) -> 
     assert shape(project.chunking_runs) == shape(packaged.chunking_runs)
     assert {run.output_dir for run in project.chunking_runs} == {'site'}
     assert project.chunking_runs[0].template == root / 'templates' / 'page.html.j2'
+    assert project.typst_template == root / 'templates' / 'tagdocs.typ.j2'
 
 
 def test_odd_document_builds_with_the_project_it_runs_in(
@@ -1435,3 +1472,43 @@ def test_prepare_then_chunk_gives_a_static_site_builder_both_runs(
     assert 'paragraph' in ref['content']
     # A second prepare refuses to overwrite without --force.
     assert main(['odd', 'prepare', '-o', 'schema.xml']) != 0
+
+
+def test_a_documentation_project_turns_the_prepared_tree_into_typst(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """`opm odd prepare` + `opm transform -t typst`: the PDF is one pass over the same tree."""
+    from opm.scaffold import InitOptions, scaffold
+    from opm.typst_compile import compile_pdf
+
+    root = scaffold(InitOptions(directory=tmp_path / 'proj', example='odd')).directory
+    config = (root / 'opm.toml').read_text(encoding='utf-8')
+    (root / 'opm.toml').write_text(
+        config.replace('# source = "my-customization.odd"', f'source = "{MINI.as_posix()}"'),
+        encoding='utf-8',
+    )
+    monkeypatch.chdir(root)
+    assert main(['odd', 'prepare', '-o', 'schema.xml']) == 0
+    assert main(['transform', 'schema.xml', '-t', 'typst', '-o', 'docs.typ']) == 0
+
+    # The document body follows the shell's last rule, the running footer.
+    body = (root / 'docs.typ').read_text(encoding='utf-8').split('#set page(footer:', 1)[1]
+    # The reference part: every spec once, in the catalog's A–Z order.
+    positions = [body.index(f'#label("ref-{ident}")') for ident in ('div', 'hi', 'p')]
+    assert positions == sorted(positions)
+    assert all(body.count(f'#label("ref-{ident}")') == 1 for ident in ('div', 'hi', 'p'))
+    # Spec entries are headings, but stay out of the table of contents.
+    assert '#heading(level: 2, outlined: false)[#sym.lt;p#sym.gt;]' in body
+    # Pointers become in-document links, not web URLs; no HTML leaks through.
+    assert '#opm-xref("ref-hi")[hi]' in body
+    assert '.html' not in body
+    assert not re.search(r'<(section|article|a|li|div)\b', body)
+    if shutil.which('typst'):
+        assert compile_pdf((root / 'docs.typ').read_text(encoding='utf-8'), root=root).startswith(b'%PDF')
+
+    # -p part=reference: the appendices alone, the cover still titled.
+    assert main([
+        'transform', 'schema.xml', '-t', 'typst', '-p', 'part=reference', '-o', 'reference.typ',
+    ]) == 0
+    reference = (root / 'reference.typ').read_text(encoding='utf-8')
+    assert '#label("ref-p")' in reference and '#label("REF-ELEMENTS")' in reference

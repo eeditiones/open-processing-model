@@ -72,8 +72,8 @@ class ExampleProject:
     vocabulary: str
     #: Transform target shown in the "Next:" hint, relative to the project root.
     sample: str
-    #: Built from packaged resources rather than copied from ``examples/``.
-    packaged: bool = False
+    #: Write AGENTS.md / CLAUDE.md, whose guidance is about editions.
+    agent_guidance: bool = True
 
 
 #: Bundled example projects, in the order the picker lists them. Kept in step
@@ -113,7 +113,7 @@ EXAMPLES: tuple[ExampleProject, ...] = (
         summary='Guidelines and reference pages for an ODD, via `opm odd document`',
         vocabulary='tei',
         sample='',
-        packaged=True,
+        agent_guidance=False,
     ),
 )
 
@@ -121,7 +121,7 @@ EXAMPLE_NAMES = tuple(example.name for example in EXAMPLES)
 
 # Copied from an example only as project furniture; generated output and editor
 # leavings never belong in a new project.
-_EXAMPLE_SKIP = frozenset({'chunks', '__pycache__', '.DS_Store'})
+_EXAMPLE_SKIP = frozenset({'chunks', 'site', '__pycache__', '.DS_Store'})
 
 # Lines between these markers describe the example's place in the repo clone
 # ("cd examples/jats", links into ../../docs) and are dropped on copy.
@@ -167,80 +167,6 @@ class ScaffoldResult:
 
 class ScaffoldError(Exception):
     """User-facing scaffold failure (existing project, bad vocabulary, …)."""
-
-
-#: The site's own files a documentation project gets to edit. The fonts and the
-#: TEI logo stay packaged: they carry licences of their own (OFL, trademark) and
-#: fall back automatically when absent from the project.
-_DOCUMENTATION_SITE_FILES = ('page.html.j2', 'nav.xml', 'document.css', 'search.js', 'theme.js')
-
-
-def _documentation_runs() -> str:
-    """The packaged site's ``[[chunking]]`` runs, with paths re-rooted for a project.
-
-    Taken from the packaged opm.toml rather than written twice, so a project
-    starts with exactly the runs ``opm odd document`` uses by default.
-    """
-    text = _resource_root().joinpath('document', 'opm.toml').read_text(encoding='utf-8')
-    runs = text[text.index('# ── Run 1'):]
-    runs = runs.replace('template = "page.html.j2"', 'template = "templates/page.html.j2"')
-    return runs.replace(
-        'name = "guidelines"\n', 'name = "guidelines"\noutput_dir = "site"\n', 1,
-    )
-
-
-def _scaffold_documentation(options: InitOptions) -> ScaffoldResult:
-    """A project whose ODD, runs, template and assets document an ODD."""
-    dest_dir = options.directory.expanduser().resolve()
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    config_path = dest_dir / 'opm.toml'
-    if config_path.exists() and not options.force:
-        raise ScaffoldError(f'{config_path} already exists. Pass --force to overwrite.')
-
-    written: list[Path] = []
-    skipped: list[Path] = []
-    force = options.force
-    env = _jinja_env()
-    title = dest_dir.name
-
-    toml_text = env.get_template('documentation/opm.toml.j2').render(
-        lang='en', runs=_documentation_runs(),
-    )
-    _record(config_path, written, skipped, _write_text(config_path, toml_text, force=force))
-    readme = env.get_template('documentation/README.md.j2').render(title=title)
-    _record(
-        dest_dir / 'README.md', written, skipped,
-        _write_text(dest_dir / 'README.md', readme, force=force),
-    )
-    gitignore = (
-        _resource_root().joinpath('scaffold', 'gitignore').read_text(encoding='utf-8')
-        + 'site/\n'
-    )
-    _record(
-        dest_dir / '.gitignore', written, skipped,
-        _write_text(dest_dir / '.gitignore', gitignore, force=force),
-    )
-
-    copies = [
-        ('odd/tagdocs.odd', dest_dir / 'odd' / 'tagdocs.odd'),
-        ('odd/tagdocs.css', dest_dir / 'odd' / 'tagdocs.css'),
-        *(
-            (f'document/{name}', dest_dir / 'templates' / name)
-            for name in _DOCUMENTATION_SITE_FILES
-        ),
-    ]
-    for src_rel, dest in copies:
-        _record(dest, written, skipped, _copy_packaged(src_rel, dest, force=force))
-
-    return ScaffoldResult(
-        directory=dest_dir,
-        written=sorted(written),
-        skipped=sorted(skipped),
-        title=title,
-        vocabulary='tei',
-        sample_path='',
-        example='odd',
-    )
 
 
 def _resource_root():
@@ -400,8 +326,6 @@ def _scaffold_example(options: InitOptions) -> ScaffoldResult:
     from opm.resources import example_dir
 
     example = find_example((options.example or '').strip().lower())
-    if example.packaged:
-        return _scaffold_documentation(options)
     try:
         source = example_dir(example.name)
     except FileNotFoundError as e:
@@ -444,6 +368,9 @@ def _scaffold_example(options: InitOptions) -> ScaffoldResult:
         for src_rel, dest in _shell_copies(_EXTRA_SHELLS, dest_dir):
             _record(dest, written, skipped, _copy_packaged(src_rel, dest, force=False))
 
+    if not example.agent_guidance:
+        return _example_result(example, dest_dir, written, skipped)
+
     # The ODD and reading shell the example actually wires up, so its agent
     # guidance points at the right files.
     cfg = load_project_config(config_path)
@@ -470,7 +397,12 @@ def _scaffold_example(options: InitOptions) -> ScaffoldResult:
         written=written,
         skipped=skipped,
     )
+    return _example_result(example, dest_dir, written, skipped)
 
+
+def _example_result(
+    example: ExampleProject, dest_dir: Path, written: list[Path], skipped: list[Path],
+) -> ScaffoldResult:
     return ScaffoldResult(
         directory=dest_dir,
         written=sorted(written),

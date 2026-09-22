@@ -16,7 +16,7 @@ from pathlib import Path
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
 #: Directory names that never belong in the distribution.
-_SKIP = frozenset({'chunks', 'output', '__pycache__', '.DS_Store'})
+_SKIP = frozenset({'chunks', 'output', 'site', '__pycache__', '.DS_Store'})
 
 _SOURCE = 'examples'
 _TARGET = 'opm/resources/examples'
