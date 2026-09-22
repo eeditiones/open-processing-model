@@ -137,7 +137,7 @@ def _model_matches_output_mode(el, output_mode: str) -> bool:
 
     Some modes build upon other modes (see ``accepts`` in
     [`opm.output_modes`][opm.output_modes]): e.g. ``print`` matches ``@output="print"`` and
-    ``@output="web"``; ``markdown`` matches ``@output="markdown"`` and
+    ``@output="web"``; ``markdown`` and ``typst`` match their own name and
     ``@output="plain"``.
 
     Values prefixed with ``opm-`` (e.g. ``opm-web``) are recognised only by this

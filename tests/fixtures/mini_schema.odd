@@ -106,7 +106,11 @@
           <attList>
             <attDef ident="rend" usage="opt">
               <desc xml:lang="en">local rendition</desc>
-              <datatype><dataRef key="teidata.text"/></datatype>
+              <datatype maxOccurs="unbounded"><dataRef key="teidata.text"/></datatype>
+              <valList type="closed">
+                <valItem ident="bold"><desc xml:lang="en">set in bold</desc></valItem>
+                <valItem ident="italic"><gloss xml:lang="en">cursive</gloss><desc xml:lang="en">set in italics</desc></valItem>
+              </valList>
             </attDef>
           </attList>
           <model behaviour="paragraph">

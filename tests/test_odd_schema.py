@@ -18,13 +18,19 @@ from opm.odd_schema import (
     targets_tei,
 )
 from opm.resources import packaged_odd
-from opm.spec_index import SpecIndex
+from opm.odd_expand import _att_tree, _may_contain
+from opm.spec_index import Spec, SpecIndex, localname
 
 FIXTURES = Path(__file__).resolve().parent / 'fixtures'
 MINI = FIXTURES / 'mini_schema.odd'
 CUSTOM = FIXTURES / 'mini_custom.odd'
 PM = FIXTURES / 'mini_pm.odd'
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
+
+
+def _models(spec: Spec) -> list[etree._Element]:
+    """The processing models declared on *spec*, as the ODD holds them."""
+    return [m for m in spec.node if localname(m) in {'model', 'modelGrp', 'modelSequence'}]
 
 
 @pytest.fixture(autouse=True)
@@ -99,7 +105,7 @@ def test_self_contained_schema_is_indexed_as_is() -> None:
     assert index.element('p').ident == 'p'
     assert compiled.title == 'Mini schema'
     assert compiled.ident == 'mini'
-    assert [m.behaviour for m in index.element('p').models] == ['paragraph']
+    assert [m.get('behaviour') for m in _models(index.element('p'))] == ['paragraph']
 
 
 def test_customization_deletes_element_and_attribute() -> None:
@@ -108,14 +114,13 @@ def test_customization_deletes_element_and_attribute() -> None:
     assert compiled.ident == 'miniCustom'
     assert index.get('hi') is None
     p = index.element('p')
-    child_idents = {c.ident for c in p.may_contain}
+    child_idents = {c.ident for c in _may_contain(index, p)}
     assert 'hi' not in child_idents
     att_names = {a.ident for a in p.local_atts}
     assert 'type' in att_names
     inherited = {
-        a.ident
-        for branch in p.attribute_tree
-        for a in branch.attributes
+        item.get('ident')
+        for item in _att_tree(index, p).iterfind(f".//{{{TEI_NS}}}list[@type='atts']/{{{TEI_NS}}}item")
     }
     assert 'n' not in inherited
     assert 'xml:id' in inherited
@@ -126,12 +131,12 @@ def test_processing_models_merge_along_source_chain() -> None:
     index = SpecIndex.from_tree(compiled.tree)
     assert compiled.ident == 'miniPm'
     p = index.element('p')
-    assert [m.behaviour for m in p.models] == ['block', 'paragraph']
-    assert p.models[0].predicate == '@rend'
-    assert p.models[0].css_class == 'rend'
-    assert 'hi' in {c.ident for c in p.may_contain}
+    assert [m.get('behaviour') for m in _models(p)] == ['block', 'paragraph']
+    assert _models(p)[0].get('predicate') == '@rend'
+    assert _models(p)[0].get('cssClass') == 'rend'
+    assert 'hi' in {c.ident for c in _may_contain(index, p)}
     assert index.get('quote') is not None
-    assert index.element('quote').models[0].behaviour == 'inline'
+    assert _models(index.element('quote'))[0].get('behaviour') == 'inline'
 
 
 def test_processing_odd_without_schema_source_documents_its_specs(
@@ -148,9 +153,9 @@ def test_processing_odd_without_schema_source_documents_its_specs(
     assert compiled.fetched_source == MINI
     index = SpecIndex.from_tree(compiled.tree)
     p = index.element('p')
-    assert any(m.behaviour == 'paragraph' for m in p.models)
-    assert any(m.output == 'print' for m in p.models)
-    assert 'hi' in {c.ident for c in p.may_contain}
+    assert any(m.get('behaviour') == 'paragraph' for m in _models(p))
+    assert any(m.get('output') == 'print' for m in _models(p))
+    assert 'hi' in {c.ident for c in _may_contain(index, p)}
 
 
 def test_directory_of_specs(tmp_path: Path) -> None:
@@ -308,6 +313,122 @@ def test_local_content_model_narrows_the_dependency_closure(
     assert index.get('back') is None
 
 
+def _odd(title: str, schema: str) -> str:
+    return f'''<?xml version="1.0" encoding="UTF-8"?>
+<TEI xmlns="{TEI_NS}">
+  <teiHeader><fileDesc>
+    <titleStmt><title>{title}</title></titleStmt>
+    <publicationStmt><p>test</p></publicationStmt>
+    <sourceDesc><p>test</p></sourceDesc>
+  </fileDesc></teiHeader>
+  <text><body>
+    {schema}
+  </body></text>
+</TEI>
+'''
+
+
+_CLASS_SOURCE = '''<schemaSpec ident="src">
+  <moduleSpec ident="core"><desc>Core.</desc></moduleSpec>
+  <moduleSpec ident="linking"><desc>Linking.</desc></moduleSpec>
+  <elementSpec ident="body" module="core">
+    <desc>a body</desc>
+    <content><classRef key="model.pLike"/><classRef key="model.egLike"/><elementRef key="join"/></content>
+  </elementSpec>
+  <elementSpec ident="eg" module="core">
+    <desc>an example</desc><classes><memberOf key="model.egLike"/></classes>
+    <content><textNode/></content>
+  </elementSpec>
+  <elementSpec ident="join" module="linking">
+    <desc>a join</desc><classes><memberOf key="att.pointing"/></classes>
+    <content><textNode/></content>
+  </elementSpec>
+  <classSpec ident="att.pointing" type="atts" module="linking"><desc>pointing</desc></classSpec>
+  <classSpec ident="model.egLike" type="model" module="core"><desc>examples</desc></classSpec>
+  <elementSpec ident="p" module="core">
+    <desc>a paragraph</desc>
+    <classes>
+      <memberOf key="att.global"/><memberOf key="att.cmc"/><memberOf key="att.placement"/>
+      <memberOf key="model.pLike"/><memberOf key="model.linePart"/>
+    </classes>
+    <content><textNode/></content>
+    <attList>
+      <attDef ident="place" mode="change" usage="req">
+        <valList type="closed" mode="replace">
+          <valItem ident="margin"><desc>in the margin</desc></valItem>
+        </valList>
+      </attDef>
+    </attList>
+  </elementSpec>
+  <elementSpec ident="line" module="core">
+    <desc>a line</desc><content><classRef key="model.linePart"/></content>
+  </elementSpec>
+  <classSpec ident="att.global" type="atts" module="core"><desc>global</desc></classSpec>
+  <classSpec ident="att.cmc" type="atts" module="core"><desc>cmc</desc></classSpec>
+  <classSpec ident="att.placement" type="atts" module="core">
+    <desc>placement</desc>
+    <attList>
+      <attDef ident="place" usage="opt">
+        <desc>where it is placed</desc>
+        <datatype maxOccurs="unbounded"><dataRef key="teidata.enumerated"/></datatype>
+      </attDef>
+    </attList>
+  </classSpec>
+  <classSpec ident="model.pLike" type="model" module="core"><desc>paragraphs</desc></classSpec>
+  <classSpec ident="model.linePart" type="model" module="core"><desc>line parts</desc></classSpec>
+</schemaSpec>'''
+
+
+def test_customization_prunes_classes_as_odd2odd_does(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A class the ODD deletes stays deleted though an element still names it; a
+    class only a left-out element used goes, as does a model class no element
+    is left in, as in the TEI Stylesheets' odd2odd; and no ``memberOf`` points
+    at any of them. An element a content model names but no ``moduleRef``
+    includes stays out, and an empty ``@include`` takes no elements."""
+    source = tmp_path / 'source.odd'
+    source.write_text(_odd('Source', _CLASS_SOURCE), encoding='utf-8')
+    odd = tmp_path / 'custom.odd'
+    odd.write_text(_odd('Custom', '''<schemaSpec ident="custom" start="body">
+      <moduleRef key="core" include="body p"/>
+      <moduleRef key="linking" include=""/>
+      <classSpec ident="att.cmc" type="atts" module="core" mode="delete"/>
+    </schemaSpec>'''), encoding='utf-8')
+    _stub_p5all(monkeypatch, returns=source)
+    tree = compile_schema(odd).tree
+    index = SpecIndex.from_tree(tree)
+    for gone in ('line', 'eg', 'join', 'att.cmc', 'model.linePart', 'model.egLike', 'att.pointing'):
+        assert index.get(gone) is None, gone
+    for kept in ('att.global', 'att.placement', 'model.pLike'):
+        assert index.get(kept) is not None, kept
+    assert index.get('p').member_of_keys == ['att.global', 'att.placement', 'model.pLike']
+
+
+def test_changed_attribute_is_completed_from_its_class(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An ``attDef mode="change"`` that restates only the values keeps the
+    description and datatype of the class attribute it changes."""
+    from opm.document_site import prepare_document_tree
+
+    source = tmp_path / 'source.odd'
+    source.write_text(_odd('Source', _CLASS_SOURCE), encoding='utf-8')
+    odd = tmp_path / 'custom.odd'
+    odd.write_text(_odd('Custom', '''<schemaSpec ident="custom" start="body">
+      <moduleRef key="core" include="body p"/>
+    </schemaSpec>'''), encoding='utf-8')
+    _stub_p5all(monkeypatch, returns=source)
+    tree = prepare_document_tree(compile_schema(odd))
+    ns = {'t': TEI_NS}
+    (place,) = tree.xpath("//t:elementSpec[@xml:id='ref-p']//t:attDef[@ident='place']", namespaces=ns)
+    assert place.get('usage') == 'req'
+    assert place.get('source') == '#ref-att.placement'
+    assert place.xpath('string(t:desc)', namespaces=ns) == 'where it is placed'
+    assert place.xpath('t:datatype/@maxOccurs', namespaces=ns) == ['unbounded']
+    assert place.xpath('t:valList/t:valItem/@ident', namespaces=ns) == ['margin']
+
+
 def test_roma_style_module_refs_fetch_p5subset(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -396,9 +517,10 @@ def test_tei_version_pin_is_reported_not_honoured(
     assert any(
         '4.8.0' in w and '5.0' in w for w in compiled.warnings
     ), compiled.warnings
-    p = SpecIndex.from_tree(compiled.tree).element('p')
-    assert [m.behaviour for m in p.models] == ['paragraph']
-    assert 'hi' in {c.ident for c in p.may_contain}
+    index = SpecIndex.from_tree(compiled.tree)
+    p = index.element('p')
+    assert [m.get('behaviour') for m in _models(p)] == ['paragraph']
+    assert 'hi' in {c.ident for c in _may_contain(index, p)}
 
 
 def test_unpinned_odd_fetches_the_artifact_once(

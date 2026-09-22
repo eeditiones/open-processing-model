@@ -1,8 +1,9 @@
 # SPDX-FileCopyrightText: 2026 e-editiones
 # SPDX-License-Identifier: CC0-1.0
 #
-# Documentation for an ODD: a website with `opm odd document`, a PDF with
-# `opm odd prepare` and `opm transform -t typst`. Both build with the ODD, runs,
+# Documentation for an ODD: a website with `opm odd document`, a PDF or a
+# Markdown file with `opm odd prepare` and `opm transform -t typst|markdown`.
+# All build with the ODD, runs,
 # templates and assets of this project rather than the packaged ones; anything
 # you delete from templates/ falls back to the packaged file of the same name.
 # `opm init --example odd` starts a project of your own from this one.

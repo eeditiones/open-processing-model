@@ -6,9 +6,10 @@
 This is the documentation counterpart of
 [`opm.odd_compiler.parse_odd`][opm.odd_compiler.parse_odd]: that module merges
 ``elementSpec``s so they can be compiled, while this one indexes
-``elementSpec`` / ``classSpec`` / ``macroSpec`` / ``dataSpec`` and precomputes
-the inverse relations the TEI Stylesheets emit as "Contained by", "May contain",
-"Members" and "Used by", plus the processing models declared on each element.
+``elementSpec`` / ``classSpec`` / ``macroSpec`` / ``dataSpec`` and inverts
+their class memberships and content-model references, from which
+[`opm.odd_expand`][opm.odd_expand] derives what the TEI Stylesheets show as
+"Contained by", "May contain", "Members" and "Used by".
 
 The input is a compiled TEI document or ODD (``p5subset.xml``, a full
 Guidelines ``p5.xml``, or the output of
@@ -22,15 +23,12 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from lxml import etree
 
 from opm.xml_parser import make_parser
 
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
-PB_NS = 'http://teipublisher.com/1.0'
-XML_LANG = '{http://www.w3.org/XML/1998/namespace}lang'
 XML_ID = '{http://www.w3.org/XML/1998/namespace}id'
 EX_NS = 'http://www.tei-c.org/ns/Examples'
 
@@ -43,8 +41,6 @@ SPEC_TAGS = {
     'dataSpec': 'datatype',
     'moduleSpec': 'module',
 }
-
-MODEL_TAGS = {'model', 'modelGrp', 'modelSequence'}
 
 TEXT_IDENT = '#TEXT'
 
@@ -70,19 +66,6 @@ def _inside_egxml(el: etree._Element) -> bool:
                 return True
         parent = parent.getparent()
     return False
-
-
-def pick_lang(elements: list[etree._Element], lang: str) -> etree._Element | None:
-    """Prefer ``xml:lang=*lang*``, then an unlanguaged node, then the first."""
-    if not elements:
-        return None
-    matched = [el for el in elements if el.get(XML_LANG) == lang]
-    if matched:
-        return matched[0]
-    unlanguaged = [el for el in elements if not el.get(XML_LANG)]
-    if unlanguaged:
-        return unlanguaged[0]
-    return elements[0]
 
 
 def _children(el: etree._Element, name: str) -> list[etree._Element]:
@@ -120,67 +103,20 @@ class SpecRef:
     module: str | None = None
 
     @property
-    def href(self) -> str:
-        if self.kind == 'text':
-            return ''
-        return f'ref-{self.ident}.html'
-
-    @property
     def is_text(self) -> bool:
         return self.kind == 'text'
 
 
 @dataclass
 class AttDefView:
+    """An attribute a spec declares itself."""
+
     ident: str
-    usage: str | None
-    datatype: str | None
-    desc: etree._Element | None
-    gloss: etree._Element | None
-    exemplum: etree._Element | None
-    overridden: bool = False
-    node: etree._Element | None = None
-    desc_html: str = ''
-    exemplum_html: str = ''
+    node: etree._Element
 
     @property
     def anchor(self) -> str:
         return 'att-' + self.ident.replace(':', '-')
-
-
-@dataclass
-class AttClassView:
-    ident: str
-    attributes: list[AttDefView] = field(default_factory=list)
-    nested: list[AttClassView] = field(default_factory=list)
-
-    @property
-    def href(self) -> str:
-        return f'ref-{self.ident}.html'
-
-
-@dataclass
-class ModelParam:
-    name: str
-    value: str | None = None
-
-
-@dataclass
-class ModelView:
-    """One ``model``, ``modelGrp`` or ``modelSequence`` on an elementSpec."""
-
-    kind: str
-    behaviour: str | None = None
-    predicate: str | None = None
-    output: str | None = None
-    css_class: str | None = None
-    use: str | None = None
-    desc: etree._Element | None = None
-    desc_html: str = ''
-    params: list[ModelParam] = field(default_factory=list)
-    template: str | None = None
-    renditions: list[tuple[str | None, str]] = field(default_factory=list)
-    children: list[ModelView] = field(default_factory=list)
 
 
 @dataclass
@@ -198,43 +134,10 @@ class Spec:
     member_of_keys: list[str]
     local_atts: list[AttDefView]
     suppressed_atts: set[str] = field(default_factory=set)
-    models: list[ModelView] = field(default_factory=list)
-    #: The index this spec belongs to, set by [`SpecIndex`][opm.spec_index.SpecIndex].
-    index: SpecIndex | None = field(default=None, repr=False, compare=False)
 
     @property
     def href(self) -> str:
         return f'ref-{self.ident}.html'
-
-    # The relations below are not facts of the spec but readings of the graph,
-    # derived from the index's primitives in opm.odd_expand. They stay here as
-    # properties so code written against the precomputed fields of earlier
-    # releases keeps working.
-
-    @property
-    def contained_by(self) -> list[SpecRef]:
-        """Elements whose content may hold this one (derived; see [`contained_by`][opm.odd_expand.contained_by])."""
-        return _relation(self, 'contained_by')
-
-    @property
-    def may_contain(self) -> list[SpecRef]:
-        """What this spec's content allows (derived; see [`may_contain`][opm.odd_expand.may_contain])."""
-        return _relation(self, 'may_contain')
-
-    @property
-    def members(self) -> list[SpecRef]:
-        """Specs claiming membership in this class (derived; see [`members`][opm.odd_expand.members])."""
-        return _relation(self, 'members')
-
-    @property
-    def used_by(self) -> list[SpecRef]:
-        """Specs whose content models use this one (derived; see [`used_by`][opm.odd_expand.used_by])."""
-        return _relation(self, 'used_by')
-
-    @property
-    def attribute_tree(self) -> list[AttClassView]:
-        """Inherited attribute classes (derived; see [`attribute_tree`][opm.odd_expand.attribute_tree])."""
-        return _relation(self, 'attribute_tree')
 
     @property
     def is_model_class(self) -> bool:
@@ -256,22 +159,6 @@ class Spec:
     def att_classes(self) -> list[str]:
         return [k for k in self.member_of_keys if k.startswith('att.')]
 
-    def grouped(self, refs: list[SpecRef]) -> list[tuple[str, list[SpecRef]]]:
-        """Group *refs* by module, with character-data last (see [`grouped`][opm.odd_expand.grouped])."""
-        from opm.odd_expand import grouped
-
-        return grouped(refs)
-
-
-def _relation(spec: Spec, name: str) -> list:
-    """A derived relation of *spec*, computed by [`opm.odd_expand`][opm.odd_expand]."""
-    if spec.index is None:
-        return []
-    from opm.odd_expand import relation
-
-    return relation(spec.index, spec, name)
-
-
 class SpecIndex:
     """The specs of a schema and the direct facts about them, indexed.
 
@@ -280,33 +167,24 @@ class SpecIndex:
     to X" are lookups rather than scans, and the two graph walks everything
     else is built from. What those facts *mean* on a documentation page —
     contained-by, may-contain, used-by, attribute inheritance — is derived on
-    top, in [`opm.odd_expand`][opm.odd_expand],
-    and cached in [`memo`][opm.spec_index.SpecIndex.memo]. It is the
-    counterpart of the indexes eXist gave the XQuery version of this code.
+    top, in [`opm.odd_expand`][opm.odd_expand]. It is the counterpart of the
+    indexes eXist gave the XQuery version of this code.
     """
 
     def __init__(
         self,
         specs: dict[str, Spec],
         *,
-        modules: dict[str, Spec] | None = None,
         lang: str = 'en',
         title: str = '',
         chapter_anchors: dict[str, str] | None = None,
     ):
         self._specs = specs
-        #: ``moduleSpec``s, kept apart from *specs* because module idents are
-        #: their own namespace — see [`_collect_specs`][opm.spec_index._collect_specs].
-        self._modules = modules or {}
         self.lang = lang
         self.title = title
         #: ``xml:id`` → the chapter page it lands on, for every id inside a
         #: published chapter. Empty unless the site publishes chapter prose.
         self._chapter_anchors = chapter_anchors or {}
-        self.memo: dict[Any, Any] = {}
-        """Cache for what layers above derive from the primitives, keyed by
-        whatever they choose (``('contained_by', 'p')``). Lives and dies with
-        the index, so a derivation is computed once per document."""
         self._build_lookups()
 
     def _build_lookups(self) -> None:
@@ -315,7 +193,6 @@ class SpecIndex:
         self._referrers: dict[tuple[str, str], list[SpecRef]] = defaultdict(list)
         self._content_refs: dict[str, list[tuple[str, str]]] = {}
         for spec in self._specs.values():
-            spec.index = self
             for key in spec.member_of_keys:
                 self._members_of[key].append(spec.ident)
             refs = _content_refs(spec.content) if spec.content is not None else []
@@ -327,12 +204,11 @@ class SpecIndex:
 
     @classmethod
     def from_tree(cls, root: etree._Element, *, lang: str = 'en', title: str = '') -> SpecIndex:
-        specs, modules = _collect_specs(root, lang=lang)
+        specs = _collect_specs(root)
         if not title:
             title = _document_title(root) or 'ODD documentation'
         return cls(
             specs,
-            modules=modules,
             lang=lang,
             title=title,
             chapter_anchors=_collect_chapter_anchors(root),
@@ -384,24 +260,8 @@ class SpecIndex:
     def elements(self) -> list[Spec]:
         return [s for s in self.all() if s.kind == 'element']
 
-    def model_classes(self) -> list[Spec]:
-        return [s for s in self.all() if s.is_model_class]
-
-    def att_classes(self) -> list[Spec]:
-        return [s for s in self.all() if s.is_att_class]
-
     def macros(self) -> list[Spec]:
         return [s for s in self.all() if s.kind == 'macro']
-
-    def datatypes(self) -> list[Spec]:
-        return [s for s in self.all() if s.kind == 'datatype']
-
-    def modules(self) -> list[Spec]:
-        return sorted(self._modules.values(), key=lambda s: s.ident.lower())
-
-    def module(self, ident: str) -> Spec | None:
-        """A ``moduleSpec`` by ident. Modules are not reachable via `get`."""
-        return self._modules.get(ident)
 
     def attributes(self) -> list[tuple[str, list[Spec]]]:
         """Attribute ident → specs (classes/elements) that define it, A–Z."""
@@ -497,23 +357,7 @@ def _content_refs(content: etree._Element) -> list[tuple[str, str]]:
     return refs
 
 
-def _att_def(el: etree._Element, lang: str) -> AttDefView:
-    datatype_el = el.find(f'.//{qn("dataRef")}')
-    datatype = None
-    if datatype_el is not None:
-        datatype = datatype_el.get('key') or datatype_el.get('name')
-    return AttDefView(
-        ident=el.get('ident') or '',
-        usage=el.get('usage'),
-        datatype=datatype,
-        desc=pick_lang(_children(el, 'desc'), lang),
-        gloss=pick_lang(_children(el, 'gloss'), lang),
-        exemplum=pick_lang(_children(el, 'exemplum'), lang),
-        node=el,
-    )
-
-
-def _spec_from_element(el: etree._Element, kind: str, lang: str) -> Spec | None:
+def _spec_from_element(el: etree._Element, kind: str) -> Spec | None:
     ident = el.get('ident')
     if not ident:
         return None
@@ -536,7 +380,7 @@ def _spec_from_element(el: etree._Element, kind: str, lang: str) -> Spec | None:
             if (a.get('mode') or '').lower() == 'delete':
                 suppressed_atts.add(att_ident)
                 continue
-            local_atts.append(_att_def(a, lang))
+            local_atts.append(AttDefView(ident=att_ident, node=a))
     ptrs = [
         (p.get('target') or '').lstrip('#')
         for p in el.iter(qn('ptr'))
@@ -554,52 +398,6 @@ def _spec_from_element(el: etree._Element, kind: str, lang: str) -> Spec | None:
         member_of_keys=member_of,
         local_atts=local_atts,
         suppressed_atts=suppressed_atts,
-        models=_models_from_spec(el, lang) if kind == 'element' else [],
-    )
-
-
-def _models_from_spec(el: etree._Element, lang: str) -> list[ModelView]:
-    return [
-        _model_view(child, lang)
-        for child in el
-        if localname(child) in MODEL_TAGS
-    ]
-
-
-def _model_view(el: etree._Element, lang: str) -> ModelView:
-    from opm.odd_compiler.codegen import _serialize_template_content
-
-    params = [
-        ModelParam(name=p.get('name') or '', value=p.get('value'))
-        for p in el
-        if localname(p) == 'param'
-    ]
-    template = None
-    for child in el:
-        if child.tag == f'{{{PB_NS}}}template' or localname(child) == 'template':
-            template = _serialize_template_content(child).strip() or None
-            break
-    renditions = [
-        (r.get('scope'), ''.join(r.itertext()).strip())
-        for r in el
-        if localname(r) == 'outputRendition'
-    ]
-    return ModelView(
-        kind=localname(el),
-        behaviour=el.get('behaviour'),
-        predicate=el.get('predicate'),
-        output=el.get('output'),
-        css_class=el.get('cssClass'),
-        use=el.get('use'),
-        desc=pick_lang(_children(el, 'desc'), lang),
-        params=params,
-        template=template,
-        renditions=renditions,
-        children=[
-            _model_view(child, lang)
-            for child in el
-            if localname(child) in MODEL_TAGS
-        ],
     )
 
 
@@ -614,33 +412,26 @@ def iter_canonical_specs(root: etree._Element):
             yield el, kind
 
 
-def _collect_specs(
-    root: etree._Element, *, lang: str
-) -> tuple[dict[str, Spec], dict[str, Spec]]:
-    """Referenceable specs by ident, and ``moduleSpec``s by ident.
+def _collect_specs(root: etree._Element) -> dict[str, Spec]:
+    """Referenceable specs by ident.
 
-    Modules are kept in a dict of their own because module idents are a
-    separate namespace: ``moduleRef/@key`` names a module, while
-    ``elementRef`` / ``classRef`` / ``macroRef`` / ``dataRef`` name the rest.
-    TEI does reuse one name across both — ``certainty`` is an element *and*
-    the module that declares it — so a single dict keyed on ident alone drops
-    whichever of the two is indexed second.
-
-    Within either namespace a repeated ident is still possible (a merged ODD
-    can carry more than one copy of a spec), and there the copy carrying
-    ``@module`` wins as the canonical one.
+    ``moduleSpec``s are left out: module idents are a namespace of their own
+    (``certainty`` is an element *and* the module declaring it), and nothing
+    refers to a module the way ``elementRef`` / ``classRef`` / ``macroRef`` /
+    ``dataRef`` refer to the rest. A merged ODD can carry more than one copy
+    of a spec; the copy carrying ``@module`` is the canonical one.
     """
-    merged: dict[str, Spec] = {}
-    modules: dict[str, Spec] = {}
+    specs: dict[str, Spec] = {}
     for el, kind in iter_canonical_specs(root):
-        spec = _spec_from_element(el, kind, lang)
+        if kind == 'module':
+            continue
+        spec = _spec_from_element(el, kind)
         if spec is None:
             continue
-        target = modules if kind == 'module' else merged
-        previous = target.get(spec.ident)
+        previous = specs.get(spec.ident)
         if previous is None or (spec.module and not previous.module):
-            target[spec.ident] = spec
-    return merged, modules
+            specs[spec.ident] = spec
+    return specs
 
 
 def _collect_chapter_anchors(root: etree._Element) -> dict[str, str]:

@@ -37,8 +37,20 @@
             <schemaSpec ident="tagdocs" start="TEI teiCorpus" source="teipublisher.odd">
                 <elementSpec ident="text" mode="change">
                     <desc>Guidelines table of contents: top-level chapter divs only.</desc>
+                    <!-- Markdown has no shell to make a title page: the document opens
+                         with the title and the release line. -->
+                    <modelSequence output="markdown">
+                        <model behaviour="heading">
+                            <param name="level" value="1"/>
+                            <param name="content" value="(normalize-space(root(.)/*/teiHeader/fileDesc/titleStmt/title[1])[.], 'ODD documentation')[1]"/>
+                        </model>
+                        <model behaviour="paragraph">
+                            <param name="content" value="normalize-space(root(.)/*/teiHeader/fileDesc/editionStmt/edition)"/>
+                        </model>
+                        <model behaviour="body"/>
+                    </modelSequence>
                     <!-- PDF: the release line for the title page, as metadata. -->
-                    <modelSequence output="typst">
+                    <modelSequence output="plain">
                         <model behaviour="metadata">
                             <param name="key" value="'edition'"/>
                             <param name="content" value="normalize-space(root(.)/*/teiHeader/fileDesc/editionStmt/edition)"/>
@@ -56,15 +68,16 @@
                     <!-- The chapter-nav fragments come first: they select every chapter,
                          the catalog appendices included, whose own models below carry no
                          mode guard. -->
-                    <!-- PDF (typst): the text in document order, then the reference
-                         part. The home page, title page and table of contents belong to
-                         the site; the Typst shell makes its own title page and outline.
-                         Each division with an id gets a label for links to land on. -->
-                    <model output="typst" predicate="parent::text or @xml:id='Title' or @type='guidelines-toc'" behaviour="omit"/>
-                    <!-- `opm transform -t typst -p part=reference` prints only the A–Z
-                         appendices, `-p part=text` only the text. -->
-                    <model output="typst" predicate="(parent::front or parent::body or parent::back) and (($parameters?part = 'reference' and not(@xml:id = ('REF-ELEMENTS', 'REF-CLASSES-MODEL', 'REF-CLASSES-ATTS', 'REF-MACROS', 'REF-ATTS'))) or ($parameters?part = 'text' and @xml:id = ('REF-ELEMENTS', 'REF-CLASSES-MODEL', 'REF-CLASSES-ATTS', 'REF-MACROS', 'REF-ATTS')))" behaviour="omit"/>
-                    <modelSequence output="typst" predicate="@xml:id = ('REF-ELEMENTS', 'REF-CLASSES-MODEL', 'REF-CLASSES-ATTS', 'REF-MACROS')">
+                    <!-- Text output (plain: typst and markdown): the text in document
+                         order, then the reference part. The home page, title page and
+                         table of contents belong to the site; the Typst shell makes its
+                         own title page and outline. Each division with an id gets an
+                         anchor for links to land on. -->
+                    <model output="plain" predicate="parent::text or @xml:id='Title' or @type='guidelines-toc'" behaviour="omit"/>
+                    <!-- `opm transform -t typst|markdown -p part=reference` prints only
+                         the A–Z appendices, `-p part=text` only the text. -->
+                    <model output="plain" predicate="(parent::front or parent::body or parent::back) and (($parameters?part = 'reference' and not(@xml:id = ('REF-ELEMENTS', 'REF-CLASSES-MODEL', 'REF-CLASSES-ATTS', 'REF-MACROS', 'REF-ATTS'))) or ($parameters?part = 'text' and @xml:id = ('REF-ELEMENTS', 'REF-CLASSES-MODEL', 'REF-CLASSES-ATTS', 'REF-MACROS', 'REF-ATTS')))" behaviour="omit"/>
+                    <modelSequence output="plain" predicate="@xml:id = ('REF-ELEMENTS', 'REF-CLASSES-MODEL', 'REF-CLASSES-ATTS', 'REF-MACROS')">
                         <desc>A catalog appendix is the reference part: the specs its A–Z
                             list names, in that order.</desc>
                         <model behaviour="anchor">
@@ -74,34 +87,36 @@
                             <param name="content" value="(head, for $i in list[@type='catalog']//item[@ident] return id(concat('ref-', $i/@ident)))"/>
                         </model>
                     </modelSequence>
-                    <model output="typst" predicate="@type='spec-section' and @n='ref-notes'" behaviour="pass-through">
-                        <param name="heading" value="normalize-space(head)"/>
-                        <param name="content" value="(remarks[@xml:lang=$parameters?lng], remarks[not(@xml:lang)], remarks)[1]"/>
-                        <pb:template xml:space="preserve">
-=== [[heading]]
-
-[[content]]
-</pb:template>
-                    </model>
-                    <model output="typst" predicate="@type='spec-section' and @n='ref-examples'" behaviour="pass-through">
-                        <param name="heading" value="if (count(if (exemplum[not(@xml:lang) or @xml:lang=$parameters?lng]) then exemplum[not(@xml:lang) or @xml:lang=$parameters?lng] else exemplum[1]) eq 1) then 'Example' else 'Examples'"/>
-                        <param name="content" value="if (exemplum[not(@xml:lang) or @xml:lang=$parameters?lng]) then exemplum[not(@xml:lang) or @xml:lang=$parameters?lng] else exemplum[1]"/>
-                        <pb:template xml:space="preserve">
-=== [[heading]]
-
-[[content]]
-</pb:template>
-                    </model>
-                    <model output="typst" predicate="@type='spec-section'" behaviour="pass-through">
-                        <param name="heading" value="normalize-space(head)"/>
-                        <param name="content" value="*[not(self::head)]"/>
-                        <pb:template xml:space="preserve">
-=== [[heading]]
-
-[[content]]
-</pb:template>
-                    </model>
-                    <modelSequence output="typst" predicate="@xml:id">
+                    <!-- Text output (typst, markdown): a spec's sections are level-3
+                         headings under the spec's own. -->
+                    <modelSequence output="plain" predicate="@type='spec-section' and @n='ref-notes'">
+                        <model behaviour="heading">
+                            <param name="level" value="3"/>
+                            <param name="content" value="normalize-space(head)"/>
+                        </model>
+                        <model behaviour="block">
+                            <param name="content" value="(remarks[@xml:lang=$parameters?lng], remarks[not(@xml:lang)], remarks)[1]"/>
+                        </model>
+                    </modelSequence>
+                    <modelSequence output="plain" predicate="@type='spec-section' and @n='ref-examples'">
+                        <model behaviour="heading">
+                            <param name="level" value="3"/>
+                            <param name="content" value="if (count(if (exemplum[not(@xml:lang) or @xml:lang=$parameters?lng]) then exemplum[not(@xml:lang) or @xml:lang=$parameters?lng] else exemplum[1]) eq 1) then 'Example' else 'Examples'"/>
+                        </model>
+                        <model behaviour="block">
+                            <param name="content" value="if (exemplum[not(@xml:lang) or @xml:lang=$parameters?lng]) then exemplum[not(@xml:lang) or @xml:lang=$parameters?lng] else exemplum[1]"/>
+                        </model>
+                    </modelSequence>
+                    <modelSequence output="plain" predicate="@type='spec-section'">
+                        <model behaviour="heading">
+                            <param name="level" value="3"/>
+                            <param name="content" value="normalize-space(head)"/>
+                        </model>
+                        <model behaviour="block">
+                            <param name="content" value="*[not(self::head)]"/>
+                        </model>
+                    </modelSequence>
+                    <modelSequence output="plain" predicate="@xml:id">
                         <model behaviour="anchor">
                             <param name="id" value="@xml:id"/>
                         </model>
@@ -109,7 +124,7 @@
                             <param name="content" value="*[not(self::list[@type='chapterNav'] or self::elementSpec or self::classSpec or self::macroSpec or self::dataSpec)]"/>
                         </model>
                     </modelSequence>
-                    <model output="typst" behaviour="block">
+                    <model output="plain" behaviour="block">
                         <param name="content" value="*[not(self::list[@type='chapterNav'] or self::elementSpec or self::classSpec or self::macroSpec or self::dataSpec)]"/>
                     </model>
                     <!-- Compact previous/next pair for the right-hand rail, under the
@@ -228,18 +243,33 @@
                     <model behaviour="block"/>
                 </elementSpec>
                 <elementSpec ident="list" mode="change">
-                    <model output="typst" predicate="@type=('siteNav', 'chapterNav', 'reference')" behaviour="omit"/>
-                    <model output="typst" predicate="@type='attTree'" behaviour="list"/>
-                    <model output="typst" predicate="@type='listRef'" behaviour="pass-through">
+                    <model output="plain" predicate="@type=('siteNav', 'chapterNav', 'reference')" behaviour="omit"/>
+                    <model output="plain" predicate="@type='attTree'" behaviour="list"/>
+                    <model output="plain" predicate="@type='listRef'" behaviour="pass-through">
                         <param name="content" value="if (item) then (' · see ', item) else ()"/>
                     </model>
-                    <model output="typst" predicate="@type='atts'" behaviour="pass-through">
+                    <model output="plain" predicate="@type='atts'" behaviour="pass-through">
                         <param name="content" value="(': ', item)"/>
                     </model>
                     <model predicate="$parameters?mode='nav'" behaviour="list"/>
                     <model predicate="$parameters?mode='toc'" behaviour="omit"/>
                     <model predicate="@type=('containedBy','mayContain')" behaviour="pass-through" cssClass="module-groups">
                         <param name="content" value="item|seg"/>
+                    </model>
+                    <!-- An element's model classes, with their label, so an element
+                         in none shows no row, as in the TEI Stylesheets. -->
+                    <model predicate="@type='memberOf' and not(item)" behaviour="omit"/>
+                    <model output="typst" predicate="@type='memberOf'" behaviour="pass-through">
+                        <param name="content" value="item"/>
+                        <pb:template xml:space="preserve">#strong[Member of:] [[content]]</pb:template>
+                    </model>
+                    <model output="markdown" predicate="@type='memberOf'" behaviour="pass-through">
+                        <param name="content" value="item"/>
+                        <pb:template xml:space="preserve">**Member of:** [[content]]</pb:template>
+                    </model>
+                    <model predicate="@type='memberOf'" behaviour="pass-through">
+                        <param name="content" value="item"/>
+                        <pb:template xmlns=""><dt id="ref-memberOf">Member of</dt><dd><div class="spec-links">[[content]]</div></dd></pb:template>
                     </model>
                     <model predicate="@type=('members','usedBy','memberOf')" behaviour="pass-through" cssClass="spec-links">
                         <param name="content" value="item"/>
@@ -351,7 +381,7 @@
                     <desc>XML examples in the TEI Examples namespace
                         (http://www.tei-c.org/ns/Examples), rendered as monospace
                         source with Pygments highlighting (tp:highlight).</desc>
-                    <model output="typst" behaviour="code">
+                    <model output="plain" behaviour="code">
                         <param name="content" value="tp:serialize_egxml(.)"/>
                         <param name="language" value="'xml'"/>
                     </model>
@@ -362,7 +392,7 @@
                 </elementSpec>
                 <elementSpec ident="schemaSpec" mode="add">
                     <desc>Do not dump the schema into a chapter; point at the catalogs.</desc>
-                    <model output="typst" behaviour="omit"/>
+                    <model output="plain" behaviour="omit"/>
                     <model predicate="$parameters?mode='toc'" behaviour="omit"/>
                     <model behaviour="pass-through">
                         <pb:template xmlns=""><p class="lead">Full reference entries for this schema are listed under <a href="REF-ELEMENTS.html">Elements</a>, <a href="REF-CLASSES-MODEL.html">Model classes</a>, <a href="REF-CLASSES-ATTS.html">Attribute classes</a>, and <a href="REF-MACROS.html">Macros</a>.</p></pb:template>
@@ -370,7 +400,7 @@
                 </elementSpec>
 
                 <elementSpec ident="gi" mode="add">
-                    <model output="typst" predicate="@target" behaviour="link">
+                    <model output="plain" predicate="@target" behaviour="link">
                         <param name="uri" value="@target"/>
                     </model>
                     <!-- @target is "#ref-{ident}"; on the web that spec is its own page. -->
@@ -380,7 +410,7 @@
                     <model behaviour="inline"/>
                 </elementSpec>
                 <elementSpec ident="ident" mode="add">
-                    <model output="typst" predicate="@target" behaviour="link">
+                    <model output="plain" predicate="@target" behaviour="link">
                         <param name="uri" value="@target"/>
                     </model>
                     <model predicate="@target" behaviour="link">
@@ -390,7 +420,7 @@
                 </elementSpec>
                 <elementSpec ident="dataRef" mode="add">
                     <desc>An attribute's datatype, linked when it has a page.</desc>
-                    <model output="typst" predicate="@target" behaviour="link">
+                    <model output="plain" predicate="@target" behaviour="link">
                         <param name="uri" value="@target"/>
                         <param name="content" value="string(@key)"/>
                     </model>
@@ -413,7 +443,7 @@
                 <elementSpec ident="ptr" mode="change">
                     <desc>Resolve @target against the Guidelines tree: chapter file,
                         fragment id, and heading text for empty pointers.</desc>
-                    <model output="typst" predicate="@target" behaviour="link">
+                    <model output="plain" predicate="@target" behaviour="link">
                         <param name="uri" value="@target"/>
                         <param name="content" value="if (normalize-space(.)) then node() else let $id := replace(@target, '^#', ''), $hit := id($id) return ($hit/head[1]/node()[not(self::seg[@type='headingNumber'])], $id)[1]"/>
                     </model>
@@ -425,7 +455,7 @@
                 <elementSpec ident="specDesc" mode="add">
                     <desc>The spec's gloss and desc, which prepare copied in, like
                         the TEI Stylesheets' show mode.</desc>
-                    <model output="typst" predicate="@key" behaviour="listItem">
+                    <model output="plain" predicate="@key" behaviour="listItem">
                         <param name="content" value="(string(@key), ' ', let $g := normalize-space((gloss[@xml:lang=$parameters?lng], gloss[not(@xml:lang)], gloss)[1]) return if ($g) then concat('(', $g, ') ') else '', (desc[@xml:lang=$parameters?lng], desc[not(@xml:lang)], desc)[1])"/>
                     </model>
                     <model predicate="@key" behaviour="pass-through">
@@ -442,7 +472,7 @@
                         description for the active language belong there: the FPI idno and
                         the other languages' desc are reference data, and without a model
                         every one of them lands in the text as a bare inline span.</desc>
-                    <model output="typst" behaviour="paragraph">
+                    <model output="plain" behaviour="paragraph">
                         <param name="content" value="('Module ', string(@ident), ': ', (desc[@xml:lang=$parameters?lng], desc[not(@xml:lang)], desc)[1])"/>
                     </model>
                     <model behaviour="pass-through">
@@ -497,24 +527,31 @@
                     <model behaviour="inline"/>
                 </elementSpec>
                 <elementSpec ident="item" mode="change">
-                    <!-- PDF: relation lists run on, comma-separated; a spec's contained-by
-                         can name hundreds of elements. -->
+                    <!-- Text output: relation lists run on, comma-separated; a spec's
+                         contained-by can name hundreds of elements. -->
                     <model output="typst" predicate="parent::list[@type=('containedBy','mayContain')]" behaviour="pass-through">
                         <param name="module" value="string(@n)"/>
                         <param name="content" value="list"/>
                         <pb:template xml:space="preserve">
 - #strong[[[module]]]: [[content]]</pb:template>
                     </model>
-                    <model output="typst" predicate="parent::list[@type=('specItems','members','usedBy','memberOf','listRef')]" behaviour="pass-through">
+                    <model output="markdown" predicate="parent::list[@type=('containedBy','mayContain')]" behaviour="listItem">
+                        <param name="content" value="('**', string(@n), '**: ', list)"/>
+                    </model>
+                    <model output="plain" predicate="parent::list[@type=('specItems','members','usedBy','memberOf','listRef')]" behaviour="pass-through">
                         <param name="content" value="(node(), if (following-sibling::item) then ', ' else ())"/>
                     </model>
-                    <model output="typst" predicate="parent::list[@type='attTree']" behaviour="listItem">
+                    <model output="plain" predicate="parent::list[@type='attTree']" behaviour="listItem">
                         <param name="content" value="(ident, list[@type='atts'], list[@type='attTree'])"/>
                     </model>
-                    <modelSequence output="typst" predicate="parent::list[@type='atts']">
-                        <model predicate="@rend='overridden'" behaviour="pass-through">
+                    <modelSequence output="plain" predicate="parent::list[@type='atts']">
+                        <model output="typst" predicate="@rend='overridden'" behaviour="pass-through">
                             <param name="name" value="concat('@', @ident)"/>
                             <pb:template xml:space="preserve">#strike[[[name]]]</pb:template>
+                        </model>
+                        <model output="markdown" predicate="@rend='overridden'" behaviour="pass-through">
+                            <param name="name" value="concat('@', @ident)"/>
+                            <pb:template xml:space="preserve">~~[[name]]~~</pb:template>
                         </model>
                         <model predicate="not(@rend='overridden')" behaviour="link">
                             <param name="uri" value="concat('#ref-', parent::list/parent::item/ident)"/>
@@ -533,11 +570,23 @@
 [[content]]
 </pb:template>
                     </model>
+                    <modelSequence output="markdown" predicate="parent::list[@type='attCatalog']">
+                        <model behaviour="heading">
+                            <param name="level" value="2"/>
+                            <param name="content" value="string(@n)"/>
+                        </model>
+                        <model behaviour="list">
+                            <param name="content" value="list/item"/>
+                        </model>
+                    </modelSequence>
                     <model output="typst" predicate="parent::list[@type='attCatalogItems']" behaviour="pass-through">
                         <param name="name" value="concat('@', @ident)"/>
                         <param name="owners" value="for $o in (gi|ident) return ($o, if ($o/following-sibling::*[self::gi or self::ident]) then ', ' else ())"/>
                         <pb:template xml:space="preserve">
 - [[name]]: [[owners]]</pb:template>
+                    </model>
+                    <model output="markdown" predicate="parent::list[@type='attCatalogItems']" behaviour="listItem">
+                        <param name="content" value="(concat('@', @ident), ': ', for $o in (gi|ident) return ($o, if ($o/following-sibling::*[self::gi or self::ident]) then ', ' else ()))"/>
                     </model>
                     <!-- One letter of the attribute catalog: its own heading, and a
                          table of the attributes under it. -->
@@ -606,7 +655,7 @@
                     <model behaviour="listItem"/>
                 </elementSpec>
                 <elementSpec ident="ref" mode="change">
-                    <model output="typst" predicate="@target" behaviour="link">
+                    <model output="plain" predicate="@target" behaviour="link">
                         <param name="uri" value="@target"/>
                     </model>
                     <!-- A Guidelines chapter a spec cites (list[@type='listRef']), drawn
@@ -659,7 +708,7 @@ Module #strong[[[module]]][[listRef]]
 
 [[localAtts]]
 
-#strong[Member of:] [[memberOf]]
+[[memberOf]]
 
 #strong[May contain:] [[mayContain]]
 
@@ -669,7 +718,45 @@ Module #strong[[[module]]][[listRef]]
 </pb:template>
                         </model>
                     </modelSequence>
-                    <model output="typst" behaviour="omit"/>
+                    <modelSequence output="markdown" predicate="starts-with(@xml:id, 'ref-')">
+                        <model behaviour="anchor">
+                            <param name="id" value="@xml:id"/>
+                        </model>
+                        <model behaviour="heading">
+                            <param name="level" value="2"/>
+                            <param name="content" value="concat('`&lt;', @ident, '&gt;`')"/>
+                        </model>
+                        <model behaviour="pass-through">
+                            <param name="gloss" value="(gloss[@xml:lang=$parameters?lng], gloss[not(@xml:lang)], gloss)[1]"/>
+                            <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
+                            <param name="module" value="string(@module)"/>
+                            <param name="sections" value="div[@type='spec-section']"/>
+                            <param name="listRef" value="list[@type='listRef']"/>
+                            <param name="attTree" value="list[@type='attTree']"/>
+                            <param name="localAtts" value="attList/attDef[not(@mode='delete')]"/>
+                            <param name="memberOf" value="list[@type='memberOf']"/>
+                            <param name="mayContain" value="list[@type='mayContain']"/>
+                            <param name="containedBy" value="list[@type='containedBy']"/>
+                            <pb:template xml:space="preserve">
+[[gloss]] [[desc]]
+
+Module **[[module]]**[[listRef]]
+
+**Attributes:** [[attTree]]
+
+[[localAtts]]
+
+[[memberOf]]
+
+**May contain:** [[mayContain]]
+
+**Contained by:** [[containedBy]]
+
+[[sections]]
+</pb:template>
+                        </model>
+                    </modelSequence>
+                    <model output="plain" behaviour="omit"/>
                     <model predicate="not(. is $parameters?root)" behaviour="omit"/>
                     <model behaviour="pass-through">
                         <param name="ident" value="@ident"/>
@@ -688,7 +775,7 @@ Module #strong[[[module]]][[listRef]]
                         <param name="examples" value="div[@n='ref-examples']"/>
                         <param name="constraints" value="div[@n='ref-constraints']"/>
                         <param name="schema" value="div[@n='ref-schema']"/>
-                        <pb:template xmlns=""><article class="spec spec--element"><h1><span class="spec__ident">&lt;[[ident]]&gt;</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span>[[listRef]]</div><section class="spec-section" id="ref-attributes"><h2>Attributes</h2><div class="spec-note">Global and inherited attributes:[[attTree]]</div><dl class="att-def">[[localAtts]]</dl><p class="spec-note">[[attEmpty]]</p></section><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts"><dt id="ref-memberOf">Member of</dt><dd><div class="spec-links">[[memberOf]]</div></dd><dt id="ref-mayContain">May contain</dt><dd>[[mayContain]]</dd><dt id="ref-containedBy">Contained by</dt><dd>[[containedBy]]</dd></dl></section>[[models]][[notes]][[examples]][[constraints]][[schema]]</article></pb:template>
+                        <pb:template xmlns=""><article class="spec spec--element"><h1><span class="spec__ident">&lt;[[ident]]&gt;</span></h1><p class="spec__gloss">[[gloss]]</p><p class="spec__lead">[[desc]]</p><div class="spec__chips"><span class="spec__chip">Module <strong>[[module]]</strong></span>[[listRef]]</div><section class="spec-section" id="ref-attributes"><h2>Attributes</h2><div class="spec-note">Global and inherited attributes:[[attTree]]</div><dl class="att-def">[[localAtts]]</dl><p class="spec-note">[[attEmpty]]</p></section><section class="spec-section" id="ref-classes"><h2>Classes and content</h2><dl class="spec-facts">[[memberOf]]<dt id="ref-mayContain">May contain</dt><dd>[[mayContain]]</dd><dt id="ref-containedBy">Contained by</dt><dd>[[containedBy]]</dd></dl></section>[[models]][[notes]][[examples]][[constraints]][[schema]]</article></pb:template>
                     </model>
                 </elementSpec>
                 <elementSpec ident="classSpec" mode="add">
@@ -725,7 +812,41 @@ Module #strong[[[module]]]
 </pb:template>
                         </model>
                     </modelSequence>
-                    <model output="typst" behaviour="omit"/>
+                    <modelSequence output="markdown" predicate="starts-with(@xml:id, 'ref-')">
+                        <model behaviour="anchor">
+                            <param name="id" value="@xml:id"/>
+                        </model>
+                        <model behaviour="heading">
+                            <param name="level" value="2"/>
+                            <param name="content" value="concat('`', @ident, '`')"/>
+                        </model>
+                        <model behaviour="pass-through">
+                            <param name="gloss" value="(gloss[@xml:lang=$parameters?lng], gloss[not(@xml:lang)], gloss)[1]"/>
+                            <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
+                            <param name="module" value="string(@module)"/>
+                            <param name="sections" value="div[@type='spec-section']"/>
+                            <param name="attTree" value="list[@type='attTree']"/>
+                            <param name="localAtts" value="attList/attDef[not(@mode='delete')]"/>
+                            <param name="usedBy" value="list[@type='usedBy']"/>
+                            <param name="members" value="list[@type='members']"/>
+                            <pb:template xml:space="preserve">
+[[gloss]] [[desc]]
+
+Module **[[module]]**
+
+[[attTree]]
+
+[[localAtts]]
+
+**Used by:** [[usedBy]]
+
+**Members:** [[members]]
+
+[[sections]]
+</pb:template>
+                        </model>
+                    </modelSequence>
+                    <model output="plain" behaviour="omit"/>
                     <model predicate="not(. is $parameters?root)" behaviour="omit"/>
                     <model predicate="@type='atts' or starts-with(@ident,'att.')" behaviour="pass-through">
                         <param name="ident" value="@ident"/>
@@ -777,7 +898,32 @@ Module #strong[[[module]]]
 </pb:template>
                         </model>
                     </modelSequence>
-                    <model output="typst" behaviour="omit"/>
+                    <modelSequence output="markdown" predicate="starts-with(@xml:id, 'ref-')">
+                        <model behaviour="anchor">
+                            <param name="id" value="@xml:id"/>
+                        </model>
+                        <model behaviour="heading">
+                            <param name="level" value="2"/>
+                            <param name="content" value="concat('`', @ident, '`')"/>
+                        </model>
+                        <model behaviour="pass-through">
+                            <param name="gloss" value="(gloss[@xml:lang=$parameters?lng], gloss[not(@xml:lang)], gloss)[1]"/>
+                            <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
+                            <param name="module" value="string(@module)"/>
+                            <param name="sections" value="div[@type='spec-section']"/>
+                            <param name="usedBy" value="list[@type='usedBy']"/>
+                            <pb:template xml:space="preserve">
+[[gloss]] [[desc]]
+
+Module **[[module]]**
+
+**Used by:** [[usedBy]]
+
+[[sections]]
+</pb:template>
+                        </model>
+                    </modelSequence>
+                    <model output="plain" behaviour="omit"/>
                     <model predicate="not(. is $parameters?root)" behaviour="omit"/>
                     <model behaviour="pass-through">
                         <param name="ident" value="@ident"/>
@@ -817,7 +963,32 @@ Module #strong[[[module]]]
 </pb:template>
                         </model>
                     </modelSequence>
-                    <model output="typst" behaviour="omit"/>
+                    <modelSequence output="markdown" predicate="starts-with(@xml:id, 'ref-')">
+                        <model behaviour="anchor">
+                            <param name="id" value="@xml:id"/>
+                        </model>
+                        <model behaviour="heading">
+                            <param name="level" value="2"/>
+                            <param name="content" value="concat('`', @ident, '`')"/>
+                        </model>
+                        <model behaviour="pass-through">
+                            <param name="gloss" value="(gloss[@xml:lang=$parameters?lng], gloss[not(@xml:lang)], gloss)[1]"/>
+                            <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
+                            <param name="module" value="string(@module)"/>
+                            <param name="sections" value="div[@type='spec-section']"/>
+                            <param name="usedBy" value="list[@type='usedBy']"/>
+                            <pb:template xml:space="preserve">
+[[gloss]] [[desc]]
+
+Module **[[module]]**
+
+**Used by:** [[usedBy]]
+
+[[sections]]
+</pb:template>
+                        </model>
+                    </modelSequence>
+                    <model output="plain" behaviour="omit"/>
                     <model predicate="not(. is $parameters?root)" behaviour="omit"/>
                     <model behaviour="pass-through">
                         <param name="ident" value="@ident"/>
@@ -834,25 +1005,91 @@ Module #strong[[[module]]]
                     <model output="typst" behaviour="pass-through">
                         <param name="name" value="concat('@', @ident)"/>
                         <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
-                        <param name="facts" value="let $u := normalize-space(@usage), $status := (map { 'opt': 'Optional', 'req': 'Required', 'rec': 'Recommended', 'mwa': 'Mandatory when applicable' }($u), $u)[1], $type := (.//dataRef)[1] return (if ($status) then $status else (), if ($status and $type) then '; ' else (), $type)"/>
+                        <param name="facts" value="let $u := normalize-space(@usage), $status := (map { 'opt': 'Optional', 'req': 'Required', 'rec': 'Recommended', 'mwa': 'Mandatory when applicable' }($u), $u)[1], $type := datatype[1] return (if ($status) then $status else (), if ($status and $type) then '; ' else (), $type)"/>
+                        <param name="values" value="valList[not(@mode='delete')]"/>
                         <param name="exemplum" value="(exemplum[@xml:lang=$parameters?lng], exemplum[not(@xml:lang)], exemplum)[1]"/>
                         <pb:template xml:space="preserve">
 / [[name]]: [[desc]] #text(size: 0.85em, fill: luma(90))[[[facts]]]
+[[values]]
 [[exemplum]]
 </pb:template>
+                    </model>
+                    <model output="markdown" behaviour="listItem">
+                        <param name="content" value="('**@', string(@ident), '**: ', (desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1], let $u := normalize-space(@usage), $status := (map { 'opt': 'Optional', 'req': 'Required', 'rec': 'Recommended', 'mwa': 'Mandatory when applicable' }($u), $u)[1], $type := datatype[1] return if ($status or $type) then (' _', if ($status) then $status else (), if ($status and $type) then '; ' else (), $type, '_') else (), valList[not(@mode='delete')], (exemplum[@xml:lang=$parameters?lng], exemplum[not(@xml:lang)], exemplum)[1])"/>
                     </model>
                     <model behaviour="pass-through">
                         <param name="ident" value="@ident"/>
                         <param name="anchor" value="concat('att-', translate(@ident, ':', '-'))"/>
                         <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
                         <param name="usage" value="let $u := normalize-space(@usage) return (map { 'opt': 'Optional', 'req': 'Required', 'rec': 'Recommended', 'mwa': 'Mandatory when applicable' }($u), $u)[1]"/>
-                        <param name="datatype" value="(.//dataRef)[1]"/>
+                        <param name="datatype" value="datatype[1]"/>
+                        <param name="values" value="valList[not(@mode='delete')]"/>
                         <param name="exemplum" value="(exemplum[@xml:lang=$parameters?lng], exemplum[not(@xml:lang)], exemplum)[1]"/>
-                        <pb:template xmlns=""><dt id="[[anchor]]"><span class="att-def__name">@[[ident]]</span>[[desc]]</dt><dd><dl><dt>Status</dt><dd>[[usage]]</dd><dt>Datatype</dt><dd>[[datatype]]</dd></dl>[[exemplum]]</dd></pb:template>
+                        <pb:template xmlns=""><dt id="[[anchor]]"><span class="att-def__name">@[[ident]]</span>[[desc]]</dt><dd><dl><dt>Status</dt><dd>[[usage]]</dd>[[datatype]][[values]]</dl>[[exemplum]]</dd></pb:template>
+                    </model>
+                </elementSpec>
+                <elementSpec ident="datatype" mode="add">
+                    <desc>An attribute's datatype. A repeatable one reads as the TEI
+                        Stylesheets print it: "1–∞ occurrences of teidata.pointer
+                        separated by whitespace".</desc>
+                    <model output="plain" predicate="(@minOccurs, '1')[1] != '1' or (@maxOccurs, '1')[1] != '1'" behaviour="inline">
+                        <param name="content" value="(concat((@minOccurs, '1')[1], '–', if (@maxOccurs = 'unbounded') then '∞' else (@maxOccurs, '1')[1], ' occurrences of '), *, ' separated by whitespace')"/>
+                    </model>
+                    <model output="plain" behaviour="inline"/>
+                    <!-- On the web, the attribute's Datatype row, which an attDef
+                         without a datatype does not get. -->
+                    <model predicate="(@minOccurs, '1')[1] != '1' or (@maxOccurs, '1')[1] != '1'" behaviour="pass-through">
+                        <param name="content" value="(concat((@minOccurs, '1')[1], '–', if (@maxOccurs = 'unbounded') then '∞' else (@maxOccurs, '1')[1], ' occurrences of '), *, ' separated by whitespace')"/>
+                        <pb:template xmlns=""><dt>Datatype</dt><dd>[[content]]</dd></pb:template>
+                    </model>
+                    <model behaviour="pass-through">
+                        <param name="content" value="*"/>
+                        <pb:template xmlns=""><dt>Datatype</dt><dd>[[content]]</dd></pb:template>
+                    </model>
+                </elementSpec>
+                <elementSpec ident="valList" mode="add">
+                    <desc>An attribute's values, under the heading the TEI Stylesheets
+                        give its @type. Only those in an attDef are rendered here: the
+                        rest sit inside content models, which print as source.</desc>
+                    <modelSequence output="typst" predicate="parent::attDef">
+                        <model behaviour="paragraph">
+                            <param name="content" value="if (@type = 'closed') then 'Legal values:' else if (@type = 'semi') then 'Suggested values:' else 'Sample values:'"/>
+                        </model>
+                        <model behaviour="list">
+                            <param name="content" value="valItem[not(@mode='delete')]"/>
+                        </model>
+                    </modelSequence>
+                    <modelSequence output="markdown" predicate="parent::attDef">
+                        <!-- Markdown: the values continue the attribute's list item
+                             on a line of their own. -->
+                        <model behaviour="break"/>
+                        <model behaviour="inline">
+                            <param name="content" value="if (@type = 'closed') then 'Legal values:' else if (@type = 'semi') then 'Suggested values:' else 'Sample values:'"/>
+                        </model>
+                        <model behaviour="list">
+                            <param name="content" value="valItem[not(@mode='delete')]"/>
+                        </model>
+                    </modelSequence>
+                    <model predicate="parent::attDef" behaviour="pass-through">
+                        <param name="heading" value="if (@type = 'closed') then 'Legal values' else if (@type = 'semi') then 'Suggested values' else 'Sample values'"/>
+                        <param name="items" value="valItem[not(@mode='delete')]"/>
+                        <pb:template xmlns=""><dt>[[heading]]</dt><dd><dl class="val-list">[[items]]</dl></dd></pb:template>
+                    </model>
+                    <model behaviour="omit"/>
+                </elementSpec>
+                <elementSpec ident="valItem" mode="add">
+                    <model output="plain" behaviour="listItem">
+                        <param name="content" value="(string(@ident), let $g := normalize-space((gloss[@xml:lang=$parameters?lng], gloss[not(@xml:lang)], gloss)[1]) return if ($g) then concat(' (', $g, ')') else '', let $d := (desc[@xml:lang=$parameters?lng], desc[not(@xml:lang)], desc)[1] return if ($d) then (': ', $d) else ())"/>
+                    </model>
+                    <model behaviour="pass-through">
+                        <param name="ident" value="string(@ident)"/>
+                        <param name="gloss" value="let $g := normalize-space((gloss[@xml:lang=$parameters?lng], gloss[not(@xml:lang)], gloss)[1]) return if ($g) then concat('(', $g, ') ') else ''"/>
+                        <param name="desc" value="(desc[@xml:lang=$parameters?lng], desc[not(@xml:lang)], desc)[1]"/>
+                        <pb:template xmlns=""><dt><code>[[ident]]</code></dt><dd>[[gloss]][[desc]]</dd></pb:template>
                     </model>
                 </elementSpec>
                 <elementSpec ident="model" mode="add">
-                    <model output="typst" behaviour="code">
+                    <model output="plain" behaviour="code">
                         <param name="content" value="tp:serialize_spec(.)"/>
                         <param name="language" value="'xml'"/>
                     </model>
@@ -870,7 +1107,7 @@ Module #strong[[[module]]]
                     </model>
                 </elementSpec>
                 <elementSpec ident="modelGrp" mode="add">
-                    <model output="typst" behaviour="code">
+                    <model output="plain" behaviour="code">
                         <param name="content" value="tp:serialize_spec(.)"/>
                         <param name="language" value="'xml'"/>
                     </model>
@@ -881,7 +1118,7 @@ Module #strong[[[module]]]
                     </model>
                 </elementSpec>
                 <elementSpec ident="modelSequence" mode="add">
-                    <model output="typst" behaviour="code">
+                    <model output="plain" behaviour="code">
                         <param name="content" value="tp:serialize_spec(.)"/>
                         <param name="language" value="'xml'"/>
                     </model>
@@ -907,7 +1144,7 @@ Module #strong[[[module]]]
                     </model>
                 </elementSpec>
                 <elementSpec ident="content" mode="add">
-                    <model output="typst" behaviour="code">
+                    <model output="plain" behaviour="code">
                         <param name="content" value="tp:serialize_spec(.)"/>
                         <param name="language" value="'xml'"/>
                     </model>
@@ -916,7 +1153,7 @@ Module #strong[[[module]]]
                     </model>
                 </elementSpec>
                 <elementSpec ident="constraintSpec" mode="add">
-                    <model output="typst" behaviour="code">
+                    <model output="plain" behaviour="code">
                         <param name="content" value="tp:serialize_spec(.)"/>
                         <param name="language" value="'xml'"/>
                     </model>

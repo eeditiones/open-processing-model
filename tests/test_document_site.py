@@ -65,6 +65,10 @@ def test_build_document_site_from_mini_schema(tmp_path: Path) -> None:
     assert 'ref-model.pLike.html' in html
     assert 'ref-att.global.html' in html
     assert 'marks paragraphs' in html
+    # An attribute's datatype and closed value list, as the TEI Stylesheets give them.
+    assert '1–∞ occurrences of' in html and 'separated by whitespace' in html
+    assert '<dt>Legal values</dt>' in html
+    assert '<code>italic</code></dt><dd>(cursive) ' in html
     assert '&lt;hi&gt;' in html or '>hi</a>' in html
     assert 'Processing model' in html
     assert 'paragraph' in html
@@ -1501,6 +1505,7 @@ def test_a_documentation_project_turns_the_prepared_tree_into_typst(
     assert '#heading(level: 2, outlined: false)[#sym.lt;p#sym.gt;]' in body
     # Pointers become in-document links, not web URLs; no HTML leaks through.
     assert '#opm-xref("ref-hi")[hi]' in body
+    assert 'Legal values:' in body and '- italic \\(cursive): set in italics' in body
     assert '.html' not in body
     assert not re.search(r'<(section|article|a|li|div)\b', body)
     if shutil.which('typst'):
@@ -1512,3 +1517,39 @@ def test_a_documentation_project_turns_the_prepared_tree_into_typst(
     ]) == 0
     reference = (root / 'reference.typ').read_text(encoding='utf-8')
     assert '#label("ref-p")' in reference and '#label("REF-ELEMENTS")' in reference
+
+
+def test_a_documentation_project_turns_the_prepared_tree_into_markdown(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """`opm transform -t markdown` shares the typst models tagged `plain`."""
+    from opm.scaffold import InitOptions, scaffold
+
+    root = scaffold(InitOptions(directory=tmp_path / 'proj', example='odd')).directory
+    config = (root / 'opm.toml').read_text(encoding='utf-8')
+    (root / 'opm.toml').write_text(
+        config.replace('# source = "my-customization.odd"', f'source = "{MINI.as_posix()}"'),
+        encoding='utf-8',
+    )
+    monkeypatch.chdir(root)
+    assert main(['odd', 'prepare', '-o', 'schema.xml']) == 0
+    assert main(['transform', 'schema.xml', '-t', 'markdown', '-o', 'docs.md']) == 0
+
+    body = (root / 'docs.md').read_text(encoding='utf-8')
+    assert body.lstrip().startswith('# Mini schema')
+    # The reference part: every spec once, in the catalog's A–Z order.
+    positions = [body.index(f"<a id='ref-{ident}'></a>") for ident in ('div', 'hi', 'p')]
+    assert positions == sorted(positions)
+    assert all(body.count(f"<a id='ref-{ident}'></a>") == 1 for ident in ('div', 'hi', 'p'))
+    assert '## `<p>`' in body
+    # Pointers become in-document links, not web URLs; no HTML leaks through.
+    assert '](#ref-hi)' in body
+    assert '.html' not in body
+    assert not re.search(r'<(section|article|li|div|dl|span)\s+class=', body)
+    assert 'Legal values:' in body and '- italic (cursive): set in italics' in body
+
+    assert main([
+        'transform', 'schema.xml', '-t', 'markdown', '-p', 'part=reference', '-o', 'reference.md',
+    ]) == 0
+    reference = (root / 'reference.md').read_text(encoding='utf-8')
+    assert "<a id='ref-p'></a>" in reference and "<a id='REF-ELEMENTS'></a>" in reference

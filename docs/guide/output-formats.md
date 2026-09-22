@@ -15,7 +15,7 @@ implementation used to generate that output.
 | `typst` | Typst markup | `TypstOutputFunctions` |
 | `json` | The processing model's decisions as data | `JsonOutputFunctions` |
 
-`print`, `epub` and `json` extend `web`, which means they will also accept ODD models tagged `@output="web"`. Models without `@output` apply always.
+`print`, `epub` and `json` extend `web`, which means they will also accept ODD models tagged `@output="web"`. `markdown` and `typst` both extend `plain`: a model tagged `@output="plain"` serves the two text formats at once. Models without `@output` apply always.
 
 Models may use an optional `opm-` prefix on `@output` (e.g. `opm-web`) for rules
 that apply only when compiling with this Python implementation. tei-publisher-lib
@@ -316,9 +316,10 @@ opm transform doc.xml -t json               -o web.json
 opm transform doc.xml -t json --channel typst -o typst.json
 ```
 
-`--channel` follows the same fallback rules as the channel itself: `json-print`
-and `json-epub` also accept `@output="web"` models, exactly as `print` and
-`epub` do, while `json-typst` and `json-markdown` do not.
+`--channel` follows the same fallback rules as the channel itself: with
+`--channel print` or `--channel epub`, `@output="web"` models take part too, as
+they do for `print` and `epub`. With `--channel typst` or `--channel markdown`,
+`@output="plain"` models take part instead.
 
 ### The `models` table
 

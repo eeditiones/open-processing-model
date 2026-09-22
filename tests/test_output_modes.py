@@ -30,8 +30,9 @@ def test_json_channel_aliases_cover_every_render_mode() -> None:
     # print and epub carry their own web fallback into the JSON view.
     assert output_mode('json-print').accepts == ('json', 'print', 'web')
     assert output_mode('json-epub').accepts == ('json', 'epub', 'web')
-    # typst and markdown do not fall back to web, so neither do their JSON modes.
-    assert output_mode('json-typst').accepts == ('json', 'typst')
+    # typst and markdown build on plain, not web, and so do their JSON modes.
+    assert output_mode('json-typst').accepts == ('json', 'typst', 'plain')
+    assert output_mode('json-markdown').accepts == ('json', 'markdown', 'plain')
     assert not output_mode('typst').records
     assert output_mode('json').channel == 'web'
 

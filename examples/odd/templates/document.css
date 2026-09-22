@@ -919,6 +919,20 @@ a.spec__chip:hover { border-color: var(--doc-amber); color: var(--doc-ink); text
   line-height: 1.6;
   border-bottom: 1px solid var(--doc-rule);
 }
+/* An attribute's values, nested in the Status/Datatype list. */
+.att-def dd dl.val-list {
+  margin: 0;
+  border-top: 0;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 1rem;
+}
+.att-def dd dl.val-list dt,
+.att-def dd dl.val-list dd {
+  padding: 0.25rem 0;
+  border-bottom: 0;
+}
+.att-def dd dl.val-list dt { color: var(--doc-ink); }
+.att-def dd dl.val-list code { font-family: var(--doc-mono); }
 
 .att-class {
   display: flex;

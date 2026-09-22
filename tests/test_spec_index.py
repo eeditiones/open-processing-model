@@ -6,11 +6,15 @@ from pathlib import Path
 
 import pytest
 
-from opm.spec_index import SpecIndex, TEXT_IDENT, pick_lang, qn, serialize_spec_xml
+from lxml import etree
+
+from opm import odd_expand
+from opm.spec_index import SpecIndex, TEXT_IDENT, qn, serialize_spec_xml
 from opm.runtime.common_xpath_functions import normalize_egxml, serialize_egxml
 
 FIXTURES = Path(__file__).resolve().parent / 'fixtures'
 MINI = FIXTURES / 'mini_schema.odd'
+NS = {'t': 'http://www.tei-c.org/ns/1.0'}
 
 
 @pytest.fixture
@@ -20,91 +24,63 @@ def index() -> SpecIndex:
 
 def test_indexes_elements_classes_macros(index: SpecIndex) -> None:
     assert {s.ident for s in index.elements()} == {'div', 'hi', 'p'}
-    assert {s.ident for s in index.model_classes()} == {
+    assert {s.ident for s in index.all() if s.is_model_class} == {
         'model.divPart',
         'model.pLike',
         'model.phrase',
     }
-    assert {s.ident for s in index.att_classes()} == {'att.global'}
+    assert {s.ident for s in index.all() if s.is_att_class} == {'att.global'}
     assert {s.ident for s in index.macros()} == {'macro.paraContent'}
     assert index.element('p').module == 'core'
     # gloss/desc/remarks/exemplum stay on the node: the ODD reads them with
-    # XPath through `tp:spec`, which is where the xml:lang preference lives.
+    # XPath, which is where the xml:lang preference lives.
     gloss = index.element('p').node.find(qn('gloss'))
     assert gloss is not None
     assert gloss.text == 'paragraph'
-    assert [m.behaviour for m in index.element('p').models] == ['paragraph']
-    assert index.element('p').models[0].desc is not None
 
 
 def test_module_idents_do_not_collide_with_element_idents(index: SpecIndex) -> None:
-    """A ``moduleSpec`` never displaces a spec of the same name, or vice versa.
+    """A ``moduleSpec`` never displaces a spec of the same name.
 
     TEI names the ``certainty`` module after the ``certainty`` element; the
     fixture mirrors that with ``hi``.
     """
-    assert {s.ident for s in index.modules()} == {'tei', 'core', 'verse', 'hi'}
-    assert index.module('hi') is not None
-    assert index.module('hi').kind == 'module'
-    # `get` stays in the referenceable namespace: it resolves the element.
     assert index.require('hi').kind == 'element'
-    # Modules are not part of the A-Z spec catalogs either.
     assert all(s.kind != 'module' for s in index.all())
 
 
-def test_language_filter_picks_requested_desc(index: SpecIndex) -> None:
-    """`pick_lang` is the rule the ODD's own xml:lang idiom mirrors.
-
-    Spec no longer caches a language-picked ``desc``; what is left in Python
-    uses `pick_lang` for the nodes it does keep (attribute and model descs).
-    """
-    descs = index.element('p').node.findall(qn('desc'))
-    en = pick_lang(descs, 'en')
-    assert en is not None
-    assert 'marks paragraphs' in ''.join(en.itertext())
-    fr = pick_lang(descs, 'fr')
-    assert fr is not None
-    assert 'marque les paragraphes' in ''.join(fr.itertext())
-    # No node in the requested language: prefer an unlanguaged one, then the first.
-    assert pick_lang(descs, 'zz') is descs[0]
-
-
 def test_may_contain_expands_macro_and_class(index: SpecIndex) -> None:
-    children = index.element('p').may_contain
-    idents = {c.ident for c in children}
+    idents = {c.ident for c in odd_expand._may_contain(index, index.element('p'))}
     assert 'hi' in idents
     assert TEXT_IDENT in idents
     assert 'div' not in idents
 
 
 def test_contained_by_via_model_class(index: SpecIndex) -> None:
-    parents = {c.ident for c in index.element('p').contained_by}
-    assert parents == {'div'}
-    hi_parents = {c.ident for c in index.element('hi').contained_by}
-    assert 'p' in hi_parents
+    assert {c.ident for c in odd_expand._contained_by(index, index.element('p'))} == {'div'}
+    assert 'p' in {c.ident for c in odd_expand._contained_by(index, index.element('hi'))}
 
 
 def test_members_and_used_by(index: SpecIndex) -> None:
     p_like = index.require('model.pLike')
-    assert {m.ident for m in p_like.members} == {'p'}
+    assert {m.ident for m in index.members_of('model.pLike')} == {'p'}
     # ``div`` references the class in its content model; ``model.divPart`` uses it
     # by way of membership, as the TEI Stylesheets report it.
-    assert {u.ident for u in p_like.used_by} == {'div', 'model.divPart'}
+    assert {u.ident for u in odd_expand._used_by(index, p_like)} == {'div', 'model.divPart'}
     phrase = index.require('model.phrase')
-    assert {m.ident for m in phrase.members} == {'hi'}
-    assert {u.ident for u in phrase.used_by} == {'macro.paraContent'}
+    assert {m.ident for m in index.members_of('model.phrase')} == {'hi'}
+    assert {u.ident for u in odd_expand._used_by(index, phrase)} == {'macro.paraContent'}
 
 
 def test_attribute_inheritance_marks_local_overrides(index: SpecIndex) -> None:
     p = index.element('p')
     assert {a.ident for a in p.local_atts} == {'rend'}
-    assert len(p.attribute_tree) == 1
-    att_global = p.attribute_tree[0]
-    assert att_global.ident == 'att.global'
-    names = {a.ident: a for a in att_global.attributes}
-    assert 'xml:id' in names
-    assert 'n' in names
-    assert names['xml:id'].overridden is False
+    tree = odd_expand._att_tree(index, p)
+    (att_global,) = tree.findall('t:item', NS)
+    assert att_global.findtext('t:ident', namespaces=NS) == 'att.global'
+    names = {a.get('ident'): a for a in att_global.findall("t:list[@type='atts']/t:item", NS)}
+    assert {'xml:id', 'n'} <= set(names)
+    assert names['xml:id'].get('rend') is None
 
 
 def test_skips_elementspec_inside_egxml(index: SpecIndex) -> None:
@@ -114,10 +90,10 @@ def test_skips_elementspec_inside_egxml(index: SpecIndex) -> None:
 
 
 def test_grouped_by_module(index: SpecIndex) -> None:
-    groups = dict(index.element('p').grouped(index.element('p').may_contain))
-    assert 'core' in groups
-    assert any(r.ident == 'hi' for r in groups['core'])
-    assert 'Character data' in groups
+    grouped = odd_expand._grouped_list(odd_expand._may_contain(index, index.element('p')), 'mayContain')
+    groups = {item.get('n'): item for item in grouped.findall('t:item', NS)}
+    assert 'hi' in etree.tostring(groups['core'], encoding='unicode')
+    assert list(groups)[-1] == 'Character data'
 
 
 def test_serialize_spec_xml_drops_tail() -> None:

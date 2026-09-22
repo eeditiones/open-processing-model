@@ -179,7 +179,7 @@ RENDER_MODES: dict[str, OutputMode] = {
         ),
         OutputMode(
             name='typst',
-            accepts=('typst',),
+            accepts=('typst', 'plain'),
             functions='opm.runtime.typst_output_functions.TypstOutputFunctions',
             settings=(
                 ('normalize_text', _NORMALIZE_TEXT),

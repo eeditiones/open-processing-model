@@ -689,7 +689,14 @@ def _odd2odd(source: etree._Element, customization: etree._Element) -> etree._El
         selected = _apply_local_specs(selected, schema)
         if any(localname(el) == 'moduleRef' for el in schema):
             all_specs.update(selected)
-            selected = _dependency_closure(all_specs, selected)
+            # A spec the ODD deletes stays deleted, however much still names it.
+            for _el, ident, mode in _local_specs(schema):
+                if mode == 'delete' and ident not in selected:
+                    all_specs.pop(ident, None)
+            selected = _prune_unused_classes(_dependency_closure(all_specs, selected))
+            wrapped = _wrap_specs(selected, ident=schema.get('ident'))
+            _drop_dangling_memberships(wrapped)
+            return wrapped
     return _wrap_specs(
         selected, ident=(schema.get('ident') if schema is not None else None)
     )
@@ -765,15 +772,20 @@ def _ensure_body_element(doc: etree._Element) -> etree._Element:
     return body
 
 
-def _module_ref_filters(ref: etree._Element) -> tuple[set[str], set[str]]:
-    """Return ``(include, except)`` ident sets for one ``moduleRef``."""
-    include = set((ref.get('include') or '').split())
+def _module_ref_filters(ref: etree._Element) -> tuple[set[str] | None, set[str]]:
+    """Return ``(include, except)`` ident sets for one ``moduleRef``.
+
+    *include* is ``None`` when the ``moduleRef`` does not restrict its
+    elements. An empty ``@include`` does: it takes none of them, only the
+    module's classes and macros.
+    """
+    include = set((ref.get('include') or '').split()) if ref.get('include') is not None else None
     excepted = set((ref.get('except') or '').split())
     for child in ref:
         names = {c.get('ident') for c in child.iter() if c.get('ident')}
         names.discard(None)
         if localname(child) == 'include':
-            include.update(n for n in names if n)
+            include = (include or set()) | {n for n in names if n}
         elif localname(child) == 'except':
             excepted.update(n for n in names if n)
     return include, excepted
@@ -795,7 +807,7 @@ def _apply_module_refs(
         for ident, el in specs.items():
             if module and el.get('module') != module:
                 continue
-            if include and ident not in include:
+            if include is not None and ident not in include:
                 continue
             if ident in excepted:
                 continue
@@ -807,6 +819,13 @@ def _dependency_closure(
     all_specs: dict[str, etree._Element],
     keep: dict[str, etree._Element],
 ) -> dict[str, etree._Element]:
+    """Add the classes, macros and datatypes *keep* refers to, transitively.
+
+    Elements are never added: which elements a schema has is for its
+    ``moduleRef``s and element specs to say. A content model may still name
+    an element left out, as TEI's own ``msDesc`` names ``history``; the
+    reference stays, and admits nothing.
+    """
     changed = True
     while changed:
         changed = False
@@ -819,9 +838,11 @@ def _dependency_closure(
                     if localname(member) == 'memberOf' and member.get('key'):
                         needed.add(member.get('key') or '')
         for ident in needed:
-            if ident and ident in all_specs and ident not in keep:
-                keep[ident] = all_specs[ident]
-                changed = True
+            spec = all_specs.get(ident)
+            if spec is None or ident in keep or localname(spec) == 'elementSpec':
+                continue
+            keep[ident] = spec
+            changed = True
     return keep
 
 
@@ -839,11 +860,8 @@ def _referenced_idents(el: etree._Element) -> set[str]:
     return keys
 
 
-def _apply_local_specs(
-    specs: dict[str, etree._Element],
-    schema: etree._Element,
-) -> dict[str, etree._Element]:
-    out = dict(specs)
+def _local_specs(schema: etree._Element):
+    """``(spec, ident, mode)`` for each spec the customization declares."""
     for el in schema.iter():
         if localname(el) not in _SPEC_TAGS:
             continue
@@ -857,7 +875,112 @@ def _apply_local_specs(
         ident = el.get('ident')
         if not ident:
             continue
-        mode = (el.get('mode') or 'replace').lower()
+        yield el, ident, (el.get('mode') or 'replace').lower()
+
+
+def _class_type(el: etree._Element) -> str:
+    ident = el.get('ident') or ''
+    return el.get('type') or ('atts' if ident.startswith('att.') else 'model')
+
+
+def _prune_unused_classes(specs: dict[str, etree._Element]) -> dict[str, etree._Element]:
+    """Drop the classes nothing in *specs* uses, as the TEI Stylesheets'
+    ``odd2odd`` does (``odd2odd-amINeeded``).
+
+    A model class is used when a content model refers to it, or when it is a
+    member of a used class. An attribute class is used when an element is a
+    member of it, an ``attRef`` names it, or a used class is a member of it.
+    A customization that includes a module but only some of its elements
+    thus loses the classes only the left-out elements needed. A model class
+    no element belongs to, directly or through its subclasses, admits
+    nothing and goes too.
+    """
+    referenced: set[str] = set()
+    att_referenced: set[str] = set()
+    element_members: set[str] = set()
+    class_members: dict[str, list[etree._Element]] = {}
+    for el in specs.values():
+        kind = localname(el)
+        if kind in {'elementSpec', 'macroSpec', 'dataSpec'}:
+            referenced.update(
+                ref.get('key') or '' for ref in el.iter(qn('classRef')) if not _inside_egxml(ref)
+            )
+        for ref in el.iter(qn('attRef')):
+            if ref.get('class'):
+                att_referenced.add(ref.get('class') or '')
+            name = ref.get('name') or ref.get('key') or ''
+            if '.attribute.' in name:
+                att_referenced.add(name.split('.attribute.', 1)[0])
+        classes = el.find(qn('classes'))
+        if classes is None:
+            continue
+        for member in classes:
+            key = member.get('key')
+            if localname(member) != 'memberOf' or not key:
+                continue
+            if kind == 'elementSpec':
+                element_members.add(key)
+            elif kind == 'classSpec':
+                class_members.setdefault(key, []).append(el)
+
+    populated: dict[str, bool] = {}
+
+    def has_elements(ident: str) -> bool:
+        if ident not in populated:
+            populated[ident] = False  # a cycle adds nothing
+            populated[ident] = ident in element_members or any(
+                has_elements(sub.get('ident') or '') for sub in class_members.get(ident, ())
+            )
+        return populated[ident]
+
+    needed: dict[str, bool] = {}
+
+    def is_needed(cls: etree._Element) -> bool:
+        ident = cls.get('ident') or ''
+        if ident in needed:
+            return needed[ident]
+        needed[ident] = False  # a cycle adds nothing
+        if _class_type(cls) == 'atts':
+            result = (
+                ident in att_referenced
+                or ident in element_members
+                or any(is_needed(sub) for sub in class_members.get(ident, ()))
+            )
+        else:
+            classes = cls.find(qn('classes'))
+            parents = [
+                specs[key]
+                for m in (classes if classes is not None else ())
+                if localname(m) == 'memberOf' and (key := m.get('key')) in specs
+            ]
+            result = has_elements(ident) and (
+                ident in referenced
+                or any(is_needed(p) for p in parents if localname(p) == 'classSpec')
+            )
+        needed[ident] = result
+        return result
+
+    return {
+        ident: el
+        for ident, el in specs.items()
+        if localname(el) != 'classSpec' or is_needed(el)
+    }
+
+
+def _drop_dangling_memberships(tree: etree._Element) -> None:
+    """Remove each ``memberOf`` whose class is not in *tree*."""
+    idents = {el.get('ident') for el in tree.iter(*(qn(t) for t in _SPEC_TAGS))}
+    for member in list(tree.iter(qn('memberOf'))):
+        if member.get('key') not in idents and member.getparent() is not None:
+            member.getparent().remove(member)
+
+
+def _apply_local_specs(
+    specs: dict[str, etree._Element],
+    schema: etree._Element,
+) -> dict[str, etree._Element]:
+    out = dict(specs)
+    for el, ident, mode in _local_specs(schema):
         if mode == 'delete':
             out.pop(ident, None)
         elif ident in out and mode in {'add', 'change'}:

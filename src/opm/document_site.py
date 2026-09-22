@@ -244,7 +244,7 @@ def _prepare(
         lang=lang,
         title=title or compiled.title or 'ODD documentation',
     )
-    expand_document_tree(tree, index, lang=lang)
+    expand_document_tree(tree, index)
     return tree, index
 
 

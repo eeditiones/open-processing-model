@@ -10,16 +10,10 @@ from lxml import etree
 from opm import odd_expand
 from opm.document_site import prepare_document_tree
 from opm.odd_schema import compile_schema
-from opm.spec_index import SpecIndex
 
 MINI = Path(__file__).resolve().parent / 'fixtures' / 'mini_schema.odd'
 NS = {'t': 'http://www.tei-c.org/ns/1.0'}
 XML_ID = '{http://www.w3.org/XML/1998/namespace}id'
-
-
-@pytest.fixture(scope='module')
-def index() -> SpecIndex:
-    return SpecIndex.from_path(MINI)
 
 
 @pytest.fixture(scope='module')
@@ -37,34 +31,38 @@ def _one(tree: etree._Element, path: str) -> etree._Element:
     return hits[0]
 
 
-def test_relations_as_tei(index: SpecIndex) -> None:
-    p = index.element('p')
-    assert 'div' in _xml(odd_expand.contained_by(index, p))
-    may = odd_expand.may_contain(index, p)
+def test_relations_as_tei(tree: etree._Element) -> None:
+    p = _one(tree, "//t:elementSpec[@xml:id='ref-p']")
+    assert 'div' in _xml(_one(p, "t:list[@type='containedBy']"))
+    may = _one(p, "t:list[@type='mayContain']")
     assert 'hi' in _xml(may)
     # Module is the group heading; inner items must not repeat it.
     assert may.findall('t:item/t:list[@type="specItems"]/t:item/t:seg[@type="module"]', NS) == []
-    member = odd_expand.member_of(index, p)
-    assert 'model.pLike' in _xml(member) and 'att.global' in _xml(member)
+    member = _one(p, "t:list[@type='memberOf']")
+    # Model classes only: the attribute classes are the attribute tree's.
+    assert 'model.pLike' in _xml(member) and 'att.global' not in _xml(member)
     assert member.findall('t:item/t:seg[@type="module"]', NS) == []
-    phrase = index.get('model.phrase')
-    assert 'hi' in _xml(odd_expand.members(index, phrase))
-    assert odd_expand.used_by(index, phrase).get('type') == 'usedBy'
-    assert odd_expand.attribute_tree(index, p).findall('t:item', NS)
+    assert p.xpath("t:list[@type='attTree']/t:item", namespaces=NS)
+    phrase = _one(tree, "//t:classSpec[@xml:id='ref-model.phrase']")
+    assert 'hi' in _xml(_one(phrase, "t:list[@type='members']"))
+    assert phrase.xpath("t:list[@type='usedBy']", namespaces=NS)
 
 
-def test_an_empty_relation_says_so(index: SpecIndex) -> None:
+def test_an_empty_relation_says_so() -> None:
     """A grouped relation with nothing in it is a list holding the empty marker."""
-    macro = index.get('macro.paraContent')
-    empty = odd_expand.contained_by(index, macro)
+    empty = odd_expand._grouped_list([], 'containedBy')
     assert [el.get('type') for el in empty] == ['empty']
 
 
-def test_counts_and_catalogs(index: SpecIndex) -> None:
-    assert odd_expand.spec_count(index, 'element') == 3
-    catalog = odd_expand.spec_catalog(index, 'element')
+def test_counts_and_catalogs(tree: etree._Element) -> None:
+    catalog = _one(tree, "//t:div[@xml:id='REF-ELEMENTS']/t:list[@type='catalog']")
     idents = [item.get('ident') for item in catalog.iter('{%s}item' % NS['t']) if item.get('ident')]
     assert idents == ['div', 'hi', 'p']
+    count = tree.xpath(
+        "string(//t:list[@type='reference']/t:item[t:ref/@target='#REF-ELEMENTS']/t:num)",
+        namespaces=NS,
+    )
+    assert count == '3'
 
 
 def test_the_composition_uses_only_public_primitives() -> None:

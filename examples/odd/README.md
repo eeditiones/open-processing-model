@@ -26,9 +26,26 @@ opm odd document <myodd.odd> --force --preview
 
 writes a documentation website for the given ODD to `site/` and opens it in a browser.
 
-Without `.odd` argument, it generates the TEI P5 documentation for the latest version.
-The full `p5.odd` will be downloaded and cached. It serves as the base for all TEI ODDs.
-To document an ODD of your own by default, set `source` under `[document]` in `opm.toml`.
+Without `.odd` argument, it generates the TEI P5 documentation for the latest version by default.
+The full `p5.odd` will be downloaded and cached, because it serves as the base for all TEI ODDs.
+
+You can change the default ODD to render by setting `source` under `[document]` in `opm.toml`.
+
+## PDF
+
+```bash
+opm odd prepare -o schema.xml
+opm transform schema.xml -t typst -o docs.pdf
+# only the reference part (the A–Z appendices), or only the text:
+opm transform schema.xml -t typst -p part=reference -o reference.pdf
+```
+
+## Markdown
+
+```bash
+opm transform schema.xml -t markdown -o docs.md
+opm transform schema.xml -t markdown --xpath 'id("HD")' -o docs.md # just one chapter
+```
 
 ## What is where
 
@@ -51,14 +68,4 @@ The same runs give a static site generator its input:
 ```bash
 opm odd prepare -o schema.xml
 opm chunk schema.xml --format json
-```
-
-and the same tree a PDF, through Typst (`templates/tagdocs.typ.j2` is the page
-layout):
-
-```bash
-opm odd prepare -o schema.xml
-opm transform schema.xml -t typst -o docs.pdf
-# only the reference part (the A–Z appendices), or only the text:
-opm transform schema.xml -t typst -p part=reference -o reference.pdf
 ```
