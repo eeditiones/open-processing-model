@@ -12,13 +12,24 @@ from __future__ import annotations
 
 from typing import Any
 
+from lxml import etree
+
 from opm.runtime.xpath_extensions import expect_element
-from opm.spec_index import serialize_spec_xml
+from opm.spec_index import TEI_NS
 
 
 def serialize_spec(node: Any) -> str:
-    """Pretty-print a spec subtree (content model, Schematron, ``pb:template``)."""
+    """Pretty-print a spec subtree (content model, Schematron, ``pb:template``)
+    without a default TEI xmlns declaration.
+
+    ``with_tail=False`` so mixed-content examples (element + following text)
+    stay well-formed; tails are handled by
+    [`serialize_egxml`][opm.runtime.common_xpath_functions.serialize_egxml].
+    """
     if node is None or node == [] or node == ():
         return ''
     el = expect_element(node, arg_name='serialize_spec(node)')
-    return serialize_spec_xml(el)
+    copy = etree.fromstring(etree.tostring(el, with_tail=False))
+    etree.cleanup_namespaces(copy)
+    text = etree.tostring(copy, encoding='unicode', pretty_print=True)
+    return text.replace(f' xmlns="{TEI_NS}"', '').strip()

@@ -158,7 +158,13 @@ class ChunkProcessor:
         self.template_context: dict[str, Any] = cfg.context_for(
             'web', webcomponents=webcomponents,
         )
-        self.parameters: dict[str, str] = dict(cfg.parameters)
+        # The project's parameters, with this run's own on top: a run that
+        # renders the same document differently (the documentation site's home
+        # page, `mode = "toc"`) says so once, for its chunks and its fragments.
+        self.parameters: dict[str, str] = {
+            **cfg.parameters,
+            **{name: str(value) for name, value in (config.parameters or {}).items()},
+        }
         self.source_dir = source_dir
         self._copied_images: set[str] = set()
         # One environment for the whole document: the selector, every chunk

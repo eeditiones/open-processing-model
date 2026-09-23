@@ -9,7 +9,7 @@ import pytest
 from lxml import etree
 
 from opm import odd_expand
-from opm.spec_index import SpecIndex, TEXT_IDENT, qn, serialize_spec_xml
+from opm.spec_index import SpecIndex, TEXT_IDENT, qn
 from opm.runtime.common_xpath_functions import normalize_egxml, serialize_egxml
 
 FIXTURES = Path(__file__).resolve().parent / 'fixtures'
@@ -94,25 +94,6 @@ def test_grouped_by_module(index: SpecIndex) -> None:
     groups = {item.get('n'): item for item in grouped.findall('t:item', NS)}
     assert 'hi' in etree.tostring(groups['core'], encoding='unicode')
     assert list(groups)[-1] == 'Character data'
-
-
-def test_serialize_spec_xml_drops_tail() -> None:
-    from lxml import etree
-
-    parent = etree.fromstring(
-        '<egXML xmlns="http://www.tei-c.org/ns/Examples">'
-        'before <add place="above">of these facts</add> after'
-        '</egXML>'
-    )
-    child = parent[0]
-    assert child.tail and 'after' in child.tail
-    xml = serialize_spec_xml(child)
-    assert 'of these facts' in xml
-    assert 'after' not in xml
-    body = serialize_egxml(parent)
-    assert body.startswith('before')
-    assert 'of these facts' in body
-    assert body.endswith('after')
 
 
 def test_serialize_egxml_dedents_odd_indentation() -> None:

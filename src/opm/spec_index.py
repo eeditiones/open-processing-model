@@ -79,21 +79,6 @@ def _first(el: etree._Element, name: str) -> etree._Element | None:
     return None
 
 
-def serialize_spec_xml(el: etree._Element | None) -> str:
-    """Pretty-print *el* without a default TEI xmlns declaration.
-
-    ``with_tail=False`` so mixed-content examples (element + following text)
-    stay well-formed; tails are handled by
-    [`serialize_egxml`][opm.runtime.common_xpath_functions.serialize_egxml].
-    """
-    if el is None:
-        return ''
-    copy = etree.fromstring(etree.tostring(el, with_tail=False))
-    etree.cleanup_namespaces(copy)
-    text = etree.tostring(copy, encoding='unicode', pretty_print=True)
-    return text.replace(' xmlns="http://www.tei-c.org/ns/1.0"', '').strip()
-
-
 @dataclass(frozen=True)
 class SpecRef:
     """A pointer to another spec, used in membership / content lists."""
@@ -177,14 +162,10 @@ class SpecIndex:
         *,
         lang: str = 'en',
         title: str = '',
-        chapter_anchors: dict[str, str] | None = None,
     ):
         self._specs = specs
         self.lang = lang
         self.title = title
-        #: ``xml:id`` → the chapter page it lands on, for every id inside a
-        #: published chapter. Empty unless the site publishes chapter prose.
-        self._chapter_anchors = chapter_anchors or {}
         self._build_lookups()
 
     def _build_lookups(self) -> None:
@@ -207,25 +188,7 @@ class SpecIndex:
         specs = _collect_specs(root)
         if not title:
             title = _document_title(root) or 'ODD documentation'
-        return cls(
-            specs,
-            lang=lang,
-            title=title,
-            chapter_anchors=_collect_chapter_anchors(root),
-        )
-
-    def chapter_page(self, xml_id: str) -> str | None:
-        """Local page URL for *xml_id*, or ``None`` when it is not published.
-
-        Ids are only known when the site documents the schema whose prose it
-        carries (TEI itself, a Guidelines ``p5.xml``, a Specs directory).
-        A customization publishes no TEI chapters, so pointers into them stay
-        external.
-        """
-        chapter = self._chapter_anchors.get(xml_id)
-        if chapter is None:
-            return None
-        return f'{chapter}.html' if chapter == xml_id else f'{chapter}.html#{xml_id}'
+        return cls(specs, lang=lang, title=title)
 
     @classmethod
     def from_path(cls, path: Path | str, *, lang: str = 'en') -> SpecIndex:
@@ -432,29 +395,6 @@ def _collect_specs(root: etree._Element) -> dict[str, Spec]:
         if previous is None or (spec.module and not previous.module):
             specs[spec.ident] = spec
     return specs
-
-
-def _collect_chapter_anchors(root: etree._Element) -> dict[str, str]:
-    """Map every ``xml:id`` under a chapter to that chapter's id.
-
-    A chapter is a top-level division of front, body or back — the pages
-    ``opm odd document`` writes one per. A customization's tree holds only its
-    own chapters, TEI's staying out of its site, so pointers into TEI's prose
-    find no entry here and stay external.
-    """
-    from opm.odd_schema import iter_guideline_chapters
-
-    anchors: dict[str, str] = {}
-    for div in iter_guideline_chapters(root):
-        chapter = div.get(XML_ID)
-        if not chapter:
-            continue
-        anchors[chapter] = chapter
-        for el in div.iter():
-            xml_id = el.get(XML_ID)
-            if xml_id:
-                anchors.setdefault(xml_id, chapter)
-    return anchors
 
 
 def _document_title(root: etree._Element) -> str:

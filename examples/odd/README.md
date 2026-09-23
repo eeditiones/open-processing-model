@@ -51,7 +51,7 @@ opm transform schema.xml -t markdown --xpath 'id("HD")' -o docs.md # just one ch
 
 | file | what it decides |
 | --- | --- |
-| `opm.toml` | what to document (`[document]`), and the two chunking runs: the text, then one reference page per spec |
+| `opm.toml` | what to document (`[document]`), and the three chunking runs: the text, the home page (`mode = "toc"`), then one reference page per spec |
 | `odd/tagdocs.odd`, `odd/tagdocs.css` | how every page renders — the processing models |
 | `templates/page.html.j2` | the page around each chunk: header, sidebar, rails |
 | `templates/document.css`, `search.js`, `theme.js` | the site's look, search box and light/dark switch |

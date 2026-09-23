@@ -7,13 +7,15 @@
 [`expand_document_tree`][opm.odd_expand.expand_document_tree]: everything a
 page shows that depends on the schema's graph or on the document as a whole is
 computed here, from a [`SpecIndex`][opm.spec_index.SpecIndex], and written into
-the tree as plain TEI. Contained-by, may-contain, members, used-by and the
-attribute tree go onto each spec, the A–Z lists into the catalog pages, the
-table of contents onto the home page, outline numbers into the headings, and
-link targets onto the ``gi``/``ident`` that name a spec. ``tagdocs.odd`` then
-renders each node from its own children, in document order. The guide's
-[ODD documentation](../guide/odd-documentation.md#the-prepared-tree) page shows
-what each addition looks like.
+the tree as plain TEI: contained-by, may-contain, members, used-by and the
+attribute tree onto each spec, the A–Z lists into the catalog pages, and a
+spec's notes, examples, processing models and content model into sections of
+their own.
+
+What a page can read off the document itself stays with ``tagdocs.odd``,
+which resolves it while rendering: a division's outline label, the table of
+contents, the chapter before and after, how many specs a catalog lists, the
+chapters a spec cites, and every link from a name to the spec it names.
 
 What depends on the language is left for the ODD to choose: every
 ``xml:lang`` variant of a note, an example or a description stays in the tree.
@@ -24,14 +26,12 @@ way.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable
 from copy import deepcopy
 from typing import Any
 
 from lxml import etree
 
-from opm.odd_schema import iter_guideline_chapters
 from opm.spec_index import (
     TEXT_IDENT,
     Spec,
@@ -44,9 +44,6 @@ from opm.spec_index import (
 )
 
 XML_ID = '{http://www.w3.org/XML/1998/namespace}id'
-
-_GUIDELINES_CHAPTER_RE = re.compile(r'^([A-Z]{2})')
-_TEI_P5_DOC = 'https://www.tei-c.org/release/doc/tei-p5-doc'
 
 #: The kinds that get a reference page of their own.
 _PAGE_KINDS = frozenset({'element', 'class', 'macro', 'datatype'})
@@ -61,9 +58,6 @@ CATALOGS = (
     ('REF-MACROS', 'macro', 'Macros and datatypes'),
     ('REF-ATTS', None, 'Attributes'),
 )
-
-#: The catalogs in the order the home page lists them.
-_HOME_ORDER = ('REF-ELEMENTS', 'REF-CLASSES-MODEL', 'REF-CLASSES-ATTS', 'REF-ATTS', 'REF-MACROS')
 
 _OF_KIND = {
     'elements': lambda s: s.kind == 'element',
@@ -237,28 +231,9 @@ def _att_tree(index: SpecIndex, spec: Spec) -> etree._Element:
     return wrap
 
 
-def _list_ref(index: SpecIndex, spec: Spec) -> etree._Element:
-    """The Guidelines sections *spec* cites: the section in this document when
-    it carries it (``ref/@type='local'``), else the one on tei-c.org."""
-    wrap = _tei('list', type='listRef')
-    for target in spec.list_refs:
-        code = target.lstrip('#')
-        if not code:
-            continue
-        if index.chapter_page(code) is not None:
-            attrs = {'type': 'local', 'target': f'#{code}'}
-        elif match := _GUIDELINES_CHAPTER_RE.match(code):
-            attrs = {'target': f'{_TEI_P5_DOC}/{index.lang}/html/{match.group(1)}.html#{code}'}
-        else:
-            continue
-        etree.SubElement(etree.SubElement(wrap, qn('item')), qn('ref'), attrs).text = code
-    return wrap
-
-
 #: Per page kind: the relation lists appended to the spec, in this order.
 _SPEC_LISTS = {
     'element': (
-        _list_ref,
         _att_tree,
         # Model classes only: the attribute classes are the attribute tree's,
         # as in the TEI Stylesheets (generateModelParents).
@@ -451,12 +426,6 @@ def _attribute_catalog(index: SpecIndex) -> etree._Element:
     return wrap
 
 
-def _count(index: SpecIndex, kind: str | None) -> int:
-    if kind is None:
-        return len(index.attributes())
-    return sum(1 for spec in index.all() if _OF_KIND[kind](spec))
-
-
 def _fill_catalogs(root: etree._Element, index: SpecIndex) -> None:
     kinds = {xml_id: kind for xml_id, kind, _ in CATALOGS}
     for div in root.iter(qn('div')):
@@ -466,256 +435,15 @@ def _fill_catalogs(root: etree._Element, index: SpecIndex) -> None:
             div.append(_spec_catalog(index, kind) if kind else _attribute_catalog(index))
 
 
-def _fill_home(root: etree._Element, index: SpecIndex, toc: etree._Element | None) -> None:
-    """The table of contents and the reference list, onto the home page."""
-    home = next((div for div in root.iter(qn('div')) if div.get(XML_ID) == 'index'), None)
-    if home is None:
-        return
-    if toc is not None:
-        home.append(toc)
-    catalogs = {xml_id: (kind, heading) for xml_id, kind, heading in CATALOGS}
-    reference = _tei('list', type='reference')
-    for xml_id in _HOME_ORDER:
-        kind, heading = catalogs[xml_id]
-        item = etree.SubElement(reference, qn('item'))
-        ref = etree.SubElement(item, qn('ref'), target=f'#{xml_id}')
-        ref.text = heading
-        ref.tail = ' '
-        etree.SubElement(item, qn('num')).text = str(_count(index, kind))
-    home.append(reference)
-
-
-# ── Outline numbers, contents, chapter navigation ─────────────────────────
-
-_ROMAN = (
-    (1000, 'm'), (900, 'cm'), (500, 'd'), (400, 'cd'), (100, 'c'), (90, 'xc'),
-    (50, 'l'), (40, 'xl'), (10, 'x'), (9, 'ix'), (5, 'v'), (4, 'iv'), (1, 'i'),
-)
-
-
-def _roman(n: int) -> str:
-    out: list[str] = []
-    for value, sign in _ROMAN:
-        while n >= value:
-            out.append(sign)
-            n -= value
-    return ''.join(out)
-
-
-def _letter(n: int) -> str:
-    """1 → A, 26 → Z, 27 → AA (appendix labels)."""
-    out = ''
-    while n > 0:
-        n, rem = divmod(n - 1, 26)
-        out = chr(ord('A') + rem) + out
-    return out
-
-
-def _is_numbered_div(node: etree._Element) -> bool:
-    """False for a div that only carries the title page: it stands in for
-    ``front/titlePage``, which TEI's numbering skips."""
-    return localname(node) == 'div' and not any(
-        localname(child) == 'titlePage' for child in node
-    )
-
-
-def heading_label(div: etree._Element) -> str:
-    """Guidelines-style outline label for a chapter ``div`` or one of its sections.
-
-    Body chapters run ``1``, ``1.2``, ``1.2.1``; front matter takes lowercase
-    roman numerals with a trailing dot (``iv.``, ``iv.1.``); back matter is
-    lettered (``Appendix A``, ``Appendix A.1``), each level counting the div's
-    position among its sibling divs. ``''`` outside ``front``/``body``/``back``.
-    """
-    if not _is_numbered_div(div):
-        return ''
-    chain: list[etree._Element] = [div]
-    while (parent := chain[-1].getparent()) is not None and localname(parent) == 'div':
-        chain.append(parent)
-    top_parent = chain[-1].getparent()
-    part = localname(top_parent) if top_parent is not None else ''
-    if part not in ('front', 'body', 'back'):
-        return ''
-    indices = [
-        1 + sum(1 for sib in el.itersiblings(preceding=True) if _is_numbered_div(sib))
-        for el in reversed(chain)
-    ]
-    if part == 'body':
-        head, suffix = str(indices[0]), ''
-    elif part == 'front':
-        head, suffix = _roman(indices[0]), '.'
-    else:
-        head, suffix = f'Appendix {_letter(indices[0])}', ''
-    return '.'.join([head, *(str(i) for i in indices[1:])]) + suffix
-
-
-def _label_seg(text: str, *, label: str | None = None) -> etree._Element:
-    seg = _tei('seg', type='headingNumber', n=label)
-    # The space is part of the text, as in the published Guidelines: it keeps
-    # "1.1 Modules" readable wherever the heading is read as plain text — the
-    # on-this-page rail, the search index, a copied line.
-    seg.text = f'{text} '
-    return seg
-
-
-def _add_heading_numbers(root: etree._Element) -> None:
-    """Open each numbered heading with its outline label.
-
-    A chapter's label opens its page on a line of its own, so a bare index is
-    spelled out ("Chapter 3", "Front matter iv"); an appendix ("Appendix F")
-    and a section ("1.2") are left as they are. ``@n`` keeps the bare label.
-    """
-    for div in list(root.iter(qn('div'))):
-        label = heading_label(div)
-        head = next((child for child in div if localname(child) == 'head'), None)
-        if not label or head is None:
-            continue
-        text = label
-        if label.isdigit():
-            text = f'Chapter {label}'
-        elif label.endswith('.') and label[:-1].isalpha():
-            text = f'Front matter {label[:-1]}'
-        mark = _label_seg(text, label=label)
-        mark.tail = head.text
-        head.text = None
-        head.insert(0, mark)
-
-
-def _heading_text(div: etree._Element) -> str:
-    """The text of *div*'s head, without its outline number."""
-    for child in div:
-        if localname(child) == 'head':
-            parts = [child.text or '']
-            for node in child:
-                if not (localname(node) == 'seg' and node.get('type') == 'headingNumber'):
-                    parts.extend(node.itertext())
-                parts.append(node.tail or '')
-            return ' '.join(part for part in parts if part).strip()
-    return ''
-
-
-def _toc_item(div: etree._Element, *, sections: bool) -> etree._Element:
-    """A contents entry: the bare outline label, as TEI's own contents have
-    it, a link, and with *sections* the headed sections one level down."""
-    xml_id = div.get(XML_ID) or ''
-    item = _tei('item')
-    label = heading_label(div)
-    if label:
-        item.append(_label_seg(label))
-    ref = etree.SubElement(item, qn('ref'), target=f'#{xml_id}')
-    ref.text = _heading_text(div) or xml_id
-    nested = [c for c in div if localname(c) == 'div' and _heading_text(c)] if sections else []
-    if nested:
-        inner = etree.SubElement(item, qn('list'), type='toc')
-        for child in nested:
-            inner.append(_toc_item(child, sections=False))
-    return item
-
-
-def _guidelines_toc(root: etree._Element) -> etree._Element | None:
-    """The chapters, as ``list[@type='toc']`` per front / body / back; ``None``
-    when there are none."""
-    groups: dict[str, list[etree._Element]] = {'front': [], 'body': [], 'back': []}
-    for div in iter_guideline_chapters(root):
-        parent = div.getparent()
-        part = localname(parent) if parent is not None else 'body'
-        groups[part if part in groups else 'body'].append(div)
-    wrap = _tei('div', type='guidelines-toc')
-    for part, chapters in groups.items():
-        if chapters:
-            inner = etree.SubElement(wrap, qn('list'), type='toc', n=part)
-            for div in chapters:
-                inner.append(_toc_item(div, sections=True))
-    return wrap if len(wrap) else None
-
-
-def _link_chapters(root: etree._Element) -> None:
-    """Open each chapter with ``list[@type='chapterNav']``: the previous and
-    next chapter, ``ref/@n`` their outline label."""
-    chapters = [
-        div for div in root.iter(qn('div'))
-        if (parent := div.getparent()) is not None
-        and localname(parent) in {'front', 'body', 'back'}
-    ]
-    for position, div in enumerate(chapters):
-        nav = _tei('list', type='chapterNav')
-        for n, other in (
-            ('prev', chapters[position - 1] if position > 0 else None),
-            ('next', chapters[position + 1] if position + 1 < len(chapters) else None),
-        ):
-            if other is None:
-                continue
-            item = etree.SubElement(nav, qn('item'), n=n)
-            ref = etree.SubElement(item, qn('ref'))
-            ref.set('target', f'#{other.get(XML_ID)}' if other.get(XML_ID) else '')
-            label = heading_label(other)
-            if label:
-                ref.set('n', label)
-            ref.text = ' '.join(_heading_text(other).split())
-        div.insert(0, nav)
-
-
-# ── Links ─────────────────────────────────────────────────────────────────
-
-
-def _pageless(el: etree._Element) -> bool:
-    """True inside markup the ODD serializes as code rather than renders."""
-    return _inside_egxml(el) or any(
-        localname(anc) in {'content', 'constraintSpec'} for anc in el.iterancestors()
-    )
-
-
-def _link_spec_names(root: etree._Element, index: SpecIndex) -> None:
-    """``@target="#ref-{ident}"`` on every ``gi``/``ident`` that names a spec
-    with a page, and on the ``dataRef`` of an attribute's datatype."""
-    def page(ident: str) -> str | None:
-        spec = index.get(ident)
-        return f'#ref-{spec.ident}' if spec is not None and spec.kind in _PAGE_KINDS else None
-
-    for el in root.iter(qn('gi'), qn('ident')):
-        if el.get('target') or _pageless(el):
-            continue
-        if localname(el) == 'ident' and el.get('type') not in {'class', 'macro', 'datatype', 'schema'}:
-            continue
-        href = page(' '.join(''.join(el.itertext()).split()))
-        if href:
-            el.set('target', href)
-    for att_def in root.iter(qn('attDef')):
-        for data_ref in att_def.iter(qn('dataRef')):
-            href = page(data_ref.get('key') or '')
-            if href and not data_ref.get('target'):
-                data_ref.set('target', href)
-
-
-def _describe_spec_refs(root: etree._Element, index: SpecIndex) -> None:
-    """Copy into each ``specDesc`` the gloss and description of the spec it
-    names; ``@rend`` is the spec's element name, a CSS class for the ODD."""
-    for spec_desc in root.iter(qn('specDesc')):
-        spec = index.get(spec_desc.get('key') or '')
-        if spec is None:
-            continue
-        spec_desc.set('rend', localname(spec.node))
-        for child in spec.node:
-            if localname(child) in {'gloss', 'desc'}:
-                copy = _without_ids(child)
-                copy.tail = None
-                spec_desc.append(copy)
-
-
 def expand_document_tree(root: etree._Element, index: SpecIndex) -> None:
     """Write everything tagdocs needs into *root*, so it renders without lookups.
 
     *index* must be built from *root* before this runs: the relations are read
     from it, never from what this adds. Each spec that has a page (the copy
     stamped ``xml:id="ref-{ident}"``) gets its relation lists and its sections;
-    the catalog pages get their A–Z lists and the home page its table of
-    contents and reference list; each chapter learns the previous and next
-    one; numbered headings get their label; and every
-    ``gi``/``ident`` naming a spec points at it.
+    the catalog pages get their A–Z lists; and every ``gi``/``ident`` naming a
+    spec points at it.
     """
-    # The contents read the headings as the document has them, before anything
-    # below adds to the chapters.
-    toc = _guidelines_toc(root)
     for spec in index.all():
         if spec.kind not in _PAGE_KINDS or spec.node.get(XML_ID) != f'ref-{spec.ident}':
             continue
@@ -724,11 +452,6 @@ def expand_document_tree(root: etree._Element, index: SpecIndex) -> None:
             spec.node.append(build(index, spec))
         _wrap_sections(spec)
     _fill_catalogs(root, index)
-    _fill_home(root, index, toc)
-    _link_chapters(root)
-    _add_heading_numbers(root)
-    _describe_spec_refs(root, index)
-    _link_spec_names(root, index)
 
 
 __all__ = ['CATALOGS', 'expand_document_tree']

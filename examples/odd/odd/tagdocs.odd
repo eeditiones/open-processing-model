@@ -57,9 +57,6 @@
                         </model>
                         <model behaviour="body"/>
                     </modelSequence>
-                    <model predicate="$parameters?mode='toc'" behaviour="list" cssClass="toc">
-                        <param name="content" value="(front|body|back)/div"/>
-                    </model>
                     <model behaviour="body"/>
                 </elementSpec>
                 <elementSpec ident="div" mode="change">
@@ -128,28 +125,29 @@
                         <param name="content" value="*[not(self::list[@type='chapterNav'] or self::elementSpec or self::classSpec or self::macroSpec or self::dataSpec)]"/>
                     </model>
                     <!-- Compact previous/next pair for the right-hand rail, under the
-                         on-this-page list, from the chapterNav list prepare adds.
-                         Emitted as the per-chunk `chapternav` fragment, so the
-                         chapter body itself is not re-rendered here. -->
+                         on-this-page list: the divisions of the text before and after
+                         this one, in document order. Emitted as the per-chunk
+                         `chapternav` fragment, so the chapter body itself is not
+                         re-rendered here. -->
                     <model predicate="$parameters?mode='chapnav' and (parent::front or parent::body or parent::back)" behaviour="pass-through">
-                        <param name="prevHref" value="string(list[@type='chapterNav']/item[@n='prev']/ref/@target)"/>
-                        <param name="prevTitle" value="string(list[@type='chapterNav']/item[@n='prev']/ref)"/>
-                        <param name="prevNum" value="string(list[@type='chapterNav']/item[@n='prev']/ref/@n)"/>
-                        <param name="nextHref" value="string(list[@type='chapterNav']/item[@n='next']/ref/@target)"/>
-                        <param name="nextTitle" value="string(list[@type='chapterNav']/item[@n='next']/ref)"/>
-                        <param name="nextNum" value="string(list[@type='chapterNav']/item[@n='next']/ref/@n)"/>
+                        <param name="prevHref" value="let $d := (let $s := preceding-sibling::div[1] return if ($s) then $s else parent::*/preceding-sibling::*[self::front or self::body][div][1]/div[last()]) return if ($d) then concat($d/@xml:id, '.html') else ''"/>
+                        <param name="prevTitle" value="normalize-space(((let $s := preceding-sibling::div[1] return if ($s) then $s else parent::*/preceding-sibling::*[self::front or self::body][div][1]/div[last()]))/head)"/>
+                        <param name="prevNum" value="let $t := (let $s := preceding-sibling::div[1] return if ($s) then $s else parent::*/preceding-sibling::*[self::front or self::body][div][1]/div[last()]) return if ($t) then (let $d := $t, $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) else ''"/>
+                        <param name="nextHref" value="let $d := (let $s := following-sibling::div[1] return if ($s) then $s else parent::*/following-sibling::*[self::body or self::back][div][1]/div[1]) return if ($d) then concat($d/@xml:id, '.html') else ''"/>
+                        <param name="nextTitle" value="normalize-space(((let $s := following-sibling::div[1] return if ($s) then $s else parent::*/following-sibling::*[self::body or self::back][div][1]/div[1]))/head)"/>
+                        <param name="nextNum" value="let $t := (let $s := following-sibling::div[1] return if ($s) then $s else parent::*/following-sibling::*[self::body or self::back][div][1]/div[1]) return if ($t) then (let $d := $t, $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) else ''"/>
                         <pb:template xmlns=""><nav class="chapter-nav chapter-nav--rail" aria-label="Chapter"><a class="chapter-nav__prev" href="[[prevHref]]" rel="prev"><span class="chapter-nav__label">Previous</span><span class="chapter-nav__title"><span class="chapter-nav__num">[[prevNum]]</span>[[prevTitle]]</span></a><a class="chapter-nav__next" href="[[nextHref]]" rel="next"><span class="chapter-nav__label">Next</span><span class="chapter-nav__title"><span class="chapter-nav__num">[[nextNum]]</span>[[nextTitle]]</span></a></nav></pb:template>
                     </model>
                     <!-- Full-width previous/next cards closing the chapter. Kept out of the
                          chunk body so the runtime appends footnotes to the article, above
                          these links, rather than into the card grid. -->
                     <model predicate="$parameters?mode='chapnav-end' and (parent::front or parent::body or parent::back)" behaviour="pass-through">
-                        <param name="prevHref" value="string(list[@type='chapterNav']/item[@n='prev']/ref/@target)"/>
-                        <param name="prevTitle" value="string(list[@type='chapterNav']/item[@n='prev']/ref)"/>
-                        <param name="prevNum" value="string(list[@type='chapterNav']/item[@n='prev']/ref/@n)"/>
-                        <param name="nextHref" value="string(list[@type='chapterNav']/item[@n='next']/ref/@target)"/>
-                        <param name="nextTitle" value="string(list[@type='chapterNav']/item[@n='next']/ref)"/>
-                        <param name="nextNum" value="string(list[@type='chapterNav']/item[@n='next']/ref/@n)"/>
+                        <param name="prevHref" value="let $d := (let $s := preceding-sibling::div[1] return if ($s) then $s else parent::*/preceding-sibling::*[self::front or self::body][div][1]/div[last()]) return if ($d) then concat($d/@xml:id, '.html') else ''"/>
+                        <param name="prevTitle" value="normalize-space(((let $s := preceding-sibling::div[1] return if ($s) then $s else parent::*/preceding-sibling::*[self::front or self::body][div][1]/div[last()]))/head)"/>
+                        <param name="prevNum" value="let $t := (let $s := preceding-sibling::div[1] return if ($s) then $s else parent::*/preceding-sibling::*[self::front or self::body][div][1]/div[last()]) return if ($t) then (let $d := $t, $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) else ''"/>
+                        <param name="nextHref" value="let $d := (let $s := following-sibling::div[1] return if ($s) then $s else parent::*/following-sibling::*[self::body or self::back][div][1]/div[1]) return if ($d) then concat($d/@xml:id, '.html') else ''"/>
+                        <param name="nextTitle" value="normalize-space(((let $s := following-sibling::div[1] return if ($s) then $s else parent::*/following-sibling::*[self::body or self::back][div][1]/div[1]))/head)"/>
+                        <param name="nextNum" value="let $t := (let $s := following-sibling::div[1] return if ($s) then $s else parent::*/following-sibling::*[self::body or self::back][div][1]/div[1]) return if ($t) then (let $d := $t, $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) else ''"/>
                         <pb:template xmlns=""><nav class="chapter-nav" aria-label="Chapter navigation"><a class="chapter-nav__prev" href="[[prevHref]]" rel="prev"><span class="chapter-nav__label">Previous chapter</span><span class="chapter-nav__title"><span class="chapter-nav__num">[[prevNum]]</span>[[prevTitle]]</span></a><a class="chapter-nav__next" href="[[nextHref]]" rel="next"><span class="chapter-nav__label">Next chapter</span><span class="chapter-nav__title"><span class="chapter-nav__num">[[nextNum]]</span>[[nextTitle]]</span></a></nav></pb:template>
                     </model>
                     <model predicate="parent::text" behaviour="pass-through">
@@ -161,26 +159,45 @@
                              only exist in TEI's own build. -->
                         <param name="edition" value="normalize-space(root($parameters?root)/*/teiHeader/fileDesc/editionStmt/edition)"/>
                         <param name="lead" value="if (empty((titlePage, p, opener, epigraph))) then 'Reference documentation generated from the ODD.' else ''"/>
-                        <param name="toc" value="div[@type='guidelines-toc']"/>
-                        <param name="reference" value="list[@type='reference']"/>
-                        <pb:template xmlns=""><section class="home"><h1>[[title]]</h1>[[blurb]]<p class="home-edition">[[edition]]</p><p class="lead">[[lead]]</p>[[toc]]<h2>Reference</h2>[[reference]]</section></pb:template>
+                        <param name="toc" value="root($parameters?root)/*/text/(front|body|back)"/>
+                        <!-- One line per catalog, and how many entries it lists.
+                             Counted off the catalog page itself, which the A–Z lists
+                             are already on. -->
+                        <param name="nElements" value="count(id('REF-ELEMENTS')//item[@ident])"/>
+                        <param name="nModel" value="count(id('REF-CLASSES-MODEL')//item[@ident])"/>
+                        <param name="nAtts" value="count(id('REF-CLASSES-ATTS')//item[@ident])"/>
+                        <param name="nMacros" value="count(id('REF-MACROS')//item[@ident])"/>
+                        <param name="nAttributes" value="count(id('REF-ATTS')//item[@ident])"/>
+                        <pb:template xmlns=""><section class="home"><h1>[[title]]</h1>[[blurb]]<p class="home-edition">[[edition]]</p><p class="lead">[[lead]]</p>[[toc]]<h2>Reference</h2><ul class="toc"><li><a href="#REF-ELEMENTS">Elements</a> <span class="muted">[[nElements]]</span></li><li><a href="#REF-CLASSES-MODEL">Model classes</a> <span class="muted">[[nModel]]</span></li><li><a href="#REF-CLASSES-ATTS">Attribute classes</a> <span class="muted">[[nAtts]]</span></li><li><a href="#REF-ATTS">Attributes</a> <span class="muted">[[nAttributes]]</span></li><li><a href="#REF-MACROS">Macros and datatypes</a> <span class="muted">[[nMacros]]</span></li></ul></section></pb:template>
+                    </model>
+                    <!-- The home page renders in toc mode (see opm.toml): each
+                         division of the text becomes an entry carrying its label and a
+                         link to its page. A chapter also lists its own headed sections;
+                         deeper divisions are left to the page itself. -->
+                    <model predicate="$parameters?mode='toc' and div[head] and (parent::front or parent::body or parent::back)" behaviour="listItem">
+                        <param name="uri" value="concat(ancestor-or-self::div[parent::body or parent::front or parent::back][1]/@xml:id, '.html', if (parent::body or parent::front or parent::back) then '' else concat('#', @xml:id))"/>
+                        <param name="label" value="let $l := (let $d := ., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if ($l) then concat($l, ' ') else ''"/>
+                        <param name="head" value="head"/>
+                        <param name="content" value="div[head]"/>
+                        <pb:template xmlns=""><span class="heading-number">[[label]]</span><a href="[[uri]]">[[head]]</a><ul class="toc">[[content]]</ul></pb:template>
+                    </model>
+                    <model predicate="$parameters?mode='toc'" behaviour="listItem">
+                        <param name="uri" value="concat(ancestor-or-self::div[parent::body or parent::front or parent::back][1]/@xml:id, '.html', if (parent::body or parent::front or parent::back) then '' else concat('#', @xml:id))"/>
+                        <param name="label" value="let $l := (let $d := ., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if ($l) then concat($l, ' ') else ''"/>
+                        <param name="head" value="head"/>
+                        <pb:template xmlns=""><span class="heading-number">[[label]]</span><a href="[[uri]]">[[head]]</a></pb:template>
                     </model>
                     <model predicate="@xml:id = ('REF-ELEMENTS', 'REF-CLASSES-MODEL', 'REF-CLASSES-ATTS', 'REF-MACROS')" behaviour="pass-through">
+                        <param name="label" value="let $s := (let $l := (let $d := ., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
                         <param name="heading" value="head/node()"/>
                         <param name="catalog" value="list[@type='catalog']"/>
-                        <pb:template xmlns=""><section class="catalog"><h1>[[heading]]</h1>[[catalog]]</section></pb:template>
+                        <pb:template xmlns=""><section class="catalog"><h1><span class="heading-number">[[label]]</span>[[heading]]</h1>[[catalog]]</section></pb:template>
                     </model>
                     <model predicate="@xml:id = 'REF-ATTS'" behaviour="pass-through">
+                        <param name="label" value="let $s := (let $l := (let $d := ., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
                         <param name="heading" value="head/node()"/>
                         <param name="catalog" value="list[@type='attCatalog']"/>
-                        <pb:template xmlns=""><section class="catalog"><h1>[[heading]]</h1>[[catalog]]</section></pb:template>
-                    </model>
-                    <model predicate="@type='guidelines-toc' and count(list)=1" behaviour="pass-through">
-                        <param name="content" value="list"/>
-                        <pb:template xmlns=""><h2>Guidelines</h2>[[content]]</pb:template>
-                    </model>
-                    <model predicate="@type='guidelines-toc'" behaviour="pass-through">
-                        <param name="content" value="list"/>
+                        <pb:template xmlns=""><section class="catalog"><h1><span class="heading-number">[[label]]</span>[[heading]]</h1>[[catalog]]</section></pb:template>
                     </model>
                     <model predicate="@type='spec-section' and @n='ref-models'" behaviour="pass-through">
                         <param name="heading" value="normalize-space(head)"/>
@@ -208,17 +225,6 @@
                         <param name="content" value="*[not(self::head)]"/>
                         <pb:template xmlns=""><section class="spec-section" id="[[anchor]]"><h2>[[heading]]</h2>[[content]]</section></pb:template>
                     </model>
-                    <model predicate="$parameters?mode='toc' and div[head]" behaviour="listItem">
-                        <param name="uri" value="concat(ancestor-or-self::div[parent::body or parent::front or parent::back][1]/@xml:id, '.html', if (parent::body or parent::front or parent::back) then '' else concat('#', @xml:id))"/>
-                        <param name="head" value="head"/>
-                        <param name="content" value="div[head]"/>
-                        <pb:template xmlns=""><a href="[[uri]]">[[head]]</a><ul class="toc">[[content]]</ul></pb:template>
-                    </model>
-                    <model predicate="$parameters?mode='toc'" behaviour="listItem">
-                        <param name="uri" value="concat(ancestor-or-self::div[parent::body or parent::front or parent::back][1]/@xml:id, '.html', if (parent::body or parent::front or parent::back) then '' else concat('#', @xml:id))"/>
-                        <param name="head" value="head"/>
-                        <pb:template xmlns=""><a href="[[uri]]">[[head]]</a></pb:template>
-                    </model>
                     <model predicate="(parent::front or parent::body or parent::back)" behaviour="pass-through">
                         <param name="content" value="if (titlePage) then *[not(self::head or self::list[@type='chapterNav'])] else *[not(self::list[@type='chapterNav'])]"/>
                         <pb:template xmlns=""><article class="doc-chapter">[[content]]</article></pb:template>
@@ -226,33 +232,103 @@
                     <model predicate="parent::body or parent::front or parent::back" behaviour="section"/>
                     <model behaviour="block"/>
                 </elementSpec>
+                <!-- The parts of the text, each a group of the home page's contents.
+                     Their other models are teipublisher.odd's, which declaring these
+                     replaces. -->
+                <elementSpec ident="front" mode="change">
+                    <model predicate="$parameters?mode='toc' and div" behaviour="pass-through">
+                        <param name="heading" value="if (count(root($parameters?root)/*/text/(front|body|back)[div]) &gt; 1) then 'Front Matter' else 'Guidelines'"/>
+                        <param name="content" value="div"/>
+                        <pb:template xmlns=""><h2>[[heading]]</h2><ul class="toc">[[content]]</ul></pb:template>
+                    </model>
+                    <model predicate="$parameters?mode='toc'" behaviour="omit"/>
+                    <model behaviour="block"/>
+                </elementSpec>
+                <elementSpec ident="body" mode="change">
+                    <model predicate="$parameters?mode='toc' and div" behaviour="pass-through">
+                        <param name="heading" value="if (count(root($parameters?root)/*/text/(front|body|back)[div]) &gt; 1) then 'Text Body' else 'Guidelines'"/>
+                        <param name="content" value="div"/>
+                        <pb:template xmlns=""><h2>[[heading]]</h2><ul class="toc">[[content]]</ul></pb:template>
+                    </model>
+                    <model predicate="$parameters?mode='toc'" behaviour="omit"/>
+                    <modelSequence>
+                        <model behaviour="index">
+                            <param name="type" value="'toc'"/>
+                        </model>
+                        <model behaviour="block"/>
+                    </modelSequence>
+                </elementSpec>
+                <elementSpec ident="back" mode="change">
+                    <model predicate="$parameters?mode='toc' and div" behaviour="pass-through">
+                        <param name="heading" value="if (count(root($parameters?root)/*/text/(front|body|back)[div]) &gt; 1) then 'Back Matter' else 'Guidelines'"/>
+                        <param name="content" value="div"/>
+                        <pb:template xmlns=""><h2>[[heading]]</h2><ul class="toc">[[content]]</ul></pb:template>
+                    </model>
+                    <model predicate="$parameters?mode='toc'" behaviour="omit"/>
+                    <model behaviour="block"/>
+                </elementSpec>
                 <elementSpec ident="head" mode="change">
+                    <desc>A division's heading opens with its outline label, as in the
+                        published Guidelines: "1.2.1" for a section, "Chapter 3" /
+                        "Front matter iv" / "Appendix F" for a chapter. The label is the
+                        div's position among its siblings at each level (the title page
+                        is no division and does not count), formatted by the part it sits
+                        in: decimal in the body, roman in the front matter, lettered in
+                        the back. The web wraps it in a span of its own, which the
+                        stylesheet sets apart from the heading's own voice.</desc>
+                    <!-- A contents entry is a link: the heading goes in as text, or
+                         markup inside it (a gi naming an element) would nest a link
+                         inside that link. -->
                     <model predicate="$parameters?mode=('toc', 'nav')" behaviour="inline">
-                        <param name="content" value="node()[not(self::seg[@type='headingNumber'])]"/>
+                        <param name="content" value="normalize-space(.)"/>
                     </model>
                     <model predicate="parent::figure" behaviour="block" cssClass="figure-head"/>
                     <model predicate="parent::table" behaviour="block" cssClass="table-head"/>
                     <model predicate="parent::lg" behaviour="block" cssClass="lg-head"/>
                     <model predicate="parent::list" behaviour="block" cssClass="list-head"/>
-                    <model predicate="parent::div" behaviour="heading">
+                    <model output="plain" predicate="parent::div" behaviour="heading">
                         <param name="level" value="count(ancestor::div)"/>
-                        <!-- Opens with the outline label ("1.2.1", "iv.1.", "Appendix
-                             A.1") prepare put there, as in the published Guidelines. -->
+                        <param name="content" value="(let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else (), node())"/>
+                    </model>
+                    <model predicate="parent::div and count(ancestor::div) = 1" behaviour="pass-through">
+                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
                         <param name="content" value="node()"/>
+                        <pb:template xmlns=""><h1 class="tei-head"><span class="heading-number">[[label]]</span>[[content]]</h1></pb:template>
+                    </model>
+                    <model predicate="parent::div and count(ancestor::div) = 2" behaviour="pass-through">
+                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
+                        <param name="content" value="node()"/>
+                        <pb:template xmlns=""><h2 class="tei-head"><span class="heading-number">[[label]]</span>[[content]]</h2></pb:template>
+                    </model>
+                    <model predicate="parent::div and count(ancestor::div) = 3" behaviour="pass-through">
+                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
+                        <param name="content" value="node()"/>
+                        <pb:template xmlns=""><h3 class="tei-head"><span class="heading-number">[[label]]</span>[[content]]</h3></pb:template>
+                    </model>
+                    <model predicate="parent::div and count(ancestor::div) = 4" behaviour="pass-through">
+                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
+                        <param name="content" value="node()"/>
+                        <pb:template xmlns=""><h4 class="tei-head"><span class="heading-number">[[label]]</span>[[content]]</h4></pb:template>
+                    </model>
+                    <model predicate="parent::div and count(ancestor::div) = 5" behaviour="pass-through">
+                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
+                        <param name="content" value="node()"/>
+                        <pb:template xmlns=""><h5 class="tei-head"><span class="heading-number">[[label]]</span>[[content]]</h5></pb:template>
+                    </model>
+                    <model predicate="parent::div" behaviour="pass-through">
+                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
+                        <param name="content" value="node()"/>
+                        <pb:template xmlns=""><h6 class="tei-head"><span class="heading-number">[[label]]</span>[[content]]</h6></pb:template>
                     </model>
                     <model behaviour="block"/>
                 </elementSpec>
                 <elementSpec ident="list" mode="change">
-                    <model output="plain" predicate="@type=('siteNav', 'chapterNav', 'reference')" behaviour="omit"/>
+                    <model output="plain" predicate="@type=('siteNav', 'chapterNav')" behaviour="omit"/>
                     <model output="plain" predicate="@type='attTree'" behaviour="list"/>
-                    <model output="plain" predicate="@type='listRef'" behaviour="pass-through">
-                        <param name="content" value="if (item) then (' · see ', item) else ()"/>
-                    </model>
                     <model output="plain" predicate="@type='atts'" behaviour="pass-through">
                         <param name="content" value="(': ', item)"/>
                     </model>
                     <model predicate="$parameters?mode='nav'" behaviour="list"/>
-                    <model predicate="$parameters?mode='toc'" behaviour="omit"/>
                     <model predicate="@type=('containedBy','mayContain')" behaviour="pass-through" cssClass="module-groups">
                         <param name="content" value="item|seg"/>
                     </model>
@@ -291,18 +367,6 @@
                     </model>
                     <model predicate="@type=('attCatalog','attCatalogItems')" behaviour="pass-through">
                         <param name="content" value="item"/>
-                    </model>
-                    <model predicate="@type='listRef'" behaviour="pass-through">
-                        <param name="content" value="item"/>
-                    </model>
-                    <model predicate="@type='reference'" behaviour="pass-through">
-                        <param name="content" value="item"/>
-                        <pb:template xmlns=""><ul class="toc">[[content]]</ul></pb:template>
-                    </model>
-                    <model predicate="parent::div[@type='guidelines-toc'] and @n and count(../list) &gt; 1" behaviour="pass-through">
-                        <param name="heading" value="if (@n='front') then 'Front Matter' else if (@n='back') then 'Back Matter' else 'Text Body'"/>
-                        <param name="content" value="item"/>
-                        <pb:template xmlns=""><h2>[[heading]]</h2><ul class="toc">[[content]]</ul></pb:template>
                     </model>
                     <!-- A gloss list pairs label+item into dt/dd inside the listItem
                          behaviour, which reads the label straight off the source. Letting
@@ -364,7 +428,7 @@
                     <model behaviour="block"/>
                 </elementSpec>
                 <elementSpec ident="p" mode="change">
-                    <model predicate="$parameters?mode=('toc', 'nav')" behaviour="omit"/>
+                    <model predicate="$parameters?mode='nav'" behaviour="omit"/>
                     <model behaviour="paragraph" useSourceRendition="true"/>
                 </elementSpec>
                 <elementSpec ident="exemplum" mode="add">
@@ -393,39 +457,49 @@
                 <elementSpec ident="schemaSpec" mode="add">
                     <desc>Do not dump the schema into a chapter; point at the catalogs.</desc>
                     <model output="plain" behaviour="omit"/>
-                    <model predicate="$parameters?mode='toc'" behaviour="omit"/>
                     <model behaviour="pass-through">
                         <pb:template xmlns=""><p class="lead">Full reference entries for this schema are listed under <a href="REF-ELEMENTS.html">Elements</a>, <a href="REF-CLASSES-MODEL.html">Model classes</a>, <a href="REF-CLASSES-ATTS.html">Attribute classes</a>, and <a href="REF-MACROS.html">Macros</a>.</p></pb:template>
                     </model>
                 </elementSpec>
 
                 <elementSpec ident="gi" mode="add">
-                    <model output="plain" predicate="@target" behaviour="link">
-                        <param name="uri" value="@target"/>
+                    <desc>An element named in prose. It links to the element's page
+                        when the schema has one — the copy stamped ``ref-{ident}``.
+                        The angle brackets the web adds in CSS (a.tei-gi::before /
+                        ::after) are written out for the text formats; Markdown keeps
+                        them in backticks, where `&lt;p&gt;` would be HTML.</desc>
+                    <model output="typst" predicate="id(concat('ref-', normalize-space(.)))[self::elementSpec or self::classSpec or self::macroSpec or self::dataSpec]" behaviour="link">
+                        <param name="uri" value="concat('#ref-', normalize-space(.))"/>
+                        <param name="content" value="concat('&lt;', ., '&gt;')"/>
                     </model>
-                    <!-- @target is "#ref-{ident}"; on the web that spec is its own page. -->
-                    <model predicate="@target" behaviour="link">
-                        <param name="uri" value="concat(substring-after(@target, '#'), '.html')"/>
+                    <model output="markdown" predicate="id(concat('ref-', normalize-space(.)))[self::elementSpec or self::classSpec or self::macroSpec or self::dataSpec]" behaviour="link">
+                        <param name="uri" value="concat('#ref-', normalize-space(.))"/>
+                        <param name="content" value="concat('`&lt;', ., '&gt;`')"/>
+                    </model>
+                    <model predicate="id(concat('ref-', normalize-space(.)))[self::elementSpec or self::classSpec or self::macroSpec or self::dataSpec]" behaviour="link">
+                        <param name="uri" value="concat('ref-', normalize-space(.), '.html')"/>
                     </model>
                     <model behaviour="inline"/>
                 </elementSpec>
                 <elementSpec ident="ident" mode="add">
-                    <model output="plain" predicate="@target" behaviour="link">
-                        <param name="uri" value="@target"/>
+                    <desc>A class, macro, datatype or schema named in prose; linked
+                        like a gi when that spec has a page of its own.</desc>
+                    <model output="plain" predicate="@type = ('class', 'macro', 'datatype', 'schema') and id(concat('ref-', normalize-space(.)))[self::elementSpec or self::classSpec or self::macroSpec or self::dataSpec]" behaviour="link">
+                        <param name="uri" value="concat('#ref-', normalize-space(.))"/>
                     </model>
-                    <model predicate="@target" behaviour="link">
-                        <param name="uri" value="concat(substring-after(@target, '#'), '.html')"/>
+                    <model predicate="@type = ('class', 'macro', 'datatype', 'schema') and id(concat('ref-', normalize-space(.)))[self::elementSpec or self::classSpec or self::macroSpec or self::dataSpec]" behaviour="link">
+                        <param name="uri" value="concat('ref-', normalize-space(.), '.html')"/>
                     </model>
                     <model behaviour="inline"/>
                 </elementSpec>
                 <elementSpec ident="dataRef" mode="add">
                     <desc>An attribute's datatype, linked when it has a page.</desc>
-                    <model output="plain" predicate="@target" behaviour="link">
-                        <param name="uri" value="@target"/>
+                    <model output="plain" predicate="parent::datatype and id(concat('ref-', @key))[self::dataSpec or self::macroSpec]" behaviour="link">
+                        <param name="uri" value="concat('#ref-', @key)"/>
                         <param name="content" value="string(@key)"/>
                     </model>
-                    <model predicate="@target" behaviour="link">
-                        <param name="uri" value="concat(substring-after(@target, '#'), '.html')"/>
+                    <model predicate="parent::datatype and id(concat('ref-', @key))[self::dataSpec or self::macroSpec]" behaviour="link">
+                        <param name="uri" value="concat('ref-', @key, '.html')"/>
                         <param name="content" value="string(@key)"/>
                     </model>
                     <model behaviour="inline">
@@ -440,7 +514,42 @@
                 <elementSpec ident="val" mode="add">
                     <model behaviour="inline"/>
                 </elementSpec>
+                <elementSpec ident="listRef" mode="add">
+                    <desc>The Guidelines sections a spec cites. A section this document
+                        carries is a link into it; one it does not is a link to the
+                        published Guidelines on tei-c.org, whose chapter is the first
+                        two letters of the id. A pointer to neither is dropped.</desc>
+                    <model output="plain" behaviour="pass-through">
+                        <param name="content" value="(' · see ', ptr)"/>
+                    </model>
+                    <model behaviour="pass-through">
+                        <param name="content" value="ptr"/>
+                    </model>
+                </elementSpec>
                 <elementSpec ident="ptr" mode="change">
+                    <!-- A cited chapter, drawn as a chip. -->
+                    <modelSequence output="plain" predicate="parent::listRef and (exists(id(substring-after(@target, '#'))) or matches(substring-after(@target, '#'), '^[A-Z][A-Z]'))">
+                        <model behaviour="link">
+                            <param name="uri" value="if (exists(id(substring-after(@target, '#')))) then @target else concat('https://www.tei-c.org/release/doc/tei-p5-doc/', $parameters?lng, '/html/', substring(substring-after(@target, '#'), 1, 2), '.html#', substring-after(@target, '#'))"/>
+                            <param name="content" value="substring-after(@target, '#')"/>
+                        </model>
+                        <!-- The separator belongs between the chapters, not inside a link. -->
+                        <model behaviour="inline">
+                            <param name="content" value="if (following-sibling::ptr) then ', ' else ()"/>
+                        </model>
+                    </modelSequence>
+                    <model output="plain" predicate="parent::listRef" behaviour="omit"/>
+                    <model predicate="parent::listRef and exists(id(substring-after(@target, '#')))" behaviour="pass-through">
+                        <param name="label" value="substring-after(@target, '#')"/>
+                        <param name="uri" value="@target"/>
+                        <pb:template xmlns=""><a class="spec__chip" href="[[uri]]">[[label]]</a></pb:template>
+                    </model>
+                    <model predicate="parent::listRef and matches(substring-after(@target, '#'), '^[A-Z][A-Z]')" behaviour="pass-through">
+                        <param name="label" value="substring-after(@target, '#')"/>
+                        <param name="uri" value="concat('https://www.tei-c.org/release/doc/tei-p5-doc/', $parameters?lng, '/html/', substring(substring-after(@target, '#'), 1, 2), '.html#', substring-after(@target, '#'))"/>
+                        <pb:template xmlns=""><a class="spec__chip" href="[[uri]]" rel="external">[[label]]</a></pb:template>
+                    </model>
+                    <model predicate="parent::listRef" behaviour="omit"/>
                     <desc>Resolve @target against the Guidelines tree: chapter file,
                         fragment id, and heading text for empty pointers.</desc>
                     <model output="plain" predicate="@target" behaviour="link">
@@ -453,17 +562,20 @@
                     </model>
                 </elementSpec>
                 <elementSpec ident="specDesc" mode="add">
-                    <desc>The spec's gloss and desc, which prepare copied in, like
-                        the TEI Stylesheets' show mode.</desc>
+                    <desc>A spec named in prose, shown with its gloss and description,
+                        as the TEI Stylesheets' show mode has it. Both are read off the
+                        spec's own page copy (``ref-{ident}``).</desc>
                     <model output="plain" predicate="@key" behaviour="listItem">
-                        <param name="content" value="(string(@key), ' ', let $g := normalize-space((gloss[@xml:lang=$parameters?lng], gloss[not(@xml:lang)], gloss)[1]) return if ($g) then concat('(', $g, ') ') else '', (desc[@xml:lang=$parameters?lng], desc[not(@xml:lang)], desc)[1])"/>
+                        <!-- The description's children, not the element: a node taken
+                             from elsewhere in the document brings its tail with it. -->
+                        <param name="content" value="(string(@key), ' ', let $s := id(concat('ref-', @key)), $g := normalize-space(($s/gloss[@xml:lang=$parameters?lng], $s/gloss[not(@xml:lang)], $s/gloss)[1]) return if ($g) then concat('(', $g, ') ') else '', let $s := id(concat('ref-', @key)) return ($s/desc[@xml:lang=$parameters?lng], $s/desc[not(@xml:lang)], $s/desc)[1]/node())"/>
                     </model>
                     <model predicate="@key" behaviour="pass-through">
                         <param name="uri" value="concat('ref-', @key, '.html')"/>
                         <param name="ident" value="@key"/>
-                        <param name="rend" value="(@rend, 'elementSpec')[1]"/>
-                        <param name="gloss" value="let $g := normalize-space((gloss[@xml:lang=$parameters?lng], gloss[not(@xml:lang)], gloss)[1]) return if ($g) then concat('(', $g, ') ') else ''"/>
-                        <param name="desc" value="(desc[@xml:lang=$parameters?lng], desc[not(@xml:lang)], desc)[1]"/>
+                        <param name="rend" value="(@rend, local-name(id(concat('ref-', @key))), 'elementSpec')[1]"/>
+                        <param name="gloss" value="let $s := id(concat('ref-', @key)), $g := normalize-space(($s/gloss[@xml:lang=$parameters?lng], $s/gloss[not(@xml:lang)], $s/gloss)[1]) return if ($g) then concat('(', $g, ') ') else ''"/>
+                        <param name="desc" value="let $s := id(concat('ref-', @key)) return ($s/desc[@xml:lang=$parameters?lng], $s/desc[not(@xml:lang)], $s/desc)[1]"/>
                         <pb:template xmlns=""><li class="specDesc"><span class="specList-[[rend]]"><a href="[[uri]]">[[ident]]</a></span> [[gloss]][[desc]]</li></pb:template>
                     </model>
                 </elementSpec>
@@ -482,7 +594,6 @@
                     </model>
                 </elementSpec>
                 <elementSpec ident="specList" mode="add">
-                    <model predicate="$parameters?mode='toc'" behaviour="omit"/>
                     <model behaviour="list"/>
                 </elementSpec>
                 <elementSpec ident="specGrp" mode="add">
@@ -490,6 +601,23 @@
                 </elementSpec>
                 <elementSpec ident="divGen" mode="add">
                     <model behaviour="omit"/>
+                </elementSpec>
+                <elementSpec ident="q" mode="change">
+                    <!-- A spec's own description is a sentence, not prose with
+                         paragraphs, so a quotation in it stays inline; the rest is
+                         teipublisher.odd's, which declaring these replaces. -->
+                    <model predicate="ancestor::desc or ancestor::gloss" behaviour="inline" cssClass="inline-quote" useSourceRendition="true"/>
+                    <model predicate="l" behaviour="block" cssClass="block-quote" useSourceRendition="true"/>
+                    <model predicate="ancestor::p or ancestor::cell or ancestor::cit" behaviour="inline" cssClass="inline-quote" useSourceRendition="true"/>
+                    <model behaviour="block" cssClass="block-quote" useSourceRendition="true"/>
+                </elementSpec>
+                <elementSpec ident="quote" mode="change">
+                    <!-- A spec's own description is a sentence, not prose with
+                         paragraphs, so a quotation in it stays inline; the rest is
+                         teipublisher.odd's, which declaring these replaces. -->
+                    <model predicate="ancestor::desc or ancestor::gloss" behaviour="inline" cssClass="inline-quote" useSourceRendition="true"/>
+                    <model predicate="ancestor::p or ancestor::cell or ancestor::cit" behaviour="inline" cssClass="inline-quote" useSourceRendition="true"/>
+                    <model behaviour="block" cssClass="block-quote" useSourceRendition="true"/>
                 </elementSpec>
                 <elementSpec ident="gloss" mode="add">
                     <model behaviour="inline"/>
@@ -643,10 +771,6 @@
                         <param name="uri" value="concat('ref-', parent::list/parent::item/ident, '.html#', @n)"/>
                         <pb:template xmlns=""><a href="[[uri]]">[[name]]</a></pb:template>
                     </model>
-                    <!-- The chip itself is the ref's to draw: see ref below. -->
-                    <model predicate="parent::list[@type='listRef']" behaviour="pass-through">
-                        <param name="content" value="ref"/>
-                    </model>
                     <model predicate="parent::list[@type='chips'] and @type='module'" behaviour="pass-through">
                         <param name="module" value="."/>
                         <pb:template xmlns=""><span class="spec__chip">Module <strong>[[module]]</strong></span></pb:template>
@@ -657,19 +781,6 @@
                 <elementSpec ident="ref" mode="change">
                     <model output="plain" predicate="@target" behaviour="link">
                         <param name="uri" value="@target"/>
-                    </model>
-                    <!-- A Guidelines chapter a spec cites (list[@type='listRef']), drawn
-                         as a chip: inside the site when it publishes that
-                         chapter, on tei-c.org otherwise. -->
-                    <model predicate="parent::item/parent::list[@type='listRef'] and @type='local'" behaviour="pass-through">
-                        <param name="uri" value="@target"/>
-                        <param name="label" value="string(.)"/>
-                        <pb:template xmlns=""><a class="spec__chip" href="[[uri]]">[[label]]</a></pb:template>
-                    </model>
-                    <model predicate="parent::item/parent::list[@type='listRef']" behaviour="pass-through">
-                        <param name="uri" value="@target"/>
-                        <param name="label" value="string(.)"/>
-                        <pb:template xmlns=""><a class="spec__chip" href="[[uri]]" rel="external">[[label]]</a></pb:template>
                     </model>
                     <!-- Declaring models replaces the inherited ones: keep
                          teipublisher.odd's plain link and inline fallbacks. -->
@@ -691,7 +802,7 @@
                             <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
                             <param name="module" value="string(@module)"/>
                             <param name="sections" value="div[@type='spec-section']"/>
-                            <param name="listRef" value="list[@type='listRef']"/>
+                            <param name="listRef" value="listRef[ptr]"/>
                             <param name="attTree" value="list[@type='attTree']"/>
                             <param name="localAtts" value="attList/attDef[not(@mode='delete')]"/>
                             <param name="memberOf" value="list[@type='memberOf']"/>
@@ -731,7 +842,7 @@ Module #strong[[[module]]][[listRef]]
                             <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
                             <param name="module" value="string(@module)"/>
                             <param name="sections" value="div[@type='spec-section']"/>
-                            <param name="listRef" value="list[@type='listRef']"/>
+                            <param name="listRef" value="listRef[ptr]"/>
                             <param name="attTree" value="list[@type='attTree']"/>
                             <param name="localAtts" value="attList/attDef[not(@mode='delete')]"/>
                             <param name="memberOf" value="list[@type='memberOf']"/>
@@ -763,7 +874,7 @@ Module **[[module]]**[[listRef]]
                         <param name="gloss" value="(gloss[@xml:lang=$parameters?lng], gloss[not(@xml:lang)], gloss)[1]"/>
                         <param name="desc" value="(desc[not(@type='deprecationInfo')][@xml:lang=$parameters?lng], desc[not(@type='deprecationInfo')][not(@xml:lang)], desc[not(@type='deprecationInfo')])[1]"/>
                         <param name="module" value="@module"/>
-                        <param name="listRef" value="list[@type='listRef']"/>
+                        <param name="listRef" value="listRef[ptr]"/>
                         <param name="attTree" value="list[@type='attTree']"/>
                         <param name="localAtts" value="attList/attDef[not(@mode='delete')]"/>
                         <param name="attEmpty" value="if (attList/attDef[not(@mode='delete')] or list[@type='attTree']/item) then '' else 'None beyond the global attributes.'"/>

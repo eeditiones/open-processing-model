@@ -279,3 +279,24 @@ def test_tp_request_accepts_xml_suffix_content_types() -> None:
         wrapped = request('https://example.com/feed')
     assert wrapped is not None
     assert wrapped.value.tag == '{http://www.w3.org/2005/Atom}feed'  # type: ignore[union-attr]
+
+
+def test_tp_serialize_spec_drops_the_tail() -> None:
+    """A spec subtree prints without the text that follows it, and without the
+    TEI namespace declaration; the tail belongs to `tp:serialize_egxml`."""
+    from opm.runtime.common_xpath_functions import serialize_egxml
+    from opm.runtime.spec_xpath_functions import serialize_spec
+
+    parent = etree.fromstring(
+        '<egXML xmlns="http://www.tei-c.org/ns/Examples">'
+        'before <add place="above">of these facts</add> after'
+        '</egXML>'
+    )
+    child = parent[0]
+    assert child.tail and 'after' in child.tail
+    xml = serialize_spec(child)
+    assert 'of these facts' in xml
+    assert 'after' not in xml
+    body = serialize_egxml(parent)
+    assert body.startswith('before')
+    assert body.endswith('after')

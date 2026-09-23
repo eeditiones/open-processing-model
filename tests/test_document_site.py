@@ -86,6 +86,8 @@ def test_build_document_site_from_mini_schema(tmp_path: Path) -> None:
     assert 'Mini' in home
     assert 'REF-ELEMENTS.html' in home
     assert 'doc-sidebar' in home
+    # The reference list counts what each catalog holds.
+    assert re.search(r'href="REF-ELEMENTS\.html">Elements</a> <span class="muted">3</span>', home)
 
 
 def test_spec_only_chapters_are_written_without_their_specs(tmp_path: Path) -> None:
@@ -795,7 +797,7 @@ def test_unsupported_expressions_in_own_odd_are_reported(tmp_path: Path) -> None
     packaged = Path(packaged_odd('tagdocs')).read_text(encoding='utf-8')
     odd.write_text(
         packaged.replace(
-            "(@rend, 'elementSpec')[1]",
+            "(@rend, local-name(id(concat('ref-', @key))), 'elementSpec')[1]",
             'current()',
         ),
         encoding='utf-8',
@@ -1470,7 +1472,7 @@ def test_prepare_then_chunk_gives_a_static_site_builder_both_runs(
 
     out = root / 'site' / 'schema.xml'
     manifest = json.loads((out / 'manifest.json').read_text(encoding='utf-8'))
-    assert {chunk['run'] for chunk in manifest['chunks']} == {'guidelines', 'reference'}
+    assert {chunk['run'] for chunk in manifest['chunks']} == {'guidelines', 'home', 'reference'}
     assert (out / 'index.json').is_file()
     ref = json.loads((out / 'ref-p.json').read_text(encoding='utf-8'))
     assert 'paragraph' in ref['content']
@@ -1504,10 +1506,12 @@ def test_a_documentation_project_turns_the_prepared_tree_into_typst(
     # Spec entries are headings, but stay out of the table of contents.
     assert '#heading(level: 2, outlined: false)[#sym.lt;p#sym.gt;]' in body
     # Pointers become in-document links, not web URLs; no HTML leaks through.
-    assert '#opm-xref("ref-hi")[hi]' in body
+    # An element reference carries the angle brackets the web adds in CSS.
+    assert '#opm-xref("ref-hi")[\\<hi>]' in body
     assert 'Legal values:' in body and '- italic \\(cursive): set in italics' in body
     assert '.html' not in body
-    assert not re.search(r'<(section|article|a|li|div)\b', body)
+    # Unescaped HTML; an element reference prints as escaped Typst text (\<div>).
+    assert not re.search(r'(?<!\\)<(section|article|a|li|div)\b', body)
     if shutil.which('typst'):
         assert compile_pdf((root / 'docs.typ').read_text(encoding='utf-8'), root=root).startswith(b'%PDF')
 
@@ -1543,7 +1547,8 @@ def test_a_documentation_project_turns_the_prepared_tree_into_markdown(
     assert all(body.count(f"<a id='ref-{ident}'></a>") == 1 for ident in ('div', 'hi', 'p'))
     assert '## `<p>`' in body
     # Pointers become in-document links, not web URLs; no HTML leaks through.
-    assert '](#ref-hi)' in body
+    # An element reference carries the angle brackets the web adds in CSS.
+    assert '[`<hi>`](#ref-hi)' in body
     assert '.html' not in body
     assert not re.search(r'<(section|article|li|div|dl|span)\s+class=', body)
     assert 'Legal values:' in body and '- italic (cursive): set in italics' in body

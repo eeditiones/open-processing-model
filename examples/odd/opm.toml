@@ -36,13 +36,13 @@ mode = "ref"
 
 # ── Run 1: the Guidelines read as a text ────────────────────────────────────
 # Every top-level division of the text is a page — chapters, front matter and
-# the back-matter appendices, the A–Z catalogs among them — plus the home page,
-# which the site builder puts directly under `text` because it is no division
-# of the text itself. Specs inside the prose are left to the reference run.
+# the back-matter appendices, the A–Z catalogs among them. The home page is a
+# run of its own below, and specs inside the prose are left to the reference
+# run.
 [[chunking]]
 name = "guidelines"
 output_dir = "site"
-xpath = "/TEI/text/div | /TEI/text/(front|body|back)/div"
+xpath = "/TEI/text/(front|body|back)/div"
 file_pattern = "{xml_id}.html"
 template = "templates/page.html.j2"
 
@@ -69,7 +69,25 @@ scope = "per-chunk"
 xpath = "self::div[parent::front or parent::body or parent::back]"
 parameters = { mode = "chapnav-end" }
 
-# ── Run 2: one reference page per element, class, macro and datatype ───────
+# ── Run 2: the home page ──────────────────────────────────────────────────
+# The site builder puts it directly under `text`, because it is no division of
+# the text itself. `mode = "toc"` is what makes tagdocs.odd render the
+# divisions it lists as a table of contents rather than as chapters, so the
+# contents are read off the document here rather than prepared into it.
+[[chunking]]
+name = "home"
+xpath = "/TEI/text/div"
+file_pattern = "{xml_id}.html"
+template = "templates/page.html.j2"
+parameters = { mode = "toc" }
+
+[[chunking.fragments]]
+name = "nav"
+scope = "global"
+xpath = "//list[@type='siteNav']"
+parameters = { mode = "nav" }
+
+# ── Run 3: one reference page per element, class, macro and datatype ───────
 # Handed run 1's anchors, so a spec's pointers into the prose (`#SATSRN`) land
 # on the chapter page that holds them. The site builder stamps `ref-{ident}` on
 # one copy of each spec; the copies it leaves unstamped (a spec both declared

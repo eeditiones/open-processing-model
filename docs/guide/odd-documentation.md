@@ -74,8 +74,9 @@ Omitting `my-odd.odd` generates the full TEI P5 guidelines in its latest version
 In a clone of the repository, `examples/odd` is that project: change into it
 and the same commands work there.
 
-The project holds the processing ODD (`odd/tagdocs.odd`), the two chunking
-runs in `opm.toml` — the text, then one reference page per spec — the page
+The project holds the processing ODD (`odd/tagdocs.odd`), the three chunking
+runs in `opm.toml` — the text, the home page, then one reference page per
+spec — the page
 template and the site's stylesheet and scripts (`templates/`), and the sidebar
 list (`templates/nav.xml`). `[document]` in `opm.toml` says what to document, the TEI Guidelines
 unless it names a `source`; SOURCE on the command line still wins.
@@ -115,8 +116,8 @@ opm transform schema.xml -t markdown --xpath 'id("HD")' -o teiHeader.md # just o
 Inside a documentation project, the same runs produce JSON:
 
 ```bash
-opm odd prepare -o schema.xml          # the tree `odd document` chunks
-opm chunk schema.xml --format json     # both runs, links between them resolved
+opm odd prepare -o schema.xml
+opm chunk schema.xml --format json
 ```
 
 ## Example: the TEI Guidelines
