@@ -9,10 +9,8 @@ import re
 import urllib.error
 import urllib.request
 from typing import Any
-from datetime import date, datetime
 
 import lxml.etree as ET
-from babel.dates import format_date as babel_format_date
 from elementpath.tree_builders import get_node_tree
 from elementpath.xpath_nodes import XPathNode
 from opm.runtime.xpath_extensions import expect_element, expect_string
@@ -20,32 +18,6 @@ from opm.runtime.xpath_extensions import expect_element, expect_string
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
 XML_ID = '{http://www.w3.org/XML/1998/namespace}id'
 _XMLNS_ATTR_RE = re.compile(r'\s+xmlns(?::\w+)?="[^"]*"')
-
-
-def format_date(when: Any, locale: Any = 'en') -> str:
-    """Format a TEI-style xs:date value for display in a popover/title."""
-    when = expect_string(when, arg_name='format_date(when)')
-    locale = expect_string(locale, arg_name='format_date(locale)')
-
-    if re.fullmatch(r'\d{4}', when):
-        return when
-
-    if re.fullmatch(r'\d{4}-\d{2}', when):
-        year_str, month_str = when.split('-', 1)
-        try:
-            parsed = date(int(year_str), int(month_str), 1)
-        except ValueError:
-            return when
-        return babel_format_date(parsed, format='MMMM y', locale=locale)
-
-    if re.fullmatch(r'\d{4}-\d{2}-\d{2}', when):
-        try:
-            parsed = datetime.strptime(when, '%Y-%m-%d').date()
-        except ValueError:
-            return when
-        return babel_format_date(parsed, format='d MMMM y', locale=locale)
-
-    return when
 
 
 def _is_tei_div(node: ET._Element | None) -> bool:

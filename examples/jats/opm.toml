@@ -6,8 +6,6 @@ pythonpath = ["."]
 
 [transform]
 odd = "odd/jats.odd"
-# tp:format_date() lives here; the pub-date model in odd/jats.odd calls it
-# because XSLT's format-date() is not available to the XPath engine.
 xpath_extensions = [
     "opm.runtime.common_xpath_functions"
 ]

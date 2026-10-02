@@ -770,7 +770,7 @@ def test_jats_typst_authors_key_stays_a_plain_name(tmp_path) -> None:
 
 
 def test_jats_web_publication_date_is_formatted(tmp_path) -> None:
-    """Upstream's XSLT ``format-date()`` does not exist here; ``tp:format_date`` replaces it."""
+    """``pub-date`` goes through the standard ``format-date()``, partial dates included."""
     from opm.odd_compiler import compile_odd
     from opm.transform import load_transform_module, run_transform
 

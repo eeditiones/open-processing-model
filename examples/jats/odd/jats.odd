@@ -556,18 +556,15 @@ padding: 0 4px;
                     <model behaviour="inline"/>
                 </elementSpec>
                 <elementSpec ident="pub-date" mode="add">
-                    <desc>Upstream calls XSLT's format-date(), which the XPath 3.1 engine does not
-                        provide — every date came out empty. opm ships the equivalent as an
-                        extension function: tp:format_date(iso-value, locale) from
-                        opm.runtime.common_xpath_functions, which opm init lists under
-                        [transform] xpath_extensions. Without that module loaded the date is empty
-                        again, exactly as before, rather than an error.</desc>
+                    <desc>Formats @iso-8601-date with the standard format-date(): 5 December 2022,
+                        or December 2022 for a year and month. Anything else (a bare year, an invalid
+                        date) is shown as written. Month names are English.</desc>
                     <model output="typst" behaviour="metadata">
                         <param name="key" value="'date'"/>
-                        <param name="content" value="tp:format_date(@iso-8601-date, ($parameters?language, 'en')[1])"/>
+                        <param name="content" value="let $d := string(@iso-8601-date) return if ($d castable as xs:date) then format-date(xs:date($d), '[D] [MNn] [Y]', 'en', (), ()) else if (($d || '-01') castable as xs:date) then format-date(xs:date($d || '-01'), '[MNn] [Y]', 'en', (), ()) else $d"/>
                     </model>
                     <model behaviour="block" cssClass="pub-date">
-                        <param name="content" value="tp:format_date(@iso-8601-date, ($parameters?language, 'en')[1])"/>
+                        <param name="content" value="let $d := string(@iso-8601-date) return if ($d castable as xs:date) then format-date(xs:date($d), '[D] [MNn] [Y]', 'en', (), ()) else if (($d || '-01') castable as xs:date) then format-date(xs:date($d || '-01'), '[MNn] [Y]', 'en', (), ()) else $d"/>
                     </model>
                 </elementSpec>
                 <elementSpec ident="disp-formula" mode="add">

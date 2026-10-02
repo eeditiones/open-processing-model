@@ -106,10 +106,9 @@ Three things this example needed first have since moved upstream, so a fresh
 `opm init --vocabulary jats` gets them for free. The static TOC models
 themselves, now in jinks' JATS profile and mirrored into the packaged
 `jats.odd`, matching what the DocBook profile has had. The
-publication date: upstream calls XSLT’s `format-date()`, which the XPath 3.1
-engine does not provide, so every date rendered empty; it now calls
-`tp:format_date()` from `opm.runtime.common_xpath_functions`, which `opm init`
-lists under `[transform] xpath_extensions`. And the Typst title-block metadata —
+publication date: upstream’s call to `format-date()` rendered every date
+empty; the `pub-date` models now format `@iso-8601-date` with the standard
+`format-date()`, so “2022-12” becomes “December 2022”. And the Typst title-block metadata —
 `journal`, `volume`, `elocation`, `date`, `doi`, `license`, plus one
 `author_records` entry per contributor holding name, e-mail, affiliation and
 ORCID pipe-joined, which `templates/article.typ.j2` splits into arkheion’s

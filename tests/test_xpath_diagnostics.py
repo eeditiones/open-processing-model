@@ -60,7 +60,7 @@ def test_static_problem_names_what_opm_cannot_run(expr: str, reason: str) -> Non
 
 @pytest.mark.parametrize('expr', [
     # Supplied by the project, which a module cached per ODD cannot know.
-    "tp:format_date(@when, 'en')",
+    "tp:heading_number(..)",
     '$global:register-root',
     "collection('/db/registers')//person",
     "@type = 'toc'",
