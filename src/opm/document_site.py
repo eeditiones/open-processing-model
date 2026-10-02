@@ -548,7 +548,7 @@ def _write_idents(index: SpecIndex, output_dir: Path) -> None:
 
 
 #: The page assets a site directory provides, copied into every build.
-SITE_ASSETS = ('document.css', 'fonts.css', 'search.js', 'theme.js', 'tei-logo.svg')
+SITE_ASSETS = ('document.css', 'fonts.css', 'search.js', 'theme.js', 'logo.svg')
 
 
 def site_assets_dir(cfg: ProjectConfig, config_file: Path) -> Path:

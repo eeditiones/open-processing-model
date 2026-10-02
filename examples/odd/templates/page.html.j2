@@ -11,7 +11,7 @@
   {#- The browser-tab icon. One SVG, which every current browser takes and
       which stays sharp at any size; no .ico or apple-touch-icon, because
       rasterizing one would mean a dependency the site builder does not have. -#}
-  <link rel="icon" href="tei-logo.svg" type="image/svg+xml">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="document.css">
   {% if odd_css_url %}<link rel="stylesheet" href="{{ odd_css_url }}">{% endif %}
   <script src="theme.js"></script>
@@ -20,7 +20,7 @@
   <a class="doc-skip" href="#doc-content">Skip to content</a>
   <header class="doc-header">
     <a class="doc-brand" href="index.html">
-      <img class="doc-brand__logo" src="tei-logo.svg" alt="TEI" width="30" height="30">
+      <img class="doc-brand__logo" src="logo.svg" alt="TEI" width="30" height="30">
       <span class="doc-brand__title">{{ context.site_title }}</span>
     </a>
     {% if context.edition %}<span class="doc-edition">{{ context.edition }}</span>{% endif %}

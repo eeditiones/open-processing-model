@@ -56,10 +56,11 @@ opm transform schema.xml -t markdown --xpath 'id("HD")' -o docs.md # just one ch
 | `templates/page.html.j2` | the page around each chunk: header, sidebar, rails |
 | `templates/document.css`, `search.js`, `theme.js` | the site's look, search box and light/dark switch |
 | `templates/nav.xml` | the sidebar list |
+| `templates/logo.svg` | the logo in the header and the browser tab; replace it with your own |
 | `templates/tagdocs.typ.j2` | the PDF: title page, contents, page layout |
 
 Anything you delete from `templates/` falls back to the packaged file of the
-same name; the fonts and the TEI logo always come from there.
+same name; the fonts always come from there.
 
 ## Other outputs
 

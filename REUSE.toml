@@ -137,7 +137,7 @@ SPDX-License-Identifier = "CC0-1.0"
 # ---------------------------------------------------------------------------
 
 [[annotations]]
-path = ["docs/assets/**", "src/opm/resources/document/tei-logo.svg"]
+path = ["docs/assets/**", "src/opm/resources/document/logo.svg", "examples/odd/templates/logo.svg"]
 SPDX-FileCopyrightText = "The respective trademark owners"
 SPDX-License-Identifier = "LicenseRef-Logos"
 

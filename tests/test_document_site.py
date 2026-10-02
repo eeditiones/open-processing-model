@@ -269,12 +269,12 @@ def test_cli_document_mini_schema(tmp_path: Path) -> None:
     assert main(['odd', 'document', str(MINI), '-o', str(dest), '--force']) == 0
     assert (dest / 'ref-p.html').is_file()
     assert (dest / 'document.css').is_file()
-    assert (dest / 'tei-logo.svg').is_file()
+    assert (dest / 'logo.svg').is_file()
     home = (dest / 'index.html').read_text(encoding='utf-8')
-    assert 'tei-logo.svg' in home
+    assert 'logo.svg' in home
     assert 'doc-brand__logo' in home
     # The tab icon, on every page rather than only the home page.
-    icon = '<link rel="icon" href="tei-logo.svg" type="image/svg+xml">'
+    icon = '<link rel="icon" href="logo.svg" type="image/svg+xml">'
     assert icon in home
     assert icon in (dest / 'ref-p.html').read_text(encoding='utf-8')
     css = (dest / 'document.css').read_text(encoding='utf-8')
@@ -1444,7 +1444,7 @@ def test_odd_document_builds_with_the_project_it_runs_in(
     assert 'Project attributes' in (site / 'REF-ATTS.html').read_text(encoding='utf-8')
     assert (site / 'document.css').read_text(encoding='utf-8') == '/* project css */\n'
     # Not in the project, so the packaged ones: fonts and logo.
-    assert (site / 'tei-logo.svg').is_file()
+    assert (site / 'logo.svg').is_file()
     assert any((site / 'fonts').glob('*.woff2'))
 
 

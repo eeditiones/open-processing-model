@@ -1,7 +1,7 @@
 Logos and wordmarks
 
 The image files under docs/assets/ and the TEI Consortium mark shipped as
-src/opm/resources/document/tei-logo.svg (source:
+src/opm/resources/document/logo.svg and examples/odd/templates/logo.svg (source:
 https://tei-c.org/about/logos/TEI_Logo.svg) are logos and wordmarks: those of
 e-editiones and Open Processing Model, the TEI Consortium, and those of the
 institutions that support the project's development — among them the
