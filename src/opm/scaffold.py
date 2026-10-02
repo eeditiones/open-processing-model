@@ -45,6 +45,9 @@ _HTML_TEMPLATE = {
 #: Without the flag a project gets only the shell it actually uses, so the
 #: templates/ directory says what the project is rather than what it could be.
 _EXTRA_SHELLS = ('chapbook', 'journal', 'handbook', 'tufte', 'bootstrap')
+#: The plain Typst shell opm falls back to when no template is configured, which
+#: ``--templates`` also copies, beside the book shell the project wires up.
+_TYPST_DEFAULT = ('templates/default_document.typ.j2', Path('templates') / 'document.typ.j2')
 # Elements the commented-out [[index.fields]] examples point at, per vocabulary:
 # (footnote-like element, person-name element).
 _INDEX_FIELD_ELEMENTS = {
@@ -146,6 +149,9 @@ class InitOptions:
     #: Also copy the alternative HTML shells, beside the one wired up (or, with
     #: ``example``, beside the ones the example ships).
     templates: bool = False
+    #: Skip README.md, AGENTS.md, CLAUDE.md and .gitignore, for projects that
+    #: live inside a repository which already has its own.
+    bare: bool = False
 
 
 #: Sample document written into an empty project, relative to its root.
@@ -348,27 +354,30 @@ def _scaffold_example(options: InitOptions) -> ScaffoldResult:
         if not src.is_file() or _EXAMPLE_SKIP & set(src.relative_to(source).parts):
             continue
         dest = dest_dir / src.relative_to(source)
+        if options.bare and src.relative_to(source).as_posix() == 'README.md':
+            continue
         if src.name == 'README.md':
             text = strip_repo_only(src.read_text(encoding='utf-8'))
             _record(dest, written, skipped, _write_text(dest, text, force=force))
         else:
             _record(dest, written, skipped, _copy_file(src, dest, force=force))
 
-    _record(
-        dest_dir / '.gitignore',
-        written,
-        skipped,
-        _copy_packaged('scaffold/gitignore', dest_dir / '.gitignore', force=force),
-    )
+    if not options.bare:
+        _record(
+            dest_dir / '.gitignore',
+            written,
+            skipped,
+            _copy_packaged('scaffold/gitignore', dest_dir / '.gitignore', force=force),
+        )
 
     if options.templates:
         # Never overwrite a shell the example ships, even with --force: the
         # example's own copy may be customised (the Shakespeare chapbook
         # carries a facsimile column the packaged one knows nothing about).
-        for src_rel, dest in _shell_copies(_EXTRA_SHELLS, dest_dir):
+        for src_rel, dest in [*_shell_copies(_EXTRA_SHELLS, dest_dir), (_TYPST_DEFAULT[0], dest_dir / _TYPST_DEFAULT[1])]:
             _record(dest, written, skipped, _copy_packaged(src_rel, dest, force=False))
 
-    if not example.agent_guidance:
+    if options.bare or not example.agent_guidance:
         return _example_result(example, dest_dir, written, skipped)
 
     # The ODD and reading shell the example actually wires up, so its agent
@@ -462,39 +471,40 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
     )
     _record(config_path, written, skipped, _write_text(config_path, toml_text, force=force))
 
-    readme_text = env.get_template('README.md.j2').render(
-        title=title,
-        vocabulary=vocab,
-        odd_path=odd_path,
-        sample=SAMPLE_PATH,
-        html_template=html_template,
-        extra_templates=options.templates,
-    )
-    _record(
-        dest_dir / 'README.md',
-        written,
-        skipped,
-        _write_text(dest_dir / 'README.md', readme_text, force=force),
-    )
+    if not options.bare:
+        readme_text = env.get_template('README.md.j2').render(
+            title=title,
+            vocabulary=vocab,
+            odd_path=odd_path,
+            sample=SAMPLE_PATH,
+            html_template=html_template,
+            extra_templates=options.templates,
+        )
+        _record(
+            dest_dir / 'README.md',
+            written,
+            skipped,
+            _write_text(dest_dir / 'README.md', readme_text, force=force),
+        )
 
-    _agent_guidance(
-        env,
-        dest_dir,
-        vocabulary=vocab,
-        odd_path=odd_path,
-        html_template=html_template,
-        sample=SAMPLE_PATH,
-        extra_templates=options.templates,
-        written=written,
-        skipped=skipped,
-    )
+        _agent_guidance(
+            env,
+            dest_dir,
+            vocabulary=vocab,
+            odd_path=odd_path,
+            html_template=html_template,
+            sample=SAMPLE_PATH,
+            extra_templates=options.templates,
+            written=written,
+            skipped=skipped,
+        )
 
-    _record(
-        dest_dir / '.gitignore',
-        written,
-        skipped,
-        _copy_packaged('scaffold/gitignore', dest_dir / '.gitignore', force=force),
-    )
+        _record(
+            dest_dir / '.gitignore',
+            written,
+            skipped,
+            _copy_packaged('scaffold/gitignore', dest_dir / '.gitignore', force=force),
+        )
 
     _record(
         dest_dir / 'extensions' / '__init__.py',
@@ -527,6 +537,8 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
                 dest_dir / typst_template,
             )
         )
+        if options.templates:
+            copies.append((_TYPST_DEFAULT[0], dest_dir / _TYPST_DEFAULT[1]))
     if 'docx' in options.outputs:
         copies.append(('templates/default.docx', dest_dir / 'templates' / 'default.docx'))
 

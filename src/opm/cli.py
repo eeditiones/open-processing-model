@@ -166,6 +166,13 @@ def init_cmd(
             ),
         ),
     ] = False,
+    bare: Annotated[
+        bool,
+        typer.Option(
+            '--bare',
+            help='Skip README.md, AGENTS.md, CLAUDE.md and .gitignore.',
+        ),
+    ] = False,
 ) -> None:
     """Create a local project: an empty one or a copy of a bundled example."""
     if list_examples:
@@ -196,6 +203,7 @@ def init_cmd(
                 vocabulary=vocab,
                 example=example,
                 templates=templates,
+                bare=bare,
                 copy_base_odd=copy_base_odd and vocab == 'tei' and example is None,
             )
         )

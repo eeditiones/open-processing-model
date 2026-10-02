@@ -14,7 +14,8 @@ packaged default template is used. `opm init` copies one editable shell into
 `chapbook` otherwise — plus the Typst and Word templates. Pass `--templates`
 for the alternatives as well: the `chapbook` (reading), `journal` (scholarly
 article: masthead, TOC rail, one measure) and `handbook` (docs) HTML shells,
-and the `tufte` and `bootstrap` demo shells. Swapping one in is a one-line edit
+and the `tufte` and `bootstrap` demo shells, plus `document.typ.j2`, the plain
+Typst shell opm uses when no Typst template is set. Swapping one in is a one-line edit
 to `opm.toml`. Edit them in place: they are yours once copied.
 
 With `--example`, `--templates` adds those shells beside the ones the example

@@ -29,11 +29,13 @@ opm serve
 - HTML / chunk shell: `templates/{{ html_template }}.html.j2` (wired in `opm.toml`).
 {%- if extra_templates %}
   Also copied, ready to swap in: `chapbook` (reading), `journal` (article with
-  masthead and TOC rail), `handbook` (docs), `tufte`, `bootstrap`
+  masthead and TOC rail), `handbook` (docs), `tufte`, `bootstrap`; and
+  `document.typ.j2`, opm's plain Typst shell, as an alternative to the one
+  `[transform.typst]` names
 {%- else %}
   `opm init --templates` copies the alternatives too: `chapbook` (reading),
   `journal` (article with masthead and TOC rail), `handbook` (docs), `tufte`,
-  `bootstrap`
+  `bootstrap`, and opm's plain Typst shell as `document.typ.j2`
 {%- endif %}
 - XPath extensions: `extensions/` (see `[project] pythonpath` in `opm.toml`)
 

@@ -994,6 +994,7 @@ def test_init_tei_creates_project(tmp_path: Path) -> None:
     assert not (dest / 'templates' / 'journal.html.j2').exists()
     assert not (dest / 'templates' / 'tufte.html.j2').exists()
     assert (dest / 'templates' / 'book.typ.j2').is_file()
+    assert not (dest / 'templates' / 'document.typ.j2').exists()
     assert (dest / 'templates' / 'default.docx').is_file()
     # The base rules ship inside the ODD stylesheet, so no copy is scaffolded.
     assert not (dest / 'styles' / 'default-styles.css').exists()
@@ -1029,6 +1030,9 @@ def test_init_templates_copies_alternative_shells(tmp_path: Path) -> None:
     assert (dest / 'templates' / 'tufte.html.j2').is_file()
     assert (dest / 'templates' / 'bootstrap.html.j2').is_file()
     assert not (dest / 'templates' / 'tufte.css').exists()
+    # The plain Typst shell opm falls back to, beside the book shell opm.toml names.
+    assert (dest / 'templates' / 'document.typ.j2').is_file()
+    assert 'template = "templates/book.typ.j2"' in (dest / 'opm.toml').read_text(encoding='utf-8')
 
 
 def test_init_example_templates_keep_the_examples_own_shell(tmp_path: Path) -> None:
@@ -1041,6 +1045,7 @@ def test_init_example_templates_keep_the_examples_own_shell(tmp_path: Path) -> N
     assert 'chap-facs' in shell
     assert (dest / 'templates' / 'journal.html.j2').is_file()
     assert (dest / 'templates' / 'handbook.html.j2').is_file()
+    assert (dest / 'templates' / 'document.typ.j2').is_file()
 
 
 def test_init_preserves_existing_agent_files(tmp_path: Path) -> None:
@@ -1055,6 +1060,15 @@ def test_init_preserves_existing_agent_files(tmp_path: Path) -> None:
     assert main(['init', str(dest), '--force']) == 0
     assert (dest / 'AGENTS.md').read_text(encoding='utf-8') == 'custom-agents'
     assert (dest / 'CLAUDE.md').read_text(encoding='utf-8') == 'custom-claude'
+
+
+def test_init_bare_skips_project_furniture(tmp_path: Path) -> None:
+    for args, name in ((['--vocabulary', 'tei'], 'plain'), (['--example', 'jats'], 'ex')):
+        dest = tmp_path / name
+        assert main(['init', str(dest), '--bare', *args]) == 0
+        assert (dest / 'opm.toml').is_file()
+        for f in ('README.md', 'AGENTS.md', 'CLAUDE.md', '.gitignore'):
+            assert not (dest / f).exists()
 
 
 def test_init_refuses_existing_config_without_force(tmp_path: Path) -> None:

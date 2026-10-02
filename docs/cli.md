@@ -58,7 +58,8 @@ opm init [OPTIONS] [DIRECTORY]
 | `--example, -e TEXT` | Start from a bundled example project instead of an empty one: jats, docbook, serafin, shakespeare, odd. |
 | `--list-examples` | List the bundled example projects and exit. |
 | `--copy-base-odd` | TEI only: also copy packaged teipublisher.odd and tp.css into odd/. |
-| `--templates` | Also copy the alternative HTML shells (chapbook, journal, handbook, tufte, bootstrap) beside the one wired up. |
+| `--bare` | Skip README.md, AGENTS.md, CLAUDE.md and .gitignore. |
+| `--templates` | Also copy the alternative HTML shells (chapbook, journal, handbook, tufte, bootstrap) beside the one wired up, and opm's plain default Typst shell as `templates/document.typ.j2`. |
 | `--help` | Show this message and exit. |
 
 ### `opm transform`
