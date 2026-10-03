@@ -1293,6 +1293,7 @@ def test_examples_are_packaged_by_the_build_hook() -> None:
     missing = [p for p in tracked if str(repo / p) not in included]
     assert not missing, f'not packaged: {missing}'
     assert not [p for p in included if '/chunks/' in p]
+    assert not [p for p in included if p.endswith('/schema.xml')]
 
 
 def test_init_picker_only_prompts_on_a_terminal(tmp_path: Path, monkeypatch) -> None:

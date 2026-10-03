@@ -15,8 +15,13 @@ from pathlib import Path
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
-#: Directory names that never belong in the distribution.
-_SKIP = frozenset({'chunks', 'output', 'site', '__pycache__', '.DS_Store'})
+#: Path parts that never belong in the distribution. The last three are what
+#: ``examples/odd`` writes (see .gitignore); kept in step with
+#: ``opm.scaffold._EXAMPLE_SKIP``.
+_SKIP = frozenset({
+    'chunks', 'output', 'site', '__pycache__', '.DS_Store',
+    'schema.xml', 'docs.pdf', 'docs.typ',
+})
 
 _SOURCE = 'examples'
 _TARGET = 'opm/resources/examples'

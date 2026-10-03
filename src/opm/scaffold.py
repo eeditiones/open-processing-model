@@ -123,8 +123,13 @@ EXAMPLES: tuple[ExampleProject, ...] = (
 EXAMPLE_NAMES = tuple(example.name for example in EXAMPLES)
 
 # Copied from an example only as project furniture; generated output and editor
-# leavings never belong in a new project.
-_EXAMPLE_SKIP = frozenset({'chunks', 'site', '__pycache__', '.DS_Store'})
+# leavings never belong in a new project. The last three are what
+# ``examples/odd`` writes (see .gitignore); a checkout that has been built
+# must not hand them to ``opm init``.
+_EXAMPLE_SKIP = frozenset({
+    'chunks', 'site', '__pycache__', '.DS_Store',
+    'schema.xml', 'docs.pdf', 'docs.typ',
+})
 
 # Lines between these markers describe the example's place in the repo clone
 # ("cd examples/jats", links into ../../docs) and are dropped on copy.

@@ -1404,6 +1404,9 @@ def test_documentation_project_starts_with_the_packaged_runs(tmp_path: Path) -> 
     assert {run.output_dir for run in project.chunking_runs} == {'site'}
     assert project.chunking_runs[0].template == root / 'templates' / 'page.html.j2'
     assert project.typst_template == root / 'templates' / 'tagdocs.typ.j2'
+    # A built checkout of examples/odd must not hand its output to a new project.
+    assert not (root / 'schema.xml').exists()
+    assert not (root / 'site').exists()
 
 
 def test_odd_document_builds_with_the_project_it_runs_in(
