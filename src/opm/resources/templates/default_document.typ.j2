@@ -11,6 +11,17 @@
   bottom: 2.5cm,
 )
 
+// Extra handlers for ODD @cssClass / @rend names:
+// #let opm-css-fns = opm-css-fns + (
+// center: (body) => align(center, body),
+// note: (body) => block(
+// width: 100%,
+// inset: (left: 0.8em, y: 0.35em),
+// stroke: (left: 4pt + rgb("#d07f00")),
+// body,
+// ),
+// )
+
 {% include "opm_css.typ.j2" %}
 
 {{ odd_typst }}

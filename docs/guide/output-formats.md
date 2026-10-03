@@ -183,6 +183,49 @@ The resulting `.typ` file you can then process with
 typst compile out.typ --open
 ```
 
+### CSS class mapping
+
+In `web` output mode, `@cssClass` on a model and `@rend` attributes on TEI elements are output
+as CSS class names. In `typst` mode, class names are mapped to Typst functions. However, Typst would
+fail with a compilation error if the function does not exist. We therefore need a way to register
+functions while gracefully ignoring unknown class names.
+
+Instead of calling the function directly, opm looks it up in a dictionary, which you can extend
+with additional functions in your typst `.typ.j2` template:
+
+```typst
+#let opm-css-fns = opm-css-fns + (
+  center: (body) => align(center, body),
+  note: (body) => block(
+    width: 100%,
+    inset: (left: 0.8em, y: 0.35em),
+    stroke: (left: 4pt + rgb("#d07f00")),
+    body,
+  ),
+  doc_title: (body) => block(above: 2.5em, width: 100%, align(center, text(style: "italic", body))),
+)
+```
+
+Using an attribute `@cssClass="doc-title"` on the model should then result in a centered, italic block. 
+
+Mind these points:
+
+- Place the extension **before** `{% include "opm_css.typ.j2" %}`. That
+  fragment reads `opm-css-fns` when it is included, so entries added after it
+  never take effect and the content comes out unstyled.
+- Place it **after** the include of `opm_css_fns_default.typ.j2` (if your
+  template has one), which creates the dictionary and its defaults such as
+  `pb` and `marginnote`. Writing `opm-css-fns + (…)` earlier fails because
+  the name does not exist yet. A key that matches a default replaces it.
+- Write keys with underscores. A class such as `doc-subtitle` or `tei:note`
+  is looked up as `doc_subtitle` or `tei_note`.
+- A function receives only the content. Anything else you need, such as
+  a font or a colour, belongs inside it.
+
+Renditions defined in the ODD itself (`tei-*` and `simple_*` classes) do not use
+this dictionary: the ODD compiler emits a Typst function for each of them, and
+those are called directly.
+
 ### PDF
 
 With the [`typst`](https://typst.app/open-source/) command on your `PATH`,
