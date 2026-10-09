@@ -1,5 +1,5 @@
 site_name: Open Processing Model
-site_description: Transform XML (TEI, DocBook, …) via ODD processing models — HTML, Markdown, DOCX, Typst.
+site_description: Convert TEI, Docbook or JATS XML to HTML, PDF, EPUB, Word or Markdown, or publish it as a static website. A Python tool for digital editions, driven by TEI ODD.
 site_url: https://opm.e-editiones.org/
 repo_url: https://github.com/eeditiones/open-processing-model
 repo_name: eeditiones/open-processing-model

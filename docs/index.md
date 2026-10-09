@@ -1,3 +1,8 @@
+---
+title: Convert TEI XML to HTML, PDF and EPUB
+description: opm converts TEI XML to HTML, PDF, EPUB, Word and Markdown, or publishes it as a static website, using TEI ODD.
+---
+
 <p align="center">
   <img src="assets/logo-wordmark.svg#only-light" alt="opm — Open Processing Model" width="380">
   <img src="assets/logo-wordmark-dark.svg#only-dark" alt="opm — Open Processing Model" width="380">
@@ -5,9 +10,9 @@
 
 # Open Processing Model
 
-**Open Processing Model** (`opm`) is an implementation of the [TEI Processing Model](https://tei-c.org/release/doc/tei-p5-doc/en/html/TD.html#TDPM) 
-in Python. It provides a command-line client and library for transforming
-XML documents — TEI, DocBook, and others — into (currently) HTML, Markdown, DOCX, [Typst](https://typst.app/), HTML for print and ePub. Instead of being hard-coded in XSLT or XQuery, transformation rules are declared in a **TEI ODD** document, which `opm` compiles into a reusable Python module.
+**Open Processing Model** (`opm`) converts TEI XML, and other XML such as DocBook or JATS, into HTML, PDF (via [Typst](https://typst.app/)), EPUB, Word, Markdown or JSON. It can also be used to transform a TEI edition into a static website or prepare the data for an external static site generator. Instead of writing XSLT or XQuery, describe how each element should be presented in a **TEI ODD** document , and `opm` compiles it into a reusable Python module.
+
+It is an implementation of the [TEI Processing Model](https://tei-c.org/release/doc/tei-p5-doc/en/html/TD.html#TDPM) specification in Python, with a command-line client and a library.
 
 `opm` is pure Python with minimal dependencies and implements the full _TEI Processing Model_. Most ODDs will be compatible and can be exchanged between _TEI Publisher_ and `opm`, allowing users to combine the benefits of a dynamic, database-backed website with the speed of static rendering.
 

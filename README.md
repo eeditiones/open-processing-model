@@ -4,7 +4,9 @@
 
 # Open Processing Model
 
-**Open Processing Model** (`opm`) implements the [TEI Processing Model](https://tei-c.org/release/doc/tei-p5-doc/en/html/TD.html#TDPM) for transforming XML into various output formats. The design conceptually follows the [`tei-publisher-lib`](https://github.com/eeditiones/tei-publisher-lib) implementation in [TEI Publisher](https://tei-publisher.org) and aims to be as compatible as possible. While `tei-publisher-lib` compiles the processing model instructions found in an ODD into XQuery code, `opm` outputs Python instead.
+**Open Processing Model** (`opm`) converts TEI XML, and other XML such as DocBook or JATS, into HTML, PDF (via [Typst](https://typst.app/)), EPUB, Word, Markdown or JSON. It can also be used to transform a TEI edition into a static website or prepare the data for an external static site generator. Instead of writing XSLT or XQuery, describe how each element should be presented in a **TEI ODD** document , and `opm` compiles it into a reusable Python module.
+
+`opm` is an implementation of the [TEI Processing Model](https://tei-c.org/release/doc/tei-p5-doc/en/html/TD.html#TDPM) in Python. The design follows the [`tei-publisher-lib`](https://github.com/eeditiones/tei-publisher-lib) implementation in [TEI Publisher](https://tei-publisher.org) and aims to be as compatible as possible, so ODDs can be shared between both. While `tei-publisher-lib` compiles the processing model instructions found in an ODD into XQuery code, `opm` outputs Python instead.
 
 `opm` does not require a database, runs entirely on the command line, is very fast for batch processing and has very slim dependencies.
 
