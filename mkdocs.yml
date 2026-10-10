@@ -83,6 +83,11 @@ nav:
   - Getting Started:
       - Installation: getting-started/installation.md
       - Quickstart: getting-started/quickstart.md
+  - Tutorials:
+      - Convert TEI to HTML: tutorials/tei-to-html.md
+      - Publish a TEI website: tutorials/tei-website.md
+      - Create a PDF from TEI: tutorials/tei-to-pdf.md
+      - EPUB and Word from TEI: tutorials/tei-to-epub-word.md
   - Guide:
       - ODD files: guide/odd-files.md
       - Output formats: guide/output-formats.md

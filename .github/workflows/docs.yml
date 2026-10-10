@@ -34,6 +34,10 @@ jobs:
       - name: Build documentation
         run: uv run --locked --group docs zensical build --clean
 
+      # llms.txt, llms-full.txt and a Markdown copy of each page, for AI agents.
+      - name: Build llms.txt
+        run: uv run --locked --group docs python scripts/gen_llms_txt.py
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site/

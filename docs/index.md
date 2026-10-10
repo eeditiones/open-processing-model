@@ -86,7 +86,15 @@ Typical usage scenarios for `opm` include:
 ## Where to go next
 
 - New here? Start with [Installation](getting-started/installation.md) and the
-  [Quickstart](getting-started/quickstart.md).
+  [Quickstart](getting-started/quickstart.md), or follow one of the tutorials:
+  [Convert TEI to HTML](tutorials/tei-to-html.md),
+  [Publish a TEI website](tutorials/tei-website.md),
+  [Create a PDF from TEI](tutorials/tei-to-pdf.md),
+  [EPUB and Word from TEI](tutorials/tei-to-epub-word.md).
+- Working with an AI assistant? Point it to
+  [llms.txt](https://opm.e-editiones.org/llms.txt) or
+  [llms-full.txt](https://opm.e-editiones.org/llms-full.txt), plain-text
+  versions of this documentation written for AI tools.
 - Learn the concepts: [ODD files](guide/odd-files.md),
   [Output formats](guide/output-formats.md),
   [XPath extensions](guide/xpath-extensions.md),
