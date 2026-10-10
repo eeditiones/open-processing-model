@@ -8,7 +8,7 @@
    parchment breadcrumb band, and a correspondence toolbar between letters.
    The ODD's generated stylesheet owns the TEI content itself.
 
-   Copied into <output>/assets/ by chunking.assets and linked from each page,
+   Copied into <output>/assets/ by [transform.web] assets and linked from each page,
    so parchment.jpg beside it is addressed by plain filename.
 
    Palette and type follow the dynamic Serafin app: Belleza headings, Albert

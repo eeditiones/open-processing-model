@@ -58,7 +58,7 @@ def resolve_base_css(css_path: Path | None, project_root: Path) -> str:
 
     ``[transform] css`` / ``--css`` replaces the packaged default wholesale — it
     is an override for the rules the runtime's markup needs, not an extra layer.
-    Project design CSS belongs in ``[chunking] assets`` instead, where it can
+    Project design CSS belongs in ``[transform.web] assets`` instead, where it can
     sit beside the images and fonts it references.
     """
     from opm.odd_compiler.css_generator import default_base_css
@@ -142,6 +142,10 @@ class ChunkingConfig:
     """Heading for the generated collection index (default: the output directory name)."""
     assets: tuple[Path, ...] = ()
     """Files or directories copied into ``<output-root>/assets/``.
+
+    Inherited from ``[transform.web] assets`` (see
+    [`web_assets`][opm.config.ProjectConfig.web_assets]) when the run sets
+    none; ``assets = []`` opts a run out.
 
     An entry may be a glob: ``iiif/*`` copies every directory under ``iiif/``,
     so a project that adds a document does not have to add a line here.
@@ -529,7 +533,18 @@ class ProjectConfig:
     web template needs never leaks into the Typst one.
     """
     document_template: Path | None = None
-    """Jinja2 HTML shell for web output from ``[transform.web] template``."""
+    """Jinja2 HTML shell for web output from ``[transform.web] template``.
+
+    Chunking runs without a ``template`` of their own use it too.
+    """
+    web_assets: tuple[Path, ...] = ()
+    """Files the web template references, from ``[transform.web] assets``.
+
+    ``opm transform`` copies them into an ``assets/`` directory beside its
+    output and ``opm chunk`` into ``<output-root>/assets/``; either way the
+    template receives the stylesheets among them as ``asset_styles``. A
+    chunking run with its own ``assets`` uses those instead.
+    """
     document_css: Path | None = None
     """Base rules compiled into the ODD stylesheet, from ``[transform] css``.
 
@@ -733,6 +748,10 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     # templates; the base CSS is compiled into every type's ODD stylesheet, so
     # it is shared.
     template = web_data.get('template')
+    document_template = config_path.parent / str(template) if template else None
+    web_assets = tuple(
+        config_path.parent / str(asset) for asset in (web_data.get('assets') or ())
+    )
     css_file = transform.get('css')
     if css_file is not None and not isinstance(css_file, str):
         raise ValueError('opm.toml: transform.css must be a path string')
@@ -888,6 +907,16 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
             replace(run, odd=transform_odd) if run.odd is None else run
             for run in chunking_runs
         ]
+    # Chunk pages are web pages: a run without its own template or assets
+    # uses the [transform.web] ones.
+    chunking_runs = [
+        replace(
+            run,
+            template=run.template or document_template,
+            assets=run.assets if 'assets' in table else web_assets,
+        )
+        for run, table in zip(chunking_runs, chunking_tables)
+    ]
     chunking = chunking_runs[0] if chunking_runs else None
 
     index_fields = _index_fields(index_data)
@@ -897,7 +926,8 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         webcomponents_enabled=webcomponents_enabled,
         template_context=template_context,
         template_context_by_type=template_context_by_type,
-        document_template=config_path.parent / str(template) if template else None,
+        document_template=document_template,
+        web_assets=web_assets,
         document_css=config_path.parent / str(css_file) if css_file else None,
         document_docx_template=config_path.parent / docx_template_file if docx_template_file else None,
         typst_template=config_path.parent / typst_template_file if typst_template_file else None,

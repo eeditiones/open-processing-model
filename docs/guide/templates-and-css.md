@@ -211,7 +211,7 @@ paper = "a5"
 - **Base override** (`--css` / `[transform] css`) — replaces those packaged base
   rules for every output mode. It is compiled into the ODD stylesheet rather
   than layered after it, and forms part of the ODD cache key. Use it to restyle
-  what the runtime emits; for a project's own design CSS use `[chunking]
+  what the runtime emits; for a project's own design CSS use `[transform.web]
   assets`, which can also carry the images and fonts that stylesheet
   references. Note that `[transform.epub] css` is not a per-mode version of
   this key: it adds a stylesheet to the EPUB package on top of everything else.

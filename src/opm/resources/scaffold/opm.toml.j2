@@ -39,7 +39,7 @@ register-root = "urn:registers"
 
 # Replaces the base rules compiled into the ODD stylesheet (popovers, column
 # breaks, margin notes) for every output type. Design CSS for your pages
-# belongs under [chunking] assets instead.
+# belongs under [transform.web] assets instead.
 # css = "styles/base.css"
 
 [transform.web]
@@ -48,6 +48,9 @@ template = "templates/{{ html_template }}.html.j2"
 # Its URL is an ordinary template value, so serving it yourself is just
 # [transform.web.context] with webcomponents_url = "..." below.
 webcomponents = {{ 'true' if webcomponents else 'false' }}
+# Stylesheets, images and fonts the template uses, copied into an assets/
+# directory beside the output. The template links the stylesheets for you.
+# assets = ["templates/edition.css"]
 
 # Anything here reaches every Jinja2 template as `context` — templates only,
 # never XPath — so TOML types survive: booleans, numbers, arrays, sub-tables.
@@ -55,7 +58,7 @@ webcomponents = {{ 'true' if webcomponents else 'false' }}
 # [context]
 # site_name = "My edition"
 # show_downloads = true
-# logo = "../assets/icon.png"   # shown in the chapbook menu bar; [chunking]
+# logo = "../assets/icon.png"   # shown in the chapbook menu bar; [transform.web]
 #                               # assets copies it to <output-root>/assets/,
 #                               # one directory above the chunk pages
 #
@@ -80,7 +83,6 @@ template = "{{ typst_template }}"
 selector = "{{ chunk_selector }}"
 depth = {{ chunk_depth }}
 output_dir = "chunks"
-template = "templates/{{ html_template }}.html.j2"
 
 [[chunking.fragments]]
 name = "title"

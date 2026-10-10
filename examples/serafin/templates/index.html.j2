@@ -15,7 +15,7 @@
     href="https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@0,300..700;1,300..700&family=Belleza&display=swap"
     rel="stylesheet"
   >
-  {# Stylesheets copied in via chunking.assets, in declared order; letter.css
+  {# Stylesheets copied in via [transform.web] assets, in declared order; letter.css
      finds parchment.jpg beside it because both land in assets/. #}
   {% for href in asset_styles %}
   <link rel="stylesheet" href="{{ href }}">

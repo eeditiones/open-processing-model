@@ -72,6 +72,8 @@ def render_document_template(
     parameters: dict[str, str],
     context: dict | None = None,
     base_css: str | None = None,
+    assets: str = '',
+    asset_styles: list[str] | None = None,
 ) -> str:
     """Render a full HTML document through the selected Jinja2 template.
 
@@ -86,6 +88,10 @@ def render_document_template(
     de-dup check below (which compares *odd_css* against what
     ``HtmlOutputFunctions.document()`` already embedded in the document's own
     ``<head>``) still recognises an exact match.
+
+    *assets* and *asset_styles* are the URL prefix of the copied
+    ``[transform.web] assets`` and the stylesheets among them, the same
+    values chunk pages receive.
     """
     html_root = _first_html_root(serialized_html)
     if html_root is None:
@@ -117,6 +123,8 @@ def render_document_template(
         parameters=parameters or {},
         lang=html_root.get('lang', ''),
         context=context or {},
+        assets=assets,
+        asset_styles=asset_styles or [],
     )
 
 
@@ -136,7 +144,7 @@ def render_index_template(
     The template receives ``documents`` (a list of
     [`IndexEntry`][opm.chunking.IndexEntry]), ``title``, the ``odd_css`` string, the
     ``odd_css_url`` file chunking writes, and — when
-    ``chunking.assets`` is configured — an ``assets`` URL prefix plus
+    an assets setting is configured — an ``assets`` URL prefix plus
     ``asset_styles``, the stylesheets among those assets in declared order. The
     index sits at the output root, so those URLs carry no ``../`` prefix.
 

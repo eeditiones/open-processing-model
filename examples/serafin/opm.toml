@@ -30,9 +30,15 @@ global = "http://teipublisher.com/global"
 [transform.variables.global]
 register-root = "/db/apps/serafin/data/registers"
 
+# Chunk pages use the same template and assets unless [chunking] sets its own.
 [transform.web]
 template = "templates/letter.html.j2"
 webcomponents = true
+# The edition's own stylesheet and its texture, copied to an assets/ directory
+# beside the output (chunks/assets/ for `opm chunk`). letter.css references
+# parchment.jpg as a sibling, so its URL resolves inside assets/ regardless of
+# how deep the page linking it sits. The ODD stylesheet needs no entry here.
+assets = ["templates/letter.css", "templates/parchment.jpg"]
 
 [transform.epub]
 # [chunking] below selects only the source text: the reading view shows the
@@ -54,17 +60,10 @@ odd = "odd/serafin.odd"
 xpath = ".//text[@type='source']/div"
 xpath_dynamic = "//text[@type = 'source']"
 output_dir = "chunks"
-template = "templates/letter.html.j2"
 # Landing page for a directory run, sharing the letter template's shell and CSS.
 index_template = "templates/index.html.j2"
 index_title = "Listy"
 doc_path = "letters"
-
-# The edition's own stylesheet and its texture are copied to chunks/assets/;
-# the ODD stylesheet is written to chunks/css/ automatically. letter.css
-# references parchment.jpg as a sibling, so its URL resolves inside assets/
-# regardless of how deep the page linking it sits.
-assets = ["templates/letter.css", "templates/parchment.jpg"]
 
 # Collection index entry for `opm chunk data/letters` (a directory run).
 # The ODD's display='browse' models render title, place and date, and build

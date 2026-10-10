@@ -21,6 +21,7 @@ from urllib.parse import unquote, urlsplit
 from lxml import etree
 from lxml import html as lxml_html
 
+from opm.assets import ASSETS_DIR, asset_styles, copy_assets, resolve_assets
 from opm.config import ChunkingConfig, FragmentConfig, ProjectConfig
 from opm.epub import _resolve_image_sources
 from opm.runtime import source_map
@@ -176,7 +177,7 @@ class ChunkProcessor:
             extensions=cfg.xpath_extensions,
         )
         # Includes the project's base override ([transform] css), compiled in.
-        # Design CSS is not part of this — it travels through chunking.assets.
+        # Design CSS is not part of this — it travels through the assets setting.
         self.odd_css: str = getattr(self.module, 'ODD_GENERATED_CSS', '') or ''
         self.chunks: list[etree._Element] = []
         self.results: list[ChunkResult] = []
@@ -306,23 +307,9 @@ class ChunkProcessor:
             urls['odd_css_url'] = f'{prefix}css/{self.odd_name}.css'
 
         if self.config.assets:
-            assets_dir = root / 'assets'
-            assets_dir.mkdir(parents=True, exist_ok=True)
-            sources = resolve_assets(self.project_root, self.config.assets)
-            for source in sources:
-                target = assets_dir / source.name
-                if source.is_dir():
-                    shutil.copytree(source, target, dirs_exist_ok=True)
-                else:
-                    shutil.copy2(source, target)
-            urls['assets'] = f'{prefix}assets'
-            # Stylesheets among the assets, in the order they were declared —
-            # that is the cascade order, so a template can link them blind.
-            urls['asset_styles'] = [
-                f'{prefix}assets/{source.name}'
-                for source in sources
-                if source.suffix.lower() == '.css'
-            ]
+            sources = copy_assets(self.project_root, self.config.assets, root)
+            urls['assets'] = f'{prefix}{ASSETS_DIR}'
+            urls['asset_styles'] = asset_styles(sources, prefix)
 
         return urls
 
@@ -1505,36 +1492,6 @@ def _humanise(stem: str) -> str:
     return text[:1].upper() + text[1:] if text else stem
 
 
-def resolve_assets(root: Path, assets: tuple[Path, ...]) -> list[Path]:
-    """Expand ``[chunking] assets`` entries to the paths to copy.
-
-    An entry holding ``*``, ``?`` or ``[`` is matched against the filesystem, so
-    ``iiif/*`` copies every document's directory in one line instead of naming
-    each one — and keeps working when a document is added. Matches are sorted,
-    which fixes the cascade order of any stylesheets among them. Every other
-    entry is taken literally.
-
-    A literal path that does not exist, or a pattern matching nothing, raises
-    ``FileNotFoundError``. The alternative is output quietly missing a file a
-    template or model expects, which surfaces much later as a 404.
-    """
-    resolved: list[Path] = []
-    for asset in assets:
-        source = asset if asset.is_absolute() else root / asset
-        text = str(source)
-        if any(char in text for char in '*?['):
-            pattern = str(source.relative_to(source.anchor))
-            matches = sorted(Path(source.anchor).glob(pattern))
-            if not matches:
-                raise FileNotFoundError(f'Asset pattern matched nothing: {source}')
-            resolved.extend(matches)
-        elif source.exists():
-            resolved.append(source)
-        else:
-            raise FileNotFoundError(f'Asset not found: {source}')
-    return resolved
-
-
 def collect_index_entries(output_dir: Path) -> list[IndexEntry]:
     """Collect one [`IndexEntry`][opm.chunking.IndexEntry] per chunked document under *output_dir*.
 
@@ -1609,11 +1566,6 @@ def build_index(
     chunk_cfg = chunking_config or ChunkingConfig()
     odd_name = getattr(load_transform_module(module_path), 'ODD_NAME', '') if module_path else ''
     odd_css_url = f'css/{odd_name}.css' if odd_css and odd_name else ''
-    asset_styles = [
-        f'assets/{source.name}'
-        for source in resolve_assets(project_root or output_dir, chunk_cfg.assets)
-        if source.suffix.lower() == '.css'
-    ]
 
     rendered = render_index_template(
         entries=entries,
@@ -1623,8 +1575,10 @@ def build_index(
         title=title or output_dir.name,
         odd_css=odd_css,
         odd_css_url=odd_css_url,
-        assets='assets' if chunk_cfg.assets else '',
-        asset_styles=asset_styles,
+        assets=ASSETS_DIR if chunk_cfg.assets else '',
+        asset_styles=asset_styles(
+            resolve_assets(project_root or output_dir, chunk_cfg.assets),
+        ),
         context=(project_config or ProjectConfig()).context_for(
             'web', webcomponents=webcomponents,
         ),

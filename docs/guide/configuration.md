@@ -33,6 +33,9 @@ template = "templates/default.html.j2"
 # The bundle URL is a template value: set webcomponents_url in [transform.web.context]
 # to serve it yourself or pin another version.
 webcomponents = false
+# Stylesheets, images and fonts the template uses, copied into an assets/ folder
+# next to the output (the ODD stylesheet is handled for you)
+assets = ["templates/edition.css", "templates/parchment.jpg"]
 
 [transform.docx]
 # Optional per-mode ODD override; omit to use [transform].odd
@@ -65,7 +68,7 @@ depth = 2
 # file_pattern = "{xml_id}.html"
 # Output directory for chunk files
 output_dir = "chunks"
-# Jinja2 template for chunk pages
+# Jinja2 template for chunk pages (default: the [transform.web] template)
 template = "templates/chunk.html.j2"
 # URL pattern for cross-chunk links ({file}, {stem}, {anchor}, {doc}, {doc_stem})
 link_pattern = "/{doc}/{file}"
@@ -73,9 +76,8 @@ link_pattern = "/{doc}/{file}"
 index_template = "templates/index.html.j2"
 # Heading for that index (default: the input directory name)
 index_title = "Correspondence"
-# Files or directories copied into <output-root>/assets/ (stylesheets are
-# always written to <output-root>/css/ automatically)
-assets = ["templates/edition.css", "templates/parchment.jpg"]
+# Files copied into <output-root>/assets/ instead of the [transform.web] assets
+# assets = ["templates/edition.css", "templates/parchment.jpg"]
 ```
 
 ## Sections
@@ -84,7 +86,7 @@ assets = ["templates/edition.css", "templates/parchment.jpg"]
 | --- | --- | --- |
 | `[project]` | `pythonpath` additions so local extension modules import | [XPath extensions](xpath-extensions.md) |
 | `[transform]` | Shared settings (`odd`, `xpath_extensions`, `documents`, `parameters`, base `css`) | [Output formats](output-formats.md), [ODD `$parameters`](odd-files.md#parameters), [Templates & CSS](templates-and-css.md#two-kinds-of-css) |
-| `[transform.web]` | Optional web-only `odd` override and HTML `template` | [Templates & CSS](templates-and-css.md) |
+| `[transform.web]` | Optional web-only `odd` override, HTML `template` and its `assets` | [Templates & CSS](templates-and-css.md) |
 | `[transform.print]` | Optional print `odd` and HTML `template` | [Output formats](output-formats.md#print-paged-media) |
 | `[transform.epub]` | Optional EPUB `odd`, `css` and `skip_title` | [Output formats](output-formats.md#epub) |
 | `[transform.docx]` | Optional DOCX `odd` override and Word style `template` | [Output formats](output-formats.md#docx) |

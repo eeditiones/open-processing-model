@@ -61,6 +61,9 @@ class OutputMode:
     template_setting: str | None = None
     #: The packaged template used when the project sets none.
     default_template: str | None = None
+    #: The [`ProjectConfig`][opm.config.ProjectConfig] attribute listing the
+    #: files the template references, copied into ``assets/`` beside the output.
+    assets_setting: str | None = None
     #: Add the packaged paged-media stylesheet to the HTML shell.
     print_css: bool = False
     #: Collect ``metadata`` behaviour values for the template.
@@ -117,6 +120,7 @@ _WEB = OutputMode(
     template='html',
     template_setting='document_template',
     default_template='default_document.html.j2',
+    assets_setting='web_assets',
     extension='.html',
     preview='browser',
     scaffold=True,

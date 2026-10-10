@@ -84,6 +84,7 @@ from opm.config import (
     ProjectConfig,
     load_project_config,
 )
+from opm.assets import ASSETS_DIR, asset_styles, resolve_assets
 from opm.output_modes import OutputMode, module_mode
 from opm.runtime.pm_runtime import serialize as _default_serialize
 from opm.runtime.xpath_env import XPathEnvironment
@@ -127,6 +128,16 @@ def template_arguments(
     if mode.template == 'docx':
         return {'docx_template': chosen}
     return {'template_path': chosen}
+
+
+def template_assets(mode: OutputMode, config: ProjectConfig) -> tuple[Path, ...]:
+    """The files *mode*'s template references, e.g. ``[transform.web] assets``.
+
+    Whoever writes the output copies them into an ``assets/`` directory beside
+    it (see [`copy_assets`][opm.assets.copy_assets]); the template links them
+    from there.
+    """
+    return tuple(getattr(config, mode.assets_setting)) if mode.assets_setting else ()
 
 
 def load_transform_module(script_path: Path) -> ModuleType:
@@ -332,6 +343,7 @@ def run_transform(
     apply_template: bool = True,
     template_path: Path | None = None,
     template_context: dict[str, Any] | None = None,
+    assets: Sequence[Path] = (),
     docx_template: Path | None = None,
     typst_template_path: Path | None = None,
     epub_chunking: ChunkingConfig | None = None,
@@ -357,6 +369,10 @@ def run_transform(
         template_context: Project ``[context]`` values exposed to the Jinja2
             template as ``context`` (see
             [`context_for`][opm.config.ProjectConfig.context_for]).
+        assets: Files the HTML template references, expected in an
+            ``assets/`` directory beside the output. The template receives
+            ``assets`` (the directory's URL) and ``asset_styles`` (the
+            stylesheets among them); copying them is up to the caller.
         docx_template: Path to a ``.docx`` file used as the Word style template.
         typst_template_path: Jinja2 template for Typst document shell.
         epub_chunking: Chapter selection for ``-t epub`` (defaults from TEI/DocBook).
@@ -435,6 +451,8 @@ def run_transform(
             base_css=_print_base_css() if mode.print_css else None,
             parameters=parameters or {},
             context=template_context,
+            assets=ASSETS_DIR if assets else '',
+            asset_styles=asset_styles(resolve_assets(Path.cwd(), assets)),
         )
 
     return out
@@ -450,6 +468,7 @@ def transform_node(
     apply_template: bool = True,
     template_path: Path | None = None,
     template_context: dict[str, Any] | None = None,
+    assets: Sequence[Path] = (),
     docx_template: Path | None = None,
     typst_template_path: Path | None = None,
     epub_chunking: ChunkingConfig | None = None,
@@ -479,6 +498,8 @@ def transform_node(
         template_path: Override Jinja2 template (default: packaged template).
         template_context: Project ``[context]`` values exposed to the Jinja2
             template as ``context``.
+        assets: Files the HTML template references (see
+            [`run_transform`][opm.transform.run_transform]).
         xpath_env: The XPath environment to evaluate in (see
             [`project_xpath_env`][opm.transform.project_xpath_env]); an empty one when omitted.
     """
@@ -501,6 +522,7 @@ def transform_node(
         apply_template=apply_template,
         template_path=template_path,
         template_context=template_context,
+        assets=assets,
         docx_template=docx_template,
         typst_template_path=typst_template_path,
         epub_chunking=epub_chunking,
@@ -602,6 +624,7 @@ def transform_with_config(
         webcomponents=effective_webcomponents,
         template_context=config.context_for(mode.name, webcomponents=effective_webcomponents),
         **template_arguments(mode, config, template),
+        assets=template_assets(mode, config),
         xpath_env=project_xpath_env(
             config, xml_path, extensions=xpath_extensions, documents=documents,
         ),

@@ -6,6 +6,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -28,7 +29,7 @@ def test_preview_follows_the_output_mode(monkeypatch, mode: str, shown_by: str) 
     shown: list[str] = []
     for name in ('_preview_html_in_browser', '_preview_markdown_terminal',
                  '_preview_json_terminal', '_preview_plain_terminal'):
-        monkeypatch.setattr(cli, name, lambda text, name=name: shown.append(name))
+        monkeypatch.setattr(cli, name, lambda text, *_, name=name: shown.append(name))
     cli._preview_output('output', output_mode(mode))
     assert shown == [shown_by]
 
@@ -155,6 +156,88 @@ def test_transform_uses_template_override_for_full_html(tmp_path: Path, monkeypa
     assert '<p' in rendered
     assert 'X' in rendered
     assert 'opm-default-template' not in rendered
+
+
+def _project_with_web_assets(tmp_path: Path) -> Path:
+    """A project whose [transform.web] template links its assets."""
+    _write_tiny_odd(tmp_path / 'tiny.odd')
+    (tmp_path / 'page.html.j2').write_text(
+        "<html><head>{% for href in asset_styles %}<link href='{{ href }}'>{% endfor %}"
+        "</head><body>ASSETS=[{{ assets }}]{{ content_html|safe }}</body></html>",
+        encoding='utf-8',
+    )
+    (tmp_path / 'edition.css').write_text('body { margin: 0 }', encoding='utf-8')
+    (tmp_path / 'paper.jpg').write_bytes(b'\xff\xd8')
+    (tmp_path / 'opm.toml').write_text(
+        '[transform.web]\n'
+        'odd = "tiny.odd"\n'
+        'template = "page.html.j2"\n'
+        'assets = ["edition.css", "paper.jpg"]\n',
+        encoding='utf-8',
+    )
+    xml = tmp_path / 'in.xml'
+    xml.write_text('<doc><p>content</p></doc>', encoding='utf-8')
+    return xml
+
+
+def test_transform_output_copies_web_assets(tmp_path: Path, monkeypatch) -> None:
+    xml = _project_with_web_assets(tmp_path)
+    out = tmp_path / 'site' / 'out.html'
+    out.parent.mkdir()
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['transform', str(xml), '-c', 'opm.toml', '--output', str(out)])
+    assert rc == 0
+    rendered = out.read_text(encoding='utf-8')
+    assert "<link href='assets/edition.css'>" in rendered
+    assert 'ASSETS=[assets]' in rendered
+    assert (out.parent / 'assets' / 'edition.css').is_file()
+    assert (out.parent / 'assets' / 'paper.jpg').is_file()
+
+
+def test_transform_preview_puts_web_assets_beside_the_page(tmp_path: Path, monkeypatch) -> None:
+    xml = _project_with_web_assets(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    opened: list[str] = []
+    monkeypatch.setattr(cli.webbrowser, 'open', opened.append)
+
+    rc = main(['transform', str(xml), '-c', 'opm.toml', '--preview'])
+    assert rc == 0
+    page = Path(urlsplit(opened[0]).path)
+    assert "<link href='assets/edition.css'>" in page.read_text(encoding='utf-8')
+    assert (page.parent / 'assets' / 'edition.css').is_file()
+
+
+def test_chunking_inherits_web_template_and_assets(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    for name in ('page.html.j2', 'own.html.j2', 'edition.css', 'other.css'):
+        (tmp_path / name).write_text('', encoding='utf-8')
+    config_file = tmp_path / 'opm.toml'
+    config_file.write_text(
+        '[transform.web]\n'
+        'template = "page.html.j2"\n'
+        'assets = ["edition.css"]\n'
+        '[[chunking]]\n'
+        'output_dir = "a"\n'
+        '[[chunking]]\n'
+        'output_dir = "a"\n'
+        'template = "own.html.j2"\n'
+        'assets = ["other.css"]\n'
+        '[[chunking]]\n'
+        'output_dir = "a"\n'
+        'assets = []\n',
+        encoding='utf-8',
+    )
+    config = load_project_config(config_file)
+    inherited, own, opted_out = config.chunking_runs
+
+    assert config.web_assets == (tmp_path / 'edition.css',)
+    assert inherited.template == tmp_path / 'page.html.j2'
+    assert inherited.assets == (tmp_path / 'edition.css',)
+    assert own.template == tmp_path / 'own.html.j2'
+    assert own.assets == (tmp_path / 'other.css',)
+    assert opted_out.assets == ()
 
 
 def test_transform_fragment_output_skips_template_shell(tmp_path: Path, monkeypatch) -> None:

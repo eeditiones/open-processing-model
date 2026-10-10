@@ -44,7 +44,8 @@ from opm.scaffold import (
     scaffold,
 )
 from opm.project import CHUNK_FORMATS, Project, chunk_input_files
-from opm.transform import load_transform_module
+from opm.assets import copy_assets
+from opm.transform import load_transform_module, template_assets
 from opm.runtime.xpath_diagnostics import XPathErrorLog, collect_xpath_errors
 
 app = typer.Typer(
@@ -500,8 +501,13 @@ def _load_project(path: Path | None) -> Project:
     return Project.load(path, root=Path.cwd())
 
 
-def _preview_output(out: str | bytes, mode: OutputMode) -> None:
-    """Show *out* the way ``--preview`` does for *mode* (see ``OutputMode.preview``)."""
+def _preview_output(
+    out: str | bytes, mode: OutputMode, assets: tuple[Path, ...] = (),
+) -> None:
+    """Show *out* the way ``--preview`` does for *mode* (see ``OutputMode.preview``).
+
+    *assets* are copied beside a browser preview, where its template links them.
+    """
     if mode.preview == 'app':
         label = mode.name.upper()
         data = out if isinstance(out, bytes) else out.encode('utf-8')
@@ -514,7 +520,7 @@ def _preview_output(out: str | bytes, mode: OutputMode) -> None:
         return
     text = out.decode('utf-8') if isinstance(out, bytes) else out
     if mode.preview == 'browser':
-        _preview_html_in_browser(text)
+        _preview_html_in_browser(text, assets)
     elif mode.preview == 'markdown':
         _preview_markdown_terminal(text)
     elif mode.preview == 'json':
@@ -543,16 +549,23 @@ def _pdf_request(mode: OutputMode, output: Path | None, preview: bool) -> tuple[
     return False, False
 
 
-def _preview_html_in_browser(html: str) -> None:
-    with tempfile.NamedTemporaryFile(
-        mode='w',
-        encoding='utf-8',
-        suffix='.html',
-        delete=False,
-        prefix='opm-preview-',
-    ) as f:
-        f.write(html)
-        path = Path(f.name)
+def _preview_html_in_browser(html: str, assets: tuple[Path, ...] = ()) -> None:
+    if assets:
+        # A directory of its own, so the page finds assets/ beside it.
+        directory = Path(tempfile.mkdtemp(prefix='opm-preview-'))
+        copy_assets(Path.cwd(), assets, directory)
+        path = directory / 'index.html'
+        path.write_text(html, encoding='utf-8')
+    else:
+        with tempfile.NamedTemporaryFile(
+            mode='w',
+            encoding='utf-8',
+            suffix='.html',
+            delete=False,
+            prefix='opm-preview-',
+        ) as f:
+            f.write(html)
+            path = Path(f.name)
     webbrowser.open(path.as_uri())
 
 
@@ -1028,16 +1041,19 @@ def transform_cmd(
             # Image paths in the output are the XML's own, relative to its directory.
             out = compile_pdf(str(out), root=input_xml.resolve().parent, open_viewer=view)
 
+        # The files the template links from assets/, e.g. [transform.web] assets.
+        assets = template_assets(mode, project.config)
         if output:
             if isinstance(out, bytes):
                 output.write_bytes(out)
             else:
                 output.write_text(out, encoding='utf-8')
+                copy_assets(project.root, assets, output.parent)
         elif view:
             # Typst has already opened the PDF; nothing goes to stdout.
             pass
         elif preview:
-            _preview_output(out, mode)
+            _preview_output(out, mode, assets)
         elif isinstance(out, bytes):
             sys.stdout.buffer.write(out)
         else:

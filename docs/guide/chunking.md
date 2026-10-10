@@ -7,7 +7,7 @@ manifest — this is ideal for static site generators and web components.
 Three different types of output are supported (use `--format` to switch between them):
 
 - **`html`** (default) — renders each chunk through a template
-  (`chunking.template`), generating a series of HTML files. Use this for quick previews
+  (`chunking.template`, else the `[transform.web]` template), generating a series of HTML files. Use this for quick previews
   or to create a simple static edition which does not need a complex framework.
 - **`json`** — one JSON file per chunk, including the rendered content and optional fragments. Ideal for integration into 
 static site generators like [Eleventy](https://www.11ty.dev/), [Hugo](https://gohugo.io/), [Astro](https://astro.build/) and others 
@@ -265,13 +265,21 @@ the defensive form used by the packaged template:
 ```
 -->
 Anything else a page needs — the template's own stylesheet, an image, a font —
-is listed under `assets`<!--, because the output directory is wiped on every
+is listed under `assets` in `[transform.web]`, next to the template that uses
+it<!--, because the output directory is wiped on every
 rebuild and nothing else puts files there-->:
 
 ```toml
-[chunking]
+[transform.web]
+template = "templates/letter.html.j2"
 assets = ["templates/letter.css", "templates/parchment.jpg", "templates/fonts"]
 ```
+
+Chunking uses this template and these assets unless `[chunking]` names its own
+`template` or `assets`. `opm transform` uses them too: with `--output` it copies
+the assets into an `assets/` folder next to the output file, and `--preview`
+does the same in a temporary folder, so a single page looks like the chunked
+edition.
 
 Each entry is copied into `<output-root>/assets/`, keeping its own name. An
 entry may be a glob, which is how a project stops editing this list every time
