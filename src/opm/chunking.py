@@ -33,10 +33,15 @@ from opm.transform import (
     run_transform,
     xpath_select,
 )
+from opm.template_frontmatter import template_context
 from opm.template_rendering import (
     DEFAULT_INDEX_TEMPLATE_NAME,
+    LAYOUT_CSS_NAME,
+    layout_css,
+    load_template,
     render_index_template,
     resolve_template_path,
+    template_environment,
     _inner_html,
 )
 from opm.runtime.pm_runtime import serialize as _default_serialize, inject_cached_footnotes
@@ -183,12 +188,14 @@ class ChunkProcessor:
         self.results: list[ChunkResult] = []
         self._jinja_env: Any | None = None
         self._jinja_template: Any | None = None
+        self._jinja_context: dict[str, Any] = {}
         # Built once per document; each chunk derives a run of its own from it.
         self._base_context: Any | None = None
         self._id_index: dict[str, etree._Element] | None = None
         self._chunk_anchor_map: dict[str, str] = {}
         self._shared_urls: dict[str, Any] = {
             'odd_css_url': '',
+            'layout_css_url': '',
             'assets': '',
             'asset_styles': [],
         }
@@ -278,7 +285,7 @@ class ChunkProcessor:
         """Return the relative path from a chunk page back to [`shared_root`][opm.chunking.ChunkProcessor.shared_root]."""
         return '../' if self.config.link_doc else ''
 
-    def write_shared_files(self) -> dict[str, str]:
+    def write_shared_files(self, *, html: bool = True) -> dict[str, str]:
         """Write stylesheets and copy assets into [`shared_root`][opm.chunking.ChunkProcessor.shared_root].
 
         Chunking always produces several pages sharing one stylesheet, so the
@@ -291,6 +298,10 @@ class ChunkProcessor:
         [`shared_root`][opm.chunking.ChunkProcessor.shared_root] (see ``build_index``) — empty when the caller sets
         no ``link_doc``, as there is then no such page to link to.
 
+        With *html*, the stylesheet of the packaged page layout is written to
+        ``css/opm-layout.css`` too, and ``layout_css_url`` points at it —
+        whether or not the page template extends ``opm/layout.html.j2``.
+
         Safe to call once per document — the writes are idempotent.
         """
         root = self.shared_root()
@@ -299,6 +310,14 @@ class ChunkProcessor:
             'odd_css_url': '', 'assets': '', 'asset_styles': [],
             'index_url': f'{prefix}index.html' if self.config.link_doc else '',
         }
+
+        # For pages extending opm/layout.html.j2; written for every HTML run
+        # rather than working out which templates do.
+        if html:
+            css_dir = root / 'css'
+            css_dir.mkdir(parents=True, exist_ok=True)
+            (css_dir / LAYOUT_CSS_NAME).write_text(layout_css(), encoding='utf-8')
+            urls['layout_css_url'] = f'{prefix}css/{LAYOUT_CSS_NAME}'
 
         if self.odd_css:
             css_dir = root / 'css'
@@ -813,6 +832,29 @@ class ChunkProcessor:
                     fragments[fragment.name] = self.process_fragment(fragment)
         return fragments
 
+    def _chunk_template_path(self, template_path: Path | None) -> Path | None:
+        """The chunk page template: the run's own, else *template_path*."""
+        if self.config.template:
+            return resolve_template_path(self.project_root / self.config.template)
+        return template_path
+
+    def _load_chunk_template(self, template_path: Path | None) -> Any | None:
+        """The compiled chunk template, built once and reused for every chunk.
+
+        Also merges the template's frontmatter into the context once. *None*
+        when there is no template, and chunks are written as raw HTML.
+        """
+        if self._jinja_template is None:
+            chunk_template = self._chunk_template_path(template_path)
+            if chunk_template is None:
+                return None
+            self._jinja_env = template_environment(chunk_template)
+            self._jinja_template = load_template(self._jinja_env, chunk_template)
+            self._jinja_context = template_context(
+                self._jinja_env, chunk_template.name, self.template_context,
+            )
+        return self._jinja_template
+
     def render_chunk_template(
         self, 
         chunk_result: ChunkResult, 
@@ -820,36 +862,12 @@ class ChunkProcessor:
         template_path: Path | None = None
     ) -> str:
         """Render a chunk with its template context."""
-        # Use chunk-specific template or fallback to main template
-        if self.config.template:
-            chunk_template = resolve_template_path(self.project_root / self.config.template)
-        elif template_path:
-            chunk_template = template_path
-        else:
-            # Create a minimal template for chunks
-            chunk_template = None
-        
-        if chunk_template:
+        tpl = self._load_chunk_template(template_path)
+        if tpl is not None:
             # content_html and head_html are pre-extracted in process_chunk() —
             # no HTMLParser round-trip needed here.
             content_html = chunk_result.content_html
             head_html = chunk_result.head_html
-
-            # Build Jinja2 env + template once; reuse across all chunks
-            if self._jinja_template is None or self._jinja_env is None:
-                from jinja2 import Environment, FileSystemLoader
-                self._jinja_env = Environment(
-                    loader=FileSystemLoader(str(chunk_template.parent)),
-                    autoescape=False,
-                )
-                try:
-                    with chunk_template.open('r', encoding='utf-8') as f:
-                        template_content = f.read()
-                    self._jinja_template = self._jinja_env.from_string(template_content)
-                except Exception as e:
-                    raise FileNotFoundError(f'Template not found: {chunk_template}') from e
-            assert self._jinja_template is not None
-            tpl = self._jinja_template
 
             all_fragments = {**global_fragments, **chunk_result.fragments}
             
@@ -872,7 +890,7 @@ class ChunkProcessor:
                 # and XPath never disagree about a parameter's value.
                 parameters=self._expand_placeholders(self.parameters),
                 lang="",
-                context=self.template_context,
+                context=self._jinja_context,
                 # Add chunk-specific context
                 fragments=all_fragments,
                 chunk=chunk_result.metadata,
@@ -923,7 +941,7 @@ class ChunkProcessor:
 
         # Stylesheets and assets live in the shared root, written once for the
         # whole edition; the returned URLs go into every template context.
-        self._shared_urls = self.write_shared_files()
+        self._shared_urls = self.write_shared_files(html=output_format == 'html')
 
         # Select chunks
         self.select_chunks()
@@ -1566,6 +1584,9 @@ def build_index(
     chunk_cfg = chunking_config or ChunkingConfig()
     odd_name = getattr(load_transform_module(module_path), 'ODD_NAME', '') if module_path else ''
     odd_css_url = f'css/{odd_name}.css' if odd_css and odd_name else ''
+    layout_css_url = (
+        f'css/{LAYOUT_CSS_NAME}' if (output_dir / 'css' / LAYOUT_CSS_NAME).is_file() else ''
+    )
 
     rendered = render_index_template(
         entries=entries,
@@ -1575,6 +1596,7 @@ def build_index(
         title=title or output_dir.name,
         odd_css=odd_css,
         odd_css_url=odd_css_url,
+        layout_css_url=layout_css_url,
         assets=ASSETS_DIR if chunk_cfg.assets else '',
         asset_styles=asset_styles(
             resolve_assets(project_root or output_dir, chunk_cfg.assets),

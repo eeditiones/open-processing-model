@@ -10,8 +10,10 @@ xpath_extensions = [
     "opm.runtime.common_xpath_functions"
 ]
 
+# Chunk pages use the same template and stylesheet; [chunking] sets neither.
 [transform.web]
 template = "templates/handbook.html.j2"
+assets = ["templates/handbook.css"]
 webcomponents = true
 
 [transform.print]
@@ -27,7 +29,6 @@ template = "templates/docbook.typ.j2"
 selector = "opm.navigation.dbk_section_chunks"
 depth = 2
 output_dir = "chunks"
-template = "templates/handbook.html.j2"
 # For --format pb-view / TEI Publisher URL scheme (absolute paths).
 # Omit for local `opm serve` so prev/next stay relative.
 # link_pattern = "/{doc}/{file}"

@@ -1300,7 +1300,7 @@ def test_no_stylesheets_written_when_there_are_none(tmp_path: Path) -> None:
     assert 'ODD=[] ASSETS=[] STYLES=[]' in page
     # No ODD stylesheet: the template's inline fallback is used instead.
     assert '<style></style>' in page
-    assert not (tmp_path / 'inline' / 'css').exists()
+    assert not (tmp_path / 'inline' / 'css' / 'teipublisher.css').exists()
 
 
 def test_page_template_sees_the_documents_of_the_run(tmp_path: Path) -> None:

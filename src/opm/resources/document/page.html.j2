@@ -1,26 +1,40 @@
 {#
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
+
+  A page of the ODD documentation site, on opm's packaged page layout
+  (opm/layout.html.j2): the site header, the navigation in the `before`
+  column, the page in `content`, "On this page" in `after`. `opm odd
+  document` copies the stylesheets, scripts, fonts and logo into assets/;
+  document.css styles what goes inside the regions.
 -#}
-<!doctype html>
-<html lang="{{ context.lang|default(lang or 'en') }}">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% if chunk.xml_id and chunk.xml_id != 'index' %}{{ chunk.xml_id }} — {% endif %}{{ context.site_title }}</title>
+---toml
+[body]
+classes = ["doc"]
+---
+{% extends "opm/layout.html.j2" %}
+
+{% block meta %}{{ super() }}
   {#- The browser-tab icon. One SVG, which every current browser takes and
       which stays sharp at any size; no .ico or apple-touch-icon, because
       rasterizing one would mean a dependency the site builder does not have. -#}
-  <link rel="icon" href="logo.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="document.css">
-  {% if odd_css_url %}<link rel="stylesheet" href="{{ odd_css_url }}">{% endif %}
-  <script src="theme.js"></script>
-</head>
-<body class="doc{% if fragments.nav %} doc--with-nav{% endif %}">
-  <a class="doc-skip" href="#doc-content">Skip to content</a>
-  <header class="doc-header">
+  <link rel="icon" href="{{ assets }}/logo.svg" type="image/svg+xml">
+{% endblock %}
+
+{% block title %}<title>{% if chunk.xml_id and chunk.xml_id != 'index' %}{{ chunk.xml_id }} — {% endif %}{{ context.site_title }}</title>{% endblock %}
+
+{% block scripts %}
+  {#- Before the page paints, so a reader's light/dark choice never flashes. -#}
+  <script src="{{ assets }}/theme.js"></script>
+  <script src="{{ assets }}/search.js" defer></script>
+{% endblock %}
+
+{% block body_class %}{% if fragments.nav %}doc--with-nav{% endif %}{% endblock %}
+
+{% block header %}
+  <div class="doc-header">
     <a class="doc-brand" href="index.html">
-      <img class="doc-brand__logo" src="logo.svg" alt="TEI" width="30" height="30">
+      <img class="doc-brand__logo" src="{{ assets }}/logo.svg" alt="TEI" width="30" height="30">
       <span class="doc-brand__title">{{ context.site_title }}</span>
     </a>
     {% if context.edition %}<span class="doc-edition">{{ context.edition }}</span>{% endif %}
@@ -41,30 +55,36 @@
               d="M12 3.2v1.8M12 19v1.8M4.9 4.9l1.3 1.3M17.8 17.8l1.3 1.3M3.2 12h1.8M19 12h1.8M4.9 19.1l1.3-1.3M17.8 6.2l1.3-1.3"/>
       </svg>
     </button>
-  </header>
-  <div class="doc-shell">
-    {% if fragments.nav %}
-    <aside class="doc-sidebar" aria-label="Site">
-      <nav>
-        <p class="doc-sidebar__label">Contents</p>
-        {{ fragments.nav | replace('href="' ~ chunk.file ~ '"', 'href="' ~ chunk.file ~ '" aria-current="page"') | safe }}
-      </nav>
-    </aside>
-    {% endif %}
-    <main class="doc-main" id="doc-content">
-      {{ content_html | safe }}
-      {% if fragments.chapterend %}{{ fragments.chapterend | safe }}{% endif %}
-    </main>
-    <aside class="doc-aside" aria-label="On this page" data-page-toc>
-      <p class="doc-aside__label">On this page</p>
-      <ul></ul>
-      {% if fragments.chapternav %}{{ fragments.chapternav | safe }}{% endif %}
-    </aside>
   </div>
-  <footer class="doc-footer">
+{% endblock %}
+
+{% block before %}
+  {% if fragments.nav %}
+  <nav class="doc-sidebar" aria-label="Site">
+    <p class="doc-sidebar__label">Contents</p>
+    {{ fragments.nav | replace('href="' ~ chunk.file ~ '"', 'href="' ~ chunk.file ~ '" aria-current="page"') | safe }}
+  </nav>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="doc-main">
+    {{ content_html | safe }}
+    {% if fragments.chapterend %}{{ fragments.chapterend | safe }}{% endif %}
+  </div>
+{% endblock %}
+
+{% block after %}
+  <div class="doc-aside" aria-label="On this page" data-page-toc>
+    <p class="doc-aside__label">On this page</p>
+    <ul></ul>
+    {% if fragments.chapternav %}{{ fragments.chapternav | safe }}{% endif %}
+  </div>
+{% endblock %}
+
+{% block footer %}
+  <div class="doc-footer">
     <span>{{ context.site_title }}{% if context.edition %} · {{ context.edition }}{% endif %}</span>
     {% if context.rights %}<span>{{ context.rights }}</span>{% endif %}
-  </footer>
-  <script src="search.js" defer></script>
-</body>
-</html>
+  </div>
+{% endblock %}

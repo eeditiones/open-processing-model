@@ -162,8 +162,10 @@ def init_cmd(
         typer.Option(
             '--templates',
             help=(
-                'Also copy the alternative HTML shells (chapbook, journal, '
-                'handbook, tufte, bootstrap) beside the one wired up.'
+                'Also copy the alternative HTML templates (chapbook, journal, '
+                'handbook, tufte, bootstrap) beside the one the project uses, '
+                "and opm's plain default Typst template as "
+                '`templates/document.typ.j2`.'
             ),
         ),
     ] = False,
@@ -185,7 +187,7 @@ def init_cmd(
 
     if vocabulary is None and example is None:
         vocabulary, example = _choose_start()
-        # A bare `opm init` settles the shells in the same breath as the
+        # A bare `opm init` settles the templates in the same breath as the
         # starting point; --templates has already answered the question.
         if not templates and example != 'odd':
             templates = _ask_extra_templates()
@@ -380,16 +382,16 @@ def _choose_start() -> tuple[str | None, str | None]:
 
 
 def _ask_extra_templates() -> bool:
-    """Ask whether to copy the alternative HTML shells beside the wired one.
+    """Ask whether to copy the alternative HTML templates beside the wired one.
 
     Only prompts on a terminal: a piped or scripted ``opm init`` keeps the lean
-    default of the one shell the project actually uses, and says so through
+    default of the one template the project actually uses, and says so through
     ``--templates`` when it wants the rest.
     """
     if not sys.stdin.isatty():
         return False
 
-    question = 'Also copy the alternative HTML shells to swap in later?'
+    question = 'Also copy the alternative HTML templates to switch to later?'
     try:
         import questionary
     except ImportError:

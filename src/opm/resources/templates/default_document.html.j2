@@ -1,21 +1,5 @@
-<!doctype html>
-<html lang="{{ lang|default('en') }}">
-<head>
+{#- The packaged web template: the transformed document in the opm layout. -#}
+{% extends "opm/layout.html.j2" %}
+{% block meta %}{{ super() }}
   <!-- opm-default-template -->
-  {{ head_html | safe }}
-  {% if context.webcomponents_url %}
-  <script type="module" src="{{ context.webcomponents_url }}"></script>
-  {% endif %}
-  {% for src in context.scripts | default([], true) %}
-  <script type="module" src="{{ src }}"></script>
-  {% endfor %}
-  {% if odd_css %}
-  <style type="text/css">
-{{ odd_css }}
-  </style>
-  {% endif %}
-</head>
-<body class="content">
-  {{ content_html | safe }}
-</body>
-</html>
+{% endblock %}

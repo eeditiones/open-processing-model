@@ -50,7 +50,12 @@ template = "templates/{{ html_template }}.html.j2"
 webcomponents = {{ 'true' if webcomponents else 'false' }}
 # Stylesheets, images and fonts the template uses, copied into an assets/
 # directory beside the output. The template links the stylesheets for you.
+# Switching to another template? Change its stylesheet here too.
+{% if html_css -%}
+assets = ["templates/{{ html_template }}.css"]
+{%- else -%}
 # assets = ["templates/edition.css"]
+{%- endif %}
 
 # Anything here reaches every Jinja2 template as `context` — templates only,
 # never XPath — so TOML types survive: booleans, numbers, arrays, sub-tables.
@@ -61,6 +66,17 @@ webcomponents = {{ 'true' if webcomponents else 'false' }}
 # logo = "../assets/icon.png"   # shown in the chapbook menu bar; [transform.web]
 #                               # assets copies it to <output-root>/assets/,
 #                               # one directory above the chunk pages
+#
+# Templates extending opm/layout.html.j2 read their layout settings here too.
+# The defaults (opm/defaults.toml in the package) are:
+# [context.layout.before]
+# width = "18rem"      # column left of the text
+# mobile = "drawer"    # on narrow screens: "drawer" or "stack" (below the text)
+# label = "Contents"   # button that opens the drawer
+# [context.layout.after]
+# width = "18rem"
+# mobile = "stack"
+# label = "More"
 #
 # A [transform.<type>.context] table overlays this for one output type only:
 # [transform.typst.context]

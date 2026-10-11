@@ -118,7 +118,7 @@ def build_document_site(
     if not runs:
         raise ValueError(f'{config_file} declares no [chunking] run')
 
-    _copy_assets(output_dir, site_dir)
+    assets = site_assets(site_dir)
 
     chapters = [
         div for div in iter_guideline_chapters(tree)
@@ -146,7 +146,11 @@ def build_document_site(
         # (`#SATSRN` → SA.html#SATSRN).
         anchors: dict[str, str] = {}
         for position, run in enumerate(runs):
-            chunking = replace(run, output_dir='.', odd=odd_path)
+            # The page assets go into assets/ like any project's, unless the
+            # run lists its own.
+            chunking = replace(
+                run, output_dir='.', odd=odd_path, assets=run.assets or assets,
+            )
             anchors = chunk_document(
                 module_path=None,
                 xml_path=xml_path,
@@ -547,8 +551,9 @@ def _write_idents(index: SpecIndex, output_dir: Path) -> None:
     )
 
 
-#: The page assets a site directory provides, copied into every build.
-SITE_ASSETS = ('document.css', 'fonts.css', 'search.js', 'theme.js', 'logo.svg')
+#: The page assets a site directory provides, in cascade order for the two
+#: stylesheets: the webfonts first, then the design that uses them.
+SITE_ASSETS = ('fonts.css', 'document.css', 'fonts', 'search.js', 'theme.js', 'logo.svg')
 
 
 def site_assets_dir(cfg: ProjectConfig, config_file: Path) -> Path:
@@ -564,22 +569,20 @@ def site_assets_dir(cfg: ProjectConfig, config_file: Path) -> Path:
     return config_file.parent
 
 
-def _copy_assets(output_dir: Path, site_dir: Path | None = None) -> None:
-    """The stylesheets, scripts, logo and fonts, from *site_dir* where it has
-    them — a project's own — else the packaged ones."""
-    packaged = resources.files('opm').joinpath('resources/document')
+def site_assets(site_dir: Path | None = None) -> tuple[Path, ...]:
+    """The stylesheets, scripts, fonts and logo every page links from assets/.
 
-    def source(name: str):
+    Each is taken from *site_dir* where it has one — a project's own — else
+    from the packaged ``resources/document``, so a project only keeps the
+    files it changes.
+    """
+    packaged = Path(str(resources.files('opm').joinpath('resources/document')))
+
+    def source(name: str) -> Path:
         own = site_dir / name if site_dir is not None else None
-        return own if own is not None and own.exists() else packaged.joinpath(name)
+        return own if own is not None and own.exists() else packaged / name
 
-    for name in SITE_ASSETS:
-        (output_dir / name).write_bytes(source(name).read_bytes())
-    fonts_dir = output_dir / 'fonts'
-    fonts_dir.mkdir(exist_ok=True)
-    for entry in source('fonts').iterdir():
-        if entry.name.endswith('.woff2'):
-            (fonts_dir / entry.name).write_bytes(entry.read_bytes())
+    return tuple(source(name) for name in SITE_ASSETS)
 
 
 def _edition_line(root: etree._Element | None) -> str:

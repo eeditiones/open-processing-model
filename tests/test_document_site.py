@@ -268,18 +268,19 @@ def test_cli_document_mini_schema(tmp_path: Path) -> None:
     dest = tmp_path / 'site'
     assert main(['odd', 'document', str(MINI), '-o', str(dest), '--force']) == 0
     assert (dest / 'ref-p.html').is_file()
-    assert (dest / 'document.css').is_file()
-    assert (dest / 'logo.svg').is_file()
+    assert (dest / 'assets' / 'document.css').is_file()
+    assert (dest / 'assets' / 'logo.svg').is_file()
     home = (dest / 'index.html').read_text(encoding='utf-8')
-    assert 'logo.svg' in home
+    assert 'assets/logo.svg' in home
     assert 'doc-brand__logo' in home
     # The tab icon, on every page rather than only the home page.
-    icon = '<link rel="icon" href="logo.svg" type="image/svg+xml">'
+    icon = '<link rel="icon" href="assets/logo.svg" type="image/svg+xml">'
     assert icon in home
     assert icon in (dest / 'ref-p.html').read_text(encoding='utf-8')
-    css = (dest / 'document.css').read_text(encoding='utf-8')
+    css = (dest / 'assets' / 'document.css').read_text(encoding='utf-8')
     assert '--doc-amber: #f7a823' in css
-    assert "@import 'fonts.css'" in css
+    # The webfonts are linked from the page rather than imported here.
+    assert '<link rel="stylesheet" href="assets/fonts.css">' in home
     assert 'scroll-padding-top: var(--doc-scroll-pad)' in css
 
 
@@ -290,7 +291,7 @@ def test_cli_document_default_output_uses_schema_ident(
     assert main(['odd', 'document', str(MINI), '--force']) == 0
     dest = tmp_path / 'odd' / 'mini'
     assert (dest / 'ref-p.html').is_file()
-    assert (dest / 'document.css').is_file()
+    assert (dest / 'assets' / 'document.css').is_file()
 
 
 def test_cli_document_without_input_documents_tei(tmp_path: Path, monkeypatch) -> None:
@@ -476,7 +477,7 @@ def test_chapter_nav_sits_after_the_chapter_and_in_the_rail(tmp_path: Path) -> N
     assert body.index('</article>') < body.index('class="chapter-nav"')
 
     # The rail copy lives in the aside, not in the chapter body.
-    aside = chapter[chapter.index('<aside class="doc-aside"'):]
+    aside = chapter[chapter.index('class="doc-aside"'):]
     assert 'class="chapter-nav chapter-nav--rail"' in aside
     assert 'chapter-nav--rail' not in body
 
@@ -1040,7 +1041,8 @@ def test_list_ref_falls_back_to_the_published_guidelines(
 def test_document_site_ships_self_hosted_fonts(tmp_path: Path) -> None:
     compiled = compile_schema(MINI)
     site = build_document_site(compiled, tmp_path / 'out')
-    out = site.output_dir
+    # Copied into assets/, as any project's assets are.
+    out = site.output_dir / 'assets'
     assert (out / 'fonts.css').is_file()
     assert (out / 'theme.js').is_file()
     faces = sorted(p.name for p in (out / 'fonts').glob('*.woff2'))
@@ -1051,8 +1053,10 @@ def test_document_site_ships_self_hosted_fonts(tmp_path: Path) -> None:
     # Every @font-face src resolves to a file that was actually copied.
     for ref in re.findall(r"url\('fonts/([^']+)'\)", fonts_css):
         assert (out / 'fonts' / ref).is_file(), ref
-    page = (out / 'ref-p.html').read_text(encoding='utf-8')
-    assert 'theme.js' in page
+    page = (site.output_dir / 'ref-p.html').read_text(encoding='utf-8')
+    assert 'src="assets/theme.js"' in page
+    # fonts.css is linked ahead of document.css, which uses its faces.
+    assert page.index('href="assets/fonts.css"') < page.index('href="assets/document.css"')
     assert 'data-doc-theme' in page
     assert 'doc-theme__moon' in page
     assert 'doc-theme__sun' in page
@@ -1445,10 +1449,10 @@ def test_odd_document_builds_with_the_project_it_runs_in(
     site = root / 'site'
     assert 'PROJECT-Optional' in (site / 'ref-p.html').read_text(encoding='utf-8')
     assert 'Project attributes' in (site / 'REF-ATTS.html').read_text(encoding='utf-8')
-    assert (site / 'document.css').read_text(encoding='utf-8') == '/* project css */\n'
+    assert (site / 'assets' / 'document.css').read_text(encoding='utf-8') == '/* project css */\n'
     # Not in the project, so the packaged ones: fonts and logo.
-    assert (site / 'logo.svg').is_file()
-    assert any((site / 'fonts').glob('*.woff2'))
+    assert (site / 'assets' / 'logo.svg').is_file()
+    assert any((site / 'assets' / 'fonts').glob('*.woff2'))
 
 
 def test_prepare_then_chunk_gives_a_static_site_builder_both_runs(

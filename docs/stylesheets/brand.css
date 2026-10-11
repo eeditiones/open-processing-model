@@ -107,6 +107,17 @@
   max-height: 2.6rem;
 }
 
+/* one entry, so room for the sentence under the logo */
+.md-typeset .supporters--initiative:not([hidden]) li {
+  flex-basis: auto;
+  max-width: 24rem;
+  text-align: center;
+}
+
+.md-typeset .supporters--initiative .supporters__note {
+  margin: .75rem 0 0;
+}
+
 /* --- Slideshow (see javascripts/slideshow.js) --------------------------- */
 
 .md-typeset .slideshow {

@@ -10,8 +10,10 @@ xpath_extensions = [
     "opm.runtime.common_xpath_functions"
 ]
 
+# Chunk pages use the same template and stylesheet; [chunking] sets neither.
 [transform.web]
 template = "templates/journal.html.j2"
+assets = ["templates/journal.css"]
 webcomponents = true
 
 [transform.print]
@@ -29,7 +31,6 @@ template = "templates/article.typ.j2"
 selector = "opm.navigation.jats_sec_chunks"
 depth = 2
 output_dir = "chunks"
-template = "templates/journal.html.j2"
 doc_path = "article"
 
 [[chunking.fragments]]

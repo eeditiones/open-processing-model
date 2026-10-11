@@ -215,8 +215,9 @@ def _copy_file(src: Path, dest: Path, *, force: bool) -> bool:
 def _shell_copies(names: tuple[str, ...], dest_dir: Path) -> list[tuple[str, Path]]:
     """Return ``(packaged resource, destination)`` pairs for the HTML shells *names*.
 
-    A shell is a ``.html.j2`` plus the ``.css`` beside it, when it has one:
-    ``tufte`` and ``bootstrap`` carry their styling inline and ship alone.
+    A shell is a ``.html.j2`` plus the ``.css`` beside it, when it has one —
+    linked as an asset through ``[transform.web] assets`` — while ``tufte`` and
+    ``bootstrap`` load their framework from a CDN and ship alone.
     """
     copies: list[tuple[str, Path]] = []
     for name in names:
@@ -471,6 +472,8 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         title_xpath=title_xpath,
         breadcrumbs=vocab in _BREADCRUMBS,
         html_template=html_template,
+        # The shell's stylesheet, wired up as an asset when it has one.
+        html_css=_resource_root().joinpath('scaffold', 'templates', f'{html_template}.css').is_file(),
         index_note_element=_INDEX_FIELD_ELEMENTS[vocab][0],
         index_name_element=_INDEX_FIELD_ELEMENTS[vocab][1],
     )

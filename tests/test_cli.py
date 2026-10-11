@@ -1236,6 +1236,19 @@ def test_init_jats_wires_journal_shell(tmp_path: Path) -> None:
     # copied on --templates.
     assert (dest / 'templates' / 'journal.css').is_file()
     assert not (dest / 'templates' / 'chapbook.html.j2').exists()
+    # ...and is linked as an asset, for single pages and chunks alike.
+    assert cfg.web_assets == (dest / 'templates' / 'journal.css',)
+    assert cfg.chunking.assets == cfg.web_assets
+
+
+def test_init_shell_without_stylesheet_wires_no_asset(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+    from opm.scaffold import InitOptions, scaffold
+
+    dest = tmp_path / 'tufte'
+    scaffold(InitOptions(directory=dest, html_template='tufte', bare=True))
+    assert load_project_config(dest / 'opm.toml').web_assets == ()
+    assert '# assets = ' in (dest / 'opm.toml').read_text(encoding='utf-8')
 
 
 def test_init_jats_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
@@ -1255,6 +1268,9 @@ def test_init_jats_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
     assert '<header class="jr-masthead">' not in text
     # A pb:template inside a no-namespace ODD must keep the markup it builds.
     assert '<li id="ref1">' in text
+    # The shell's stylesheet is copied beside the page and linked, not inlined.
+    assert '<link rel="stylesheet" href="assets/journal.css">' in text
+    assert (dest / 'assets' / 'journal.css').is_file()
     assert main(['transform', 'data/sample.xml', '-t', 'markdown', '-o', str(dest / 'out.md')]) == 0
     typ = dest / 'out.typ'
     assert main(['transform', 'data/sample.xml', '-t', 'typst', '-o', str(typ)]) == 0
@@ -1269,6 +1285,8 @@ def test_init_jats_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
     assert len(chunks) == 4
     # @id anchors resolve across chunks even though JATS has no xml:id.
     assert 'href="004.html#ref1"' in chunks[2].read_text(encoding='utf-8')
+    assert (dest / 'chunks' / 'assets' / 'journal.css').is_file()
+    assert 'href="../assets/journal.css"' in chunks[0].read_text(encoding='utf-8')
 
 
 def test_init_from_example_copies_project(tmp_path: Path) -> None:

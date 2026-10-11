@@ -8,10 +8,11 @@ from __future__ import annotations
 from importlib import resources
 from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader, TemplateNotFound
+from jinja2 import Environment, TemplateNotFound
 from lxml import etree
 
 from opm.output_modes import RENDER_MODES
+from opm.template_frontmatter import FrontmatterLoader, template_context
 
 DEFAULT_TEMPLATE_NAME: str = RENDER_MODES['web'].default_template  # type: ignore[assignment]
 DEFAULT_PRINT_TEMPLATE_NAME: str = RENDER_MODES['print'].default_template  # type: ignore[assignment]
@@ -40,6 +41,56 @@ def resolve_template_path(
     if not path.is_file():
         raise FileNotFoundError(f'Template not found: {path}')
     return path
+
+
+#: The stylesheet of the packaged page layout (``opm/layout.html.j2``), in
+#: ``resources/templates/opm/``.
+LAYOUT_CSS_NAME = 'opm-layout.css'
+
+
+def layout_css() -> str:
+    """The stylesheet behind ``opm/layout.html.j2``.
+
+    Chunking writes it to ``css/opm-layout.css`` and passes ``layout_css_url``;
+    a single transformed page has no such file, so the layout inlines it.
+    """
+    return (packaged_templates_dir() / 'opm' / LAYOUT_CSS_NAME).read_text(encoding='utf-8')
+
+
+def packaged_templates_dir() -> Path:
+    """The directory holding the packaged templates, ``opm/`` layouts included."""
+    return default_template_path().parent
+
+
+def template_environment(template_path: Path) -> Environment:
+    """A Jinja2 environment for rendering *template_path*.
+
+    Templates are looked up in *template_path*'s directory first, then among
+    the packaged ones, so a project template can ``{% extends
+    "opm/layout.html.j2" %}`` and can replace a packaged file by giving its
+    own the same relative path. Frontmatter is removed from every source and
+    feeds the template ``context`` (see
+    [`template_context`][opm.template_frontmatter.template_context]).
+    """
+    searchpaths = [str(template_path.parent)]
+    packaged = str(packaged_templates_dir())
+    if packaged not in searchpaths:
+        searchpaths.append(packaged)
+    return Environment(loader=FrontmatterLoader(searchpaths), autoescape=False)
+
+
+def load_template(env: Environment, template_path: Path, label: str = 'Template'):
+    """Load *template_path* from *env*, raising ``FileNotFoundError`` if missing."""
+    try:
+        template = env.get_template(template_path.name)
+        if isinstance(env.loader, FrontmatterLoader):
+            # Resolve the extends chain now, so a missing parent is reported
+            # here rather than as a Jinja2 error halfway through rendering.
+            env.loader.chain(env, template_path.name)
+        return template
+    except TemplateNotFound as e:
+        missing = '' if e.name == template_path.name else f' (needed by {template_path.name})'
+        raise FileNotFoundError(f'{label} not found: {e.name}{missing}') from e
 
 
 def _inner_html(el: etree._Element | None) -> str:
@@ -85,9 +136,10 @@ def render_document_template(
     *base_css* is a packaged baseline stylesheet (e.g. the print channel's
     paged-media rules) rendered via its own ``{{ base_css }}`` template slot,
     kept separate from *odd_css* rather than concatenated into it — so the
-    de-dup check below (which compares *odd_css* against what
-    ``HtmlOutputFunctions.document()`` already embedded in the document's own
-    ``<head>``) still recognises an exact match.
+    ``<style>`` that ``HtmlOutputFunctions.document()`` embedded in the
+    document's own ``<head>`` still matches *odd_css* exactly. That element is
+    removed from ``head_html``; the template gets the stylesheet as
+    ``odd_css`` instead and decides where it goes.
 
     *assets* and *asset_styles* are the URL prefix of the copied
     ``[transform.web] assets`` and the stylesheets among them, the same
@@ -99,22 +151,18 @@ def render_document_template(
 
     head = html_root.find('head')
     body = html_root.find('body')
+    # HtmlOutputFunctions.document() already puts the ODD CSS in <head>. Take
+    # it out again and hand it over as odd_css, so a template places it where
+    # it belongs in the cascade (opm/base.html.j2: after the page's own
+    # stylesheets) and a template rendering both variables does not repeat it.
+    if head is not None and odd_css:
+        for style in head.findall('style'):
+            if (style.text or '').strip() == odd_css.strip():
+                head.remove(style)
     head_content = _inner_html(head)
-    # HtmlOutputFunctions.document() already injects ODD CSS into <head>.
-    # Skip the odd_css template variable when that happened so templates that
-    # render both {{ head_html }} and {{ odd_css }} do not duplicate styles.
-    # Chunked fragments have an empty head, so odd_css is still emitted there.
     effective_odd_css = odd_css or ''
-    if effective_odd_css and effective_odd_css in head_content:
-        effective_odd_css = ''
-    env = Environment(
-        loader=FileSystemLoader(str(template_path.parent)),
-        autoescape=False,
-    )
-    try:
-        tpl = env.get_template(template_path.name)
-    except TemplateNotFound as e:
-        raise FileNotFoundError(f'Template not found: {template_path}') from e
+    env = template_environment(template_path)
+    tpl = load_template(env, template_path)
     return tpl.render(
         head_html=head_content,
         content_html=_inner_html(body),
@@ -122,7 +170,7 @@ def render_document_template(
         base_css=base_css or '',
         parameters=parameters or {},
         lang=html_root.get('lang', ''),
-        context=context or {},
+        context=template_context(env, template_path.name, context),
         assets=assets,
         asset_styles=asset_styles or [],
     )
@@ -137,6 +185,7 @@ def render_index_template(
     odd_css_url: str = '',
     assets: str = '',
     asset_styles: list[str] | None = None,
+    layout_css_url: str = '',
     context: dict | None = None,
 ) -> str:
     """Render a collection index listing chunked documents.
@@ -152,14 +201,8 @@ def render_index_template(
     by declaring global fragments in ``opm.toml`` — no code change needed to add
     an author or date column.
     """
-    env = Environment(
-        loader=FileSystemLoader(str(template_path.parent)),
-        autoescape=False,
-    )
-    try:
-        tpl = env.get_template(template_path.name)
-    except TemplateNotFound as e:
-        raise FileNotFoundError(f'Template not found: {template_path}') from e
+    env = template_environment(template_path)
+    tpl = load_template(env, template_path)
     return tpl.render(
         documents=entries,
         title=title,
@@ -167,18 +210,9 @@ def render_index_template(
         odd_css_url=odd_css_url,
         assets=assets,
         asset_styles=asset_styles or [],
-        context=context or {},
+        layout_css_url=layout_css_url,
+        context=template_context(env, template_path.name, context),
     )
-
-
-def _typst_template_loader(template_path: Path) -> FileSystemLoader:
-    """Load templates from *template_path*'s directory and packaged defaults."""
-    searchpaths = [str(template_path.parent)]
-    packaged = default_template_path(DEFAULT_TYPST_TEMPLATE_NAME).parent
-    packaged_str = str(packaged)
-    if packaged_str not in searchpaths:
-        searchpaths.append(packaged_str)
-    return FileSystemLoader(searchpaths)
 
 
 def render_typst_document_template(
@@ -191,18 +225,12 @@ def render_typst_document_template(
     context: dict | None = None,
 ) -> str:
     """Render Typst body content through the selected Jinja2 document shell."""
-    env = Environment(
-        loader=_typst_template_loader(template_path),
-        autoescape=False,
-    )
-    try:
-        tpl = env.get_template(template_path.name)
-    except TemplateNotFound as e:
-        raise FileNotFoundError(f'Typst template not found: {template_path}') from e
+    env = template_environment(template_path)
+    tpl = load_template(env, template_path, 'Typst template')
     return tpl.render(
         content_typst=content_typst,
         odd_typst=odd_typst or '',
         parameters=parameters or {},
         metadata=metadata or {},
-        context=context or {},
+        context=template_context(env, template_path.name, context),
     )

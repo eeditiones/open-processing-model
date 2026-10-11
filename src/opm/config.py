@@ -19,6 +19,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from opm.output_modes import CONFIG_SECTIONS, MODES
+from opm.template_frontmatter import merge_deep
 
 DEFAULT_WEBCOMPONENTS_URL = (
     'https://cdn.jsdelivr.net/npm/@teipublisher/pb-components'
@@ -648,8 +649,9 @@ class ProjectConfig:
     ) -> dict[str, Any]:
         """Return the template ``context`` for *transform_type*.
 
-        ``[context]`` supplies the base; ``[transform.<type>.context]`` overlays
-        it. When *webcomponents* is on, ``webcomponents_url`` falls back to
+        ``[context]`` supplies the base; ``[transform.<type>.context]`` is
+        merged over it with [`merge_deep`][opm.template_frontmatter.merge_deep]:
+        tables combine key by key, lists are joined. When *webcomponents* is on, ``webcomponents_url`` falls back to
         [`DEFAULT_WEBCOMPONENTS_URL`][opm.config.DEFAULT_WEBCOMPONENTS_URL] —
         unless the project set that key itself, which then wins.
 
@@ -658,10 +660,13 @@ class ProjectConfig:
         ``--webcomponents`` overrides the config and the ``json``/``pb-view``
         formats force it on.
         """
-        merged = dict(self.template_context)
         key = _section_for(transform_type)
-        if key:
-            merged.update(self.template_context_by_type.get(key, {}))
+        # Merged like template frontmatter, so [transform.web.context.layout]
+        # adds to [context.layout] instead of replacing it.
+        merged = merge_deep(
+            self.template_context,
+            self.template_context_by_type.get(key, {}) if key else None,
+        )
         if webcomponents:
             merged.setdefault('webcomponents_url', DEFAULT_WEBCOMPONENTS_URL)
         return merged

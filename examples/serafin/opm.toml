@@ -60,7 +60,8 @@ odd = "odd/serafin.odd"
 xpath = ".//text[@type='source']/div"
 xpath_dynamic = "//text[@type = 'source']"
 output_dir = "chunks"
-# Landing page for a directory run, sharing the letter template's shell and CSS.
+# Landing page for a directory run: it extends the same serafin.html.j2 as the
+# letters and shares their CSS.
 index_template = "templates/index.html.j2"
 index_title = "Listy"
 doc_path = "letters"

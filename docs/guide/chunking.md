@@ -297,6 +297,11 @@ so a template links them without naming any file:
 {% for href in asset_styles %}<link rel="stylesheet" href="{{ href }}">{% endfor %}
 ```
 
+A template that extends opm's page layout (see
+[Template inheritance](templates-and-css.md#template-inheritance))
+does this for you. The layout's own stylesheet is then also written to
+`<output-root>/css/opm-layout.css`.
+
 Declaration order is cascade order, with a glob's own matches sorted by name.
 Only entries — or glob matches — whose suffix is `.css` are linked; a directory
 copied as an asset is not scanned, so adding `fonts/` does not start injecting
@@ -384,22 +389,27 @@ You can override the page itself with `chunking.index_template`. The template re
 Because `fragments` is passed whole, adding an author or date column needs no
 code — just another global fragment in `opm.toml` and a reference to it here.
 
-The template also receives `odd_css`, resolved exactly as for chunk pages, so the  `tei-*` classes of a browse record are styled the same way on the
-index as inside the edition.
+The template also receives `odd_css` and the assets' stylesheets, exactly as
+chunk pages do, so the `tei-*` classes of a browse record are styled the same
+way on the index as inside the edition.
+
+The `serafin` example goes one step further. Its letter pages and its index
+both extend one template of its own, `serafin.html.j2`, which holds the menu
+bar and the breadcrumb band:
 
 ```jinja
-<style>{% include "letter.css" %}</style>
-{% if odd_css %}<style>{{ odd_css }}</style>{% endif %}
-...
-<body class="letter">
-  <nav class="app-menubar">…</nav>
+{% extends "serafin.html.j2" %}
+
+{% block breadcrumb %}{{ title }}{% endblock %}
+{% block content %}
+  <ul class="letter-list">…</ul>
+{% endblock %}
 ```
 
-`templates/index.html.j2` in the `serafin` example does this: it includes the same
-`letter.css` as the chunk template and reuses its menubar, toolbar and page
-shell, so the landing page cannot drift from the letters it links to. The
-list's own rules live in that stylesheet too, under `.letter-list`, rather than
-in a `<style>` block on the index — thus the design can be changed from just one place.
+So the landing page cannot drift from the letters it links to. The list's own
+rules live in `letter.css` too, under `.letter-list`, rather than in a
+`<style>` block on the index — thus the design can be changed from just one
+place. See [Template inheritance](templates-and-css.md#template-inheritance).
 
 ## Previewing
 

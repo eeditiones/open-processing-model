@@ -9,7 +9,10 @@
    The ODD's generated stylesheet owns the TEI content itself.
 
    Copied into <output>/assets/ by [transform.web] assets and linked from each page,
-   so parchment.jpg beside it is addressed by plain filename.
+   so parchment.jpg beside it is addressed by plain filename. The page grid
+   (header, content column, register column) is opm's packaged layout
+   (opm/layout.html.j2); this file sets its widths through the --opm-layout-*
+   properties and styles what goes inside.
 
    Palette and type follow the dynamic Serafin app: Belleza headings, Albert
    Sans text, warm paper, muted dark red for entities.
@@ -42,6 +45,7 @@
   --letter-pane-gap: 2rem;
   --letter-register-width: 15rem;
   --letter-rail-gap: 2.5rem;
+  --letter-page-top: clamp(1.75rem, 5vh, 3rem);
   /* Taller than the app's 44px bar: it carries the two-line wordmark rather
      than the monogram, and needs the vertical room to stay legible. */
   --letter-menubar-height: 3.5rem;
@@ -52,21 +56,21 @@
   --pb-popover-line-height: 1.35;
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
 html {
   -webkit-text-size-adjust: 100%;
 }
 
 body.letter {
+  /* The layout's columns: one reading measure, doubled for a letter shown
+     with its translation; the register column beside them. */
+  --opm-layout-gutter: var(--letter-pad);
+  --opm-layout-content-max: var(--letter-measure);
+  --opm-layout-gap: var(--letter-rail-gap);
+  --opm-layout-after-width: calc(var(--letter-register-width) + var(--letter-rail-gap));
+  /* Sidebars stop clear of the sticky menubar + breadcrumb band. */
+  --opm-layout-sticky-top: calc(var(--letter-menubar-height) + var(--letter-toolbar-height) + 1rem);
+  --opm-layout-drawer-bg: var(--letter-paper);
   margin: 0;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
   background: var(--letter-paper);
   color: var(--letter-ink);
   font-family: var(--letter-font-body);
@@ -78,9 +82,6 @@ body.letter {
 /* ── Application menubar ──────────────────────────────────── */
 
 .app-menubar {
-  position: sticky;
-  top: 0;
-  z-index: 4;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -127,9 +128,6 @@ body.letter {
 /* ── Breadcrumb toolbar: parchment band ───────────────────── */
 
 .app-toolbar {
-  position: sticky;
-  top: var(--letter-menubar-height);
-  z-index: 3;
   display: flex;
   align-items: center;
   min-height: var(--letter-toolbar-height);
@@ -181,16 +179,13 @@ body.letter {
 
 /* ── Page shell ───────────────────────────────────────────── */
 
-.letter-page {
-  flex: 1;
-  width: min(100%, calc(var(--letter-measure) + 2 * var(--letter-pad)));
-  margin: 0 auto;
-  padding: clamp(1.75rem, 5vh, 3rem) var(--letter-pad) 2rem;
+/* A letter shown with its translation needs room for both columns. */
+body.letter--parallel {
+  --opm-layout-content-max: var(--letter-measure-parallel);
 }
 
-/* A letter shown with its translation needs room for both columns. */
-.letter-page--parallel {
-  width: min(100%, calc(var(--letter-measure-parallel) + 2 * var(--letter-pad)));
+.letter .opm-main {
+  padding-block: var(--letter-page-top) 2rem;
 }
 
 .letter-body {
@@ -199,7 +194,7 @@ body.letter {
   gap: 1.75rem;
 }
 
-.letter-page .content {
+.letter .content {
   min-width: 0;
 }
 
@@ -378,11 +373,11 @@ body.letter {
 
 /* ── Content typography ───────────────────────────────────── */
 
-.letter-page .content > :first-child {
+.letter .content > :first-child {
   margin-top: 0;
 }
 
-.letter-page .content :is(h1, h2, h3, h4, h5, h6) {
+.letter .content :is(h1, h2, h3, h4, h5, h6) {
   font-family: var(--letter-font-display);
   font-weight: 400;
   font-style: normal;
@@ -392,40 +387,40 @@ body.letter {
   text-wrap: balance;
 }
 
-.letter-page .content h1 {
+.letter .content h1 {
   margin: 0 0 1.25rem;
   font-size: 1.6rem;
 }
 
-.letter-page .content h2 {
+.letter .content h2 {
   margin: 2.2rem 0 0.8rem;
   font-size: 1.3rem;
 }
 
-.letter-page .content h3 {
+.letter .content h3 {
   margin: 1.8rem 0 0.65rem;
   font-size: 1.12rem;
 }
 
-.letter-page .content :is(h4, h5, h6) {
+.letter .content :is(h4, h5, h6) {
   margin: 1.5rem 0 0.5rem;
   font-size: 1rem;
 }
 
 /* Opening heading of a chunk: no extra space above (it may sit inside
    section / pb-observable wrappers). */
-.letter-page--chunk .content > :is(h1, h2, h3, h4, h5, h6):first-child,
-.letter-page--chunk .content > :first-child > :is(h1, h2, h3, h4, h5, h6):first-child,
-.letter-page--chunk .content > :first-child > :first-child > :is(h1, h2, h3, h4, h5, h6):first-child {
+.letter--chunk .content > :is(h1, h2, h3, h4, h5, h6):first-child,
+.letter--chunk .content > :first-child > :is(h1, h2, h3, h4, h5, h6):first-child,
+.letter--chunk .content > :first-child > :first-child > :is(h1, h2, h3, h4, h5, h6):first-child {
   margin-top: 0;
 }
 
-.letter-page .content p {
+.letter .content p {
   margin: 0 0 1em;
   hyphens: auto;
 }
 
-.letter-page .content a {
+.letter .content a {
   color: var(--letter-accent);
   text-decoration-thickness: 1px;
   text-underline-offset: 0.18em;
@@ -433,17 +428,17 @@ body.letter {
   transition: text-decoration-color 0.15s ease, background-color 0.15s ease;
 }
 
-.letter-page .content a:hover {
+.letter .content a:hover {
   text-decoration-color: var(--letter-accent);
   background-color: var(--letter-accent-soft);
 }
 
-.letter-page .content a:focus-visible {
+.letter .content a:focus-visible {
   outline: 2px solid var(--letter-accent);
   outline-offset: 2px;
 }
 
-.letter-page .content blockquote {
+.letter .content blockquote {
   margin: 1.4em 0;
   padding: 0.15em 0 0.15em 1.15em;
   border-left: 2px solid var(--letter-accent);
@@ -451,36 +446,36 @@ body.letter {
   font-style: italic;
 }
 
-.letter-page .content :is(em, i) {
+.letter .content :is(em, i) {
   font-style: italic;
 }
 
-.letter-page .content :is(strong, b) {
+.letter .content :is(strong, b) {
   font-weight: 600;
 }
 
-.letter-page .content hr {
+.letter .content hr {
   margin: 2.25em auto;
   width: 4rem;
   border: 0;
   border-top: 1px solid var(--letter-rule);
 }
 
-.letter-page .content :is(ul, ol) {
+.letter .content :is(ul, ol) {
   margin: 0 0 1em;
   padding-left: 1.35em;
 }
 
-.letter-page .content li {
+.letter .content li {
   margin-bottom: 0.35em;
 }
 
-.letter-page .content figure {
+.letter .content figure {
   margin: 1.75em 0;
 }
 
-.letter-page .content figcaption,
-.letter-page .content .tei-figDesc {
+.letter .content figcaption,
+.letter .content .tei-figDesc {
   margin-top: 0.5em;
   font-family: var(--letter-font-meta);
   font-size: 0.82rem;
@@ -488,26 +483,26 @@ body.letter {
   color: var(--letter-muted);
 }
 
-.letter-page .content img {
+.letter .content img {
   max-width: 100%;
   height: auto;
 }
 
-.letter-page .content table {
+.letter .content table {
   width: 100%;
   margin: 1.5em 0;
   border-collapse: collapse;
   font-size: 0.92em;
 }
 
-.letter-page .content :is(th, td) {
+.letter .content :is(th, td) {
   padding: 0.4em 0.55em;
   border-bottom: 1px solid var(--letter-rule);
   text-align: left;
   vertical-align: top;
 }
 
-.letter-page .content th {
+.letter .content th {
   font-family: var(--letter-font-meta);
   font-size: 0.85em;
   font-weight: 500;
@@ -516,7 +511,7 @@ body.letter {
   color: var(--letter-muted);
 }
 
-.letter-page .content .tei-note {
+.letter .content .tei-note {
   font-size: 0.9em;
   color: var(--letter-muted);
 }
@@ -525,7 +520,7 @@ body.letter {
 
 /* Default reading stays visible; the alternative is a hover/focus popover.
    Used when the page runs without pb-components. */
-.letter-page .content .alternate {
+.letter .content .alternate {
   position: relative;
   display: inline;
   cursor: help;
@@ -533,7 +528,7 @@ body.letter {
   text-decoration: none;
 }
 
-.letter-page .content .alternate .altcontent {
+.letter .content .alternate .altcontent {
   display: none;
   position: absolute;
   left: 50%;
@@ -558,7 +553,7 @@ body.letter {
   white-space: normal;
 }
 
-.letter-page .content .alternate .altcontent::before {
+.letter .content .alternate .altcontent::before {
   content: "";
   position: absolute;
   left: 50%;
@@ -568,12 +563,12 @@ body.letter {
   border-bottom-color: var(--letter-rule);
 }
 
-.letter-page .content .alternate:hover .altcontent,
-.letter-page .content .alternate:focus-within .altcontent {
+.letter .content .alternate:hover .altcontent,
+.letter .content .alternate:focus-within .altcontent {
   display: block;
 }
 
-.letter-page .content pb-popover {
+.letter .content pb-popover {
   --pb-popover-theme: "light-border";
 }
 
@@ -683,69 +678,22 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
 
 /* ── Register rail ────────────────────────────────────────── */
 
-/* Narrow screens: the register falls below the text. */
 .letter-register {
-  margin-top: 2.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--letter-rule);
   font-size: 0.85rem;
 }
 
-/* Room for the rail alongside the reading columns. */
-@media (min-width: 82em) {
-  .letter-page--with-register {
-    width: min(
-      100%,
-      calc(
-        var(--letter-measure) + var(--letter-register-width) +
-        var(--letter-rail-gap) + 2 * var(--letter-pad)
-      )
-    );
-  }
+/* Beside the text, the rail starts level with the letter. */
+.letter .opm-layout > .after {
+  margin-top: var(--letter-page-top);
+}
 
-  .letter-page--parallel.letter-page--with-register {
-    width: min(
-      100%,
-      calc(
-        var(--letter-measure-parallel) + var(--letter-register-width) +
-        var(--letter-rail-gap) + 2 * var(--letter-pad)
-      )
-    );
-  }
-
-  /* Head and columns share the left track; the rail runs beside both, so it
-     starts level with the title the way the dynamic app's sidebar does. */
-  .letter-page--with-register .letter-body {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) var(--letter-register-width);
-    grid-template-areas:
-      "head rail"
-      "text rail";
-    column-gap: var(--letter-rail-gap);
-    align-items: start;
-  }
-
-  .letter-page--with-register .letter-head {
-    grid-area: head;
-  }
-
-  .letter-page--with-register .letter-parallel {
-    grid-area: text;
-  }
-
-  .letter-page--with-register .letter-register {
-    grid-area: rail;
-    position: sticky;
-    /* Clear of the sticky menubar + toolbar. */
-    top: calc(var(--letter-menubar-height) + var(--letter-toolbar-height) + 1rem);
-    max-height: calc(
-      100vh - var(--letter-menubar-height) - var(--letter-toolbar-height) - 2.5rem
-    );
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    margin-top: 0;
-    padding-top: 0;
-    border-top: 0;
+/* Narrow screens: the register falls below the text. */
+@media (max-width: 64em) {
+  .letter .opm-layout > .after {
+    margin-top: 0.5rem;
+    margin-bottom: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--letter-rule);
   }
 }
 

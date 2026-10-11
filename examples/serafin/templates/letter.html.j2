@@ -1,41 +1,12 @@
 {#
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
+
+  A letter: parallel transcription and translation, with the register tabs
+  in the layout's `after` column. The shell comes from serafin.html.j2.
 -#}
-<!doctype html>
-<html lang="{{ lang|default('en') }}">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+{% extends "serafin.html.j2" %}
 {% set work_title = fragments.breadcrumbs | striptags | trim if fragments is defined and fragments.breadcrumbs else '' %}
-  <title>{{ work_title or 'Serafin' }}</title>
-  <!-- letter template: parallel transcription / translation, tabbed register rail -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@0,300..700;1,300..700&family=Belleza&display=swap"
-    rel="stylesheet"
-  >
-  {{ head_html | safe }}
-  {# Stylesheets copied in via [transform.web] assets, in declared order;
-     letter.css finds parchment.jpg beside it because both land in assets/. #}
-  {% for href in asset_styles %}
-  <link rel="stylesheet" href="{{ href }}">
-  {% endfor %}
-  {% if odd_css_url %}
-  <link rel="stylesheet" href="{{ odd_css_url }}">
-  {% elif odd_css %}
-  <style type="text/css">
-{{ odd_css }}
-  </style>
-  {% endif %}
-  {% if context.webcomponents_url %}
-  <script type="module" src="{{ context.webcomponents_url }}"></script>
-  {% endif %}
-  {% for src in context.scripts | default([], true) %}
-  <script type="module" src="{{ src }}"></script>
-  {% endfor %}
-</head>
 {% set is_chunk = chunk is defined and chunk %}
 {% if is_chunk %}
   {% set folio = chunk.file.replace('.html', '') %}
@@ -78,140 +49,142 @@
   {% set has_edition_nav = prev_href or next_href %}
   {% set has_thread_nav = prev_corr or next_corr %}
 {% endif %}
-<body class="letter">
-  <nav class="app-menubar" aria-label="Edition">
-    <a class="app-logo" href="../index.html">{% include "logo-textmark.svg" %}</a>
-  </nav>
 
-  <div class="app-toolbar">
-    <nav class="app-breadcrumb" aria-label="breadcrumb">
-      {% if fragments is defined and fragments.breadcrumbs %}
-      {{ fragments.breadcrumbs | safe }}
-      {% else %}
-      {{ work_title or 'Serafin' }}
-      {% endif %}
-    </nav>
-  </div>
+{% block title %}<title>{{ work_title or 'Serafin' }}</title>{% endblock %}
 
-  <main class="letter-page{% if is_chunk %} letter-page--chunk{% endif %}{% if has_translation %} letter-page--parallel{% endif %}{% if has_register %} letter-page--with-register{% endif %}">
-    <div class="letter-body">
-      {% if is_chunk or (fragments is defined and fragments.letter_head) %}
-      <div class="letter-intro">
-        {% if is_chunk and (has_edition_nav or has_thread_nav) %}
-        {# Correspondence toolbar: previous / next in the edition, plus the
-           same-correspondent thread when the TEI records it. #}
-        <nav class="letter-nav" aria-label="Letter navigation">
-          <div class="letter-nav__side letter-nav__side--prev">
-            <div class="letter-nav__group">
-              {% if prev_href %}
-              <a class="letter-nav__link" href="{{ prev_href }}" title="{{ prev_label }}">
-                {{ nav_icon('M15 6 9 12l6 6') }}
-                <span class="letter-nav__dir">Previous</span>
-              </a>
-              {% elif has_edition_nav %}
-              <span class="letter-nav__link letter-nav__link--disabled" aria-hidden="true">
-                {{ nav_icon('M15 6 9 12l6 6') }}
-                <span class="letter-nav__dir">Previous</span>
-              </span>
-              {% endif %}
-              {% if prev_corr %}
-              <a class="letter-nav__link letter-nav__link--thread" href="{{ letter_href(prev_corr) }}" title="Previous in correspondence: {{ prev_corr }}">
-                {{ nav_icon('M13 6 7 12l6 6M18 6l-6 6 6 6') }}
-                <span class="letter-nav__dir">Correspondence</span>
-              </a>
-              {% endif %}
-            </div>
+{% block body_class %}
+  {%- if is_chunk %} letter--chunk{% endif %}
+  {%- if has_translation %} letter--parallel{% endif %}
+  {%- if has_register %} letter--with-register{% endif %}
+{% endblock %}
+
+{% block breadcrumb %}
+  {%- if fragments is defined and fragments.breadcrumbs %}
+  {{ fragments.breadcrumbs | safe }}
+  {%- else %}
+  {{ work_title or 'Serafin' }}
+  {%- endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="letter-body">
+    {% if is_chunk or (fragments is defined and fragments.letter_head) %}
+    <div class="letter-intro">
+      {% if is_chunk and (has_edition_nav or has_thread_nav) %}
+      {# Correspondence toolbar: previous / next in the edition, plus the
+         same-correspondent thread when the TEI records it. #}
+      <nav class="letter-nav" aria-label="Letter navigation">
+        <div class="letter-nav__side letter-nav__side--prev">
+          <div class="letter-nav__group">
+            {% if prev_href %}
+            <a class="letter-nav__link" href="{{ prev_href }}" title="{{ prev_label }}">
+              {{ nav_icon('M15 6 9 12l6 6') }}
+              <span class="letter-nav__dir">Previous</span>
+            </a>
+            {% elif has_edition_nav %}
+            <span class="letter-nav__link letter-nav__link--disabled" aria-hidden="true">
+              {{ nav_icon('M15 6 9 12l6 6') }}
+              <span class="letter-nav__dir">Previous</span>
+            </span>
+            {% endif %}
+            {% if prev_corr %}
+            <a class="letter-nav__link letter-nav__link--thread" href="{{ letter_href(prev_corr) }}" title="Previous in correspondence: {{ prev_corr }}">
+              {{ nav_icon('M13 6 7 12l6 6M18 6l-6 6 6 6') }}
+              <span class="letter-nav__dir">Correspondence</span>
+            </a>
+            {% endif %}
           </div>
+        </div>
 
-          {# The letter, as in the Astro edition; its folio only when it has several. #}
-          <div class="letter-nav__mark">
-            {{- (document | replace('.xml', '')) if document is defined and document else folio -}}
-            {%- if chunk.prev or chunk.next %} · {{ folio }}{% endif -%}
+        {# The letter, as in the Astro edition; its folio only when it has several. #}
+        <div class="letter-nav__mark">
+          {{- (document | replace('.xml', '')) if document is defined and document else folio -}}
+          {%- if chunk.prev or chunk.next %} · {{ folio }}{% endif -%}
+        </div>
+
+        <div class="letter-nav__side letter-nav__side--next">
+          <div class="letter-nav__group letter-nav__group--end">
+            {% if next_corr %}
+            <a class="letter-nav__link letter-nav__link--thread" href="{{ letter_href(next_corr) }}" title="Next in correspondence: {{ next_corr }}">
+              <span class="letter-nav__dir">Correspondence</span>
+              {{ nav_icon('m6 6 6 6-6 6M11 6l6 6-6 6') }}
+            </a>
+            {% endif %}
+            {% if next_href %}
+            <a class="letter-nav__link" href="{{ next_href }}" title="{{ next_label }}">
+              <span class="letter-nav__dir">Next</span>
+              {{ nav_icon('m9 6 6 6-6 6') }}
+            </a>
+            {% elif has_edition_nav %}
+            <span class="letter-nav__link letter-nav__link--disabled" aria-hidden="true">
+              <span class="letter-nav__dir">Next</span>
+              {{ nav_icon('m9 6 6 6-6 6') }}
+            </span>
+            {% endif %}
           </div>
-
-          <div class="letter-nav__side letter-nav__side--next">
-            <div class="letter-nav__group letter-nav__group--end">
-              {% if next_corr %}
-              <a class="letter-nav__link letter-nav__link--thread" href="{{ letter_href(next_corr) }}" title="Next in correspondence: {{ next_corr }}">
-                <span class="letter-nav__dir">Correspondence</span>
-                {{ nav_icon('m6 6 6 6-6 6M11 6l6 6-6 6') }}
-              </a>
-              {% endif %}
-              {% if next_href %}
-              <a class="letter-nav__link" href="{{ next_href }}" title="{{ next_label }}">
-                <span class="letter-nav__dir">Next</span>
-                {{ nav_icon('m9 6 6 6-6 6') }}
-              </a>
-              {% elif has_edition_nav %}
-              <span class="letter-nav__link letter-nav__link--disabled" aria-hidden="true">
-                <span class="letter-nav__dir">Next</span>
-                {{ nav_icon('m9 6 6 6-6 6') }}
-              </span>
-              {% endif %}
-            </div>
-          </div>
-        </nav>
-        {% endif %}
-
-        {% if fragments is defined and fragments.letter_head %}
-        <header class="letter-head">
-          {{ fragments.letter_head | safe }}
-        </header>
-        {% elif is_chunk %}
-        <header class="letter-head letter-head--plain">
-          <h1>Letter {{ letter_num }}</h1>
-        </header>
-        {% endif %}
-      </div>
+        </div>
+      </nav>
       {% endif %}
 
-      <div class="letter-parallel{% if not has_translation %} letter-parallel--single{% endif %}">
-        <section class="letter-pane letter-pane--source" aria-label="Transcription">
-          <article class="content">
-            {{ content_html | safe }}
-          </article>
-        </section>
-
-        {% if has_translation %}
-        <section class="letter-pane letter-pane--translation" aria-label="Translation">
-          <article class="content">
-            {{ fragments.translation | safe }}
-          </article>
-        </section>
-        {% endif %}
-      </div>
-
-      {% if has_register %}
-      <aside class="letter-register">
-        {% if has_people %}
-        <input type="radio" name="register-tab" id="register-tab-people" class="register-tabs__radio" checked autocomplete="off">
-        {% endif %}
-        {% if has_places %}
-        <input type="radio" name="register-tab" id="register-tab-places" class="register-tabs__radio"{% if not has_people %} checked{% endif %} autocomplete="off">
-        {% endif %}
-
-        <div class="register-tabs__strip">
-          {% if has_people %}
-          <label for="register-tab-people" class="register-tabs__tab register-tabs__tab--people">People</label>
-          {% endif %}
-          {% if has_places %}
-          <label for="register-tab-places" class="register-tabs__tab register-tabs__tab--places">Places</label>
-          {% endif %}
-        </div>
-
-        {% if has_people %}
-        <div class="register-tabs__panel register-tabs__panel--people">
-          {{ fragments.register_people | safe }}
-        </div>
-        {% endif %}
-        {% if has_places %}
-        <div class="register-tabs__panel register-tabs__panel--places">
-          {{ fragments.register_places | safe }}
-        </div>
-        {% endif %}
-      </aside>
+      {% if fragments is defined and fragments.letter_head %}
+      <header class="letter-head">
+        {{ fragments.letter_head | safe }}
+      </header>
+      {% elif is_chunk %}
+      <header class="letter-head letter-head--plain">
+        <h1>Letter {{ letter_num }}</h1>
+      </header>
       {% endif %}
     </div>
-  </main>
-</body>
-</html>
+    {% endif %}
+
+    <div class="letter-parallel{% if not has_translation %} letter-parallel--single{% endif %}">
+      <section class="letter-pane letter-pane--source" aria-label="Transcription">
+        <article class="content">
+          {{ content_html | safe }}
+        </article>
+      </section>
+
+      {% if has_translation %}
+      <section class="letter-pane letter-pane--translation" aria-label="Translation">
+        <article class="content">
+          {{ fragments.translation | safe }}
+        </article>
+      </section>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
+
+{% block after %}
+  {%- if has_register %}
+  <div class="letter-register">
+    {% if has_people %}
+    <input type="radio" name="register-tab" id="register-tab-people" class="register-tabs__radio" checked autocomplete="off">
+    {% endif %}
+    {% if has_places %}
+    <input type="radio" name="register-tab" id="register-tab-places" class="register-tabs__radio"{% if not has_people %} checked{% endif %} autocomplete="off">
+    {% endif %}
+
+    <div class="register-tabs__strip">
+      {% if has_people %}
+      <label for="register-tab-people" class="register-tabs__tab register-tabs__tab--people">People</label>
+      {% endif %}
+      {% if has_places %}
+      <label for="register-tab-places" class="register-tabs__tab register-tabs__tab--places">Places</label>
+      {% endif %}
+    </div>
+
+    {% if has_people %}
+    <div class="register-tabs__panel register-tabs__panel--people">
+      {{ fragments.register_people | safe }}
+    </div>
+    {% endif %}
+    {% if has_places %}
+    <div class="register-tabs__panel register-tabs__panel--places">
+      {{ fragments.register_places | safe }}
+    </div>
+    {% endif %}
+  </div>
+  {%- endif %}
+{% endblock %}

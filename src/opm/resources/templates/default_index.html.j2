@@ -1,31 +1,19 @@
-<!doctype html>
-<html lang="en">
-<head>
+{#- The packaged collection index, written by `opm chunk` for a directory. -#}
+---toml
+[layout]
+class = "opm-index"
+---
+{% extends "opm/layout.html.j2" %}
+{% block meta %}{{ super() }}
   <!-- opm-default-index-template -->
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ title }}</title>
-  {# Chunking writes the stylesheets as files the browser caches once; the
-     inline fallback covers a stylesheet that turned out to be empty. #}
-  {% if odd_css_url %}
-  <link rel="stylesheet" href="{{ odd_css_url }}">
-  {% elif odd_css %}
-  <style type="text/css">
-{{ odd_css }}
-  </style>
-  {% endif %}
-  {% for href in asset_styles %}
-  <link rel="stylesheet" href="{{ href }}">
-  {% endfor %}
+{% endblock %}
+{% block title %}<title>{{ title }}</title>{% endblock %}
+{#- After the ODD's stylesheet, which may style headings and links too. -#}
+{% block odd_overrides %}
   <style type="text/css">
     :root { color-scheme: light dark; }
-    body {
-      margin: 0 auto;
-      padding: 2rem 1.25rem 4rem;
-      max-width: 46rem;
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      line-height: 1.5;
-    }
+    .opm-index { --opm-layout-content-max: 46rem; }
+    .opm-index .opm-main { padding: 2rem 0 4rem; }
     .index-title { font-size: 1.5rem; font-weight: 600; margin: 0 0 1.5rem; }
     .index-list { list-style: none; margin: 0; padding: 0; }
     .index-item { padding: 1rem 0; border-top: 1px solid rgba(128, 128, 128, .3); }
@@ -35,8 +23,9 @@
     .index-meta { font-size: .85rem; opacity: .7; }
     .sample-description { font-size: .9rem; opacity: .85; }
   </style>
-</head>
-<body class="content">
+{% endblock %}
+{% block body_class %}content{% endblock %}
+{% block content %}
   <h1 class="index-title">{{ title }}</h1>
   <ul class="index-list">
     {% for doc in documents %}
@@ -66,5 +55,4 @@
     </li>
     {% endfor %}
   </ul>
-</body>
-</html>
+{% endblock %}

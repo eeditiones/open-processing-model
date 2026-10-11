@@ -12,6 +12,11 @@
    Type: a Renaissance serif for the text, a neutral grotesque for headings and
    furniture. Headings stay light rather than bold — an editorial voice, not a
    documentation one.
+
+   The page grid is opm's packaged layout (opm/layout.html.j2): the menu bar
+   is its header, the contents rail its `before` column, which the layout
+   turns into a drawer on narrow screens. This file sets the layout's
+   measurements through the --opm-layout-* properties on body.chapbook.
    =========================================================================== */
 
 :root {
@@ -48,21 +53,20 @@
   color-scheme: light;
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
 html {
   -webkit-text-size-adjust: 100%;
 }
 
 body.chapbook {
+  /* One centred block, at most --chap-shell wide: the contents rail and the
+     page side by side, with no gap between them and none at the edges. */
+  --opm-layout-gutter: 0px;
+  --opm-layout-gap: 0px;
+  --opm-layout-before-width: var(--chap-sidebar-w);
+  --opm-layout-content-max: calc(var(--chap-shell) - var(--chap-sidebar-offset));
+  --opm-layout-sticky-top: var(--chap-bar-h);
+  --opm-layout-drawer-bg: var(--chap-cream);
   margin: 0;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
   background: var(--chap-warm);
   color: var(--chap-ink);
   font-family: var(--chap-meta);
@@ -75,26 +79,9 @@ body.chapbook--with-toc {
   --chap-sidebar-offset: var(--chap-sidebar-w);
 }
 
-.chap-skip {
-  position: absolute;
-  left: -9999px;
-}
-
-.chap-skip:focus {
-  left: 1rem;
-  top: 1rem;
-  z-index: 60;
-  padding: 0.5rem 0.75rem;
-  background: var(--chap-surface);
-  color: var(--chap-ink);
-}
-
 /* ── Menu bar ─────────────────────────────────────────────── */
 
 .chap-running {
-  position: sticky;
-  top: 0;
-  z-index: 50;
   background: var(--chap-primary);
   color: var(--chap-bar-ink);
   box-shadow: 0 1px 3px rgb(97 78 55 / 0.12);
@@ -215,27 +202,17 @@ body.chapbook--with-toc {
 
 /* ── Shell ────────────────────────────────────────────────── */
 
-.chap-shell {
-  display: flex;
-  flex: 1;
-  width: min(100%, var(--chap-shell));
-  margin: 0 auto;
+.chapbook .opm-main {
   background: var(--chap-surface);
 }
 
-/* ── Contents rail ────────────────────────────────────────── */
-
-.chap-toc__toggle {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+/* The menu bar opens and closes the drawer itself. */
+.chapbook .opm-drawer__bar,
+.chapbook .opm-drawer__close {
+  display: none;
 }
+
+/* ── Contents rail ────────────────────────────────────────── */
 
 .chap-toc__open {
   display: inline-flex;
@@ -255,8 +232,7 @@ body.chapbook--with-toc {
 }
 
 .chap-toc {
-  flex: none;
-  width: var(--chap-sidebar-w);
+  min-height: 100%;
   background: var(--chap-cream);
   border-right: 1px solid var(--chap-rule);
   font-family: var(--chap-meta);
@@ -703,68 +679,57 @@ body.chapbook--with-toc {
   color: inherit;
 }
 
-/* ── Narrow screens: the rail becomes a drawer ────────────── */
+/* ── Contents beside the page / in a drawer ───────────────── */
 
-@media (max-width: 47.999em) {
-  .chap-toc {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 55;
-    width: min(100%, 20rem);
-    height: 100%;
-    border-right: 1px solid var(--chap-rule);
-    box-shadow: 8px 0 28px rgb(51 48 44 / 0.18);
-    transform: translateX(-100%);
-    transition: transform 0.25s ease;
+/* Wide screens: the cream column runs the full height of the page, and the
+   contents stick below the bar inside it. */
+@media (min-width: 64.001em) {
+  .chapbook .opm-layout > .before {
+    align-self: stretch;
+    position: static;
+    max-height: none;
+    overflow: visible;
   }
 
-  body.chapbook:has(.chap-toc__toggle:checked) .chap-toc {
-    transform: translateX(0);
+  .chap-toc__open,
+  .chap-toc__close {
+    display: none;
+  }
+}
+
+/* Narrow screens: the layout slides the column in as a drawer, opened from
+   the bar's Contents button. */
+@media (max-width: 64em) {
+  .chapbook .opm-layout > .before {
+    padding: 0;
+  }
+
+  .chap-toc {
+    border-right: 0;
   }
 
   .chap-toc__drawer {
-    top: 0;
-    max-height: 100vh;
-    height: 100%;
-  }
-
-  /* Tapping outside the drawer closes it. */
-  body.chapbook:has(.chap-toc__toggle:checked) .chap-page::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: 54;
-    background: rgb(51 48 44 / 0.4);
+    position: static;
+    max-height: none;
   }
 }
 
 @media (min-width: 48em) {
-  .chap-toc__open {
-    display: none;
-  }
-
-  .chap-toc__close {
-    display: none;
-  }
-
   .chap-page {
     padding: 2.5rem 2.5rem 3.5rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chap-toc {
-    transition: none;
   }
 }
 
 /* ── Wide screens: rails flank the text block ─────────────── */
 
 @media (min-width: 64em) {
-  .chap-shell {
-    border-left: 1px solid var(--chap-rule);
+  .chapbook .opm-main {
     border-right: 1px solid var(--chap-rule);
+  }
+
+  .chapbook--with-toc .opm-layout > .before,
+  .chapbook:not(.chapbook--with-toc) .opm-main {
+    border-left: 1px solid var(--chap-rule);
   }
 
   .chap-page {
@@ -840,7 +805,7 @@ body.chapbook--with-toc {
     display: none;
   }
 
-  .chap-shell,
+  .chapbook .opm-main,
   .chap-page {
     display: block;
     width: auto;

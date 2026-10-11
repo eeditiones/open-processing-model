@@ -1,0 +1,70 @@
+{#-
+  The document skeleton every opm HTML template can extend: <head> handling
+  only. For a page with header, sidebars and footer, extend
+  opm/layout.html.j2 instead.
+
+  Blocks: html_attributes (more attributes for <html>), meta, title, styles,
+  odd_overrides, scripts, body_class, body, body_end (for scripts that need
+  the page content in place).
+
+  Stylesheets are linked in cascade order: the layout's own (block
+  layout_styles), context.styles, the assets' stylesheets (asset_styles),
+  block styles, the ODD's generated CSS, then block odd_overrides for rules
+  that must win over the ODD's renditions.
+-#}
+{#- Only a known language: a wrong one sets the wrong hyphenation and voice. -#}
+{%- set page_lang = context.lang or lang -%}
+<!doctype html>
+<html{% if page_lang %} lang="{{ page_lang }}"{% endif %}{% block html_attributes %}{% endblock %}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {% block meta %}
+  {%- if context.description %}<meta name="description" content="{{ context.description | e }}">{% endif -%}
+  {% endblock %}
+  {% block title %}
+  {%- if context.title %}<title>{{ context.title }}</title>{% endif -%}
+  {% endblock %}
+  {% if base_css %}
+  <style type="text/css">
+{{ base_css }}
+  </style>
+  {% endif %}
+  {{ head_html | default('', true) | safe }}
+  {% block layout_styles %}{% endblock %}
+  {% for href in context.styles | default([], true) %}
+  <link rel="stylesheet" href="{{ href }}">
+  {% endfor %}
+  {% for href in asset_styles | default([], true) %}
+  <link rel="stylesheet" href="{{ href }}">
+  {% endfor %}
+  {% block styles %}{% endblock %}
+  {% if odd_css_url %}
+  <link rel="stylesheet" href="{{ odd_css_url }}">
+  {% elif odd_css %}
+  <style type="text/css">
+{{ odd_css }}
+  </style>
+  {% endif %}
+  {% block odd_overrides %}{% endblock %}
+  {% if context.webcomponents_url %}
+  <script type="module" src="{{ context.webcomponents_url }}"></script>
+  {% endif %}
+  {% for src in context.scripts | default([], true) %}
+  <script type="module" src="{{ src }}"></script>
+  {% endfor %}
+  {% block scripts %}{% endblock %}
+</head>
+{%- set body_classes = (context.body.classes if context.body is mapping and context.body.classes else []) | list -%}
+{%- set body_classes = (body_classes + [self.body_class() | trim]) | select | join(' ') %}
+<body{% if body_classes %} class="{{ body_classes }}"{% endif %}>
+{#- Classes for <body> on top of context.body.classes. -#}
+{%- if false %}{% block body_class %}{% endblock %}{% endif %}
+{% block body %}
+  <article class="content">
+    {{ content_html | default('', true) | safe }}
+  </article>
+{% endblock %}
+{% block body_end %}{% endblock %}
+</body>
+</html>

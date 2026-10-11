@@ -201,7 +201,7 @@ opm transform data/F-ado.xml -t epub -o folio.epub
 ## Layout
 
 - `odd/shakespeare.odd` — processing model (plus `shakespeare.css`)
-- `templates/chapbook.html.j2` — reading view (`chapbook.css` is inlined by it)
+- `templates/chapbook.html.j2` — reading view, extending opm's page layout (`opm/layout.html.j2`); its stylesheet `templates/chapbook.css` is listed under `assets`
 - `templates/book.typ.j2` — Folger-style print edition (line numbers, running heads)
 - `templates/epub.css` — EPUB reading text (scene chapters, no page furniture)
 - `opm.toml` — page chunking, `[context]`, `$global:` settings, chunk fragments

@@ -5,7 +5,12 @@
 
    Written around journal front matter — byline, affiliations, citation line,
    abstract, reference list — so it suits JATS out of the box, but the shell
-   itself is vocabulary-neutral: anything the ODD renders lands in `.content`. */
+   itself is vocabulary-neutral: anything the ODD renders lands in `.content`.
+
+   The page grid is opm's packaged layout (opm/layout.html.j2): the masthead is
+   its header, the contents rail its `before` column. This file sets the
+   layout's measurements through the --opm-layout-* properties on body.jr and
+   styles what goes inside. */
 
 :root {
   --jr-paper: #fbfaf7;
@@ -28,17 +33,20 @@
   --pb-footnote-font-size: 0.8125rem;
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
 html {
   -webkit-text-size-adjust: 100%;
 }
 
 body.jr {
+  /* The page is as wide as the masthead; the text keeps to one measure at
+     its left edge, with the rail (when there is one) beside it. */
+  --opm-layout-content-max: calc(var(--jr-rail) + var(--jr-measure) + 8rem - 2 * var(--jr-pad));
+  --opm-layout-before-width: calc(var(--jr-rail) + 2.5rem);
+  --opm-layout-gap: 2.5rem;
+  --opm-layout-gutter: var(--jr-pad);
+  /* Below the sticky masthead. */
+  --opm-layout-sticky-top: 2rem;
+  --opm-layout-drawer-bg: var(--jr-paper);
   margin: 0;
   background: var(--jr-paper);
   color: var(--jr-ink);
@@ -47,26 +55,9 @@ body.jr {
   line-height: 1.65;
 }
 
-.jr-skip {
-  position: absolute;
-  left: -9999px;
-}
-
-.jr-skip:focus {
-  left: 1rem;
-  top: 1rem;
-  z-index: 20;
-  background: var(--jr-surface);
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--jr-rule);
-}
-
 /* --- masthead ------------------------------------------------------- */
 
 .jr-masthead {
-  position: sticky;
-  top: 0;
-  z-index: 10;
   background: var(--jr-surface);
   border-bottom: 1px solid var(--jr-rule);
 }
@@ -110,37 +101,23 @@ body.jr {
   margin-left: 0;
 }
 
-/* --- shell ---------------------------------------------------------- */
+/* --- page ----------------------------------------------------------- */
 
-.jr-shell {
-  max-width: calc(var(--jr-rail) + var(--jr-measure) + 8rem);
-  margin: 0 auto;
-  padding: 0 var(--jr-pad) 4rem;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 2.5rem;
+body.jr--with-toc {
+  --opm-layout-content-max: calc(var(--jr-measure) + 5.5rem - 2 * var(--jr-pad));
 }
 
-.jr--with-toc .jr-shell {
-  grid-template-columns: var(--jr-rail) minmax(0, 1fr);
+.jr .opm-main {
+  padding-bottom: 4rem;
 }
 
-.jr-main {
-  min-width: 0;
+.jr .opm-main > * {
   max-width: var(--jr-measure);
 }
 
 /* --- contents rail -------------------------------------------------- */
 
-.jr-rail__toggle,
-.jr-rail__open,
-.jr-rail__backdrop {
-  display: none;
-}
-
 .jr-rail__nav {
-  position: sticky;
-  top: 4.5rem;
   padding-top: 2.5rem;
   font-family: var(--jr-sans);
   font-size: 0.875rem;
@@ -399,15 +376,19 @@ body.jr {
   text-decoration: underline;
 }
 
-/* --- narrow screens: the rail becomes a disclosure ------------------- */
+/* --- narrow screens: the rail becomes a drawer ----------------------- */
 
-@media (max-width: 60rem) {
-  .jr--with-toc .jr-shell {
-    grid-template-columns: 1fr;
-    gap: 0;
+/* The layout shows the button that opens it on narrow screens only. */
+.jr .opm-drawer__open {
+  font-family: var(--jr-sans);
+}
+
+@media (max-width: 64em) {
+  .jr .opm-drawer__bar {
+    padding-block: 0;
   }
 
-  .jr-rail__open {
+  .jr .opm-drawer__open {
     display: inline-block;
     margin-top: 1.25rem;
     padding: 0.4rem 0.8rem;
@@ -419,37 +400,27 @@ body.jr {
     cursor: pointer;
   }
 
-  .jr-rail__panel {
-    display: none;
-  }
-
-  .jr-rail__toggle:checked ~ .jr-rail__panel {
-    display: block;
+  .jr .opm-drawer__close {
+    font-family: var(--jr-sans);
+    font-size: 0.8125rem;
+    color: var(--jr-muted);
   }
 
   .jr-rail__nav {
-    position: static;
-    padding: 1rem 0 0;
+    padding-top: 0;
   }
 
-  .jr-main {
+  .jr .opm-main > * {
     max-width: none;
   }
 }
 
 @media print {
-  .jr-masthead,
-  .jr-rail,
-  .jr-pager,
-  .jr-skip {
+  .jr-pager {
     display: none;
   }
 
   body.jr {
     background: #fff;
-  }
-
-  .jr--with-toc .jr-shell {
-    grid-template-columns: 1fr;
   }
 }

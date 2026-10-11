@@ -1,7 +1,12 @@
 /* SPDX-FileCopyrightText: 2026 e-editiones
    SPDX-License-Identifier: CC0-1.0 */
 
-/* Handbook — documentation reading surface (Starlight-inspired) */
+/* Handbook — documentation reading surface (Starlight-inspired)
+
+   The page grid is opm's packaged layout (opm/layout.html.j2): the header bar
+   is its header, the site navigation its `before` column, which the layout
+   turns into a drawer on narrow screens. This file sets the layout's
+   measurements through the --opm-layout-* properties on body.handbook. */
 
 :root {
   --hb-canvas: #f7f9fc;
@@ -40,12 +45,6 @@
   }
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
 html {
   font-size: 100%;
   -webkit-text-size-adjust: 100%;
@@ -53,8 +52,13 @@ html {
 }
 
 body.handbook {
+  /* Navigation at the left edge, the text area filling the rest. */
+  --opm-layout-gutter: 0px;
+  --opm-layout-gap: 0px;
+  --opm-layout-before-width: var(--hb-sidebar-w);
+  --opm-layout-sticky-top: var(--hb-header-h);
+  --opm-layout-drawer-bg: var(--hb-sidebar);
   margin: 0;
-  min-height: 100vh;
   color: var(--hb-ink);
   background: var(--hb-canvas);
   font-family: var(--hb-body);
@@ -63,11 +67,7 @@ body.handbook {
   text-rendering: optimizeLegibility;
 }
 
-.hb-skip {
-  position: absolute;
-  left: -9999px;
-  top: 0;
-  z-index: 100;
+.handbook .opm-skip:focus {
   padding: 0.55rem 0.9rem;
   background: var(--hb-accent);
   color: #fff;
@@ -75,17 +75,9 @@ body.handbook {
   border-radius: var(--hb-radius);
 }
 
-.hb-skip:focus {
-  left: 0.75rem;
-  top: 0.75rem;
-}
-
 /* ── Header ───────────────────────────────────────────────── */
 
 .hb-header {
-  position: sticky;
-  top: 0;
-  z-index: 30;
   height: var(--hb-header-h);
   border-bottom: 1px solid var(--hb-rule);
   background: color-mix(in srgb, var(--hb-surface) 88%, transparent);
@@ -103,8 +95,8 @@ body.handbook {
 }
 
 .hb-brand {
-  min-width: 0;
   flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -135,22 +127,11 @@ body.handbook {
 
 /* ── Shell / sidebar ──────────────────────────────────────── */
 
-.hb-shell {
-  display: flex;
-  align-items: stretch;
-  min-height: calc(100vh - var(--hb-header-h));
-}
-
-.hb-nav__toggle {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+/* The header's burger button and the panel's Close link open and close the
+   drawer themselves. */
+.handbook .opm-drawer__bar,
+.handbook .opm-drawer__close {
+  display: none;
 }
 
 .hb-nav__open {
@@ -201,12 +182,8 @@ body.handbook {
   outline-offset: 2px;
 }
 
-.hb-sidebar {
-  flex: none;
-}
-
-.hb-nav__backdrop {
-  display: none;
+.handbook .opm-layout > .before {
+  padding: 0;
 }
 
 .hb-sidebar__panel {
@@ -414,83 +391,28 @@ body.handbook {
   letter-spacing: -0.01em;
 }
 
-/* Mobile drawer */
+/* Narrow screens: the layout slides the navigation in as a drawer. */
 @media (max-width: 64em) {
-  .hb-sidebar {
-    position: fixed;
-    inset: 0;
-    z-index: 40;
-    width: auto;
-    pointer-events: none;
-  }
-
-  .hb-nav__backdrop {
-    display: block;
-    position: absolute;
-    inset: 0;
-    margin: 0;
-    background: color-mix(in srgb, var(--hb-ink) 45%, transparent);
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
-    cursor: pointer;
-  }
-
   .hb-sidebar__panel {
-    position: relative;
-    z-index: 1;
-    width: min(100%, 20rem);
-    height: 100%;
-    transform: translateX(-100%);
-    transition: transform 0.25s ease;
-    box-shadow: 8px 0 28px rgba(11, 18, 32, 0.18);
-  }
-
-  body.handbook:has(.hb-nav__toggle:checked) .hb-nav__backdrop {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-  }
-
-  body.handbook:has(.hb-nav__toggle:checked) .hb-sidebar {
-    pointer-events: auto;
-  }
-
-  body.handbook:has(.hb-nav__toggle:checked) .hb-sidebar__panel {
-    transform: translateX(0);
+    border-right: 0;
   }
 }
 
+/* Wide screens: the navigation fills the height below the header. */
 @media (min-width: 64.01em) {
   .hb-nav__open,
   .hb-sidebar__head {
     display: none;
   }
 
-  .hb-sidebar {
-    position: sticky;
-    top: var(--hb-header-h);
-    align-self: flex-start;
-    width: var(--hb-sidebar-w);
+  .handbook .opm-layout > .before {
     height: calc(100vh - var(--hb-header-h));
-  }
-
-  .hb-sidebar__panel {
-    height: 100%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hb-sidebar__panel,
-  .hb-nav__backdrop {
-    transition: none;
   }
 }
 
 /* ── Main + outline ───────────────────────────────────────── */
 
 .hb-main {
-  flex: 1;
   min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr);

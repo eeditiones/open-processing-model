@@ -1,7 +1,11 @@
 /* SPDX-FileCopyrightText: 2026 e-editiones
    SPDX-License-Identifier: CC0-1.0 */
 
-@import 'fonts.css';
+/* The page grid is opm's packaged layout (opm/layout.html.j2): the site
+   header is its header, the navigation its `before` column, "On this page"
+   its `after` column. This file sets the layout's measurements through the
+   --opm-layout-* properties on body.doc and styles what goes inside. The
+   webfonts come from fonts.css, linked before this file. */
 
 /* Palette and type follow the TEI Guidelines design system: a warm paper ground,
    one amber accent reserved for what is clickable, and a three-family split —
@@ -100,8 +104,15 @@ html {
   scroll-padding-top: var(--doc-scroll-pad);
 }
 body.doc {
+  /* Navigation at the left edge, "On this page" at the right, the page
+     between them; no gaps or gutters, the columns pad themselves. */
+  --opm-layout-gutter: 0px;
+  --opm-layout-gap: 0px;
+  --opm-layout-before-width: var(--doc-sidebar-w);
+  --opm-layout-after-width: var(--doc-aside-w);
+  --opm-layout-sticky-top: var(--doc-header-h);
+  --opm-layout-drawer-bg: var(--doc-surface);
   margin: 0;
-  min-height: 100vh;
   color: var(--doc-ink);
   background: var(--doc-paper);
   font-family: var(--doc-serif);
@@ -118,17 +129,14 @@ a:hover { color: var(--doc-link-hover); text-decoration: underline; text-underli
 .visually-hidden {
   position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);
 }
-.doc-skip {
-  position: absolute; left: -9999px; top: 0;
+.doc .opm-skip:focus {
   padding: 0.5rem 0.8rem; background: var(--doc-amber); color: #222120;
   font-family: var(--doc-body); font-weight: 600;
 }
-.doc-skip:focus { left: 0.75rem; top: 0.75rem; z-index: 40; }
 
 /* ── Header ─────────────────────────────────────────────────────────────── */
 
 .doc-header {
-  position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: 1.5rem;
   min-height: var(--doc-header-h);
   padding: 0.75rem 1.75rem;
@@ -242,20 +250,11 @@ a:hover { color: var(--doc-link-hover); text-decoration: underline; text-underli
 
 /* ── Shell ──────────────────────────────────────────────────────────────── */
 
-.doc-shell {
-  display: grid;
-  grid-template-columns: var(--doc-sidebar-w) minmax(0, 1fr) var(--doc-aside-w);
-  align-items: start;
-  min-height: calc(100vh - var(--doc-header-h));
+.doc .opm-layout > :is(.before, .after) {
+  padding: 0;
 }
-body.doc:not(.doc--with-nav) .doc-shell { grid-template-columns: minmax(0, 1fr) var(--doc-aside-w); }
 
 .doc-sidebar {
-  position: sticky;
-  top: var(--doc-header-h);
-  align-self: start;
-  max-height: calc(100vh - var(--doc-header-h));
-  overflow-y: auto;
   padding: 1.875rem 1.25rem 3.75rem 1.75rem;
   border-right: 1px solid var(--doc-rule);
   font-family: var(--doc-body);
@@ -294,11 +293,6 @@ body.doc:not(.doc--with-nav) .doc-shell { grid-template-columns: minmax(0, 1fr) 
 }
 
 .doc-aside {
-  position: sticky;
-  top: var(--doc-header-h);
-  align-self: start;
-  max-height: calc(100vh - var(--doc-header-h));
-  overflow-y: auto;
   padding: 3.5rem 1.75rem 3.75rem 0;
   font-family: var(--doc-body);
   font-size: 0.781rem;
@@ -1137,17 +1131,33 @@ a.spec__chip:hover { border-color: var(--doc-amber); color: var(--doc-ink); text
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
 @media (max-width: 1180px) {
-  .doc-shell { grid-template-columns: var(--doc-sidebar-w) minmax(0, 1fr); }
-  body.doc:not(.doc--with-nav) .doc-shell { grid-template-columns: minmax(0, 1fr); }
-  .doc-aside { display: none; }
+  /* No room for "On this page": its column goes. */
+  .doc .opm-layout { --opm-layout-after-track: 0px; }
+  .doc .opm-layout > .after { display: none; }
   .doc-main { padding: 3rem 2rem 6rem; }
 }
+/* Narrow screens: the layout slides the navigation in as a drawer, opened
+   from the bar above the page. */
+@media (max-width: 64em) {
+  .doc .opm-drawer__bar {
+    padding: 0.75rem 1.25rem 0;
+    font-family: var(--doc-body);
+    font-size: 0.813rem;
+    font-weight: 600;
+    color: var(--doc-amber-text);
+  }
+  .doc .opm-drawer__close {
+    padding: 0.75rem 1.25rem 0;
+    font-family: var(--doc-body);
+    font-size: 0.813rem;
+    color: var(--doc-muted);
+  }
+  .doc-sidebar { border-right: 0; }
+}
 @media (max-width: 860px) {
-  .doc-shell, body.doc:not(.doc--with-nav) .doc-shell { grid-template-columns: minmax(0, 1fr); }
   /* One card per row; a missing previous/next collapses instead of leaving a hole. */
   .chapter-nav { grid-template-columns: minmax(0, 1fr); }
   .chapter-nav a[href=""], .chapter-nav a:not([href]) { display: none; }
-  .doc-sidebar { display: none; }
   .doc-edition { display: none; }
   /* Brand and toggle share the first row; the search field takes the second. */
   .doc-header { flex-wrap: wrap; gap: 0.75rem 1rem; padding: 0.75rem 1.25rem; }
@@ -1164,8 +1174,7 @@ a.spec__chip:hover { border-color: var(--doc-amber); color: var(--doc-ink); text
 }
 
 @media print {
-  .doc-header, .doc-sidebar, .doc-aside, .doc-skip, .doc-footer, .chapter-nav { display: none !important; }
-  .doc-shell { display: block; }
+  .doc-header, .doc-sidebar, .doc-aside, .doc-footer, .chapter-nav { display: none !important; }
   .doc-main { max-width: none; padding: 0; }
   body.doc { background: #fff; }
 }

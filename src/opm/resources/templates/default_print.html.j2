@@ -1,21 +1,10 @@
-<!doctype html>
-<html lang="{{ lang|default('en') }}">
-<head>
-  <meta charset="utf-8">
+{#- The packaged print template: a minimal shell for paged-media CSS, without
+    the page layout. -#}
+{% extends "opm/base.html.j2" %}
+{% block meta %}{{ super() }}
   <!-- opm-default-print-template: minimal shell for paged-media CSS -->
-  {% if base_css %}
-  <style type="text/css">
-{{ base_css }}
-  </style>
-  {% endif %}
-  {{ head_html | safe }}
-  {% if odd_css %}
-  <style type="text/css">
-{{ odd_css }}
-  </style>
-  {% endif %}
-</head>
-<body class="content print">
+{% endblock %}
+{% block body_class %}content print{% endblock %}
+{% block body %}
   {{ content_html | safe }}
-</body>
-</html>
+{% endblock %}

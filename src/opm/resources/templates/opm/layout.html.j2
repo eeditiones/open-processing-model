@@ -1,0 +1,155 @@
+{#-
+  Page layout with the regions of the jinks base layout:
+
+      header      (full width, sticky)
+      hero        (full width)
+      before-top  content-top  after-top
+      before      content      after
+      footer      (full width)
+
+  Fill a region by overriding the block of the same name (with underscores:
+  before_top, content_top, after_top). A region left empty takes no room.
+  The content block defaults to the transformed document.
+
+  Settings, under `layout` in the context (defaults in opm/defaults.toml,
+  overridden by opm.toml [context] and then by template frontmatter):
+    layout.class          extra classes on the layout container
+    layout.before.width   width of the before column (CSS length)
+    layout.before.mobile  "drawer" (slides in, opened from content-top) or
+                          "stack" (shown below the content)
+    layout.before.label   label of the drawer's open button
+    layout.after.*        the same for the after column
+-#}
+{% extends "opm/base.html.j2" %}
+
+{% block layout_styles %}
+  {% if layout_css_url %}
+  <link rel="stylesheet" href="{{ layout_css_url }}">
+  {% else %}
+  <style type="text/css">
+{% include "opm/opm-layout.css" %}
+  </style>
+  {% endif %}
+{% endblock %}
+
+{% block body %}
+{%- set L = context.layout %}
+{#- Widths set in opm.toml or frontmatter go on the grid itself, so they win
+    over a theme stylesheet's own default for the same property. #}
+{%- set widths = [] %}
+{%- if L.before.width %}{% set _ = widths.append('--opm-layout-before-width: ' ~ L.before.width ~ ';') %}{% endif %}
+{%- if L.after.width %}{% set _ = widths.append('--opm-layout-after-width: ' ~ L.after.width ~ ';') %}{% endif %}
+{%- set header_html = self.header() | trim %}
+{%- set hero_html = self.hero() | trim %}
+{%- set before_top_html = self.before_top() | trim %}
+{%- set before_html = self.before() | trim %}
+{%- set content_top_html = self.content_top() | trim %}
+{%- set after_top_html = self.after_top() | trim %}
+{%- set after_html = self.after() | trim %}
+{%- set footer_html = self.footer() | trim %}
+{%- set before_drawer = before_html and L.before.mobile == 'drawer' %}
+{%- set after_drawer = after_html and L.after.mobile == 'drawer' %}
+<div class="opm-layout
+  {%- if L.class %} {{ L.class }}{% endif %}
+  {%- if before_html %} has-before opm-before--{{ 'drawer' if before_drawer else 'stack' }}{% endif %}
+  {%- if after_html %} has-after opm-after--{{ 'drawer' if after_drawer else 'stack' }}{% endif %}"
+  {%- if widths %} style="{{ widths | join(' ') }}"{% endif %}>
+  <a class="opm-skip" href="#opm-content">{{ L.skip_label }}</a>
+  {%- if before_drawer %}
+  <input type="checkbox" id="opm-before-toggle" class="opm-drawer__toggle" autocomplete="off">
+  {%- endif %}
+  {%- if after_drawer %}
+  <input type="checkbox" id="opm-after-toggle" class="opm-drawer__toggle" autocomplete="off">
+  {%- endif %}
+
+  {%- if header_html %}
+  <header class="page-header">
+    {{ header_html }}
+  </header>
+  {%- endif %}
+
+  {%- if hero_html %}
+  <div class="hero">
+    {{ hero_html }}
+  </div>
+  {%- endif %}
+
+  {%- if before_top_html %}
+  <nav class="before-top">
+    {{ before_top_html }}
+  </nav>
+  {%- endif %}
+
+  {%- if before_html %}
+  <aside class="before" id="opm-before">
+    {%- if before_drawer %}
+    <label for="opm-before-toggle" class="opm-drawer__close">Close</label>
+    {%- endif %}
+    {{ before_html }}
+  </aside>
+  {%- endif %}
+
+  {%- if content_top_html or before_drawer or after_drawer %}
+  <header class="content-top">
+    {%- if before_drawer or after_drawer %}
+    <div class="opm-drawer__bar">
+      {%- if before_drawer %}
+      <label for="opm-before-toggle" class="opm-drawer__open opm-drawer__open--before">{{ L.before.label }}</label>
+      {%- endif %}
+      {%- if after_drawer %}
+      <label for="opm-after-toggle" class="opm-drawer__open opm-drawer__open--after">{{ L.after.label }}</label>
+      {%- endif %}
+    </div>
+    {%- endif %}
+    {{ content_top_html }}
+  </header>
+  {%- endif %}
+
+  <main class="opm-main" id="opm-content">
+    {% block content %}
+    <article class="content">
+      {{ content_html | default('', true) | safe }}
+    </article>
+    {% endblock %}
+  </main>
+
+  {%- if after_top_html %}
+  <nav class="after-top">
+    {{ after_top_html }}
+  </nav>
+  {%- endif %}
+
+  {%- if after_html %}
+  <aside class="after" id="opm-after">
+    {%- if after_drawer %}
+    <label for="opm-after-toggle" class="opm-drawer__close">Close</label>
+    {%- endif %}
+    {{ after_html }}
+  </aside>
+  {%- endif %}
+
+  {%- if footer_html %}
+  <footer class="page-footer">
+    {{ footer_html }}
+  </footer>
+  {%- endif %}
+
+  {%- if before_drawer or after_drawer %}
+  <div class="opm-drawer__backdrop" aria-hidden="true">
+    {%- if before_drawer %}<label for="opm-before-toggle"></label>{% endif %}
+    {%- if after_drawer %}<label for="opm-after-toggle"></label>{% endif %}
+  </div>
+  {%- endif %}
+</div>
+{#- The regions' blocks, rendered above and placed where they belong. -#}
+{%- if false %}
+{% block header %}{% endblock %}
+{% block hero %}{% endblock %}
+{% block before_top %}{% endblock %}
+{% block before %}{% endblock %}
+{% block content_top %}{% endblock %}
+{% block after_top %}{% endblock %}
+{% block after %}{% endblock %}
+{% block footer %}{% endblock %}
+{% endif %}
+{%- endblock %}

@@ -1,0 +1,283 @@
+/* Layout behind opm/layout.html.j2, modelled on the jinks base layout.
+
+   Regions: header and hero across the page; before-top / content-top /
+   after-top above before / content / after; footer across the page. A region
+   the template leaves empty is not rendered, and its column takes no room.
+
+   A theme adjusts it through custom properties rather than by overriding
+   these rules:
+     --opm-layout-before-width, --opm-layout-after-width   sidebar columns
+     --opm-layout-content-max   widest the content column grows (default: all)
+     --opm-layout-gap           space between a sidebar and the content
+     --opm-layout-gutter        least space at the page edges
+     --opm-layout-sticky-top    how far below the viewport top sticky sidebars
+                                stop, e.g. the height of a sticky header
+     --opm-layout-drawer-bg     background of a sidebar opened as a drawer
+*/
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:where(body) {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+
+.opm-layout {
+  --opm-layout-before-track: 0px;
+  --opm-layout-after-track: 0px;
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns:
+    minmax(var(--opm-layout-gutter, 1rem), 1fr)
+    var(--opm-layout-before-track)
+    minmax(0, var(--opm-layout-content-max, 100%))
+    var(--opm-layout-after-track)
+    minmax(var(--opm-layout-gutter, 1rem), 1fr);
+  grid-template-rows: auto auto auto 1fr auto;
+  grid-template-areas:
+    "header header     header      header    header"
+    "hero   hero       hero        hero      hero"
+    ".      before-top content-top after-top ."
+    ".      before     content     after     ."
+    "footer footer     footer      footer    footer";
+}
+
+.opm-layout.has-before {
+  --opm-layout-before-track: var(--opm-layout-before-width, 18rem);
+}
+
+.opm-layout.has-after {
+  --opm-layout-after-track: var(--opm-layout-after-width, 18rem);
+}
+
+.opm-layout > .page-header {
+  grid-area: header;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.opm-layout > .hero {
+  grid-area: hero;
+}
+
+.opm-layout > .before-top {
+  grid-area: before-top;
+  padding-inline-end: var(--opm-layout-gap, 2rem);
+}
+
+.opm-layout > .content-top {
+  grid-area: content-top;
+  min-width: 0;
+}
+
+.opm-layout > .after-top {
+  grid-area: after-top;
+  padding-inline-start: var(--opm-layout-gap, 2rem);
+}
+
+.opm-layout > .opm-main {
+  grid-area: content;
+  min-width: 0;
+}
+
+.opm-layout > .before,
+.opm-layout > .after {
+  align-self: start;
+  position: sticky;
+  top: var(--opm-layout-sticky-top, 0px);
+  max-height: calc(100vh - var(--opm-layout-sticky-top, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-width: 0;
+}
+
+.opm-layout > .before {
+  grid-area: before;
+  padding-inline-end: var(--opm-layout-gap, 2rem);
+}
+
+.opm-layout > .after {
+  grid-area: after;
+  padding-inline-start: var(--opm-layout-gap, 2rem);
+}
+
+.opm-layout > .page-footer {
+  grid-area: footer;
+}
+
+/* Visible only when focused from the keyboard. */
+.opm-skip {
+  position: absolute;
+  left: -9999px;
+  z-index: 40;
+}
+
+.opm-skip:focus {
+  left: 1rem;
+  top: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: Canvas;
+  color: CanvasText;
+}
+
+/* Drawers: only on narrow screens. The checkbox keeps them working without
+   JavaScript; the labels that open and close them are hidden on wide screens. */
+.opm-drawer__toggle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.opm-drawer__bar,
+.opm-drawer__close,
+.opm-drawer__backdrop {
+  display: none;
+}
+
+@media (max-width: 64em) {
+  .opm-layout {
+    grid-template-columns:
+      minmax(var(--opm-layout-gutter, 1rem), 1fr)
+      minmax(0, var(--opm-layout-content-max, 100%))
+      minmax(var(--opm-layout-gutter, 1rem), 1fr);
+    grid-template-rows: auto auto auto 1fr auto auto auto;
+    grid-template-areas:
+      "header header      header"
+      "hero   hero        hero"
+      ".      content-top ."
+      ".      content     ."
+      ".      before      ."
+      ".      after       ."
+      "footer footer      footer";
+  }
+
+  .opm-layout > .before-top,
+  .opm-layout > .after-top {
+    display: none;
+  }
+
+  /* A sidebar shown below the content. */
+  .opm-layout > :is(.before, .after) {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    padding-inline: 0;
+  }
+
+  .opm-drawer__bar {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-block: 0.5rem;
+  }
+
+  .opm-drawer__open,
+  .opm-drawer__close {
+    cursor: pointer;
+  }
+
+  .opm-drawer__open--after {
+    margin-inline-start: auto;
+  }
+
+  /* A sidebar that slides in over the page. */
+  .opm-before--drawer > .before,
+  .opm-after--drawer > .after {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    /* A positioned grid item aligned to start would shrink to its content
+       instead of spanning top to bottom. */
+    align-self: stretch;
+    z-index: 30;
+    width: min(85vw, 22rem);
+    max-height: none;
+    padding: 1rem;
+    overflow-y: auto;
+    background: var(--opm-layout-drawer-bg, Canvas);
+    box-shadow: 0 0 1.5rem rgba(0, 0, 0, 0.25);
+    visibility: hidden;
+    transition: transform 0.25s ease, visibility 0.25s;
+  }
+
+  .opm-before--drawer > .before {
+    left: 0;
+    transform: translateX(-100%);
+  }
+
+  .opm-after--drawer > .after {
+    right: 0;
+    transform: translateX(100%);
+  }
+
+  #opm-before-toggle:checked ~ .before,
+  #opm-after-toggle:checked ~ .after {
+    transform: none;
+    visibility: visible;
+  }
+
+  .opm-drawer__close {
+    display: block;
+    margin-bottom: 1rem;
+    text-align: end;
+  }
+
+  .opm-drawer__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  .opm-drawer__backdrop label {
+    position: absolute;
+    inset: 0;
+    display: none;
+  }
+
+  #opm-before-toggle:checked ~ .opm-drawer__backdrop,
+  #opm-after-toggle:checked ~ .opm-drawer__backdrop {
+    display: block;
+  }
+
+  #opm-before-toggle:checked ~ .opm-drawer__backdrop label[for="opm-before-toggle"],
+  #opm-after-toggle:checked ~ .opm-drawer__backdrop label[for="opm-after-toggle"] {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opm-before--drawer > .before,
+  .opm-after--drawer > .after {
+    transition: none;
+  }
+}
+
+@media print {
+  .opm-layout {
+    display: block;
+    min-height: 0;
+  }
+
+  .opm-layout > :is(.page-header, .before, .before-top, .after-top),
+  .opm-drawer__bar {
+    display: none;
+  }
+
+  .opm-layout > .after {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+}
