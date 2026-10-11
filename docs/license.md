@@ -10,9 +10,9 @@ additional permissions granted under section 7 of that licence.
 The AGPL is the strongest of the common copyleft licences: it reaches not only software
 you distribute, but software you *operate* — a web service built on `opm` owes its source
 to the people using it. That is deliberate. If you want to keep your own software closed, or run a service 
-without publishing its source, **become a member**. As a non-profit organization, e-editiones mainly
-relies on membership fees to keep maintaining the software and would like to give something
-back to those institutions and individuals supporting it.
+without publishing its source, **become a member**.
+
+e-editiones is a non-profit association under Swiss law, recognised as serving the public benefit, with no commercial interests. As a consequence, e-editiones can only rely on membership fees to keep maintaining the software and would like to give something back to those institutions and individuals supporting it.
 
 ## What this means for your edition
 

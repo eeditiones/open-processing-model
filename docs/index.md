@@ -1,6 +1,6 @@
 ---
-title: Convert TEI XML to HTML, PDF and EPUB
-description: opm converts TEI XML to HTML, PDF, EPUB, Word and Markdown, or publishes it as a static website, using TEI ODD.
+title: Convert XML to HTML, PDF, EPUB, Word or Markdown
+description: opm converts TEI, JATS, Docbook or other XML languages to HTML, PDF, EPUB, Word and Markdown, or publishes it as a static website, using TEI ODD.
 ---
 
 <p align="center">
@@ -10,14 +10,14 @@ description: opm converts TEI XML to HTML, PDF, EPUB, Word and Markdown, or publ
 
 # Open Processing Model
 
-**Open Processing Model** (`opm`) converts TEI XML, and other XML such as DocBook or JATS, into HTML, PDF (via [Typst](https://typst.app/)), EPUB, Word, Markdown or JSON. It can also be used to transform a TEI edition into a static website or prepare the data for an external static site generator. Instead of writing XSLT or XQuery, describe how each element should be presented in a **TEI ODD** document , and `opm` compiles it into a reusable Python module.
+**Open Processing Model** (`opm`) converts TEI and other XML such as DocBook or JATS into HTML, PDF (via [Typst](https://typst.app/)), EPUB, Word, Markdown or JSON. It can also be used to transform an entire edition of XML into a static website or prepare the data for an external static site generator. Instead of writing XSLT or XQuery, describe in XML how each element should be presented, and `opm` compiles it into a reusable Python module.
 
-It is an implementation of the [TEI Processing Model](https://tei-c.org/release/doc/tei-p5-doc/en/html/TD.html#TDPM) specification in Python, with a command-line client and a library.
+While originally conceived for documents following the TEI XML standard, the [TEI Processing Model](https://tei-c.org/release/doc/tei-p5-doc/en/html/TD.html#TDPM) is in fact not limited to TEI, but works equally well for any other kind of text-centric XML.
 
 `opm` is pure Python with minimal dependencies and implements the full _TEI Processing Model_. Most ODDs will be compatible and can be exchanged between _TEI Publisher_ and `opm`, allowing users to combine the benefits of a dynamic, database-backed website with the speed of static rendering.
 
-To learn more about ODD, it is best to read the [TEI Publisher documentation](https://teipublisher.org/doc/documentation.xml?id=odd#odd).
-It also includes a small tutorial in the [Gentle Introduction](https://teipublisher.org/doc/quickstart.xml?id=pm-tutorial#pm-tutorial) document.
+To get started, have a look at the [short tutorial](tutorials/tei-to-html.md) included in this documentation. To learn more about ODD as the underlying standard, it is best to read the [TEI Publisher documentation](https://teipublisher.org/doc/documentation.xml?id=odd#odd).
+It also includes a more extensive tutorial in the [Gentle Introduction](https://teipublisher.org/doc/quickstart.xml?id=pm-tutorial#pm-tutorial) document.
 
 <div class="slideshow" data-interval="5000" role="region" aria-roledescription="carousel" aria-label="Output samples" tabindex="0">
   <div class="slideshow__track">
@@ -151,5 +151,6 @@ Development of `opm` is supported by:
       <img src="assets/e-editiones-logo-color.svg#only-light" alt="e-editiones">
       <img src="assets/e-editiones-logo-white.svg#only-dark" alt="e-editiones">
     </a>
+    <p class="supporters__note">e-editiones is a non-profit association under Swiss law, recognised as serving the public benefit, with no commercial interests.</p>
   </li>
 </ul>
