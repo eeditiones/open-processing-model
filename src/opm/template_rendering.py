@@ -48,12 +48,18 @@ def resolve_template_path(
 LAYOUT_CSS_NAME = 'opm-layout.css'
 
 
-def layout_css() -> str:
+def layout_css(templates_dir: Path | None = None) -> str:
     """The stylesheet behind ``opm/layout.html.j2``.
 
     Chunking writes it to ``css/opm-layout.css`` and passes ``layout_css_url``;
     a single transformed page has no such file, so the layout inlines it.
+    A copy at ``opm/opm-layout.css`` under *templates_dir* wins over the
+    packaged one, as the template loader does for the inlined case.
     """
+    if templates_dir is not None:
+        local = templates_dir / 'opm' / LAYOUT_CSS_NAME
+        if local.is_file():
+            return local.read_text(encoding='utf-8')
     return (packaged_templates_dir() / 'opm' / LAYOUT_CSS_NAME).read_text(encoding='utf-8')
 
 

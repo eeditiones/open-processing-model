@@ -48,6 +48,15 @@ _EXTRA_SHELLS = ('chapbook', 'journal', 'handbook', 'tufte', 'bootstrap')
 #: The plain Typst shell opm falls back to when no template is configured, which
 #: ``--templates`` also copies, beside the book shell the project wires up.
 _TYPST_DEFAULT = ('templates/default_document.typ.j2', Path('templates') / 'document.typ.j2')
+#: What ``--base`` copies: the packaged templates the shells extend, and the
+#: base stylesheet. opm prefers a project's copy at the same relative path
+#: (``templates/opm/…``, ``styles/default-styles.css``) over its own.
+_BASE_COPIES = (
+    ('templates/opm/base.html.j2', Path('templates') / 'opm' / 'base.html.j2'),
+    ('templates/opm/layout.html.j2', Path('templates') / 'opm' / 'layout.html.j2'),
+    ('templates/opm/opm-layout.css', Path('templates') / 'opm' / 'opm-layout.css'),
+    ('styles/default-styles.css', Path('styles') / 'default-styles.css'),
+)
 # Elements the commented-out [[index.fields]] examples point at, per vocabulary:
 # (footnote-like element, person-name element).
 _INDEX_FIELD_ELEMENTS = {
@@ -154,6 +163,9 @@ class InitOptions:
     #: Also copy the alternative HTML shells, beside the one wired up (or, with
     #: ``example``, beside the ones the example ships).
     templates: bool = False
+    #: Also copy the packaged templates the shells extend (``opm/base.html.j2``,
+    #: ``opm/layout.html.j2`` and its stylesheet) and the base stylesheet.
+    base: bool = False
     #: Skip README.md, AGENTS.md, CLAUDE.md and .gitignore, for projects that
     #: live inside a repository which already has its own.
     bare: bool = False
@@ -383,6 +395,12 @@ def _scaffold_example(options: InitOptions) -> ScaffoldResult:
         for src_rel, dest in [*_shell_copies(_EXTRA_SHELLS, dest_dir), (_TYPST_DEFAULT[0], dest_dir / _TYPST_DEFAULT[1])]:
             _record(dest, written, skipped, _copy_packaged(src_rel, dest, force=False))
 
+    if options.base:
+        # Same rule: an example may already carry its own copy.
+        for src_rel, rel in _BASE_COPIES:
+            dest = dest_dir / rel
+            _record(dest, written, skipped, _copy_packaged(src_rel, dest, force=False))
+
     if options.bare or not example.agent_guidance:
         return _example_result(example, dest_dir, written, skipped)
 
@@ -561,6 +579,8 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         copies.append((f'odd/{stem}.odd', dest_dir / 'odd' / f'{stem}.odd'))
         copies.append((f'odd/{stem}.css', dest_dir / 'odd' / f'{stem}.css'))
     copies.append((f'scaffold/sample/{vocab}.xml', dest_dir / SAMPLE_PATH))
+    if options.base:
+        copies.extend((src_rel, dest_dir / rel) for src_rel, rel in _BASE_COPIES)
 
     for src_rel, dest in copies:
         _record(dest, written, skipped, _copy_packaged(src_rel, dest, force=force))

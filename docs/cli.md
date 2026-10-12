@@ -59,6 +59,7 @@ opm init [OPTIONS] [DIRECTORY]
 | `--list-examples` | List the bundled example projects and exit. |
 | `--copy-base-odd` | TEI only: also copy packaged teipublisher.odd and tp.css into odd/. |
 | `--templates` | Also copy the alternative HTML templates (chapbook, journal, handbook, tufte, bootstrap) beside the one the project uses, and opm's plain default Typst template as `templates/document.typ.j2`. |
+| `--base` | Also copy the templates the HTML templates inherit from (`templates/opm/`) and the base stylesheet (`styles/default-styles.css`), to edit them in the project. |
 | `--bare` | Skip README.md, AGENTS.md, CLAUDE.md and .gitignore. |
 | `--help` | Show this message and exit. |
 

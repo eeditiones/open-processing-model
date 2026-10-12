@@ -169,6 +169,17 @@ def init_cmd(
             ),
         ),
     ] = False,
+    base: Annotated[
+        bool,
+        typer.Option(
+            '--base',
+            help=(
+                'Also copy the templates the HTML templates inherit from '
+                '(`templates/opm/`) and the base stylesheet '
+                '(`styles/default-styles.css`), to edit them in the project.'
+            ),
+        ),
+    ] = False,
     bare: Annotated[
         bool,
         typer.Option(
@@ -206,6 +217,7 @@ def init_cmd(
                 vocabulary=vocab,
                 example=example,
                 templates=templates,
+                base=base,
                 bare=bare,
                 copy_base_odd=copy_base_odd and vocab == 'tei' and example is None,
             )

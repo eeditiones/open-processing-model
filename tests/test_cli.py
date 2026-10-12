@@ -1461,6 +1461,29 @@ def test_init_copy_base_odd_tei(tmp_path: Path) -> None:
     assert (dest / 'odd' / 'tp.css').is_file()
 
 
+def test_init_base_copies_inherited_templates(tmp_path: Path, monkeypatch) -> None:
+    """--base copies the templates the shells extend, and the base stylesheet."""
+    dest = tmp_path / 'edition'
+    assert main(['init', str(dest), '--base']) == 0
+    for name in ('base.html.j2', 'layout.html.j2', 'opm-layout.css'):
+        assert (dest / 'templates' / 'opm' / name).is_file()
+    assert (dest / 'styles' / 'default-styles.css').is_file()
+    # The project's copies are the ones used, by chunking too.
+    layout_css = dest / 'templates' / 'opm' / 'opm-layout.css'
+    layout_css.write_text('/* local layout */\n', encoding='utf-8')
+    monkeypatch.chdir(dest)
+    assert main(['chunk', 'data/sample.xml', '--force']) == 0
+    written = next((dest / 'chunks').rglob('opm-layout.css'))
+    assert written.read_text(encoding='utf-8') == '/* local layout */\n'
+
+
+def test_init_without_base_copies_no_inherited_templates(tmp_path: Path) -> None:
+    dest = tmp_path / 'edition'
+    assert main(['init', str(dest)]) == 0
+    assert not (dest / 'templates' / 'opm').exists()
+    assert not (dest / 'styles').exists()
+
+
 def test_init_tei_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
     dest = tmp_path / 'edition'
     assert main(['init', str(dest)]) == 0

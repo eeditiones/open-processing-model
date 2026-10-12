@@ -285,7 +285,9 @@ class ChunkProcessor:
         """Return the relative path from a chunk page back to [`shared_root`][opm.chunking.ChunkProcessor.shared_root]."""
         return '../' if self.config.link_doc else ''
 
-    def write_shared_files(self, *, html: bool = True) -> dict[str, str]:
+    def write_shared_files(
+        self, *, html: bool = True, templates_dir: Path | None = None,
+    ) -> dict[str, str]:
         """Write stylesheets and copy assets into [`shared_root`][opm.chunking.ChunkProcessor.shared_root].
 
         Chunking always produces several pages sharing one stylesheet, so the
@@ -300,7 +302,9 @@ class ChunkProcessor:
 
         With *html*, the stylesheet of the packaged page layout is written to
         ``css/opm-layout.css`` too, and ``layout_css_url`` points at it —
-        whether or not the page template extends ``opm/layout.html.j2``.
+        whether or not the page template extends ``opm/layout.html.j2``. A
+        project copy at ``opm/opm-layout.css`` under *templates_dir* (the page
+        template's directory) replaces the packaged one.
 
         Safe to call once per document — the writes are idempotent.
         """
@@ -316,7 +320,7 @@ class ChunkProcessor:
         if html:
             css_dir = root / 'css'
             css_dir.mkdir(parents=True, exist_ok=True)
-            (css_dir / LAYOUT_CSS_NAME).write_text(layout_css(), encoding='utf-8')
+            (css_dir / LAYOUT_CSS_NAME).write_text(layout_css(templates_dir), encoding='utf-8')
             urls['layout_css_url'] = f'{prefix}css/{LAYOUT_CSS_NAME}'
 
         if self.odd_css:
@@ -941,7 +945,11 @@ class ChunkProcessor:
 
         # Stylesheets and assets live in the shared root, written once for the
         # whole edition; the returned URLs go into every template context.
-        self._shared_urls = self.write_shared_files(html=output_format == 'html')
+        page_template = None if use_json else self._chunk_template_path(template_path)
+        self._shared_urls = self.write_shared_files(
+            html=output_format == 'html',
+            templates_dir=page_template.parent if page_template is not None else None,
+        )
 
         # Select chunks
         self.select_chunks()

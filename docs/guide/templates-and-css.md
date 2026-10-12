@@ -302,6 +302,12 @@ If you only want the `<head>` handling without the page layout, extend
 templates itself, put a file with the same name in your templates folder, e.g.
 `templates/opm/layout.html.j2`: your copy is used in place of opm's.
 
+`opm init --base` does this for you. It copies `opm/base.html.j2`,
+`opm/layout.html.j2` and the layout's stylesheet `opm/opm-layout.css` into
+`templates/`, and opm's base stylesheet into `styles/default-styles.css`. Each
+copy replaces opm's own from then on. With `--example`, it leaves alone any of
+these files the example already has.
+
 ### Writing your own template
 
 1. Create `templates/page.html.j2` in your project and start it with this
