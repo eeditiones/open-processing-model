@@ -538,6 +538,14 @@ class ProjectConfig:
 
     Chunking runs without a ``template`` of their own use it too.
     """
+    web_pages: str | None = None
+    """Dotted path of a page splitter, from ``[transform.web] pages``.
+
+    When set, ``opm transform`` renders the document as a sequence of pages,
+    each in its own ``<section class="opm-page">``, instead of one flow. It
+    takes the same functions as ``[chunking] selector``, e.g.
+    [`tei_pb_chunks`][opm.navigation.tei_pb_chunks].
+    """
     web_assets: tuple[Path, ...] = ()
     """Files the web template references, from ``[transform.web] assets``.
 
@@ -754,6 +762,9 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     # it is shared.
     template = web_data.get('template')
     document_template = config_path.parent / str(template) if template else None
+    web_pages = web_data.get('pages')
+    if web_pages is not None and not isinstance(web_pages, str):
+        raise ValueError('opm.toml: transform.web.pages must be a dotted Python path')
     web_assets = tuple(
         config_path.parent / str(asset) for asset in (web_data.get('assets') or ())
     )
@@ -933,6 +944,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         template_context_by_type=template_context_by_type,
         document_template=document_template,
         web_assets=web_assets,
+        web_pages=web_pages,
         document_css=config_path.parent / str(css_file) if css_file else None,
         document_docx_template=config_path.parent / docx_template_file if docx_template_file else None,
         typst_template=config_path.parent / typst_template_file if typst_template_file else None,

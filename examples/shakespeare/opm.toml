@@ -63,6 +63,10 @@ assets = ["templates/chapbook.css"]
 # announces its manifest and page index on the "transcription" channel and the
 # <pb-tify> viewer in the template turns to that page.
 webcomponents = true
+# Render the whole play folio by folio, as the chunks do, rather than as one
+# flow: each folio gets a <section class="opm-page"> of its own, which
+# odd/shakespeare.css sets in the Folio's two columns, split at its <cb/>.
+pages = "opm.navigation.tei_pb_chunks"
 
 # Read by the chapbook template only, so they overlay [context] here rather
 # than sitting in it: a Typst or EPUB run has no use for either.

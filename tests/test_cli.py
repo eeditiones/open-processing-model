@@ -525,6 +525,20 @@ def test_load_project_config_rejects_a_non_boolean_webcomponents(tmp_path: Path)
         load_project_config(tmp_path / 'opm.toml')
 
 
+def test_load_project_config_reads_web_pages(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    (tmp_path / 'opm.toml').write_text(
+        '[transform.web]\npages = "opm.navigation.tei_pb_chunks"\n',
+        encoding='utf-8',
+    )
+    assert load_project_config(tmp_path / 'opm.toml').web_pages == 'opm.navigation.tei_pb_chunks'
+
+    (tmp_path / 'opm.toml').write_text('[transform.web]\npages = true\n', encoding='utf-8')
+    with pytest.raises(ValueError, match='transform.web.pages must be a dotted Python path'):
+        load_project_config(tmp_path / 'opm.toml')
+
+
 def test_load_project_config_rejects_a_non_table_context(tmp_path: Path) -> None:
     from opm.config import load_project_config
 

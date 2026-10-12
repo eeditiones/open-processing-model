@@ -53,34 +53,32 @@
     display: inline;
 }
 
-/* Screen: Folio-style two columns, on a chunked folio and a whole document
-   alike — but reached two different ways.
+/* Screen: Folio-style two columns, one folio at a time.
 
-   `columns: 2` is the initial column count, not a cap: a forced break opens a
-   further column. A chunk page holds one folio, so its single `.tei-cb` break
-   (from default-styles) splits it into exactly the two columns the Folio had,
-   filled in order. A whole-document transform carries all 42 of those breaks in
-   one flow and would fan the play out into as many columns, so there the breaks
-   are ignored and the text balances across the two instead.
+   A chunk page holds one folio. A whole-document transform renders the play
+   folio by folio too ([transform.web] pages in opm.toml), each folio in a
+   `.opm-page` section. Either way the folio's single `.tei-cb` break (from
+   default-styles) splits it into exactly the two columns the Folio had,
+   filled in order: `columns: 2` is the initial column count, and the forced
+   break opens the second.
    `chap-page--chunk` is the class templates/chapbook.html.j2 sets on a chunk. */
-.content {
+.chap-page--chunk .content,
+.opm-page {
     columns: 2;
     column-gap: 1.75rem;
-}
-
-.chap-page--chunk .content {
     column-fill: auto;
 }
 
-.chap-page:not(.chap-page--chunk) .tei-cb {
-    break-before: auto;
+.opm-page + .opm-page {
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #EEE;
 }
 
-.content h1,
-.content h2,
-.content h3,
-.content .tei-head,
-.content .tei-castList {
+/* Only the play's title runs across both columns, as at the head of the
+   Folio's first page. Act and scene headings stay in their column: spanning
+   one mid-page would cut the folio into two-column bands above and below it. */
+.content h1 {
     column-span: all;
 }
 

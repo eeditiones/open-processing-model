@@ -80,3 +80,42 @@ def test_project_extensions_import_through_the_configured_pythonpath(
     # Calling it again adds nothing.
     project_xpath_env(cfg)
     assert sys.path.count(str((project / 'extensions').resolve())) == 1
+
+
+_PAGED_TEI = """<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader><fileDesc><titleStmt><title>Paged</title></titleStmt></fileDesc></teiHeader>
+  <text><body><div>
+    <pb n="1"/><cb n="1"/><p>one-a</p><cb n="2"/><p>one-b</p>
+    <pb n="2"/><cb n="1"/><p>two-a</p><cb n="2"/><p>two-b</p>
+  </div></body></text>
+</TEI>"""
+
+
+def _paged_run(tmp_path: Path, mode: str, cfg: ProjectConfig) -> str:
+    from lxml import html
+
+    from opm.odd_cache import ensure_compiled_module
+    from opm.resources import packaged_odd
+
+    xml = tmp_path / 'doc.xml'
+    xml.write_text(_PAGED_TEI, encoding='utf-8')
+    module_path, _ = ensure_compiled_module(packaged_odd('teipublisher'), output_mode=mode)
+    return html.fromstring(transform_file(module_path, xml, config=cfg))
+
+
+def test_web_pages_renders_one_section_per_page(tmp_path: Path) -> None:
+    cfg = ProjectConfig(web_pages='opm.navigation.tei_pb_chunks')
+
+    doc = _paged_run(tmp_path, 'web', cfg)
+
+    pages = doc.xpath('//section[@class="opm-page"]')
+    assert [''.join(p.text_content().split()) for p in pages] == ['1one-aone-b', '2two-atwo-b']
+    # Each page brings its own column break, as on a chunk page.
+    assert [len(p.xpath('.//*[contains(@class, "tei-cb")]')) for p in pages] == [2, 2]
+
+
+def test_web_pages_leaves_other_modes_alone(tmp_path: Path) -> None:
+    cfg = ProjectConfig(web_pages='opm.navigation.tei_pb_chunks')
+
+    assert not _paged_run(tmp_path, 'print', cfg).xpath('//section[@class="opm-page"]')
+    assert not _paged_run(tmp_path, 'web', ProjectConfig()).xpath('//section[@class="opm-page"]')

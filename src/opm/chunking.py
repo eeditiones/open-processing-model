@@ -24,6 +24,7 @@ from lxml import html as lxml_html
 from opm.assets import ASSETS_DIR, asset_styles, copy_assets, resolve_assets
 from opm.config import ChunkingConfig, FragmentConfig, ProjectConfig
 from opm.epub import _resolve_image_sources
+from opm.navigation import load_selector
 from opm.runtime import source_map
 from opm.runtime.context import RunState
 from opm.runtime.xpath_env import XPathEnvironment
@@ -246,10 +247,7 @@ class ChunkProcessor:
         source_map.clear()
         source_map.set_base_uri(self.xpath_env.base_uri)
         if self.config.selector:
-            import importlib
-            module_name, _, func_name = self.config.selector.rpartition('.')
-            selector_fn = getattr(importlib.import_module(module_name), func_name)
-            chunks = selector_fn(self.xml_root, self.config)
+            chunks = load_selector(self.config.selector)(self.xml_root, self.config)
         else:
             # Use xpath_select (XPath 3.1) so unprefixed names resolve against the
             # document's default namespace — TEI's div/body live in the TEI

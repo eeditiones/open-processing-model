@@ -36,6 +36,10 @@ webcomponents = false
 # Stylesheets, images and fonts the template uses, copied into an assets/ folder
 # next to the output (the ODD stylesheet is handled for you)
 assets = ["templates/edition.css", "templates/parchment.jpg"]
+# Show the document page by page instead of as one continuous text. Each page
+# goes into its own <section class="opm-page">, which your CSS can style.
+# Takes the same functions as selector under [chunking].
+# pages = "opm.navigation.tei_pb_chunks"
 
 [transform.docx]
 # Optional per-mode ODD override; omit to use [transform].odd
@@ -94,6 +98,7 @@ index_title = "Correspondence"
 | `[transform.json]` | Optional `odd` override for the JSON data output | [Output formats](output-formats.md#json) |
 | `[transform.markdown]`, … | Other optional per-type `odd` (and `template`) overrides | [Output formats](output-formats.md) |
 | `[transform.web] webcomponents` | Web-only flag enabling TEI Publisher web components | [Templates & CSS](templates-and-css.md#web-components) |
+| `[transform.web] pages` | Show the whole document page by page, one `<section class="opm-page">` per page | [Chunking](chunking.md) |
 | `[context]` | Free-form values exposed to every template as `context` | [Templates & CSS](templates-and-css.md#template-context) |
 | `[transform.<type>.context]` | Per-output-type overlay on `[context]` | [Templates & CSS](templates-and-css.md#template-context) |
 | `[chunking]` | Splitting rules, output, templates, fragments | [Chunking](chunking.md) |

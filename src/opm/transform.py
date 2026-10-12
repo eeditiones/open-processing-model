@@ -85,8 +85,11 @@ from opm.config import (
     load_project_config,
 )
 from opm.assets import ASSETS_DIR, asset_styles, resolve_assets
+from opm.navigation import load_selector
 from opm.output_modes import OutputMode, module_mode
-from opm.runtime.pm_runtime import serialize as _default_serialize
+from opm.runtime import source_map
+from opm.runtime.context import RunState
+from opm.runtime.pm_runtime import inject_cached_footnotes, serialize as _default_serialize
 from opm.runtime.xpath_env import XPathEnvironment
 from opm.template_rendering import (
     DEFAULT_TEMPLATE_NAME,
@@ -334,6 +337,54 @@ def _print_base_css() -> str:
     return base_path.read_text(encoding='utf-8').rstrip()
 
 
+def _append_nodes(parent: etree._Element, nodes: Sequence[Any]) -> None:
+    """Append a transform result, elements and strings mixed, to *parent*."""
+    for node in nodes:
+        if isinstance(node, etree._Element):
+            parent.append(node)
+        elif node is not None:
+            last = parent[-1] if len(parent) else None
+            if last is None:
+                parent.text = (parent.text or '') + str(node)
+            else:
+                last.tail = (last.tail or '') + str(node)
+
+
+def _page_sections(
+    mod: ModuleType,
+    root: etree._Element,
+    selector: str,
+    options: dict[str, Any],
+    env: XPathEnvironment,
+) -> list[etree._Element]:
+    """Render *root* page by page, each page in a ``<section class="opm-page">``.
+
+    *selector* splits the document as ``[chunking] selector`` does. Every page
+    is a run of its own, like a chunk in
+    [`ChunkProcessor`][opm.chunking.ChunkProcessor]: fresh run state, its
+    footnotes at its end, the document as ``$parameters?root``.
+    """
+    source_map.clear()
+    source_map.set_base_uri(env.base_uri)
+    pages = load_selector(selector)(root, ChunkingConfig())
+    base = mod.new_context(root, options, xpath_env=env)
+    sections = []
+    for page in pages:
+        if not isinstance(page, etree._Element):
+            continue
+        ctx = base.derive(
+            root=page,
+            pmf=type(base.pmf)(),
+            state=RunState(),
+            xpath=base.xpath.with_root(root),
+        )
+        nodes = ctx.pmf.finish(ctx, mod.apply(ctx, [page]))
+        section = etree.Element('section', {'class': 'opm-page'})
+        _append_nodes(section, inject_cached_footnotes(nodes, ctx))
+        sections.append(section)
+    return sections
+
+
 def run_transform(
     mod: ModuleType,
     root: etree._Element,
@@ -349,6 +400,7 @@ def run_transform(
     epub_chunking: ChunkingConfig | None = None,
     epub_css: Path | None = None,
     epub_skip_title: bool = False,
+    pages: str | None = None,
     xpath_env: XPathEnvironment | None = None,
 ) -> str | bytes:
     """Run *mod* against *root* and return the serialized output.
@@ -378,6 +430,9 @@ def run_transform(
         epub_chunking: Chapter selection for ``-t epub`` (defaults from TEI/DocBook).
         epub_css: Stylesheet appended last to the EPUB package.
         epub_skip_title: Omit the generated EPUB title page.
+        pages: Dotted path of a page splitter (``[transform.web] pages``).
+            For a full HTML document, the ``<body>`` then holds one
+            ``<section class="opm-page">`` per page instead of a single flow.
         xpath_env: The XPath environment to evaluate in (see
             [`project_xpath_env`][opm.transform.project_xpath_env]); an empty one when omitted.
     """
@@ -421,10 +476,21 @@ def run_transform(
     if result and isinstance(result[0], bytes):
         return result[0]
 
-    is_document = any(
-        isinstance(item, etree._Element) and etree.QName(item).localname == 'html'
-        for item in result
+    html_root = next(
+        (item for item in result
+         if isinstance(item, etree._Element) and etree.QName(item).localname == 'html'),
+        None,
     )
+    is_document = html_root is not None
+    body = html_root.find('body') if html_root is not None else None
+    if pages and body is not None and mode.template == 'html':
+        # The pages replace the whole body: like a chunk, a page shows the
+        # text and its notes, not the header rendered around them.
+        for child in list(body):
+            body.remove(child)
+        body.text = None
+        for section in _page_sections(mod, root, pages, transform_opts, env):
+            body.append(section)
     out = serialize(result)
 
     if apply_template and mode.template == 'typst':
@@ -474,6 +540,7 @@ def transform_node(
     epub_chunking: ChunkingConfig | None = None,
     epub_css: Path | None = None,
     epub_skip_title: bool = False,
+    pages: str | None = None,
     xpath_env: XPathEnvironment | None = None,
 ) -> str | bytes:
     """Load *script_path* as a transform module and apply it to *root*.
@@ -499,6 +566,8 @@ def transform_node(
         template_context: Project ``[context]`` values exposed to the Jinja2
             template as ``context``.
         assets: Files the HTML template references (see
+            [`run_transform`][opm.transform.run_transform]).
+        pages: Page splitter for HTML output (see
             [`run_transform`][opm.transform.run_transform]).
         xpath_env: The XPath environment to evaluate in (see
             [`project_xpath_env`][opm.transform.project_xpath_env]); an empty one when omitted.
@@ -528,6 +597,7 @@ def transform_node(
         epub_chunking=epub_chunking,
         epub_css=epub_css,
         epub_skip_title=epub_skip_title,
+        pages=pages,
         xpath_env=env,
     )
 
@@ -631,4 +701,5 @@ def transform_with_config(
         epub_chunking=config.epub_chunking,
         epub_css=config.epub_css,
         epub_skip_title=config.epub_skip_title,
+        pages=config.web_pages if mode.name == 'web' else None,
     )
