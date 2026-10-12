@@ -29,7 +29,7 @@ In an ODD model predicate or parameter:
 <param name="label" value="tp:shout(@type)"/>
 ```
 
-A worked example ships with the Serafin project:
+The Serafin example project contains one:
 `examples/serafin/extensions/serafin_functions.py` defines `gap_dots`, and
 `examples/serafin/odd/serafin.odd` calls it as `tp:gap_dots(@quantity)` to spell
 a lacuna of known extent in Leiden dots — `[....]` for four lost characters.

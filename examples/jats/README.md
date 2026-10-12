@@ -5,7 +5,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # JATS journal article
 
-A worked `opm` project for a JATS (Journal Article Tag Suite) article, the
+An example `opm` project for a JATS (Journal Article Tag Suite) article, the
 vocabulary scholarly journals publish in. The source is Elisa Bastianello,
 “Digital Editions at Bibliotheca Hertziana”, *Journal of Art Historiography*
 27 (2022), [10.48352/uobxjah.00004200](https://doi.org/10.48352/uobxjah.00004200),

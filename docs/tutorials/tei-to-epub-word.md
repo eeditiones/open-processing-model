@@ -1,14 +1,15 @@
 ---
-title: Create an EPUB or Word file from TEI
-description: A step-by-step tutorial for converting a TEI XML document into an EPUB e-book, a Word document or Markdown with opm.
+title: Create an EPUB or Word file from XML
+description: A step-by-step tutorial for converting an XML document — TEI, DocBook or JATS — into an EPUB e-book, a Word document or Markdown with opm.
 ---
 
-# Create an EPUB or Word file from TEI
+# Create an EPUB or Word file from XML
 
-This tutorial shows how to turn a TEI XML document into an e-book (EPUB) for
+This tutorial shows how to turn an XML document into an e-book (EPUB) for
 e-readers, or into a Word document you can share with colleagues who do not
 work with XML. Both are made from the same rules (the ODD) as your web and PDF
-versions, so a change you make once shows up everywhere.
+versions, so a change you make once shows up everywhere. The examples use TEI;
+the steps are the same for DocBook, JATS or any other XML format.
 
 ## Before you start
 
@@ -21,7 +22,7 @@ opm init my-edition --vocabulary tei
 cd my-edition
 ```
 
-If you have followed [Convert TEI to HTML](tei-to-html.md), you can use the
+If you have followed [Convert XML to HTML](tei-to-html.md), you can use the
 project from that tutorial.
 
 ## Creating an EPUB

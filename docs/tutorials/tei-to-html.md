@@ -1,18 +1,22 @@
 ---
-title: Convert TEI to HTML
-description: A step-by-step tutorial for turning a TEI XML document into a web page with opm, and for changing how it looks.
+title: Convert XML to HTML
+description: A step-by-step tutorial for turning an XML document — TEI, DocBook or JATS — into a web page with opm, and for changing how it looks.
 ---
 
-# Convert TEI to HTML
+# Convert XML to HTML
 
-This tutorial shows how to turn a TEI XML document into a web page you can open
-in any browser. It takes about ten minutes. You do not need to know XSLT or any
-programming language: the rules for how each TEI element should look are
-written in a TEI document of their own, called an ODD.
+This tutorial shows how to turn an XML document into a web page you can open in
+any browser. It takes about ten minutes. You do not need to know XSLT or any
+programming language: the rules for how each element should look are written
+in a document of their own, called an ODD.
+
+The examples use TEI. `opm` works the same way for DocBook and JATS, and ships
+ready-made rules for all three; for any other XML format, you write the rules
+yourself. Where the steps differ, this tutorial says so.
 
 By the end you will have:
 
-1. a small project folder with your TEI file in it
+1. a small project folder with your XML file in it
 2. an HTML version of that file
 3. your first change to the way the output looks
 
@@ -30,7 +34,7 @@ You should see a list of commands.
 
 ## 1. Create a project
 
-A project is simply a folder that holds your TEI files, the ODD with your
+A project is simply a folder that holds your XML files, the ODD with your
 rendering rules, and a configuration file. Create a new one with:
 
 ```bash
@@ -38,13 +42,16 @@ opm init my-edition --vocabulary tei
 cd my-edition
 ```
 
+`--vocabulary` names the XML format of your documents. For DocBook or JATS,
+write `--vocabulary docbook` or `--vocabulary jats` instead.
+
 `opm` creates the folder `my-edition` and fills it with everything you need to
 get started. The most important parts are:
 
 | Path | What it is for |
 | --- | --- |
-| `data/` | your TEI documents. There is already a small `sample.xml` in it. |
-| `odd/custom.odd` | your rendering rules. It starts out empty and inherits sensible defaults for all common TEI elements. |
+| `data/` | your XML documents. There is already a small `sample.xml` in it. |
+| `odd/custom.odd` | your rendering rules. It starts out empty and inherits sensible defaults for all common elements of the format you chose. |
 | `templates/` | the page layout and stylesheet wrapped around your text |
 | `opm.toml` | the project settings |
 
@@ -68,16 +75,16 @@ opm transform data/sample.xml -o sample.html
 
 ## 3. Convert your own document
 
-Now copy one of your own TEI files into the `data` folder and run the same
+Now copy one of your own XML files into the `data` folder and run the same
 command on it:
 
 ```bash
 opm transform data/letter.xml --preview
 ```
 
-Most TEI documents will display reasonably well right away, since the default
-rules cover many of the common elements: divisions, headings,
-paragraphs, notes, lists, tables, figures, verse, drama, and many more.
+Most documents will display reasonably well right away, since the default
+rules cover many of the common elements: divisions, headings, paragraphs,
+notes, lists, tables, figures and, for TEI, also verse, drama, and many more.
 
 ## 4. Change how something looks
 
@@ -102,7 +109,9 @@ Suppose you want person names to appear in italics and in dark red. Open
 
 Let us look at what this says:
 
-* `elementSpec ident="persName"` selects the TEI element we want to change.
+* `elementSpec ident="persName"` selects the element we want to change. In
+  a DocBook or JATS project, you would pick one of their elements instead, for
+  example `emphasis` or `italic`.
   `mode="change"` means we only replace its rendering rules and keep everything
   else from the default ODD.
 * `model behaviour="inline"` says that a person name should run along with the
@@ -126,14 +135,15 @@ processing models.
 
 ## Why not XSLT?
 
-The [TEI Stylesheets](https://github.com/TEIC/Stylesheets) and custom XSLT are
-well-established ways of transforming TEI. The approach taken by `opm` differs
-in where the rules live. Instead of a program, you write a TEI document that
-describes the desired output, following the *TEI Processing Model* which is part
-of the TEI Guidelines. This has some practical advantages:
+XSLT stylesheets, such as the [TEI Stylesheets](https://github.com/TEIC/Stylesheets),
+are a well-established way of transforming XML. The approach taken by `opm`
+differs in where the rules live. Instead of a program, you write a document
+that describes the desired output, following the *TEI Processing Model*. It is
+part of the TEI Guidelines, but works for any XML format. This has some
+practical advantages:
 
-* the rules are easier to read and change for people who know TEI but are not
-  programmers
+* the rules are easier to read and change for people who know their XML format
+  but are not programmers
 * one set of rules produces HTML, PDF, EPUB, Word and Markdown
 * ODD expands to _One Document Does it all_ for a reason: it can host schema definitions,
 encoding guidelines, documentation and the processing document — all in the same TEI file

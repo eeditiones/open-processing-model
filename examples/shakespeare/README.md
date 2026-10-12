@@ -5,7 +5,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # Much Adoe about Nothing (First Folio)
 
-A worked `opm` project for a Shakespeare First Folio text, chunked **by page**
+An example `opm` project for a Shakespeare First Folio text, chunked **by page**
 rather than by division. `data/F-ado.xml` is the Bodleian First Folio copy of
 *Much Ado About Nothing* (Arch. G c.7), with the Folio's own page and column
 breaks, catchwords, signatures and running heads left in the markup.

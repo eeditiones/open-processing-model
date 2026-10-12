@@ -124,7 +124,7 @@ one before:
 3. **`[transform.epub] css`** — the project stylesheet, for restyling anything
    the reading view brought along that does not suit an e-reader (sticky
    chrome, `color-mix()`, viewport units). `examples/docbook/templates/epub.css`
-   is a worked example that recreates the handbook’s web look;
+   shows how to recreate the handbook’s web look;
    `examples/shakespeare/templates/epub.css` is the opposite case, dropping the
    reading view’s two-column Folio layout and its page furniture for a plain
    reading text.

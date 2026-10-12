@@ -29,7 +29,7 @@ opm init
 ```
 
 and in the terminal select what to start from: an empty project, or a copy of
-one of the worked examples that ship with the package. 
+one of the example projects that come with the package. 
 
 See the [Quickstart](quickstart.md) for more details.
 

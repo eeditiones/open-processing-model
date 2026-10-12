@@ -22,7 +22,7 @@ supported vocabularies, or a copy of one of the example projects. You can bypass
 opm init --vocabulary docbook        # empty project for a specific vocabulary
 opm init --example jats              # copy of the JATS journal-article project
 opm init --example jats --templates  # include all available templates into `/templates/`
-opm init --list-examples             # list all available worked projects
+opm init --list-examples             # list all available example projects
 ```
 
 An **empty project** writes a configuration file (`opm.toml`), templating and CSS files (`/templates/`), an ODD (`/odd/`), sample data (`/data/sample.xml`), agent guidance (`AGENTS.md` and `CLAUDE.md`; existing copies are left untouched) and  `.gitignore`. The ODD will depend on the selected vocabulary, TEI being the default one, and it .
@@ -118,7 +118,7 @@ uv run opm transform examples/tei-test.xml -t web --preview
 uv run opm chunk examples/tei-test.xml -o chunks/ --force --preview
 ```
 
-Worked projects live under `examples/`. `uv run` still finds the repo package
+Example projects live under `examples/`. `uv run` still finds the repo package
 from those directories, and `opm` loads the local `opm.toml`:
 
 ```bash

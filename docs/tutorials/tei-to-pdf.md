@@ -1,12 +1,14 @@
 ---
-title: Create a PDF from TEI
-description: A step-by-step tutorial for creating a print-ready PDF from a TEI XML document with opm, using Typst or CSS for print.
+title: Create a PDF from XML
+description: A step-by-step tutorial for creating a print-ready PDF from an XML document — TEI, DocBook or JATS — with opm, using Typst or CSS for print.
 ---
 
-# Create a PDF from TEI
+# Create a PDF from XML
 
-This tutorial shows how to create a PDF from a TEI XML document, for example to
-print an edition, to share a reading copy, or to submit a text to a publisher.
+This tutorial shows how to create a PDF from an XML document, for example to
+print an edition or an article, to share a reading copy, or to submit a text to
+a publisher. The examples use TEI; the steps are the same for DocBook, JATS or
+any other XML format.
 
 `opm` offers two ways of doing this. Both use the same rules (the ODD) as the
 HTML and EPUB versions, so you do not have to maintain a separate set of
@@ -30,13 +32,13 @@ opm init my-edition --vocabulary tei
 cd my-edition
 ```
 
-If you have followed [Convert TEI to HTML](tei-to-html.md), you can use the
+If you have followed [Convert XML to HTML](tei-to-html.md), you can use the
 project from that tutorial.
 
 ## Using Typst
 
 [Typst](https://typst.app) is a modern typesetting system, similar in purpose to
-LaTeX but easier to use and much faster. `opm` converts your TEI document into
+LaTeX but easier to use and much faster. `opm` converts your XML document into
 Typst, and Typst produces the PDF.
 
 ### 1. Install Typst
@@ -96,7 +98,7 @@ opm transform data/sample.xml -t typst -o sample.typ
 ### 4. Change how individual elements look
 
 Changes made in the ODD apply to the PDF as well. If you followed
-[Convert TEI to HTML](tei-to-html.md) and made person names italic and red,
+[Convert XML to HTML](tei-to-html.md) and made person names italic and red,
 they are italic and red in the PDF too.
 
 Not every CSS property has a counterpart in Typst. `opm` carries over bold,

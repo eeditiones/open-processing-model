@@ -22,7 +22,7 @@ pip install open-processing-model
 
 opm init                          # asks: empty project, or one of the examples
 # opm init --vocabulary docbook   # empty DocBook project, no prompt
-# opm init --example jats         # copy of a worked example project
+# opm init --example jats         # copy of an example project
 
 opm transform data/sample.xml --preview
 opm chunk data/sample.xml --force
@@ -33,7 +33,7 @@ opm odd document my.odd --force --preview         # ODD documentation site
 A one-off transform needs no project files (`opm transform my.xml --preview`
 uses the packaged stock ODD and templates). `opm init` writes editable
 `opm.toml`, templates, CSS, and an ODD — or, with `--example`, copies one of the
-worked projects under [`examples/`](https://github.com/eeditiones/open-processing-model/tree/main/examples) (`--list-examples` shows them).
+example projects under [`examples/`](https://github.com/eeditiones/open-processing-model/tree/main/examples) (`--list-examples` shows them).
 
 ## Development
 
@@ -47,7 +47,7 @@ uv run opm transform examples/tei-test.xml -t web --preview
 uv run opm chunk examples/tei-test.xml -o chunks/ --force
 uv run opm serve -d chunks/
 
-# Worked projects (run from the example directory):
+# Example projects (run from the example directory):
 cd examples/serafin && uv run opm chunk data/letters/serafin01.xml --force --preview
 cd examples/docbook && uv run opm chunk data/doc/quickstart.xml --force --preview
 cd examples/jats && uv run opm chunk data/article/hertziana-digital-editions.xml --force --preview

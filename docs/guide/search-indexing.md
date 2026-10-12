@@ -239,7 +239,7 @@ you want to query — vectors, full text, or a script that runs in the browser.
 ### Loading into ChromaDB
 
 The [source repository](https://github.com/eeditiones/open-processing-model)
-includes a worked example using [`chromadb`](https://www.trychroma.com/)
+includes a complete example using [`chromadb`](https://www.trychroma.com/)
 (`examples/index_chroma.py`):
 
 ```bash

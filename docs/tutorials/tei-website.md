@@ -1,13 +1,15 @@
 ---
-title: Publish a TEI edition as a website
-description: A step-by-step tutorial for turning one or more TEI XML documents into a static website with opm, without a database or server software.
+title: Publish XML documents as a website
+description: A step-by-step tutorial for turning one or more XML documents — TEI, DocBook or JATS — into a static website with opm, without a database or server software.
 ---
 
-# Publish a TEI edition as a website
+# Publish XML documents as a website
 
-A long TEI document, or a whole collection of letters, is too much for a single
-web page. This tutorial shows how to split your TEI files into smaller pages,
-with navigation between them, and turn the result into a website.
+A long document, a whole collection of letters, or a set of articles is too
+much for a single web page. This tutorial shows how to split your XML files
+into smaller pages, with navigation between them, and turn the result into a
+website. The examples use TEI; the steps are the same for DocBook, JATS or any
+other XML format.
 
 The website `opm` creates is *static*: it is just a folder of HTML files. You do
 not need a database or special server software to publish it. Any web space
@@ -24,7 +26,7 @@ opm init my-edition --vocabulary tei
 cd my-edition
 ```
 
-If you have followed [Convert TEI to HTML](tei-to-html.md), you can use the
+If you have followed [Convert XML to HTML](tei-to-html.md), you can use the
 project from that tutorial.
 
 ## 1. Split a document into pages
@@ -72,7 +74,7 @@ Save `opm.toml` and run the `opm chunk` command again to see the difference.
 
 ## 3. Add your whole collection
 
-Put all your TEI files into the `data` folder, then pass the folder rather than
+Put all your XML files into the `data` folder, then pass the folder rather than
 a single file:
 
 ```bash
@@ -110,9 +112,9 @@ opm serve
 To publish the edition, copy the contents of the `chunks` folder to your web
 space. That is all.
 
-If you rebuild the site after editing your TEI files, copy the folder again.
+If you rebuild the site after editing your XML files, copy the folder again.
 Many projects automate this step, so the website updates itself whenever the
-TEI files change. GitHub and GitLab both offer this for free.
+XML files change. GitHub and GitLab both offer this for free.
 
 ## Next steps
 
@@ -126,6 +128,6 @@ TEI files change. GitHub and GitLab both offer this for free.
   `opm chunk data --format json` to produce data files they can read. See
   [Chunking](../guide/chunking.md).
 * Add full-text search: see [Search indexing](../guide/search-indexing.md).
-* For a complete worked example, create a copy of the correspondence edition
+* For a complete example, create a copy of the correspondence edition
   with `opm init --example serafin` or the Shakespeare edition with
   `opm init --example shakespeare`.

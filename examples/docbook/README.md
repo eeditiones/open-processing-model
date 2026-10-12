@@ -5,7 +5,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # DocBook documentation
 
-A worked `opm` project for handbook-style DocBook, matching the TEI Publisher
+An example `opm` project for handbook-style DocBook, matching the TEI Publisher
 documentation setup: section chunking, global TOC, title and browse fragments,
 and per-chunk breadcrumbs. This is the config
 [Integration with TEI Publisher][tp-guide] refers to.

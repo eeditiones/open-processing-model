@@ -5,7 +5,7 @@ SPDX-License-Identifier: CC0-1.0
 
 # Serafin letters
 
-A worked `opm` project for the 15th-century correspondence of Mikołaj Serafin:
+An example `opm` project for the 15th-century correspondence of Mikołaj Serafin:
 parallel Latin source and Polish translation, with people/place registers.
 
 The tree is self-contained. `odd/serafin.odd` inherits the packaged

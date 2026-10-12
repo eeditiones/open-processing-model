@@ -77,7 +77,7 @@ out of paged output-->:
 template = "templates/print.html.j2"
 ```
 
-The DocBook example ships a worked print template under
+The DocBook example project contains a complete print template in
 `examples/docbook/templates/print.html.j2`.
 
 The same Jinja file can wrap both a full-document transform and chunked pages.
