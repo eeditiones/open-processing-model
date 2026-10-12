@@ -119,3 +119,35 @@ def test_web_pages_leaves_other_modes_alone(tmp_path: Path) -> None:
 
     assert not _paged_run(tmp_path, 'print', cfg).xpath('//section[@class="opm-page"]')
     assert not _paged_run(tmp_path, 'web', ProjectConfig()).xpath('//section[@class="opm-page"]')
+
+
+def test_global_fragments_reach_the_document_template(tmp_path: Path) -> None:
+    from opm.config import FragmentConfig
+
+    template = tmp_path / 'page.html.j2'
+    template.write_text(
+        '<html><head><title>{{ fragments.title | striptags }}</title></head>'
+        '<body>{{ content_html | safe }}</body></html>',
+        encoding='utf-8',
+    )
+    cfg = ProjectConfig(
+        document_template=template,
+        chunking=ChunkingConfig(fragments=[
+            FragmentConfig(name='title', scope='global', xpath='//titleStmt/title'),
+            FragmentConfig(name='first', scope='per-chunk', xpath='.//p[1]'),
+        ]),
+    )
+
+    doc = _paged_run(tmp_path, 'web', cfg)
+
+    assert doc.findtext('.//title') == 'Paged'
+
+
+def test_whole_document_placeholders_point_beside_the_output() -> None:
+    from opm.transform import expand_placeholders
+
+    params = {'context-path': '{prefix}assets', 'src': '{doc_stem}/{stem}', 'n': 3}
+
+    assert expand_placeholders(params, Path('data/F-ado.xml')) == {
+        'context-path': 'assets', 'src': 'F-ado/{stem}', 'n': 3,
+    }

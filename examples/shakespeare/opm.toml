@@ -24,13 +24,14 @@ address-by-id = false
 
 # teipublisher.odd carries a <pb> model for exactly this case: a static export
 # with no api/iiif endpoint behind it. `static` selects it, and `context-path`
-# is the prefix it builds the manifest URL from, pointing at what [chunking]
-# assets copies below. No ODD override involved.
+# is the prefix it builds the manifest URL from, pointing at what
+# [transform.web] assets copies below. No ODD override involved.
 #
-# `{prefix}` is the path from a chunk page back to the output root, where the
-# shared assets/ live — "../", since chunk pages always sit in a per-document
-# subdirectory. Writing "assets" straight would point a page at a subdirectory
-# of its own, which is how the IIIF manifest goes missing.
+# `{prefix}` is the path from a page back to the directory holding assets/:
+# "../" for chunk pages, which always sit in a per-document subdirectory, and
+# empty for `opm transform`, which writes assets/ right beside its output.
+# Writing "assets" straight would point a chunk page at a subdirectory of its
+# own, which is how the IIIF manifest goes missing.
 [transform.parameters]
 static = "1"
 context-path = "{prefix}assets"
@@ -57,7 +58,14 @@ line_number_every = 5
 
 [transform.web]
 template = "templates/chapbook.html.j2"
-assets = ["templates/chapbook.css"]
+# Copied verbatim into an assets/ directory beside the output (for chunks,
+# <output-root>/assets/), keeping each directory name — so
+# iiif/F-ado.xml/manifest.json lands at assets/F-ado.xml/manifest.json. That is
+# where the <pb> model's facs="{prefix}assets/F-ado.xml/manifest.json" resolves
+# to; nothing serves the iiif/ directory itself. The glob copies every play's
+# manifest, so adding one needs no change here. [chunking] sets no assets of
+# its own, so it uses these.
+assets = ["templates/chapbook.css", "iiif/*", "icon.png"]
 # The <pb> model emits <pb-facs-link>, which stays inert markup showing the
 # folio number until the pb-components bundle is loaded. With it on, each folio
 # announces its manifest and page index on the "transcription" channel and the
@@ -71,10 +79,9 @@ pages = "opm.navigation.tei_pb_chunks"
 # Read by the chapbook template only, so they overlay [context] here rather
 # than sitting in it: a Typst or EPUB run has no use for either.
 [transform.web.context]
-# Shown in the menu bar, as the template writes it. [chunking] assets copies
-# icon.png to <output-root>/assets/, and chunk pages sit one directory below
-# that — hence the "../".
-logo = "../assets/icon.png"
+# Shown in the menu bar. The template looks it up in the copied assets, so the
+# same name works on chunk pages and on a whole-document page.
+logo = "icon.png"
 # Module scripts the page loads after the pb-components bundle. pb-tify (a IIIF
 # viewer wrapping Tify) is published as its own entry point rather than inside
 # pb-components-bundle.js, so the facsimile column needs it listed here.
@@ -94,13 +101,6 @@ webcomponents_theme = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@
 view = "page"
 selector = "opm.navigation.tei_pb_chunks"
 output_dir = "chunks"
-# Copied verbatim into <output-root>/assets/, keeping each directory name — so
-# iiif/F-ado.xml/manifest.json lands at assets/F-ado.xml/manifest.json. That is
-# where the <pb> model's facs="../assets/F-ado.xml/manifest.json" resolves to
-# from a chunk page; nothing serves the iiif/ directory itself. The glob copies
-# every play's manifest, so adding one needs no change here. Setting assets
-# here replaces those of [transform.web], so the stylesheet is listed again.
-assets = ["templates/chapbook.css", "iiif/*", "icon.png"]
 
 [[chunking.fragments]]
 name = "title"

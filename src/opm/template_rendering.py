@@ -131,6 +131,7 @@ def render_document_template(
     base_css: str | None = None,
     assets: str = '',
     asset_styles: list[str] | None = None,
+    fragments: dict[str, str] | None = None,
 ) -> str:
     """Render a full HTML document through the selected Jinja2 template.
 
@@ -150,6 +151,10 @@ def render_document_template(
     *assets* and *asset_styles* are the URL prefix of the copied
     ``[transform.web] assets`` and the stylesheets among them, the same
     values chunk pages receive.
+
+    *fragments* are the rendered global fragments of ``[chunking]`` (the
+    title, a table of contents), under the same ``fragments`` name chunk pages
+    get them, so one template serves both.
     """
     html_root = _first_html_root(serialized_html)
     if html_root is None:
@@ -179,6 +184,7 @@ def render_document_template(
         context=template_context(env, template_path.name, context),
         assets=assets,
         asset_styles=asset_styles or [],
+        fragments=fragments or {},
     )
 
 

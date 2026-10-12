@@ -58,7 +58,7 @@ classes = ["chapbook"]
   <div class="chap-running">
     <div class="chap-running__inner">
       <a class="chap-running__brand" href="{{ home_href }}">
-        {% if context.logo %}<img class="chap-running__logo" src="{{ context.logo }}" alt="">{% endif %}
+        {% if context.logo %}<img class="chap-running__logo" src="{{ assets }}/{{ context.logo }}" alt="">{% endif %}
         <span class="chap-running__work">{{ work_title or 'Chapbook' }}</span>
       </a>
 

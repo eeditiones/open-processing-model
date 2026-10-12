@@ -83,6 +83,7 @@ from opm.config import (
     CollectionConfig,
     ProjectConfig,
     load_project_config,
+    resolve_base_css,
 )
 from opm.assets import ASSETS_DIR, asset_styles, resolve_assets
 from opm.navigation import load_selector
@@ -401,6 +402,7 @@ def run_transform(
     epub_css: Path | None = None,
     epub_skip_title: bool = False,
     pages: str | None = None,
+    fragments: dict[str, str] | None = None,
     xpath_env: XPathEnvironment | None = None,
 ) -> str | bytes:
     """Run *mod* against *root* and return the serialized output.
@@ -433,6 +435,8 @@ def run_transform(
         pages: Dotted path of a page splitter (``[transform.web] pages``).
             For a full HTML document, the ``<body>`` then holds one
             ``<section class="opm-page">`` per page instead of a single flow.
+        fragments: Rendered fragments handed to the HTML template as
+            ``fragments`` (see [`global_fragments`][opm.transform.global_fragments]).
         xpath_env: The XPath environment to evaluate in (see
             [`project_xpath_env`][opm.transform.project_xpath_env]); an empty one when omitted.
     """
@@ -519,6 +523,7 @@ def run_transform(
             context=template_context,
             assets=ASSETS_DIR if assets else '',
             asset_styles=asset_styles(resolve_assets(Path.cwd(), assets)),
+            fragments=fragments,
         )
 
     return out
@@ -541,6 +546,7 @@ def transform_node(
     epub_css: Path | None = None,
     epub_skip_title: bool = False,
     pages: str | None = None,
+    fragments: dict[str, str] | None = None,
     xpath_env: XPathEnvironment | None = None,
 ) -> str | bytes:
     """Load *script_path* as a transform module and apply it to *root*.
@@ -568,6 +574,8 @@ def transform_node(
         assets: Files the HTML template references (see
             [`run_transform`][opm.transform.run_transform]).
         pages: Page splitter for HTML output (see
+            [`run_transform`][opm.transform.run_transform]).
+        fragments: Rendered fragments for the HTML template (see
             [`run_transform`][opm.transform.run_transform]).
         xpath_env: The XPath environment to evaluate in (see
             [`project_xpath_env`][opm.transform.project_xpath_env]); an empty one when omitted.
@@ -598,6 +606,7 @@ def transform_node(
         epub_css=epub_css,
         epub_skip_title=epub_skip_title,
         pages=pages,
+        fragments=fragments,
         xpath_env=env,
     )
 
@@ -681,10 +690,13 @@ def transform_with_config(
 
     enabled = webcomponents if webcomponents is not None else bool(config.webcomponents_enabled)
     effective_webcomponents = enabled and mode.webcomponents
-    merged_parameters = dict(config.parameters)
-    merged_parameters.update(parameters or {})
+    merged_parameters = expand_placeholders(
+        {**config.parameters, **(parameters or {})}, xml_path,
+    )
     if xml_path is not None:
         merged_parameters.setdefault('input_path', str(xml_path))
+    env = project_xpath_env(config, xml_path, extensions=xpath_extensions, documents=documents)
+    is_web = mode.name == 'web'
 
     return transform_node(
         mod,
@@ -695,11 +707,91 @@ def transform_with_config(
         template_context=config.context_for(mode.name, webcomponents=effective_webcomponents),
         **template_arguments(mode, config, template),
         assets=template_assets(mode, config),
-        xpath_env=project_xpath_env(
-            config, xml_path, extensions=xpath_extensions, documents=documents,
-        ),
+        xpath_env=env,
         epub_chunking=config.epub_chunking,
         epub_css=config.epub_css,
         epub_skip_title=config.epub_skip_title,
-        pages=config.web_pages if mode.name == 'web' else None,
+        pages=config.web_pages if is_web else None,
+        fragments=(
+            global_fragments(
+                mod, root, config, merged_parameters, env,
+                webcomponents=effective_webcomponents,
+            )
+            if is_web and xpath is None else None
+        ),
     )
+
+
+def expand_placeholders(params: dict[str, Any], xml_path: Path | None) -> dict[str, Any]:
+    """Fill in the ``{…}`` placeholders a whole-document run can resolve.
+
+    ``{prefix}`` is the path back to the directory holding ``assets/``: empty,
+    since ``opm transform`` writes its output right beside it. ``{doc}`` and
+    ``{doc_stem}`` name the source file. Chunk-only placeholders (``{file}``,
+    ``{stem}``) are left as they are, as is any other brace.
+    """
+    values = {'prefix': ''}
+    if xml_path is not None:
+        values |= {'doc': xml_path.name, 'doc_stem': xml_path.stem}
+    expanded: dict[str, Any] = {}
+    for key, value in params.items():
+        if isinstance(value, str):
+            for name, replacement in values.items():
+                value = value.replace(f'{{{name}}}', replacement)
+        expanded[key] = value
+    return expanded
+
+
+def global_fragments(
+    mod: ModuleType,
+    root: etree._Element,
+    config: ProjectConfig,
+    parameters: dict[str, Any],
+    env: XPathEnvironment,
+    *,
+    webcomponents: bool = False,
+) -> dict[str, str]:
+    """Render the ``scope = "global"`` fragments of ``[chunking]`` for *root*.
+
+    These describe the document as a whole (its title, a table of contents),
+    so a whole-document page can show them just as every chunk page does. A
+    fragment with an ``odd`` of its own is rendered with that ODD, otherwise
+    with *mod*. Only the first ``[[chunking]]`` run's fragments are used.
+    """
+    chunking = config.chunking
+    if chunking is None or not chunking.fragments:
+        return {}
+    rendered: dict[str, str] = {}
+    for fragment in chunking.fragments:
+        if fragment.scope != 'global':
+            continue
+        params = expand_placeholders({**parameters, **(fragment.parameters or {})}, None)
+        found = xpath_select(root, fragment.xpath, xpath_env=env.with_parameters(params))
+        if isinstance(found, list):
+            found = found[0] if len(found) == 1 else None
+        if isinstance(found, str):
+            rendered[fragment.name] = found
+            continue
+        if not isinstance(found, etree._Element):
+            continue
+        fragment_mod = mod
+        if fragment.module is not None or fragment.odd is not None:
+            from opm.odd_cache import resolve_transform_module
+
+            resolved = resolve_transform_module(
+                module=fragment.module,
+                odd=fragment.odd,
+                output_mode=fragment.mode,
+                use_packaged_default=False,
+                base_css=resolve_base_css(config.document_css, Path.cwd()),
+            )
+            fragment_mod = load_transform_module(resolved.module_path)
+        rendered[fragment.name] = str(run_transform(
+            fragment_mod,
+            found,
+            parameters=params,
+            webcomponents=webcomponents,
+            apply_template=False,
+            xpath_env=env,
+        ))
+    return rendered

@@ -83,6 +83,10 @@ Alongside the main chunk content, you can extract **fragments** — secondary
 pieces pulled from the document or from each chunk, such as a table of contents,
 breadcrumbs, or the work title. Each one of them is configured under `[chunking.fragments]` and there are two different scopes: `global` (document root as context) and `per-chunk` (chunk as context). They are listed in the manifest, and you can retrieve them in the templates with `fragments.<name>`.
 
+Global fragments also appear when you run `opm transform` on the whole
+document. The page template gets them under the same name, so one template
+can show the work title on chunk pages and on the single page alike.
+
  With the flag `--format pb-view`,
 global fragments become `{name}.json` part files (e.g. `toc.json`) plus a
 sibling `{name}.html` with the same markup, and per-chunk fragments become
@@ -360,7 +364,8 @@ parameters = { display = "browse", doc = "/exist/apps/edition/{doc}/{stem}" }
 
 The same expansion applies to `[transform.parameters]`, with one placeholder
 more: `{prefix}` is the path from a chunk page back to the output root, where
-the shared `css/` and `assets/` live — `../` for the pages `opm chunk` writes.
+the shared `css/` and `assets/` live — `../` for the pages `opm chunk` writes,
+and empty for `opm transform`, which writes `assets/` right beside its output.
 A parameter holding a URL into `assets/` should use it rather than hard-coding
 that hop:
 

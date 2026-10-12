@@ -152,7 +152,7 @@ A document or chunk template receives:
 | `context` | The project's own `[context]` values — see [Template context](#template-context) |
 | `lang` | Document language, from the transformed document's `<html lang>`; empty when unknown (set `context.lang` to fix it) |
 | `chunk` | Chunk metadata (`id`, `file`, `prev`, `next`, …) when rendering via `opm chunk` |
-| `fragments` | Named HTML or text from `[chunking.fragments]` (chunk templates only) |
+| `fragments` | Named HTML or text from `[chunking.fragments]`; a whole-document page gets only the `global` ones |
 | `parameters` | The `[transform.parameters]` map, as also bound to XPath `$parameters` |
 
 A minimal template:
