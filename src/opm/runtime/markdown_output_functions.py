@@ -14,14 +14,17 @@ from opm.runtime.output_functions import (
     PMResult,
     TemplateOutput,
     XLINK_HREF,
-    XML_ID,
     ProcessingModelFunctions,
     apply_children_without_normalization,
     apply_pb_template,
+    is_lemma_range_note,
+    lemma_range_markers,
     literal_code_body,
     child_nodes,
     maybe_normalize_text,
     normalize,
+    note_element_id,
+    param_str,
     should_preserve_whitespace,
 )
 
@@ -403,14 +406,54 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         return [f'![{tit}]({href})']
 
     def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
-        nr = config.state.next_note()
-        node_id = node.get(XML_ID) or node.get('id') or str(nr)
-        safe_id = re.sub(r'[-.]', '_', node_id)
-        ref = f'[^{safe_id}]'
+        """Emit a ``[^id]`` reference; the definition is placed when the run ends.
+
+        The marker a reader sees comes from the Markdown renderer, so ``label``
+        is kept only on the
+        [`Footnote`][opm.runtime.context.Footnote] record, for a
+        [`footnote_order`][opm.runtime.context.RenderContext.footnote_order]
+        hook to sort on. The hook decides the order of the definition block
+        this writes out.
+
+        Lemma ranges still write the ``a-`` / ``-a`` markers into the text;
+        the definition is prefixed with ``a-a`` so the label survives
+        rendering.
+        """
+        label_s = param_str(label) or None
+        place_s = param_str(place) or None
+        if place_s == 'start':
+            if not label_s:
+                return []
+            start_marker, _end, _fn = lemma_range_markers(label_s)
+            return [start_marker]
+        # A stand-off lookup that found nothing is not a note.
+        if not label_s and isinstance(content, (list, tuple)) and not content:
+            return []
+        # As in HTML: a note with its own ``@n`` leaves the counter alone, so
+        # the two series of a critical edition number independently.
+        nr = config.state.note_counter if label_s else config.state.next_note()
+        # As in HTML, the id falls back to its own counter so two labelled
+        # notes without an ``xml:id`` cannot collide.
+        safe_id = note_element_id(node, str(config.state.next_id()))
+        range_note = bool(label_s) and is_lemma_range_note(node)
+        if range_note:
+            _start, end_marker, fn_marker = lemma_range_markers(label_s)
+            ref = f'{end_marker}[^{safe_id}]'
+            prefix = f'{fn_marker} '
+        else:
+            ref = f'[^{safe_id}]'
+            prefix = ''
         buf: list = []
         config.apply_children(config, node, content, buf)
         body = _join_buf(buf).strip()
-        config.state.footnotes.append(f'\n[^{safe_id}]: {body}\n')
+        config.state.add_note(
+            f'\n[^{safe_id}]: {prefix}{body}\n',
+            number=nr,
+            label=label_s,
+            anchor=safe_id,
+            place=place_s,
+            node=node,
+        )
         return [ref]
 
     def cit(self, config, node, cls, content, source=None) -> PMResult:

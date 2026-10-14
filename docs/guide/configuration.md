@@ -22,6 +22,9 @@ odd = "odd/my-customisation.odd"
 xpath_extensions = ["extensions.my_functions"]
 # XML documents available to XPath doc(); paths are relative to this config file
 documents = ["data/authority.xml", "data/lookup.xml"]
+# Orders each run's footnotes before they are placed, for the output modes that
+# place them (web, markdown). See the Footnotes guide.
+footnote_order = "opm.runtime.footnote_order.labelled_first"
 # Base rules compiled into the ODD stylesheet for every output mode, replacing
 # the packaged defaults (overridable with --css)
 css = "styles/default-styles.css"
@@ -89,7 +92,7 @@ index_title = "Correspondence"
 | Section | Purpose | Related guide |
 | --- | --- | --- |
 | `[project]` | `pythonpath` additions so local extension modules import | [XPath extensions](xpath-extensions.md) |
-| `[transform]` | Shared settings (`odd`, `xpath_extensions`, `documents`, `parameters`, base `css`) | [Output formats](output-formats.md), [ODD `$parameters`](odd-files.md#parameters), [Templates & CSS](templates-and-css.md#two-kinds-of-css) |
+| `[transform]` | Shared settings (`odd`, `xpath_extensions`, `documents`, `footnote_order`, `parameters`, base `css`) | [Output formats](output-formats.md), [ODD `$parameters`](odd-files.md#parameters), [Footnotes](footnotes.md), [Templates & CSS](templates-and-css.md#two-kinds-of-css) |
 | `[transform.web]` | Optional web-only `odd` override, HTML `template` and its `assets` | [Templates & CSS](templates-and-css.md) |
 | `[transform.print]` | Optional print `odd` and HTML `template` | [Output formats](output-formats.md#print-paged-media) |
 | `[transform.epub]` | Optional EPUB `odd`, `css` and `skip_title` | [Output formats](output-formats.md#epub) |

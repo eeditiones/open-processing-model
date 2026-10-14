@@ -2,12 +2,12 @@
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
 
-  chapbook: multi-page, text-centric reading, on opm's packaged page layout
+  monograph: multi-page, text-centric reading, on opm's packaged page layout
   (opm/layout.html.j2). The running bar is the layout's header, the contents
   the `before` column; chapbook.css styles what goes inside.
 
   Design: "Der Römerbrief" — paper, ink and one rubric red; EB Garamond for
-  the text, Alegreya Sans for furniture. Optional context values:
+  the text, Alegreya Sans for UI chrome. Optional context values:
   context.author (small caps before the work title) and context.lang
   (language of the text, default "de", needed for hyphenation).
 
@@ -150,29 +150,8 @@ classes = ["chapbook"]
   (function () {
     var content = document.getElementById('chap-content');
 
-    {# opm lists the notes in document order. The edition prints the
-       text-critical apparatus (lettered) before the commentary (numbered), so
-       each run of notes is regrouped, keeping the order within each group. #}
-    if (content) {
-      content.querySelectorAll('dl.footnote:not(dl.footnote + dl.footnote)').forEach(function (first) {
-        var run = [];
-        for (var el = first; el && el.matches('dl.footnote'); el = el.nextElementSibling) run.push(el);
-        {# Range-start entries ("[]") are hidden; they go last so the first
-           visible note still opens the block with its "Anmerkungen" label. #}
-        var rank = function (dl) {
-          var dt = dl.querySelector('.fn-number');
-          var label = dt ? dt.textContent.trim() : '';
-          return /^[a-z]+$/i.test(label) ? 0 : /^\d+$/.test(label) ? 1 : 2;
-        };
-        var anchor = run[run.length - 1].nextSibling;
-        var parent = first.parentNode;
-        [0, 1, 2].forEach(function (r) {
-          run.filter(function (dl) { return rank(dl) === r; })
-            .forEach(function (dl) { parent.insertBefore(dl, anchor); });
-        });
-      });
-    }
-
+    {# The notes arrive apparatus-first already: `[transform] footnote_order`
+       in opm.toml orders each page's footnotes before they are placed. #}
     if (content) {
       var KEY = 'opm-chapbook-font-size';
       try {

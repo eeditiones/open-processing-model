@@ -104,6 +104,21 @@
         content: attr(data-n) ".";
     }
 
+    /* Lemma range: the note's @target points at an <anchor type="note"/>.
+       Call shows -a at the end of the passage; the footnote area shows a-a.
+       The opening a- is a plain .note-range-start span emitted separately. */
+    .footnote[data-n][data-range="end"]::footnote-call {
+        content: "-" attr(data-n);
+    }
+
+    .footnote[data-n][data-range="end"]::footnote-marker {
+        content: attr(data-n) "-" attr(data-n) ".";
+    }
+
+    .note-range-start {
+        font-size: var(--opm-footnote-font-size);
+    }
+
     /* Margin notes (behaviour="note" place="margin") are not footnotes —
        they stay put rather than floating to the page bottom. */
     .margin-note {

@@ -23,25 +23,17 @@ from opm.runtime.output_functions import (
     ProcessingModelFunctions,
     apply_children_without_normalization,
     apply_pb_template,
+    is_lemma_range_note,
+    lemma_range_markers,
     literal_code_body,
     child_nodes,
     maybe_normalize_text,
     normalize,
+    param_str,
     should_preserve_whitespace,
 )
 
 TYPST_INDENT = '  '
-
-
-def _param_str(value) -> str:
-    """Coerce an ODD behaviour parameter (string or singleton sequence) to text."""
-    if value is None:
-        return ''
-    if isinstance(value, (list, tuple)):
-        if not value:
-            return ''
-        value = value[0]
-    return str(value).strip()
 
 
 _HTML_COMMENT_RE = re.compile(r'<!--.*?-->', re.DOTALL)
@@ -618,10 +610,15 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         buf: list = []
         config.apply_children(config, node, content, buf)
         body = _join_buf(buf).strip()
-        place_s = _param_str(place)
-        label_s = _param_str(label)
+        place_s = param_str(place)
+        label_s = param_str(label)
         # Trailing ';' ends the code expression so a following ".Word" is
         # markup, not field access (``#footnote[n].Sciatis``).
+        if place_s == 'start':
+            if not label_s:
+                return []
+            start_marker, _end, _fn = lemma_range_markers(label_s)
+            return [start_marker]
         if place_s and place_s.lower() == 'margin':
             # Document shells define ``#marginnote``; finish cleanup will not stub it.
             if label_s:
@@ -630,7 +627,14 @@ class TypstOutputFunctions(ProcessingModelFunctions):
         if label_s:
             # The source's own marker (`@n`: a, b, … for text-critical notes and
             # 1, 2, … for commentary, say) instead of Typst's running number.
-            # The footnote entry at the page foot shows the same marker.
+            # A lemma-range note shows ``-a`` in the text and ``a-a`` in the
+            # footnote area.
+            if is_lemma_range_note(node):
+                _start, end_marker, fn_marker = lemma_range_markers(label_s)
+                marker = _typst_string_literal(fn_marker)
+                return [
+                    f'{end_marker}#footnote(numbering: (..) => {marker})[{body}];'
+                ]
             marker = _typst_string_literal(label_s)
             return [f'#footnote(numbering: (..) => {marker})[{body}];']
         return [f'#footnote[{body}];']

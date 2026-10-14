@@ -585,6 +585,16 @@ class ProjectConfig:
     would drop half the document. Empty means "use ``[chunking]`` unchanged".
     """
     xpath_extensions: tuple[str, ...] = ()
+    footnote_order: str | None = None
+    """Dotted path of the callable that orders a run's footnotes (``[transform] footnote_order``).
+
+    Resolved by [`load_callable`][opm.output_modes.load_callable] and set on
+    [`RenderContext.footnote_order`][opm.runtime.context.RenderContext.footnote_order].
+    [`opm.runtime.footnote_order`][opm.runtime.footnote_order] ships the common
+    orderings. Only the output modes with
+    [`collects_footnotes`][opm.output_modes.OutputMode.collects_footnotes] place
+    footnotes themselves, so it has no effect on the others.
+    """
     xpath_documents: tuple[Path, ...] = ()
     xpath_collections: tuple[CollectionConfig, ...] = ()
     """Collections addressable from XPath via ``fn:collection`` (``[[transform.collections]]``)."""
@@ -788,6 +798,13 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
             'opm.toml: transform.xpath_extensions must be a string or list of strings',
         )
 
+    footnote_order = transform.get('footnote_order')
+    if footnote_order is not None and not isinstance(footnote_order, str):
+        raise ValueError(
+            'opm.toml: transform.footnote_order must be the dotted path of a callable, '
+            'e.g. "opm.runtime.footnote_order.labelled_first"',
+        )
+
     raw_xpath_documents = transform.get('documents', [])
     if isinstance(raw_xpath_documents, str):
         raw_xpath_documents = [raw_xpath_documents]
@@ -959,6 +976,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
             if key in epub_data
         },
         xpath_extensions=xpath_extensions,
+        footnote_order=footnote_order,
         xpath_documents=xpath_documents,
         xpath_collections=tuple(collections),
         xpath_variables=xpath_variables,

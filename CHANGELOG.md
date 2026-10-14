@@ -13,31 +13,34 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- `opm odd document` — static HTML documentation site from an ODD (element /
-  class / macro / datatype reference pages, A–Z catalogs, processing models,
-  optional Guidelines chapters). Follows `schemaSpec/@source` and writes to
-  `odd/<schemaSpec ident>` unless `-o` is given. `--guidelines` documents TEI
-  alone, chapters included; a spec's Guidelines pointers then link to the
-  chapter page in the site rather than to tei-c.org.
-- `SpecIndex` and `compile_schema` — Python API for the ODD spec graph
-  (contained by, may contain, members, used by, attribute inheritance) and a
+- `[transform] footnote_order` / `--footnote-order` — reorder (or drop) footnotes
+  for `web` and `markdown`. Ships `labelled_first` and `by_place`; see the
+  [Footnotes](docs/guide/footnotes.md) guide.
+- `opm odd document` — static HTML documentation site from an ODD (reference
+  pages, catalogs, optional Guidelines chapters).
+- `SpecIndex` / `compile_schema` — Python API for the ODD spec graph and a
   small odd2odd merge.
-- `tp:highlight($source, $language)` — Pygments HTML for a code listing,
-  called from ODD `content` params (`opm.runtime.common_xpath_functions`).
-- `chunking.file_pattern` — name chunk HTML files from `{xml_id}` / `{ident}`
-  instead of `001.html`. `opm odd document` uses `{xml_id}.html` so reference
-  pages stay at `ref-{ident}.html`.
-- `tp:contained_by` / `tp:may_contain` / `tp:members` / `tp:used_by` (and
-  catalog helpers) in `opm.runtime.spec_xpath_functions`, used by `tagdocs.odd`
-  to render documentation pages through `opm chunk`.
+- `tp:highlight($source, $language)` — Pygments HTML for code listings from
+  ODD `content` params.
+- `chunking.file_pattern` — name chunk files from `{xml_id}` / `{ident}`
+  instead of `001.html`.
+- Spec XPath helpers (`tp:contained_by`, `tp:may_contain`, …) for
+  `tagdocs.odd` documentation pages.
+
+### Fixed
+
+- Empty stand-off notes no longer emit a footnote labelled `[]`.
 
 ### Changed
 
-- `opm coverage` is now `opm odd coverage`. The old command remains as a hidden
-  alias.
-- DocBook `programlisting` / `synopsis` (and tagdocs `egXML`) call
-  `tp:highlight` on `output="opm-web"` / `opm-print`. tei-publisher-lib still
-  uses `pb-code-highlight`.
+- Notes with their own TEI `@n` no longer consume the running counter, so
+  lettered and numbered series count independently. HTML notes also expose
+  `data-n` for styling, as `print` already did.
+- Lemma-range notes (`<anchor type="note"/>` … `<note target="…">`) display as
+  `a-` / `-a` in the text and `a-a` in the footnote list.
+- `opm coverage` is now `opm odd coverage` (old name kept as a hidden alias).
+- DocBook `programlisting` / `synopsis` (and tagdocs `egXML`) use
+  `tp:highlight` on `opm-web` / `opm-print`.
 
 ## [0.9.0] - 2026-09-14
 

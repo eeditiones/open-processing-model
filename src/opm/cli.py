@@ -994,6 +994,20 @@ def transform_cmd(
             ),
         ),
     ] = None,
+    footnote_order: Annotated[
+        Optional[str],
+        typer.Option(
+            '--footnote-order',
+            help=(
+                'Dotted import path of a callable that orders each run\'s footnotes before '
+                'they are placed, e.g. --footnote-order '
+                'opm.runtime.footnote_order.labelled_first (lettered apparatus before '
+                'numbered commentary). Applies to the output modes that place footnotes '
+                'themselves (web, markdown). Falls back to transform.footnote_order in '
+                'opm.toml. Importing the module runs top-level code: only use trusted code.'
+            ),
+        ),
+    ] = None,
     webcomponents: Annotated[
         Optional[bool],
         typer.Option(
@@ -1030,6 +1044,8 @@ def transform_cmd(
         # ODD is compiled, and it is part of the cache key.
         if css is not None:
             project = project.with_config(document_css=css)
+        if footnote_order is not None:
+            project = project.with_config(footnote_order=footnote_order)
         effective_type = _apply_json_channel(transform_type, channel)
         _report_resolved_module(project.compile(effective_type, odd))
 
@@ -1147,6 +1163,20 @@ def chunk(
             ),
         ),
     ] = None,
+    footnote_order: Annotated[
+        Optional[str],
+        typer.Option(
+            '--footnote-order',
+            help=(
+                'Dotted import path of a callable that orders each run\'s footnotes before '
+                'they are placed, e.g. --footnote-order '
+                'opm.runtime.footnote_order.labelled_first (lettered apparatus before '
+                'numbered commentary). Applies to the output modes that place footnotes '
+                'themselves (web, markdown). Falls back to transform.footnote_order in '
+                'opm.toml. Importing the module runs top-level code: only use trusted code.'
+            ),
+        ),
+    ] = None,
     output_format: Annotated[
         str,
         typer.Option(
@@ -1206,6 +1236,8 @@ def chunk(
     """Chunk a large XML document into smaller HTML pages or JSON data files."""
     try:
         project = _load_project(config)
+        if footnote_order is not None:
+            project = project.with_config(footnote_order=footnote_order)
 
         if input_xml is None:
             _die('input XML file or directory is required.')

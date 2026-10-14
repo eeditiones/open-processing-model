@@ -27,6 +27,7 @@ from .output_functions import (
     ProcessingModelFunctions,
     child_nodes,
     normalize,
+    param_str,
 )
 from .docx_output_functions import DocxOutputFunctions
 from .html_output_functions import HtmlOutputFunctions
@@ -34,7 +35,8 @@ from .markdown_output_functions import MarkdownOutputFunctions
 from .print_output_functions import PrintOutputFunctions
 from .epub_output_functions import EpubOutputFunctions
 from .typst_output_functions import TypstOutputFunctions
-from .context import RenderContext, RunState
+from .context import Footnote, FootnoteOrder, RenderContext, RunState
+from .footnote_order import by_place, labelled_first
 from .xpath_diagnostics import XPathErrorLog, XPathFailure, collect_xpath_errors
 from .xpath_env import XPathEnvironment
 
@@ -51,6 +53,7 @@ __all__ = [
     'ProcessingModelFunctions',
     'child_nodes',
     'normalize',
+    'param_str',
     # format implementations
     'DocxOutputFunctions',
     'HtmlOutputFunctions',
@@ -59,8 +62,13 @@ __all__ = [
     'EpubOutputFunctions',
     'TypstOutputFunctions',
     # context
+    'Footnote',
+    'FootnoteOrder',
     'RenderContext',
     'RunState',
+    # footnote_order
+    'by_place',
+    'labelled_first',
     'XPathEnvironment',
     # xpath_diagnostics
     'XPathErrorLog',

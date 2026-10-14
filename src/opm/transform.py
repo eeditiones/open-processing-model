@@ -73,7 +73,7 @@ from __future__ import annotations
 import importlib.util
 from types import ModuleType
 from pathlib import Path
-from typing import Any, Sequence, TypedDict
+from typing import Any, Callable, Sequence, TypedDict
 
 from elementpath.tree_builders import get_node_tree
 from lxml import etree
@@ -403,6 +403,7 @@ def run_transform(
     epub_skip_title: bool = False,
     pages: str | None = None,
     fragments: dict[str, str] | None = None,
+    footnote_order: str | Callable | None = None,
     xpath_env: XPathEnvironment | None = None,
 ) -> str | bytes:
     """Run *mod* against *root* and return the serialized output.
@@ -437,6 +438,11 @@ def run_transform(
             ``<section class="opm-page">`` per page instead of a single flow.
         fragments: Rendered fragments handed to the HTML template as
             ``fragments`` (see [`global_fragments`][opm.transform.global_fragments]).
+        footnote_order: Orders each run's footnotes before they are placed
+            (``[transform] footnote_order``), as a callable or the dotted path
+            of one. Only the output modes that collect footnotes place them
+            themselves; see
+            [`inject_cached_footnotes`][opm.runtime.pm_runtime.inject_cached_footnotes].
         xpath_env: The XPath environment to evaluate in (see
             [`project_xpath_env`][opm.transform.project_xpath_env]); an empty one when omitted.
     """
@@ -448,6 +454,8 @@ def run_transform(
         transform_opts['webcomponents'] = True
     if docx_template is not None:
         transform_opts['docx_template'] = docx_template
+    if footnote_order is not None:
+        transform_opts['footnote_order'] = footnote_order
 
     mode = module_mode(mod)
 
@@ -547,6 +555,7 @@ def transform_node(
     epub_skip_title: bool = False,
     pages: str | None = None,
     fragments: dict[str, str] | None = None,
+    footnote_order: str | Callable | None = None,
     xpath_env: XPathEnvironment | None = None,
 ) -> str | bytes:
     """Load *script_path* as a transform module and apply it to *root*.
@@ -576,6 +585,8 @@ def transform_node(
         pages: Page splitter for HTML output (see
             [`run_transform`][opm.transform.run_transform]).
         fragments: Rendered fragments for the HTML template (see
+            [`run_transform`][opm.transform.run_transform]).
+        footnote_order: Footnote ordering for each run (see
             [`run_transform`][opm.transform.run_transform]).
         xpath_env: The XPath environment to evaluate in (see
             [`project_xpath_env`][opm.transform.project_xpath_env]); an empty one when omitted.
@@ -607,6 +618,7 @@ def transform_node(
         epub_skip_title=epub_skip_title,
         pages=pages,
         fragments=fragments,
+        footnote_order=footnote_order,
         xpath_env=env,
     )
 
@@ -712,10 +724,12 @@ def transform_with_config(
         epub_css=config.epub_css,
         epub_skip_title=config.epub_skip_title,
         pages=config.web_pages if is_web else None,
+        footnote_order=config.footnote_order if mode.collects_footnotes else None,
         fragments=(
             global_fragments(
                 mod, root, config, merged_parameters, env,
                 webcomponents=effective_webcomponents,
+                footnote_order=config.footnote_order,
             )
             if is_web and xpath is None else None
         ),
@@ -750,6 +764,7 @@ def global_fragments(
     env: XPathEnvironment,
     *,
     webcomponents: bool = False,
+    footnote_order: str | Callable | None = None,
 ) -> dict[str, str]:
     """Render the ``scope = "global"`` fragments of ``[chunking]`` for *root*.
 
@@ -792,6 +807,7 @@ def global_fragments(
             parameters=params,
             webcomponents=webcomponents,
             apply_template=False,
+            footnote_order=footnote_order,
             xpath_env=env,
         ))
     return rendered

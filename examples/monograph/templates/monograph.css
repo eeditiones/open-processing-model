@@ -146,10 +146,10 @@
   background: none;
 }
 
-/* Lettered: text-critical apparatus. Give the note class "is-critical" in the
-   ODD when convenient; the id test is the fallback (#fn_na vs #fn_n01). */
-.chap-page .content .tei-note.is-critical > a.note,
-.chap-page .content .tei-note > a.note:where(:not([href^="#fn_n0"], [href^="#fn_n1"], [href^="#fn_n2"], [href^="#fn_n3"], [href^="#fn_n4"], [href^="#fn_n5"], [href^="#fn_n6"], [href^="#fn_n7"], [href^="#fn_n8"], [href^="#fn_n9"])) {
+/* Lettered: text-critical apparatus. A note carrying its own @n is marked
+   data-n by the note behaviour; the commentary is numbered by the running
+   counter and has none. */
+.chap-page .content .tei-note[data-n] > a.note {
   font-family: var(--font-serif);
   font-size: 0.65em;
   font-weight: 400;
@@ -159,19 +159,20 @@
 
 .chap-page .content .tei-note > a.note:hover { text-decoration: underline; }
 
-/* Start of a lemma range (<anchor/>): a half bracket instead of "[]". */
-.chap-page .content .tei-anchor > a.note {
-  font-size: 0;
+/* Lemma range: a- at the start (anchor), -a at the end (note). Same look as
+   other lettered apparatus markers. */
+.chap-page .content .note-range-start > a.note {
+  margin-left: 0;
+  padding: 0 0.1em;
+  font-family: var(--font-serif);
+  font-size: 0.65em;
+  font-weight: 400;
+  font-style: italic;
+  line-height: 0;
+  vertical-align: super;
+  color: var(--entity);
   text-decoration: none;
   background: none;
-}
-
-.chap-page .content .tei-anchor > a.note::before {
-  content: "⸢";
-  font-family: var(--font-serif);
-  font-size: 0.9rem;
-  color: var(--entity);
-  vertical-align: 0.35em;
 }
 
 /* ── Page breaks ──────────────────────────────────────────── */
@@ -298,19 +299,13 @@
   color: var(--rubric);
 }
 
-.chap-page .content .footnote.is-critical .fn-number,
-.chap-page .content .footnote:where(:not([id^="fn_n0"], [id^="fn_n1"], [id^="fn_n2"], [id^="fn_n3"], [id^="fn_n4"], [id^="fn_n5"], [id^="fn_n6"], [id^="fn_n7"], [id^="fn_n8"], [id^="fn_n9"])) .fn-number {
+.chap-page .content .footnote[data-n] .fn-number {
   padding-top: 0;
   font-family: var(--font-serif);
   font-size: 1em;
   font-weight: 400;
   font-style: italic;
   color: var(--entity);
-}
-
-/* Empty range-start entries ("[]") carry no text of their own. */
-.chap-page .content .footnote[id^="fn_fn_"] {
-  display: none;
 }
 
 .chap-page .content .fn-content {

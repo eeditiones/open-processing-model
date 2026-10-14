@@ -9,7 +9,6 @@ NCX, stylesheet, and images. Uses stdlib ``zipfile`` (no ebooklib).
 
 from __future__ import annotations
 
-import importlib
 import io
 import mimetypes
 import re
@@ -24,6 +23,7 @@ from typing import Any, Sequence
 from lxml import etree
 
 from opm.config import ChunkingConfig
+from opm.navigation import load_selector
 from opm.resources import packaged_epub_css
 from opm.runtime.output_functions import XML_ID, XML_LANG
 
@@ -184,9 +184,7 @@ def select_epub_chapters(
             depth=_PAGE_FALLBACK_DEPTH,
         )
     if cfg.selector:
-        module_name, _, func_name = cfg.selector.rpartition('.')
-        selector_fn = getattr(importlib.import_module(module_name), func_name)
-        chunks = selector_fn(root, cfg)
+        chunks = load_selector(cfg.selector)(root, cfg)
     else:
         # Lazy import avoids a transform↔epub cycle at module load.
         from opm.transform import xpath_select

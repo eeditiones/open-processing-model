@@ -1812,3 +1812,69 @@ def test_chunk_document_copies_referenced_images(tmp_path: Path) -> None:
     assert (out / 'fallback.png').read_bytes() == b'fallback'
     assert not (out / 'missing.png').exists()
     assert sorted(p.name for p in out.rglob('*.png')) == ['beside.png', 'fallback.png', 'nested.png']
+
+
+def test_footnote_order_runs_once_per_chunk(tmp_path: Path) -> None:
+    """Each chunk is a run of its own, so the hook sees only that chunk's notes.
+
+    The running number restarts per chunk too, which is why the hook has to be
+    called per chunk rather than once for the document: notes from a
+    neighbouring page are never its to order.
+    """
+    from opm.resources import packaged_odd
+
+    xml_path = tmp_path / 'fixture.xml'
+    xml_path.write_text(
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body>'
+        '<div><p>One<note n="a">apparatus a</note><note>commentary 1</note></p></div>'
+        '<div><p>Two<note>commentary 2</note><note n="b">apparatus b</note></p></div>'
+        '</body></text></TEI>',
+        encoding='utf-8',
+    )
+    calls: list[list[str]] = []
+
+    def record(footnotes, config):
+        calls.append([fn.marker for fn in footnotes])
+        return list(reversed(footnotes))
+
+    chunk_document(
+        module_path=None,
+        xml_path=xml_path,
+        config=ChunkingConfig(
+            xpath='//text/body/div', output_dir='pages', odd=packaged_odd('teipublisher'),
+        ),
+        project_root=tmp_path,
+        footnote_order=record,
+    )
+
+    assert calls == [['a', '1'], ['1', 'b']], 'one call per chunk, that chunk only'
+    first = (tmp_path / 'pages' / '001.html').read_text(encoding='utf-8')
+    assert first.index('apparatus a') > first.index('commentary 1'), 'the hook reversed them'
+
+
+def test_footnote_order_falls_back_to_the_project_config(tmp_path: Path) -> None:
+    """``[transform] footnote_order`` applies without being passed per call."""
+    from opm.resources import packaged_odd
+
+    xml_path = tmp_path / 'fixture.xml'
+    xml_path.write_text(
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0"><text><body><div><p>'
+        'Text<note>commentary</note><note n="a">apparatus</note>'
+        '</p></div></body></text></TEI>',
+        encoding='utf-8',
+    )
+
+    chunk_document(
+        module_path=None,
+        xml_path=xml_path,
+        config=ChunkingConfig(
+            xpath='//text/body/div', output_dir='pages', odd=packaged_odd('teipublisher'),
+        ),
+        project_root=tmp_path,
+        project_config=ProjectConfig(
+            footnote_order='opm.runtime.footnote_order.labelled_first',
+        ),
+    )
+
+    page = (tmp_path / 'pages' / '001.html').read_text(encoding='utf-8')
+    assert page.index('apparatus') < page.index('commentary')

@@ -22,6 +22,10 @@ html = run_transform(mod, root, xpath_env=env)
 
 ::: opm.runtime.context
 
+## Footnote ordering
+
+::: opm.runtime.footnote_order
+
 ## XPath environment
 
 ::: opm.runtime.xpath_env

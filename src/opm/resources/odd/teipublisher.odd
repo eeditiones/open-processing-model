@@ -122,6 +122,15 @@
             <param name="content" value="let $target := @corresp return root($parameters?root)/id($target)/node()"/>
             <param name="label" value="@n"/>
         </model>
+                    <model predicate="@type='note' and (some $n in root($parameters?root)//note[not(ancestor::listAnnotation)] satisfies ($n/@target = @xml:id or $n/@target = '#' || @xml:id))" behaviour="note">
+            <desc>Start of a lemma range: an inline note (not stand-off in
+                            listAnnotation) points here with @target. Emit the opening
+                            marker (a-) only; the note at the end of the passage
+                            supplies -a and the a-a footnote label.</desc>
+            <param name="place" value="'start'"/>
+            <param name="label" value="let $id := @xml:id return (root($parameters?root)//note[not(ancestor::listAnnotation)][@target = $id or @target = '#' || $id])[1]/@n/string()"/>
+            <param name="content" value="()"/>
+        </model>
                     <model predicate="@type='note'" behaviour="note">
             <desc>Process notes with @type=note (assuming the note is stand off,
                             in the listAnnotation section in the same document)</desc>

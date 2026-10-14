@@ -128,6 +128,7 @@ class ChunkProcessor:
         document: str | None = None,
         anchors: Mapping[str, str] | None = None,
         merge_manifest: bool = False,
+        footnote_order: str | Callable | None = None,
     ):
         self.module = load_transform_module(module_path)
         # A later run of a multi-run config: add to the manifest an earlier run
@@ -160,6 +161,11 @@ class ChunkProcessor:
         self.output_dir = project_root / config.output_dir
         self.webcomponents = webcomponents
         cfg = project_config or ProjectConfig()
+        # Chunk pages are HTML, which places its own footnotes, so each chunk
+        # run orders them; an explicit argument beats [transform] footnote_order.
+        self.footnote_order: str | Callable | None = (
+            footnote_order if footnote_order is not None else cfg.footnote_order
+        )
         # Chunk pages are HTML, so the web overlay applies. Includes the derived
         # webcomponents_url when web-component mode is on.
         self.template_context: dict[str, Any] = cfg.context_for(
@@ -727,6 +733,7 @@ class ChunkProcessor:
                 # the running text instead of staying a popover.
                 webcomponents=self.webcomponents,
                 apply_template=False,
+                footnote_order=self.footnote_order,
                 xpath_env=env,
             )
             if _cache is not None and mod is self.module:
@@ -747,6 +754,8 @@ class ChunkProcessor:
         options: dict[str, Any] = self._expand_placeholders(self.parameters)
         if self.webcomponents:
             options['webcomponents'] = True
+        if self.footnote_order:
+            options['footnote_order'] = self.footnote_order
         return options
 
     def _run_chunk_transform(self, chunk: etree._Element) -> list:
@@ -1422,6 +1431,7 @@ def chunk_document(
     documents: Collection[str] | None = None,
     anchors: Mapping[str, str] | None = None,
     merge_manifest: bool = False,
+    footnote_order: str | Callable | None = None,
 ) -> dict[str, str]:
     """Chunk a document using the specified configuration.
 
@@ -1433,6 +1443,10 @@ def chunk_document(
     ODDs in *config* (the main one and the fragments') that have no compiled
     module yet are compiled here. [`opm.project.Project.chunk`][opm.project.Project.chunk] handles
     a whole directory the way ``opm chunk`` does.
+
+    *footnote_order* names the callable ordering each chunk's footnotes before
+    they are placed, overriding ``[transform] footnote_order``; see
+    [`inject_cached_footnotes`][opm.runtime.pm_runtime.inject_cached_footnotes].
 
     Returns the run's anchor map, ``xml:id`` → chunk file. Pass it as
     *anchors* to a later run over the same output directory, and ``#id``
@@ -1484,6 +1498,7 @@ def chunk_document(
         document=xml_path.name,
         anchors=anchors,
         merge_manifest=merge_manifest,
+        footnote_order=footnote_order,
     )
     if output_format == 'pb-view':
         processor.export_pb_view(doc_path=doc_path, on_progress=on_progress)

@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import re
 from lxml import etree
 
 from opm.runtime.output_functions import (
@@ -17,7 +16,12 @@ from opm.runtime.output_functions import (
     add_lang_attrs,
     apply_pb_template,
     classes,
+    is_lemma_range_note,
+    lemma_range_markers,
     normalize,
+    note_element_id,
+    note_for_anchor,
+    param_str,
     child_nodes,
 )
 
@@ -217,23 +221,58 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         return [el]
 
     def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
-        """Emit note - margin notes as inline spans, others as footnotes."""
-        node_id = node.get(XML_ID) or node.get('id') or str(config.state.note_counter + 1)
-        safe_id = re.sub(r'[-.]', '_', node_id)
+        """Emit note - margin notes as inline spans, others as footnotes.
+
+        A footnote body is deferred to [`RunState`][opm.runtime.context.RunState]
+        and placed by
+        [`inject_cached_footnotes`][opm.runtime.pm_runtime.inject_cached_footnotes]
+        at the end of the run, which is where a
+        [`footnote_order`][opm.runtime.context.RenderContext.footnote_order]
+        hook may reorder it. The label is also kept as ``data-n`` — as
+        [`PrintOutputFunctions.note`][opm.runtime.print_output_functions.PrintOutputFunctions.note]
+        does — so CSS can tell a note carrying its own ``@n`` from one numbered
+        by the running counter without parsing the marker back out.
+
+        Lemma ranges (``<anchor type="note"/>`` … ``<note target="…">``) show
+        ``a-`` at the start, ``-a`` at the end, and ``a-a`` on the footnote.
+        """
+        # An ODD param whose XPath selected nothing arrives as an empty
+        # sequence, not as None — the stand-off ``anchor`` models look the note
+        # up in a ``listAnnotation`` the document may not have.
+        label_s = param_str(label) or None
+        place_s = param_str(place) or None
+
+        # Start of a lemma range: the ODD passes place="start" and the label
+        # of the note that closes the range. Emit only the opening marker.
+        if place_s == 'start':
+            return self._lemma_range_start(config, node, cls, label_s)
+
+        # Such a lookup that found neither content nor a label is not a note:
+        # emit nothing rather than an empty numbered entry, and leave both
+        # counters alone.
+        if place_s != 'margin' and not label_s and isinstance(content, (list, tuple)) \
+                and not content:
+            return []
+
+        # A note without an id of its own still needs a unique one for the
+        # ``#fn_…`` link. Its own counter, not the running note number: a
+        # labelled note leaves that one alone (see below), so two of them would
+        # otherwise collide on the same id.
+        safe_id = note_element_id(node, str(config.state.next_id()))
 
         # Margin notes: output inline span(s), not footnotes
-        if place == 'margin':
+        if place_s == 'margin':
             result = []
-            if label:
+            if label_s:
                 # Label reference span
                 ref_span = self._el('span', list(cls) + ['margin-note-ref'], node)
-                config.apply_children(config, node, [label], ref_span)
+                config.apply_children(config, node, [label_s], ref_span)
                 result.append(ref_span)
                 # Margin note content with label
                 note_span = self._el('span', list(cls) + ['margin-note'], node)
                 n_span = etree.SubElement(note_span, 'span')
                 n_span.set('class', 'n')
-                n_span.text = label if isinstance(label, str) else str(label)
+                n_span.text = label_s
                 n_span.tail = ' '
                 config.apply_children(config, node, content, note_span)
                 result.append(note_span)
@@ -245,26 +284,45 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
                 result.append(note_span)
             return result
 
-        # Footnote handling (default)
-        counter = config.state.next_note()
-        nr = label if label is not None else counter
+        # Footnote handling (default). A note carrying its own ``@n`` does not
+        # draw on the running counter — otherwise the two series of a critical
+        # edition share one sequence and the numbered commentary skips every
+        # value the lettered apparatus took (1, 3, 4, 7, …).
+        range_note = bool(label_s) and is_lemma_range_note(node)
+        if label_s:
+            counter = config.state.note_counter
+            if range_note:
+                _start, ref_marker, fn_marker = lemma_range_markers(label_s)
+            else:
+                ref_marker = fn_marker = label_s
+        else:
+            counter = config.state.next_note()
+            ref_marker = fn_marker = str(counter)
 
         ref_span = etree.Element('span')
         ref_span.set('id', f'fnref_{safe_id}')
         ref_span.set('style', 'display:inline-block')
         ref_span.set('class', classes(*cls))
+        if label_s:
+            ref_span.set('data-n', label_s)
+            if range_note:
+                ref_span.set('data-range', 'end')
         a = etree.SubElement(ref_span, 'a')
         a.set('class', 'note')
         a.set('rel', 'footnote')
         a.set('href', f'#fn_{safe_id}')
-        a.text = str(nr)
+        a.text = ref_marker
 
         dl = etree.Element('dl')
         dl.set('class', 'footnote')
         dl.set('id', f'fn_{safe_id}')
+        if label_s:
+            dl.set('data-n', label_s)
+            if range_note:
+                dl.set('data-range', 'end')
         dt = etree.SubElement(dl, 'dt')
         dt.set('class', 'fn-number')
-        dt.text = str(nr)
+        dt.text = fn_marker
         dd = etree.SubElement(dl, 'dd')
         dd.set('class', 'fn-content')
         add_lang_attrs(dd, node)
@@ -274,7 +332,37 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         back.set('href', f'#fnref_{safe_id}')
         back.text = '↩'
 
-        config.state.footnotes.append(dl)
+        config.state.add_note(
+            dl,
+            number=counter,
+            label=label_s,
+            anchor=f'fn_{safe_id}',
+            place=place_s,
+            node=node,
+        )
+        return [ref_span]
+
+    def _lemma_range_start(self, config, node, cls, label_s: str | None) -> PMResult:
+        """Opening marker of a lemma range (``a-``), linking to the end note."""
+        if not label_s:
+            return []
+        start_marker, _end, _fn = lemma_range_markers(label_s)
+        end_note = note_for_anchor(node)
+        if end_note is not None:
+            safe_id = note_element_id(end_note, str(config.state.next_id()))
+        else:
+            safe_id = note_element_id(node, str(config.state.next_id()))
+
+        ref_span = etree.Element('span')
+        ref_span.set('style', 'display:inline-block')
+        ref_span.set('class', classes(*cls, 'note-range-start'))
+        ref_span.set('data-n', label_s)
+        ref_span.set('data-range', 'start')
+        a = etree.SubElement(ref_span, 'a')
+        a.set('class', 'note')
+        a.set('rel', 'footnote')
+        a.set('href', f'#fn_{safe_id}')
+        a.text = start_marker
         return [ref_span]
 
     def cit(self, config, node, cls, content, source=None) -> PMResult:

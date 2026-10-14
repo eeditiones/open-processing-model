@@ -93,6 +93,7 @@ nav:
       - Output formats: guide/output-formats.md
       - XPath extensions: guide/xpath-extensions.md
       - Templates & CSS: guide/templates-and-css.md
+      - Footnotes: guide/footnotes.md
       - Chunking: guide/chunking.md
       - Search indexing: guide/search-indexing.md
       - ODD coverage: guide/coverage.md

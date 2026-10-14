@@ -205,25 +205,46 @@ def _footnote_injection_target(element_roots: list[etree._Element]) -> etree._El
 
 
 def inject_cached_footnotes(nodes: list, config) -> list:
-    """Append the footnote bodies collected in ``config.state`` after the main flow.
+    """Append the footnotes collected in ``config.state`` after the main flow.
 
-    HTML: [`HtmlOutputFunctions`][opm.runtime.html_output_functions.HtmlOutputFunctions] stores
-    ``dl.footnote`` elements. Markdown: stores reference-definition strings.
+    Each [`Footnote`][opm.runtime.context.Footnote] carries a rendered body:
+    [`HtmlOutputFunctions`][opm.runtime.html_output_functions.HtmlOutputFunctions]
+    stores a ``dl.footnote`` element,
+    [`MarkdownOutputFunctions`][opm.runtime.markdown_output_functions.MarkdownOutputFunctions]
+    a reference-definition string.
+
+    This is the one place collected footnotes become output, so it is also
+    where [`RenderContext.footnote_order`][opm.runtime.context.RenderContext.footnote_order]
+    gets its say. The contract for such a hook:
+
+    * It is called **once per run** — once per generated ``transform()``, once
+      per chunk ([`ChunkProcessor`][opm.chunking.ChunkProcessor]) and once per
+      ``section.opm-page`` ([`_page_sections`][opm.transform]). Every run has a
+      [`RunState`][opm.runtime.context.RunState] of its own, so the hook sees
+      exactly the notes that will be placed together, and never notes from a
+      neighbouring page.
+    * It receives the footnotes in document order and returns the ones to emit.
+      It may reorder them and may drop them; it must not mutate ``body``.
+    * Numbering is already fixed — the running number is taken where the
+      reference is emitted, not here — so reordering never renumbers a note,
+      and the ``#fn_…`` / ``#fnref_…`` links keep resolving either way.
     """
-    footnotes = config.state.footnotes
+    collected = config.state.footnotes
+    if not collected:
+        return nodes
+    order = getattr(config, 'footnote_order', None)
+    footnotes = list(collected) if order is None else list(order(list(collected), config))
+    collected.clear()
     if not footnotes:
         return nodes
-    if isinstance(footnotes[0], str):
-        out = list(nodes) + list(footnotes)
-        footnotes.clear()
-        return out
+    if isinstance(footnotes[0].body, str):
+        return list(nodes) + [fn.body for fn in footnotes]
     roots = [x for x in nodes if isinstance(x, etree._Element)]
     if not roots:
         return nodes
     target = _footnote_injection_target(roots)
     if target is None:
         return nodes
-    for dl in footnotes:
-        target.append(dl)
-    footnotes.clear()
+    for footnote in footnotes:
+        target.append(footnote.body)
     return nodes

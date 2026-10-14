@@ -10,6 +10,13 @@ xpath_extensions = [
     "opm.runtime.common_xpath_functions"
 ]
 
+# The Gesamtausgabe prints the text-critical apparatus (lettered notes, from
+# TEI @n) before the commentary (numbered by the running counter), whatever
+# order the two are interleaved in the source. opm collects a run's footnotes
+# and places them when the run ends, so an ordering callable gets the last word
+# — once, in Python, for every output rather than in a browser script.
+footnote_order = "opm.runtime.footnote_order.labelled_first"
+
 # Prefixes for XPath written inside the ODD. `global` is what teipublisher.odd
 # uses for its eXist-side settings; binding it here rather than in the ODD keeps
 # these values a property of the project, not of the ODD.
@@ -43,7 +50,7 @@ register-root = "urn:registers"
 # css = "styles/base.css"
 
 [transform.web]
-template = "templates/chapbook.html.j2"
+template = "templates/monograph.html.j2"
 # Emit TEI Publisher web components and let the template load the bundle.
 # Its URL is an ordinary template value, so serving it yourself is just
 # [transform.web.context] with webcomponents_url = "..." below.

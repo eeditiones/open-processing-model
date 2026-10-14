@@ -32,15 +32,56 @@ if TYPE_CHECKING:
 
 #: Options of a generated ``transform()`` that configure the run rather than
 #: being ``$parameters``. ``input_path`` is both: models may read it too.
-RUN_OPTIONS = frozenset({'webcomponents', 'docx_template', 'metadata'})
+RUN_OPTIONS = frozenset(
+    {'webcomponents', 'docx_template', 'metadata', 'footnote_order'}
+)
+
+
+@dataclass(slots=True)
+class Footnote:
+    """One collected footnote, before it is placed at the end of a run.
+
+    The backends that collect footnotes render the body eagerly but place it
+    only when the run ends, so everything a
+    [`footnote_order`][opm.runtime.context.RenderContext.footnote_order] hook
+    might sort or filter on is kept here as data. A hook never has to read it
+    back out of the markup.
+    """
+
+    #: The rendered body: a ``dl.footnote`` element (HTML) or a
+    #: reference-definition string (Markdown). A hook must not mutate it.
+    body: Any
+    #: Running number from [`RunState.next_note`][opm.runtime.context.RunState.next_note],
+    #: taken where the reference is emitted. ``0`` for a note that carries its
+    #: own [`label`][opm.runtime.context.Footnote.label] and so draws no number
+    #: — the two series of a critical edition number independently.
+    number: int
+    #: The ODD ``label`` param (TEI ``@n``); ``None`` when the note has none.
+    label: str | None = None
+    #: The id the reference links to (``fn_<id>``).
+    anchor: str = ''
+    #: The ODD ``place`` param (TEI ``@place``).
+    place: str | None = None
+    #: The source element, so a hook can read any attribute it needs.
+    node: Any = None
+
+    @property
+    def marker(self) -> str:
+        """What the reader sees: the label, else the running number."""
+        return self.label if self.label else str(self.number)
+
+
+#: Reorder one run's footnotes before they are placed; see
+#: [`RenderContext.footnote_order`][opm.runtime.context.RenderContext.footnote_order].
+FootnoteOrder = Callable[[list[Footnote], 'RenderContext'], list[Footnote]]
 
 
 @dataclass(slots=True)
 class RunState:
     """Mutable state shared by every view of one transform run."""
 
-    #: Footnote bodies collected for the end of the document (HTML, Markdown).
-    footnotes: list = field(default_factory=list)
+    #: Footnotes collected for the end of the document (HTML, Markdown).
+    footnotes: list[Footnote] = field(default_factory=list)
     #: Header values collected by the ``metadata`` behaviour (Typst, DOCX).
     metadata: dict[str, list[str]] = field(default_factory=dict)
     note_counter: int = 0
@@ -50,6 +91,28 @@ class RunState:
         """Number the next footnote."""
         self.note_counter += 1
         return self.note_counter
+
+    def add_note(
+        self,
+        body: Any,
+        *,
+        number: int,
+        label: str | None = None,
+        anchor: str = '',
+        place: str | None = None,
+        node: Any = None,
+    ) -> None:
+        """Collect a rendered footnote body for the end of the run."""
+        self.footnotes.append(
+            Footnote(
+                body=body,
+                number=number,
+                label=label or None,
+                anchor=anchor,
+                place=place or None,
+                node=node,
+            )
+        )
 
     def next_id(self) -> int:
         """A fresh number for a synthetic fragment id."""
@@ -92,6 +155,12 @@ class RenderContext:
     models: dict | None = None
     #: The element the run transforms.
     root: Any = None
+    #: Reorder a run's footnotes before they are placed; ``None`` keeps
+    #: document order. See
+    #: [`inject_cached_footnotes`][opm.runtime.pm_runtime.inject_cached_footnotes]
+    #: for the contract, and [`opm.runtime.footnote_order`][opm.runtime.footnote_order]
+    #: for the orderings that ship with opm.
+    footnote_order: FootnoteOrder | None = None
 
     # Per-call settings, changed through derive().
     #: Set inside a ``pb:template``: its output is finished markup, not source.
@@ -136,8 +205,11 @@ def build_context(
     supplies everything else XPath can see; an empty environment when omitted.
     *settings* are [`RenderContext`][opm.runtime.context.RenderContext] fields the module fixes: dispatch,
     stylesheet and the like.
+
+    ``footnote_order`` may be given either as a callable or as the dotted path
+    of one, so a project can name it in ``opm.toml``.
     """
-    from opm.output_modes import output_mode  # noqa: PLC0415
+    from opm.output_modes import load_callable, output_mode  # noqa: PLC0415
 
     from .xpath_env import XPathEnvironment  # noqa: PLC0415
 
@@ -146,6 +218,7 @@ def build_context(
     env = xpath_env if xpath_env is not None else XPathEnvironment()
     parameters = {k: v for k, v in opts.items() if k not in RUN_OPTIONS}
     metadata = opts.get('metadata')
+    order = opts.get('footnote_order')
     return RenderContext(
         output=entry.name,
         pmf=entry.output_functions()(),
@@ -155,6 +228,7 @@ def build_context(
         docx_template=opts.get('docx_template'),
         input_path=opts.get('input_path'),
         root=root,
+        footnote_order=load_callable(order) if isinstance(order, str) else order,
         # The caller's dict, when it passes one, so it can read what was collected.
         state=RunState(metadata=metadata if isinstance(metadata, dict) else {}),
         **entry.context_settings(),

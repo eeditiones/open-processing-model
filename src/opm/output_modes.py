@@ -68,6 +68,13 @@ class OutputMode:
     print_css: bool = False
     #: Collect ``metadata`` behaviour values for the template.
     collects_metadata: bool = False
+    #: The ``note`` behaviour defers footnote bodies to
+    #: [`RunState.footnotes`][opm.runtime.context.RunState] and opm places them
+    #: itself at the end of each run, so
+    #: [`footnote_order`][opm.runtime.context.RenderContext.footnote_order]
+    #: applies. Where this is false the notes stay in the flow and the consumer
+    #: — Typst, an EPUB reader, Word, paged-media CSS — places them.
+    collects_footnotes: bool = False
     #: The output is packaged into chapters by [`opm.epub.build_epub`][opm.epub.build_epub].
     packaged: bool = False
     #: The output is ``bytes``, not text.
@@ -100,15 +107,23 @@ class OutputMode:
 
     def output_functions(self) -> type:
         """The output-functions class, imported on first use."""
-        return _import(self.functions)
+        return load_callable(self.functions)
 
     def context_settings(self) -> dict[str, Callable]:
         """The `settings` resolved to their callables."""
-        return {name: _import(path) for name, path in self.settings}
+        return {name: load_callable(path) for name, path in self.settings}
 
 
 @cache
-def _import(path: str) -> Any:
+def load_callable(path: str) -> Any:
+    """Import the object *path* names, e.g. ``opm.navigation.tei_pb_chunks``.
+
+    The one resolver for every dotted path opm accepts from configuration or
+    from its own tables: chunk selectors, output-functions classes,
+    [`RenderContext`][opm.runtime.context.RenderContext] callables and
+    ``[transform] footnote_order``. Importing runs the module's top-level code,
+    so only name trusted modules.
+    """
     module, _, attr = path.rpartition('.')
     return getattr(import_module(module), attr)
 
@@ -123,6 +138,7 @@ _WEB = OutputMode(
     assets_setting='web_assets',
     extension='.html',
     preview='browser',
+    collects_footnotes=True,
     scaffold=True,
 )
 
@@ -163,6 +179,7 @@ RENDER_MODES: dict[str, OutputMode] = {
             settings=(('normalize_text', _NORMALIZE_TEXT),),
             extension='.md',
             preview='markdown',
+            collects_footnotes=True,
             scaffold=True,
         ),
         OutputMode(

@@ -10,8 +10,16 @@ place in the margin — not interactive ``dl.footnote`` callouts or popovers.
 
 from __future__ import annotations
 
+from lxml import etree
+
 from opm.runtime.html_output_functions import HtmlOutputFunctions
-from opm.runtime.output_functions import PMResult
+from opm.runtime.output_functions import (
+    PMResult,
+    classes,
+    is_lemma_range_note,
+    lemma_range_markers,
+    param_str,
+)
 
 
 class PrintOutputFunctions(HtmlOutputFunctions):
@@ -26,14 +34,31 @@ class PrintOutputFunctions(HtmlOutputFunctions):
         Unlike [`HtmlOutputFunctions.note`][opm.runtime.html_output_functions.HtmlOutputFunctions.note], does not build callout links or
         append bodies to ``config.state.footnotes``. A label (TEI ``@n``) is kept
         as ``data-n`` so print CSS can show a, b, … instead of the running number.
+
+        Lemma ranges: ``place="start"`` emits a plain ``a-`` marker; a note with
+        ``@target`` pointing at that anchor gets ``data-range`` so print CSS can
+        show ``-a`` as the call and ``a-a`` as the footnote marker.
         """
-        fn_class = 'margin-note' if place == 'margin' else 'footnote'
+        label_s = param_str(label) or None
+        place_s = param_str(place) or None
+
+        if place_s == 'start':
+            if not label_s:
+                return []
+            start_marker, _end, _fn = lemma_range_markers(label_s)
+            el = etree.Element('span')
+            el.set('class', classes(*cls, 'note-range-start'))
+            el.set('data-n', label_s)
+            el.set('data-range', 'start')
+            el.text = start_marker
+            return [el]
+
+        fn_class = 'margin-note' if place_s == 'margin' else 'footnote'
         el = self._el('span', list(cls) + [fn_class], node)
-        if label is not None:
-            items = label if isinstance(label, (list, tuple)) else [label]
-            n = ' '.join(''.join(str(item) for item in items).split())
-            if n:
-                el.set('data-n', n)
+        if label_s:
+            el.set('data-n', ' '.join(label_s.split()))
+            if is_lemma_range_note(node):
+                el.set('data-range', 'end')
         config.apply_children(config, node, content, el)
         return [el]
 

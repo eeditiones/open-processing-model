@@ -26,13 +26,13 @@ def my_selector(root: etree._Element, config: ChunkingConfig) -> list[etree._Ele
 from __future__ import annotations
 
 import copy
-import importlib
 import re
 from typing import Callable
 
 from lxml import etree
 
 from opm.config import ChunkingConfig
+from opm.output_modes import load_callable
 from opm.runtime import source_map
 from opm.runtime.output_functions import XML_ID
 
@@ -42,8 +42,7 @@ Selector = Callable[[etree._Element, ChunkingConfig], list[etree._Element]]
 
 def load_selector(dotted: str) -> Selector:
     """Import the selector function *dotted* names, e.g. ``opm.navigation.tei_pb_chunks``."""
-    module_name, _, func_name = dotted.rpartition('.')
-    return getattr(importlib.import_module(module_name), func_name)
+    return load_callable(dotted)
 
 
 def tei_div_chunks(root: etree._Element, config: ChunkingConfig) -> list[etree._Element]:

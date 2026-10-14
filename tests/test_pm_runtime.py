@@ -5,7 +5,8 @@ from __future__ import annotations
 import pytest
 from lxml import etree
 
-from opm.runtime.context import RenderContext, RunState
+from opm.runtime.context import Footnote, RenderContext, RunState
+from opm.runtime.footnote_order import by_place, labelled_first
 from opm.runtime.output_functions import (
     TemplateOutput,
     apply_children_without_normalization,
@@ -22,6 +23,19 @@ from opm.runtime.pm_runtime import (
 from opm.runtime.xpath_env import XPathEnvironment
 
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
+
+
+def _footnote(body, number=1, label=None):
+    """A collected footnote, as the HTML/Markdown backends record one."""
+    return Footnote(body=body, number=number, label=label, anchor=f'fn_{number}')
+
+
+def _dl(fn_id: str) -> etree._Element:
+    """The ``dl.footnote`` body the HTML backend renders."""
+    dl = etree.Element('dl')
+    dl.set('class', 'footnote')
+    dl.set('id', fn_id)
+    return dl
 
 
 def test_apply_pb_template_preserves_line_breaks() -> None:
@@ -93,7 +107,7 @@ def test_inject_cached_footnotes_appends_to_body_end() -> None:
     dl = etree.Element('dl')
     dl.set('class', 'footnote')
     dl.set('id', 'fn_x')
-    config = RenderContext(state=RunState(footnotes=[dl]))
+    config = RenderContext(state=RunState(footnotes=[_footnote(dl)]))
 
     out = inject_cached_footnotes([html], config)
     assert out[0] is html
@@ -113,7 +127,9 @@ def test_inject_cached_footnotes_preserves_order() -> None:
     dl2 = etree.Element('dl')
     dl2.set('class', 'footnote')
     dl2.set('id', 'fn_2')
-    config = RenderContext(state=RunState(footnotes=[dl1, dl2]))
+    config = RenderContext(
+        state=RunState(footnotes=[_footnote(dl1, 1), _footnote(dl2, 2)]),
+    )
 
     inject_cached_footnotes([html], config)
     assert [c.get('id') for c in body] == [None, 'fn_1', 'fn_2']
@@ -124,6 +140,82 @@ def test_inject_cached_footnotes_noop_when_empty() -> None:
     body = etree.SubElement(html, 'body')
     inject_cached_footnotes([html], RenderContext())
     assert len(body) == 0
+
+
+def test_footnote_marker_prefers_the_label() -> None:
+    """``@n`` is what the reader sees; the counter only fills in for a note without one."""
+    assert Footnote(body='', number=3, label='c').marker == 'c'
+    assert Footnote(body='', number=3).marker == '3'
+
+
+def test_footnote_order_hook_reorders_before_placement() -> None:
+    """A hook sees the run's footnotes in document order and decides the order emitted."""
+    html = etree.Element('html')
+    body = etree.SubElement(html, 'body')
+    notes = [_footnote(_dl(f'fn_{n}'), i, label=n)
+             for i, n in enumerate(['1', 'a', '2', 'b'], start=1)]
+    seen: list[list[str]] = []
+
+    def apparatus_first(footnotes, config):
+        seen.append([fn.marker for fn in footnotes])
+        assert config.output == 'web'
+        return ([fn for fn in footnotes if not fn.marker.isdigit()]
+                + [fn for fn in footnotes if fn.marker.isdigit()])
+
+    config = RenderContext(state=RunState(footnotes=notes), footnote_order=apparatus_first)
+    inject_cached_footnotes([html], config)
+
+    assert seen == [['1', 'a', '2', 'b']], 'the hook receives document order'
+    assert [c.get('id') for c in body] == ['fn_a', 'fn_b', 'fn_1', 'fn_2']
+    assert config.state.footnotes == []
+
+
+def test_footnote_order_hook_may_drop_footnotes() -> None:
+    """Returning fewer footnotes than it received leaves them out of the output."""
+    html = etree.Element('html')
+    body = etree.SubElement(html, 'body')
+    notes = [_footnote(_dl('fn_keep'), 1, label='a'), _footnote(_dl('fn_drop'), 2)]
+
+    config = RenderContext(
+        state=RunState(footnotes=notes),
+        footnote_order=lambda footnotes, config: [footnotes[0]],
+    )
+    inject_cached_footnotes([html], config)
+
+    assert [c.get('id') for c in body] == ['fn_keep']
+
+
+def test_footnote_order_hook_applies_to_markdown_definitions() -> None:
+    """Markdown collects reference definitions, so the hook orders those too."""
+    notes = [_footnote('\n[^n1]: one\n', 1), _footnote('\n[^na]: a\n', 2, label='a')]
+    config = RenderContext(
+        state=RunState(footnotes=notes),
+        footnote_order=labelled_first,
+    )
+
+    out = inject_cached_footnotes(['body text'], config)
+    assert out == ['body text', '\n[^na]: a\n', '\n[^n1]: one\n']
+
+
+def test_labelled_first_is_a_stable_partition() -> None:
+    """Within each series the source's order is kept; only the series move."""
+    notes = [_footnote('', i, label=label)
+             for i, label in enumerate(['a', None, 'b', None, 'c'], start=1)]
+
+    assert [fn.marker for fn in labelled_first(notes, RenderContext())] == [
+        'a', 'b', 'c', '2', '4',
+    ]
+
+
+def test_by_place_groups_footnotes_before_endnotes() -> None:
+    notes = [
+        Footnote(body='', number=1, place='end'),
+        Footnote(body='', number=2, place='foot'),
+        Footnote(body='', number=3, place=None),
+        Footnote(body='', number=4, place='foot'),
+    ]
+
+    assert [fn.number for fn in by_place(notes, RenderContext())] == [2, 4, 1, 3]
 
 
 def test_apply_markdown_finish_regexes_matches_pmf_finish() -> None:
@@ -254,7 +346,7 @@ def test_serialize_after_inject() -> None:
     p.text = 'x'
     dl = etree.Element('dl')
     dl.set('class', 'footnote')
-    inject_cached_footnotes([html], RenderContext(state=RunState(footnotes=[dl])))
+    inject_cached_footnotes([html], RenderContext(state=RunState(footnotes=[_footnote(dl)])))
     s = serialize([html])
     assert 'footnote' in s
     assert s.index('<p') < s.index('dl')

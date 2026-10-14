@@ -23,6 +23,18 @@
     <text>
         <body>
             <schemaSpec ident="monograph" start="TEI teiCorpus" source="teipublisher.odd">
+                <elementSpec ident="anchor" mode="change">
+                    <model predicate="$parameters?mode=('toc', 'title', 'breadcrumb')" behaviour="omit"/>
+                    <model predicate="@type = 'note'" behaviour="note">
+                        <desc>Start of a lemma range: the text-critical note sits at the end of
+                            the passage with @target pointing here. Emit the opening marker
+                            (a-) only; the note at the end supplies -a and the a-a footnote
+                            label. This edition keeps notes inline, not in listAnnotation.</desc>
+                        <param name="place" value="'start'"/>
+                        <param name="label" value="let $id := @xml:id return (root($parameters?root)//note[@target = $id or @target = '#' || $id])[1]/@n/string()"/>
+                        <param name="content" value="()"/>
+                    </model>
+                </elementSpec>
                 <elementSpec ident="div" mode="change">
                     <model predicate="$parameters?mode='breadcrumb'" behaviour="pass-through">
                         <desc>Breadcrumb of a chunk: the work title and chapter of the enclosing

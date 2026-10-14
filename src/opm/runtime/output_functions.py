@@ -80,6 +80,92 @@ def normalize(content):
     return list(content)
 
 
+def param_str(value) -> str:
+    """Coerce an ODD behaviour parameter (string or singleton sequence) to text.
+
+    A parameter whose XPath selected nothing arrives as an empty list, not as
+    ``None`` — ``<param name="label" value="…//note[@target=$t]/@n"/>`` with no
+    match, say. Returns ``''`` for all of those, so a caller can treat "no
+    value" uniformly.
+    """
+    if value is None:
+        return ''
+    if isinstance(value, (list, tuple)):
+        if not value:
+            return ''
+        value = value[0]
+    return str(value).strip()
+
+
+def _local_name(node: etree._Element) -> str:
+    tag = node.tag
+    if not isinstance(tag, str):
+        return ''
+    return etree.QName(tag).localname
+
+
+def resolve_xml_id(node: etree._Element, idref: str) -> etree._Element | None:
+    """Resolve a bare or ``#``-prefixed ``xml:id`` against *node*'s document."""
+    tid = (idref or '').lstrip('#').strip()
+    if not tid:
+        return None
+    root = node.getroottree().getroot()
+    for el in root.iter():
+        if isinstance(el.tag, str) and (el.get(XML_ID) == tid or el.get('id') == tid):
+            return el
+    return None
+
+
+def note_for_anchor(anchor: etree._Element) -> etree._Element | None:
+    """The ``<note>`` whose ``@target`` points at *anchor*, if any."""
+    aid = anchor.get(XML_ID) or anchor.get('id')
+    if not aid:
+        return None
+    root = anchor.getroottree().getroot()
+    for el in root.iter():
+        if not isinstance(el.tag, str) or _local_name(el) != 'note':
+            continue
+        target = el.get('target')
+        if target and target.lstrip('#') == aid:
+            return el
+    return None
+
+
+def is_lemma_range_note(node: etree._Element) -> bool:
+    """True when *node* is an inline note that closes a lemma range.
+
+    That is a ``<note target="…">`` pointing at an ``<anchor>`` (usually
+    ``@type="note"``) which marks where the annotated passage begins.
+    Stand-off notes in ``listAnnotation`` are excluded — those are point
+    footnotes rendered at the anchor, not range ends.
+    """
+    if not isinstance(getattr(node, 'tag', None), str):
+        return False
+    if _local_name(node) != 'note':
+        return False
+    if any(_local_name(a) == 'listAnnotation' for a in node.iterancestors()):
+        return False
+    target = node.get('target')
+    if not target:
+        return False
+    peer = resolve_xml_id(node, target)
+    return peer is not None and _local_name(peer) == 'anchor'
+
+
+def lemma_range_markers(label: str) -> tuple[str, str, str]:
+    """Return ``(start, end, footnote)`` markers for a lemma-range label.
+
+    For label ``a`` that is ``('a-', '-a', 'a-a')``.
+    """
+    return f'{label}-', f'-{label}', f'{label}-{label}'
+
+
+def note_element_id(node: etree._Element, fallback: str) -> str:
+    """Stable id fragment for footnote links (``xml:id``, else *fallback*)."""
+    raw = node.get(XML_ID) or node.get('id') or fallback
+    return re.sub(r'[-.]', '_', raw)
+
+
 def child_nodes(node):
     """All child content as a flat list of strings and elements.
 
@@ -525,6 +611,12 @@ __all__ = [
     'XLINK_HREF',
     'child_nodes',
     'normalize',
+    'param_str',
     'map_rend_to_class',
     'classes',
+    'resolve_xml_id',
+    'note_for_anchor',
+    'is_lemma_range_note',
+    'lemma_range_markers',
+    'note_element_id',
 ]
