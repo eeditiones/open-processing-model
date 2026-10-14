@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:pb="http://teipublisher.com/1.0">
+    <teiHeader>
+        <fileDesc>
+            <titleStmt>
+                <title>Monograph</title>
+            </titleStmt>
+            <publicationStmt>
+                <publisher>e-editiones</publisher>
+                <availability status="free">
+                    <p>Inherits from <code>teipublisher.odd</code> (<att>source</att> on
+                        <gi>schemaSpec</gi>), distributed under a Creative Commons Attribution 4.0
+                        International License, copyright 2017–2026 e-editiones and individual
+                        contributors.</p>
+                </availability>
+            </publicationStmt>
+            <sourceDesc>
+                <p>Processing model for a critical edition of a monograph, shown on a chapter
+                    of the Karl Barth-Gesamtausgabe (Der Römerbrief 1922).</p>
+            </sourceDesc>
+        </fileDesc>
+    </teiHeader>
+    <text>
+        <body>
+            <schemaSpec ident="monograph" start="TEI teiCorpus" source="teipublisher.odd">
+                <elementSpec ident="div" mode="change">
+                    <model predicate="$parameters?mode='breadcrumb'" behaviour="pass-through">
+                        <desc>Breadcrumb of a chunk: the work title and chapter of the enclosing
+                            divs, then this div's own title(s). The chapter div also carries the
+                            heads of its first section (small caps, pericope), which are not
+                            part of the path.</desc>
+                        <param name="content" value="(ancestor::div/head[not(@type = 'sub')][not(hi/@rend = 'smallCaps')], head[not(@type = 'sub')])"/>
+                        <pb:template xml:space="preserve" xmlns=""><ol>[[content]]</ol></pb:template>
+                    </model>
+                    <model predicate="$parameters?mode='toc' and div" behaviour="pass-through">
+                        <param name="content" value="div"/>
+                        <param name="head" value="head"/>
+                        <pb:template xml:space="preserve" xmlns=""><ul><li>
+                            <details><summary>[[head]]</summary><ul>[[content]]</ul></details>
+                        </li></ul></pb:template>
+                    </model>
+                    <model predicate="$parameters?mode='toc'" behaviour="pass-through">
+                        <param name="head" value="head"/>
+                        <pb:template xml:space="preserve" xmlns=""><li>[[head]]</li></pb:template>
+                    </model>
+                    <model predicate="$parameters?mode = 'register'" behaviour="pass-through">
+                        <desc>Output register data if register profile is enabled</desc>
+                        <param name="people" value="let $refs := (root(.)//persName[@key or @ref][not(ancestor::correspContext)], root(.)//rs[@type='person'][@key or @ref][not(ancestor::correspContext)]), $keys := for $i in ($refs/@key, $refs/@ref) return $i ! tokenize(., ' ')  return for $key in distinct-values($keys) return collection($global:register-root)/id($key)[self::person]"/>
+                        <param name="places" value="let $refs := (root(.)//placeName[@key or @ref][not(ancestor::correspContext)], root(.)//rs[@type='place'][@key or @ref][not(ancestor::correspContext)]), $keys := for $i in ($refs/@key, $refs/@ref) return $i ! tokenize(., ' ')  return for $key in distinct-values($keys) return collection($global:register-root)/id($key)[self::place]"/>
+                        <pb:template xml:space="preserve" xmlns=""><div class="register">
+<h3><pb-i18n key="register-details.people">ppl</pb-i18n></h3>
+<ul>
+[[people]]
+</ul>
+
+<h3><pb-i18n key="register-details.places">pl</pb-i18n></h3>
+<ul>
+[[places]]
+</ul>
+</div></pb:template>
+                    </model>
+                    <model predicate="$parameters?mode='title'" behaviour="inline">
+                        <param name="content" value="root($parameters?root)//teiHeader/fileDesc/titleStmt"/>
+                    </model>
+                    <model predicate="parent::body or parent::front or parent::back" behaviour="section"/>
+                    <model behaviour="block"/>
+                </elementSpec>
+                <elementSpec ident="head" mode="change">
+                    <model predicate="$parameters?mode='toc' and $parameters?mode-sub='toc-odd'" behaviour="pass-through">
+                        <param name="id" value="parent::div/@xml:id"/>
+                        <param name="hash" value="parent::div/@xml:id"/>
+                        <param name="node-id" value="util:node-id(.)"/>
+                        <pb:template xml:space="preserve">
+                            <pb-link xmlns="" xml-id="[[id]]" hash="[[hash]]" node-id="[[node-id]]" emit="transcription" subscribe="transcription">[[content]]</pb-link>
+                        </pb:template>
+                    </model>
+                    <model predicate="$parameters?mode='breadcrumb'" behaviour="listItem">
+                        <desc>One crumb: the head's text, an lb read as a space, notes and
+                            page breaks left out.</desc>
+                        <param name="content" value="normalize-space(string-join(for $n in .//(text() | lb)[not(ancestor::note)] return if ($n/self::lb) then ' ' else string($n), ''))"/>
+                    </model>
+                    <model predicate="$parameters?display='browse' or $parameters?mode='toc'" behaviour="inline"/>
+                    <model predicate="parent::figure" behaviour="block" cssClass="figure-head"/>
+                    <model predicate="parent::table" behaviour="block" cssClass="table-head"/>
+                    <model predicate="parent::lg" behaviour="block" cssClass="lg-head"/>
+                    <model predicate="parent::list" behaviour="block" cssClass="list-head"/>
+                    <model predicate="parent::div and @type='sub'" behaviour="heading" cssClass="monograph-subhead">
+                        <desc>Subheading (the Bible passage below a section title): same level,
+                            smaller and set close to the heading above. Sized in monograph.css,
+                            where it can outrank the template's heading styles.</desc>
+                        <param name="level" value="count(ancestor::div)"/>
+                    </model>
+                    <model predicate="parent::div" behaviour="heading">
+                        <param name="level" value="count(ancestor::div)"/>
+                    </model>
+                    <model behaviour="block"/>
+                </elementSpec>
+                <elementSpec ident="hi" mode="change">
+                    <model predicate="@rend = 'bold'" behaviour="inline">
+                        <outputRendition xml:space="preserve">
+                        font-weight: bold;
+                        </outputRendition>
+                    </model>
+                    <model behaviour="inline" useSourceRendition="true"/>
+                </elementSpec>
+                <elementSpec ident="pb" mode="change">
+                    <model predicate="$parameters?mode='toc'" behaviour="omit"/>
+                    <model predicate="$parameters?mode=('title', 'breadcrumb')" behaviour="omit"/>
+                    <model predicate="@ed != 'pga'" behaviour="omit">
+                        <desc>Only the page breaks of the Gesamtausgabe itself are shown.</desc>
+                    </model>
+                    <model output="print" behaviour="omit"/>
+                    <model output="typst" behaviour="inline">
+                        <param name="content" value="'|' || replace(@xml:id, '^p0*', '')"/>
+                        <outputRendition xml:space="preserve">
+                        font-size: 0.75em; color: grey;
+                        </outputRendition>
+                    </model>
+                    <model output="web" behaviour="inline" cssClass="monograph-pb">
+                        <desc>A | at the exact position of the break (inside the word when
+                            @break='no'; suppressed for @rend='noPipe'), the page number in the
+                            right margin at the height of the line.</desc>
+                        <param name="pipe" value="if (@rend = 'noPipe') then '' else '|'"/>
+                        <param name="page" value="replace(@xml:id, '^p0*', '')"/>
+                        <pb:template xml:space="preserve" xmlns=""><span class="monograph-pb__pipe">[[pipe]]</span><span class="monograph-pb__page"><span class="monograph-pb__label">[S. [[page]]]</span></span></pb:template>
+                        <outputRendition xml:space="preserve">
+                        color: grey;
+                        </outputRendition>
+                    </model>
+                </elementSpec>
+            </schemaSpec>
+        </body>
+    </text>
+</TEI>

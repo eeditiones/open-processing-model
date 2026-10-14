@@ -55,7 +55,7 @@ opm init [OPTIONS] [DIRECTORY]
 | --- | --- |
 | `--force` | Overwrite existing generated files. |
 | `--vocabulary TEXT` | Empty project for this vocabulary: tei, docbook, jats (default: tei). |
-| `--example, -e TEXT` | Start from a bundled example project instead of an empty one: jats, docbook, serafin, shakespeare, odd. |
+| `--example, -e TEXT` | Start from a bundled example project instead of an empty one: jats, docbook, serafin, monograph, shakespeare, odd. |
 | `--list-examples` | List the bundled example projects and exit. |
 | `--copy-base-odd` | TEI only: also copy packaged teipublisher.odd and tp.css into odd/. |
 | `--templates` | Also copy the alternative HTML templates (chapbook, journal, handbook, tufte, bootstrap) beside the one the project uses, and opm's plain default Typst template as `templates/document.typ.j2`. |

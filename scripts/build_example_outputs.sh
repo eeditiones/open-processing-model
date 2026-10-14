@@ -10,14 +10,14 @@
 #
 # Usage: ./scripts/build_example_outputs.sh [project ...]
 #   With no arguments, builds every project below. Pass one or more project
-#   names (docbook, jats, serafin, shakespeare) to build a subset.
+#   names (docbook, jats, monograph, serafin, shakespeare) to build a subset.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # opm's own `example_names()` catalogue (the bundled examples picker) only
 # lists directories under examples/ that carry an opm.toml, so this doesn't
-# get mistaken for a 5th bundled example. .gitignore excludes it, and the
+# get mistaken for another bundled example. .gitignore excludes it, and the
 # wheel build hook skips it too (see hatch_build.py's _SKIP).
 OUT_ROOT="$ROOT/examples/output"
 
@@ -28,12 +28,13 @@ project_inputs() {
     case "$1" in
         docbook)     echo "data/doc/quickstart.xml" ;;
         jats)        echo "data/article/hertziana-digital-editions.xml" ;;
+        monograph)   echo "data/47009.xml" ;;
         serafin)     echo "data/letters/serafin01.xml data/letters/serafin02.xml" ;;
         shakespeare) echo "data/F-ado.xml" ;;
         *)           return 1 ;;
     esac
 }
-ALL_PROJECTS="docbook jats serafin shakespeare"
+ALL_PROJECTS="docbook jats monograph serafin shakespeare"
 
 projects=("$@")
 if [ ${#projects[@]} -eq 0 ]; then

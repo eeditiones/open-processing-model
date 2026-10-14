@@ -1,0 +1,207 @@
+{#
+  SPDX-FileCopyrightText: 2026 e-editiones
+  SPDX-License-Identifier: CC0-1.0
+
+  chapbook: multi-page, text-centric reading, on opm's packaged page layout
+  (opm/layout.html.j2). The running bar is the layout's header, the contents
+  the `before` column; chapbook.css styles what goes inside.
+
+  Design: "Der Römerbrief" — paper, ink and one rubric red; EB Garamond for
+  the text, Alegreya Sans for furniture. Optional context values:
+  context.author (small caps before the work title) and context.lang
+  (language of the text, default "de", needed for hyphenation).
+
+  Its stylesheet, chapbook.css, is listed under [transform.web] assets in
+  opm.toml: copied next to the output and linked by the base template.
+-#}
+---toml
+styles = [
+  "https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap",
+]
+
+[body]
+classes = ["chapbook"]
+---
+{% extends "opm/layout.html.j2" %}
+{% set work_title = fragments.title | striptags | trim if fragments is defined and fragments.title else '' %}
+{% set is_chunk = chunk is defined and chunk %}
+{% set has_toc = fragments is defined and fragments.toc %}
+{# `index_url` is the collection index at the output root, already carrying the
+   hop back from a chunk page. #}
+{% set home_href = context.home_url or (index_url if index_url is defined and index_url else 'index.html') %}
+
+{% block meta %}{{ super() }}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+{% endblock %}
+
+{% block title %}<title>{{ work_title or 'Chapbook' }}</title>{% endblock %}
+
+{% block body_class %}{% if has_toc %}chapbook--with-toc{% endif %}{% endblock %}
+
+{% block header %}
+  <div class="chap-running">
+    <div class="chap-running__inner">
+      <a class="chap-running__brand" href="{{ home_href }}">
+        {% if context.logo %}<img class="chap-running__logo" src="{{ context.logo }}" alt="">{% endif %}
+        {% if context.author %}<span class="chap-running__author">{{ context.author }}</span>{% endif %}
+        <span class="chap-running__work">{{ work_title or 'Chapbook' }}</span>
+      </a>
+
+      <div class="chap-running__tools">
+        {% for item in context.nav | default([], true) %}
+        <a class="chap-running__link" href="{{ item.url }}">{{ item.label }}</a>
+        {% endfor %}
+
+        {# Reader-set text size, remembered per browser. #}
+        <div class="chap-running__group">
+          <button type="button" class="chap-zoom" data-chap-zoom="-0.1" title="Smaller text" aria-label="Smaller text">A&minus;</button>
+          <button type="button" class="chap-zoom" data-chap-zoom="0.1" title="Larger text" aria-label="Larger text">A+</button>
+        </div>
+
+        {% if has_toc %}
+        {# Opens the layout's drawer on narrow screens. #}
+        <div class="chap-running__group">
+          <label for="opm-before-toggle" class="chap-toc__open">Contents</label>
+        </div>
+        {% endif %}
+
+        {% if is_chunk and (chunk.prev or chunk.next) %}
+        <div class="chap-running__group">
+          {% if chunk.prev %}<a class="chap-step" href="{{ chunk.prev }}.html" rel="prev">&#8592; Previous</a>{% endif %}
+          {% if chunk.next %}<a class="chap-step" href="{{ chunk.next }}.html" rel="next">Next &#8594;</a>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block before %}
+  {% if has_toc %}
+  <div class="chap-toc">
+    <div class="chap-toc__drawer">
+      <header class="chap-toc__drawer-head">
+        <span class="chap-toc__drawer-title">Contents</span>
+        <label for="opm-before-toggle" class="chap-toc__close">Close</label>
+      </header>
+      <nav class="chap-toc__body" aria-label="Contents">
+        {{ fragments.toc | safe }}
+      </nav>
+    </div>
+  </div>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="chap-page{% if is_chunk %} chap-page--chunk{% endif %}{% if has_toc %} chap-page--with-toc{% endif %}">
+    {% if fragments is defined and fragments.breadcrumbs %}
+    <nav class="chap-crumbs" aria-label="Breadcrumb">
+      {{ fragments.breadcrumbs | safe }}
+    </nav>
+    {% endif %}
+
+    <div class="chap-body">
+      <article class="content" id="chap-content" lang="{{ context.lang or 'de' }}">
+        {{ content_html | safe }}
+      </article>
+    </div>
+
+    {% if is_chunk and (chunk.prev or chunk.next) %}
+    <nav class="chap-folio-nav__foot" aria-label="Page navigation">
+      <div>
+        {% if chunk.prev %}<a href="{{ chunk.prev }}.html" rel="prev">&#8592;&ensp;Previous</a>{% endif %}
+      </div>
+      <div>
+        {% if chunk.next %}<a href="{{ chunk.next }}.html" rel="next">Next&ensp;&#8594;</a>{% endif %}
+      </div>
+    </nav>
+    {% endif %}
+  </div>
+{% endblock %}
+
+{% block footer %}
+  {% if context.footer %}
+  <div class="chap-footer">
+    <div class="chap-footer__inner">{{ context.footer | safe }}</div>
+  </div>
+  {% endif %}
+{% endblock %}
+
+{% block body_end %}
+  {% if is_chunk and chunk.prev %}
+  <div class="chap-folio-nav__rail chap-folio-nav__rail--prev">
+    <a href="{{ chunk.prev }}.html" rel="prev" title="Previous page (left arrow key)">
+      <span class="chap-folio-nav__chevron" aria-hidden="true">&#8592;</span>
+      <span class="chap-folio-nav__dir">Previous</span>
+    </a>
+  </div>
+  {% endif %}
+  {% if is_chunk and chunk.next %}
+  <div class="chap-folio-nav__rail chap-folio-nav__rail--next">
+    <a href="{{ chunk.next }}.html" rel="next" title="Next page (right arrow key)">
+      <span class="chap-folio-nav__chevron" aria-hidden="true">&#8594;</span>
+      <span class="chap-folio-nav__dir">Next</span>
+    </a>
+  </div>
+  {% endif %}
+
+  <script>
+  (function () {
+    var content = document.getElementById('chap-content');
+
+    {# opm lists the notes in document order. The edition prints the
+       text-critical apparatus (lettered) before the commentary (numbered), so
+       each run of notes is regrouped, keeping the order within each group. #}
+    if (content) {
+      content.querySelectorAll('dl.footnote:not(dl.footnote + dl.footnote)').forEach(function (first) {
+        var run = [];
+        for (var el = first; el && el.matches('dl.footnote'); el = el.nextElementSibling) run.push(el);
+        {# Range-start entries ("[]") are hidden; they go last so the first
+           visible note still opens the block with its "Anmerkungen" label. #}
+        var rank = function (dl) {
+          var dt = dl.querySelector('.fn-number');
+          var label = dt ? dt.textContent.trim() : '';
+          return /^[a-z]+$/i.test(label) ? 0 : /^\d+$/.test(label) ? 1 : 2;
+        };
+        var anchor = run[run.length - 1].nextSibling;
+        var parent = first.parentNode;
+        [0, 1, 2].forEach(function (r) {
+          run.filter(function (dl) { return rank(dl) === r; })
+            .forEach(function (dl) { parent.insertBefore(dl, anchor); });
+        });
+      });
+    }
+
+    if (content) {
+      var KEY = 'opm-chapbook-font-size';
+      try {
+        var saved = localStorage.getItem(KEY);
+        if (saved) content.style.fontSize = saved + 'rem';
+      } catch (e) { /* private mode: text stays at its default size */ }
+
+      document.querySelectorAll('[data-chap-zoom]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          var step = parseFloat(button.getAttribute('data-chap-zoom'));
+          var current = parseFloat(getComputedStyle(content).fontSize) / 16;
+          var next = Math.max(0.8, Math.min(2, current + step)).toFixed(2);
+          content.style.fontSize = next + 'rem';
+          try { localStorage.setItem(KEY, next); } catch (e) { /* not remembered */ }
+        });
+      });
+    }
+
+    {# Arrow keys turn the page, as the rails do. #}
+    var prev = document.querySelector('.chap-folio-nav__rail--prev a');
+    var next = document.querySelector('.chap-folio-nav__rail--next a');
+    if (!prev && !next) return;
+    document.addEventListener('keydown', function (event) {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+      var active = document.activeElement;
+      if (active && (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(active.tagName))) return;
+      if (event.key === 'ArrowLeft' && prev) window.location.assign(prev.getAttribute('href'));
+      else if (event.key === 'ArrowRight' && next) window.location.assign(next.getAttribute('href'));
+    });
+  })();
+  </script>
+{% endblock %}

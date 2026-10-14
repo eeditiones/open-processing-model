@@ -1,0 +1,345 @@
+/* SPDX-FileCopyrightText: 2026 e-editiones
+   SPDX-License-Identifier: CC0-1.0 */
+
+/* Karl Barth-Gesamtausgabe: additions to chapbook.css
+   "Der Römerbrief" edition design — the TEI-specific parts: heads, Barth's
+   paraphrase, references, the two note series and the original pagination.
+   Colours, fonts and spacing come from the custom properties in chapbook.css. */
+
+/* ── Headings ─────────────────────────────────────────────── */
+
+/* All heads arrive as h1/h2.tei-head; they are told apart by what they hold. */
+.chap-page .content .tei-head {
+  margin: 0;
+  font-weight: 400;
+  line-height: 1.25;
+  text-align: center;
+  font-variant-caps: normal;
+  letter-spacing: 0;
+}
+
+/* The work title: the first head of the first div ("An die Römer"). */
+.chap-page .content .tei-body > .tei-div:first-child > .tei-head:first-child {
+  margin: 1.2em 0 1.4em;
+  font-size: 2.2em;
+  letter-spacing: 0.02em;
+}
+
+/* Chapter head: "1. Kapitel<lb/>EINGANG". The first line becomes the rubric
+   chapter-number line, the second the letterspaced title, then a short rule. */
+.chap-page .content .tei-head:has(> .tei-lb) {
+  margin: 2.4em 0 1.2em;
+  font-size: 1.5em;
+  line-height: 1.6;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.chap-page .content .tei-head:has(> .tei-lb)::first-line {
+  font-size: 0.5em;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: var(--rubric);
+}
+
+.chap-page .content .tei-head:has(> .tei-lb)::after {
+  content: "";
+  display: block;
+  width: 2.5rem;
+  height: 1px;
+  margin: 0.6em auto 0;
+  background: var(--rubric);
+}
+
+/* Section titles: small-caps heads, and h2 heads that are not a pericope. */
+.chap-page .content .tei-head:has(> .smallCaps),
+.chap-page .content h2.tei-head:not(.monograph-subhead) {
+  margin: 2em 0 0;
+  font-size: 1.1em;
+  letter-spacing: 0.05em;
+  font-variant-caps: small-caps;
+}
+
+/* Part titles the source sets in capitals inside a chapter (DIE NACHT):
+   add class "rb-part" in the ODD to give them the chapter-title voice. */
+.chap-page .content .tei-head.rb-part {
+  margin-top: 2.4em;
+  font-size: 1.5em;
+  letter-spacing: 0.18em;
+  font-variant-caps: normal;
+}
+
+/* Pericope: <head type="sub">, the reference in rubric italic. */
+.chap-page .content .tei-head.monograph-subhead {
+  margin: 0.3em 0 1.6em;
+  font-size: 0.85em;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  font-variant-caps: normal;
+}
+
+/* ── Paragraphs ───────────────────────────────────────────── */
+
+/* Book setting: justified, hyphenated, indented, no gap between paragraphs. */
+.chap-page .content .tei-p {
+  margin: 0;
+  text-align: justify;
+  text-indent: 1.4em;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  hanging-punctuation: first;
+  orphans: 2;
+  widows: 2;
+}
+
+.chap-page .content :is(.tei-head, .tei-lg, .tei-q.block) + .tei-p,
+.chap-page .content .tei-div > .tei-p:first-of-type {
+  text-indent: 0;
+}
+
+/* The ODD's generated stylesheet makes every .tei-hi italic and every
+   register name grey; undo both so only the rend that asks for it applies. */
+.chap-page .content .tei-hi { font-style: normal; }
+.chap-page .content .context:not(.disable) { color: inherit; }
+.chap-page .content .context:not(.disable):hover { color: var(--entity); }
+.chap-page .content .tei-foreign[lang="grc"] { font-style: normal; }
+
+/* Highlights. Bold = Barth's translation of the letter: a light semibold. */
+.chap-page .content .tei-hi.bold { font-weight: 560; }
+.chap-page .content .tei-hi.italic { font-style: italic; }
+.chap-page .content .tei-hi.smallCaps { font-variant-caps: small-caps; letter-spacing: 0.03em; }
+.chap-page .content .tei-hi.sup { font-size: 0.65em; line-height: 0; vertical-align: super; }
+
+/* Quotations and verse. */
+.chap-page .content .tei-q.block {
+  display: block;
+  margin: 0.8em 0 0.8em 1.6em;
+  font-size: 0.9em;
+  line-height: 1.55;
+  text-indent: 0;
+}
+
+.chap-page .content .tei-lg { margin: 0.6em 0 0.6em 1.6em; }
+.chap-page .content .tei-l { text-indent: 0; }
+.chap-page .content .footnote .tei-q.block { margin: 0.3em 0 0.3em 1.4em; font-size: 1em; }
+
+/* ── Note callouts ────────────────────────────────────────── */
+
+/* Callouts and range starts are inline-blocks, so they would inherit the
+   paragraph's text-indent as a gap in front of the marker. */
+.chap-page .content :is(.tei-note, .tei-anchor) {
+  text-indent: 0;
+}
+
+/* Numbered: commentary of the Gesamtausgabe (sources, quotations). */
+.chap-page .content .tei-note > a.note {
+  margin-left: 0.06em;
+  padding: 0 0.1em;
+  font-family: var(--font-sans);
+  font-size: 0.6em;
+  font-weight: 500;
+  font-style: normal;
+  line-height: 0;
+  vertical-align: super;
+  color: var(--rubric);
+  text-decoration: none;
+  background: none;
+}
+
+/* Lettered: text-critical apparatus. Give the note class "is-critical" in the
+   ODD when convenient; the id test is the fallback (#fn_na vs #fn_n01). */
+.chap-page .content .tei-note.is-critical > a.note,
+.chap-page .content .tei-note > a.note:where(:not([href^="#fn_n0"], [href^="#fn_n1"], [href^="#fn_n2"], [href^="#fn_n3"], [href^="#fn_n4"], [href^="#fn_n5"], [href^="#fn_n6"], [href^="#fn_n7"], [href^="#fn_n8"], [href^="#fn_n9"])) {
+  font-family: var(--font-serif);
+  font-size: 0.65em;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--entity);
+}
+
+.chap-page .content .tei-note > a.note:hover { text-decoration: underline; }
+
+/* Start of a lemma range (<anchor/>): a half bracket instead of "[]". */
+.chap-page .content .tei-anchor > a.note {
+  font-size: 0;
+  text-decoration: none;
+  background: none;
+}
+
+.chap-page .content .tei-anchor > a.note::before {
+  content: "⸢";
+  font-family: var(--font-serif);
+  font-size: 0.9rem;
+  color: var(--entity);
+  vertical-align: 0.35em;
+}
+
+/* ── Page breaks ──────────────────────────────────────────── */
+
+/* The | stays in the text where the page of the 1922 edition turned; the page
+   number sits in the right margin at the height of the line. .chap-body is
+   the positioned box it is measured from. */
+.monograph-pb__pipe {
+  color: var(--ink-faint);
+  font-weight: 400;
+  font-style: normal;
+}
+
+/* The absolute box keeps the text's font size and line height, so its line
+   box matches the line of the break; the smaller label sits on its baseline. */
+.monograph-pb__page {
+  position: absolute;
+  right: 0;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: nowrap;
+  text-indent: 0;
+}
+
+.monograph-pb__label {
+  font-family: var(--font-serif);
+  font-size: 0.7em;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--ink-muted);
+}
+
+.monograph-pb:target .monograph-pb__label {
+  padding: 0 0.2em;
+  background: var(--highlight);
+  border-radius: var(--radius-sm);
+}
+
+/* A break that opens a chunk needs no | of its own. */
+.chap-page .content .tei-div > .monograph-pb:first-child .monograph-pb__pipe {
+  display: none;
+}
+
+/* In a heading the label keeps the text's size, not the heading's. */
+.chap-page .content .tei-head .monograph-pb__page {
+  font-size: 1.25rem;
+  line-height: 1.6;
+  letter-spacing: 0;
+}
+
+/* Narrow screens: the text column gives up a strip on the right for it. */
+.chap-body {
+  padding-right: 3.75rem;
+}
+
+/* Wide screens: the number moves into the page's own margin
+   (--rail-margin) and the text gets its full width back. */
+@media (min-width: 64em) {
+  .chap-body {
+    padding-right: 0;
+  }
+
+  .monograph-pb__page {
+    right: auto;
+    left: calc(var(--measure-text) + 1.25rem);
+  }
+
+  .monograph-pb__page::before {
+    content: "";
+    display: inline-block;
+    width: 0.9rem;
+    margin-right: 0.45rem;
+    border-top: 1px solid var(--rule-strong);
+    vertical-align: 0.3em;
+  }
+}
+
+/* ── Notes ────────────────────────────────────────────────── */
+
+/* The notes follow the text as dl.footnote siblings; the first one opens the
+   block with a rule and a label. */
+.chap-page .content :not(.footnote) + .footnote {
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--rule);
+}
+
+.chap-page .content :not(.footnote) + .footnote::before {
+  content: "Anmerkungen";
+  grid-column: 1 / -1;
+  margin-bottom: var(--space-4);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.chap-page .content .footnote {
+  display: grid;
+  grid-template-columns: 2em 1fr;
+  column-gap: var(--space-3);
+  margin: 0;
+  padding: 0.25em 0.4em 0.25em 0;
+  font-size: 0.8em;
+  line-height: 1.5;
+  border-radius: var(--radius-sm);
+  scroll-margin-top: calc(var(--bar-height) + var(--space-4));
+}
+
+.chap-page .content .footnote + .footnote {
+  margin-top: 0.15em;
+}
+
+.chap-page .content .fn-number {
+  padding-top: 0.25em;
+  text-align: right;
+  font-family: var(--font-sans);
+  font-size: 0.8em;
+  font-weight: 500;
+  color: var(--rubric);
+}
+
+.chap-page .content .footnote.is-critical .fn-number,
+.chap-page .content .footnote:where(:not([id^="fn_n0"], [id^="fn_n1"], [id^="fn_n2"], [id^="fn_n3"], [id^="fn_n4"], [id^="fn_n5"], [id^="fn_n6"], [id^="fn_n7"], [id^="fn_n8"], [id^="fn_n9"])) .fn-number {
+  padding-top: 0;
+  font-family: var(--font-serif);
+  font-size: 1em;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--entity);
+}
+
+/* Empty range-start entries ("[]") carry no text of their own. */
+.chap-page .content .footnote[id^="fn_fn_"] {
+  display: none;
+}
+
+.chap-page .content .fn-content {
+  margin: 0;
+  text-align: left;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+.chap-page .content a.fn-back {
+  margin-left: 0.4em;
+  font-family: var(--font-sans);
+  font-size: 0.8em;
+  color: var(--ink-muted);
+  background: none;
+  text-decoration: none;
+}
+
+.chap-page .content a.fn-back:hover {
+  color: var(--rubric);
+}
+
+.chap-page .content .footnote:target {
+  background: var(--highlight);
+}
+
+/* Phones: a narrow measure justifies badly; set ragged right. */
+@media (max-width: 30em) {
+  .chap-page .content .tei-p {
+    text-align: left;
+  }
+}

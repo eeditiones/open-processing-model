@@ -1,0 +1,153 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: CC0-1.0
+
+[project]
+pythonpath = ["."]
+
+[transform]
+odd = "odd/monograph.odd"
+xpath_extensions = [
+    "opm.runtime.common_xpath_functions"
+]
+
+# Prefixes for XPath written inside the ODD. `global` is what teipublisher.odd
+# uses for its eXist-side settings; binding it here rather than in the ODD keeps
+# these values a property of the project, not of the ODD.
+[transform.namespaces]
+global = "http://teipublisher.com/global"
+
+# Values for those settings, grouped by the prefix declared above. Until a
+# variable is given a value here (and, for the collection ones, a matching
+# [[transform.collections]] below), models that use it fall back to rendering the
+# element itself — which is what standalone opm projects have always done.
+[transform.variables.global]
+# Register of persons/places/organisations, resolved as collection($global:register-root).
+# Any absolute URI works; this is just an opaque key that has to match the
+# [[transform.collections]] uri below. Porting from eXist? Paste that app's
+# $config:register-root here verbatim and the ODD needs no changes.
+register-root = "urn:registers"
+
+# Point a collection URI at the files it contains. Uncomment and list your
+# register files to make collection($global:register-root) resolve. `uri` must
+# match register-root above; the files themselves come from `documents`.
+# [[transform.collections]]
+# uri = "urn:registers"
+# documents = [
+#     "data/registers/persons.xml",
+#     "data/registers/places.xml",
+# ]
+
+# Replaces the base rules compiled into the ODD stylesheet (popovers, column
+# breaks, margin notes) for every output type. Design CSS for your pages
+# belongs under [transform.web] assets instead.
+# css = "styles/base.css"
+
+[transform.web]
+template = "templates/chapbook.html.j2"
+# Emit TEI Publisher web components and let the template load the bundle.
+# Its URL is an ordinary template value, so serving it yourself is just
+# [transform.web.context] with webcomponents_url = "..." below.
+webcomponents = false
+# Stylesheets, images and fonts the template uses, copied into an assets/
+# directory beside the output. The template links the stylesheets for you.
+# Switching to another template? Change its stylesheet here too.
+assets = ["templates/chapbook.css", "templates/monograph.css"]
+
+# Anything here reaches every Jinja2 template as `context` — templates only,
+# never XPath — so TOML types survive: booleans, numbers, arrays, sub-tables.
+# Read it as {{ context.site_name }} or {% if context.show_downloads %}.
+# [context]
+# site_name = "My edition"
+# show_downloads = true
+# logo = "../assets/icon.png"   # shown in the chapbook menu bar; [transform.web]
+#                               # assets copies it to <output-root>/assets/,
+#                               # one directory above the chunk pages
+#
+# Templates extending opm/layout.html.j2 read their layout settings here too.
+# The defaults (opm/defaults.toml in the package) are:
+# [context.layout.before]
+# width = "18rem"      # column left of the text
+# mobile = "drawer"    # on narrow screens: "drawer" or "stack" (below the text)
+# label = "Contents"   # button that opens the drawer
+# [context.layout.after]
+# width = "18rem"
+# mobile = "stack"
+# label = "More"
+#
+# A [transform.<type>.context] table overlays this for one output type only:
+# [transform.typst.context]
+# paper = "a5"
+
+[context]
+author = "Karl Barth"
+lang = "de"
+
+[transform.docx]
+template = "templates/default.docx"
+
+[transform.typst]
+template = "templates/book.typ.j2"
+
+[transform.markdown]
+# Optional per-type ODD override: odd = "odd/custom.odd"
+
+[chunking]
+selector = "opm.navigation.tei_div_chunks"
+depth = 2
+output_dir = "chunks"
+
+[[chunking.fragments]]
+name = "title"
+scope = "global"
+xpath = "(//teiHeader/fileDesc/titleStmt/title)[1]"
+parameters = { mode = "title" }
+
+[[chunking.fragments]]
+name = "breadcrumbs"
+scope = "per-chunk"
+xpath = "."
+parameters = { mode = "breadcrumb" }
+[index]
+# `opm index` rolls the ODD's own output up into JSONL records for a search
+# index or vector store. The defaults suit prose; uncomment to tune.
+# max_chars = 1500   # split a passage longer than this
+# min_chars = 40     # drop units shorter than this; a bare heading is noise
+# overlap = 1        # records of context carried into the next part on a split
+
+# Which JSON records open a passage. Omit this to keep the default: titled
+# divisions (a `section` behaviour, or any record that carries a heading).
+# Declaring any unit *replaces* that walk.
+#
+# [[index.units]]
+# name = "heading"
+# behaviours = ["heading"]
+# emit = false       # label the next passage; do not emit a record
+#
+# [[index.units]]
+# name = "paragraph"
+# behaviours = ["paragraph"]
+
+# Material pulled out of a passage, or copied from a chunking fragment.
+# JSON records are selected by `elements`, `behaviours` or `models`. A facet
+# stays in the prose and is repeated as a list of strings you can filter on:
+#
+# [[index.fields]]
+# name = "persons"
+# elements = ["persName"]
+#
+# A `fragment` field is the other source: it names a [[chunking.fragments]]
+# entry (the same HTML the page template already renders), strips it to a
+# scalar, and copies it onto every record from that page:
+#
+# [[index.fields]]
+# name = "breadcrumb"
+# fragment = "breadcrumbs"
+#
+# With metadata = false each JSON match becomes a record of its own instead,
+# tagged kind = "note" and linked to the passage it came from, and it leaves
+# that passage's text (inline = true keeps it in both places):
+#
+# [[index.fields]]
+# name = "note"
+# elements = ["note"]
+# metadata = false

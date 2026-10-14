@@ -36,6 +36,7 @@ it demonstrates,`.gitignore` and agent guidance.
 | `jats` | Journal article: masthead, TOC rail, margin notes in print |
 | `docbook` | Software handbook: section chunking, global TOC, breadcrumbs, PDF print and EPUB |
 | `serafin` | Correspondence (TEI): transcription and translation, with person/place registers |
+| `monograph` | Monograph (TEI): critical edition of a book chapter, with the original pagination in the margin, two note series and breadcrumbs |
 | `shakespeare` | Shakespeare play (TEI): chunked by page rather than division, with IIIF facsimiles |
 
 The client distinguishes two modes of processing: `transform` and `chunk`.
