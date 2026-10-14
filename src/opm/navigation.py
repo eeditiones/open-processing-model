@@ -49,47 +49,33 @@ def load_selector(dotted: str) -> Selector:
 def tei_div_chunks(root: etree._Element, config: ChunkingConfig) -> list[etree._Element]:
     """Return chunk elements by walking TEI ``div`` divisions up to *config.depth*.
 
-    Algorithm (mirrors ``nav:next-page`` / ``nav:previous-page`` in
-    TEI Publisher's ``navigation-tei.xql``, pb-pagination excluded):
+    Mirrors ``nav:next-page`` / ``nav:fill`` in TEI Publisher's
+    ``navigation-tei.xql`` (pb-pagination excluded):
 
-    * Walk every ``div`` in document order whose nesting level
-      (``count(ancestor-or-self::div)``) is at most *depth*.
-    * A div is included as a chunk only when it has **no** descendant ``div``
-      within the same depth limit — i.e. it is a "leaf" at the configured
-      depth.  Parent divs whose children are already enumerated as separate
-      chunks are therefore skipped.
+    * Walk every ``div`` under ``text/body`` in document order whose nesting
+      level (``count(ancestor-or-self::div)``) is at most *depth*.
+    * A div with no child ``div`` within the depth limit is a leaf chunk and is
+      included as-is.
+    * A div whose child divs are separate chunks is skipped, unless it has
+      content before its first child div (a heading, an opening section).
+      That content becomes a chunk of its own, placed before the children: a
+      detached copy of the div holding only the intro, recorded in
+      [`source_map`][opm.runtime.source_map] so ``$get()`` still reaches the
+      stored document.  Whitespace, comments and empty milestones such as
+      ``pb`` alone do not count as intro.
 
     With ``depth = 1`` the result is identical to ``//text/body/div``.
-    With ``depth = 2`` top-level divs that contain child divs are replaced by
-    those children; top-level divs without children are kept as-is.
     """
-    depth = max(1, config.depth)
     ns = root.nsmap.get(None, '')
-    div_tag = f'{{{ns}}}div' if ns else 'div'
-    ns_map = {'tei': ns} if ns else {}
     prefix = 'tei:' if ns else ''
-
-    # Collect every div at level <= depth (document order)
-    candidates: list[etree._Element] = root.xpath(
-        f'//{prefix}text/{prefix}body//{prefix}div'
-        f'[count(ancestor-or-self::{prefix or ""}div) <= {depth}]',
-        namespaces=ns_map,
+    return _nested_section_chunks(
+        root,
+        depth=max(1, config.depth),
+        step=f'{prefix}div',
+        section_tag=f'{{{ns}}}div' if ns else 'div',
+        ns_map={'tei': ns} if ns else {},
+        scope=f'//{prefix}text/{prefix}body//',
     )
-
-    # Keep only leaf nodes: those that have no div child also in candidates.
-    # Key by element object — lxml proxies recycle id(), so id(el) is unsafe.
-    candidate_set = set(candidates)
-    chunks = []
-    for div in candidates:
-        has_child_chunk = any(
-            child in candidate_set
-            for child in div
-            if child.tag == div_tag
-        )
-        if not has_child_chunk:
-            chunks.append(div)
-
-    return chunks
 
 
 def tei_pb_chunks(root: etree._Element, config: ChunkingConfig) -> list[etree._Element]:
@@ -376,6 +362,19 @@ def jats_sec_chunks(root: etree._Element, config: ChunkingConfig) -> list[etree.
     return chunks
 
 
+# Empty markers that do not make an intro worth a chunk of its own.
+_MILESTONES = frozenset({'pb', 'cb', 'lb', 'milestone', 'anchor'})
+
+
+def _is_content(node: etree._Element) -> bool:
+    """Whether *node* (or its tail) is intro content, not whitespace, a comment or a milestone."""
+    if node.tail and node.tail.strip():
+        return True
+    if not isinstance(node.tag, str):
+        return False
+    return etree.QName(node).localname not in _MILESTONES or len(node) > 0
+
+
 def _nested_section_chunks(
     root: etree._Element,
     *,
@@ -383,14 +382,16 @@ def _nested_section_chunks(
     step: str,
     section_tag: str,
     ns_map: dict[str, str],
+    scope: str = '//',
 ) -> list[etree._Element]:
     """Walk a self-nesting sectioning element, carving intro content into its own chunk.
 
     *step* is the (possibly prefixed) name used inside the XPath, *section_tag*
-    the matching Clark-notation tag used to compare children.
+    the matching Clark-notation tag used to compare children. *scope* is the
+    XPath prefix that restricts where sections are looked for.
     """
     candidates: list[etree._Element] = root.xpath(
-        f'//{step}[count(ancestor-or-self::{step}) <= {depth}]',
+        f'{scope}{step}[count(ancestor-or-self::{step}) <= {depth}]',
         namespaces=ns_map or None,
     )
 
@@ -414,7 +415,9 @@ def _nested_section_chunks(
                     break
                 intro_elements.append(child)
 
-            has_intro = bool(intro_elements) or bool(section.text and section.text.strip())
+            has_intro = bool(section.text and section.text.strip()) or any(
+                _is_content(el) for el in intro_elements
+            )
             if has_intro:
                 # Build a section element containing only the intro content,
                 # mirroring the element construction in nav:fill.

@@ -5,7 +5,8 @@ from __future__ import annotations
 from lxml import etree
 
 from opm.config import ChunkingConfig
-from opm.navigation import dbk_section_chunks, jats_sec_chunks, tei_pb_chunks
+from opm.navigation import dbk_section_chunks, jats_sec_chunks, tei_div_chunks, tei_pb_chunks
+from opm.runtime import source_map
 from opm.runtime.output_functions import XML_ID
 
 TEI_NS = 'http://www.tei-c.org/ns/1.0'
@@ -181,3 +182,70 @@ def test_tei_pb_chunks_do_not_duplicate_text_across_a_break() -> None:
     page2 = ' '.join(chunks[1].itertext())
     assert page2.count('and hee hath tane') == 1
     assert 'late stood out' not in page2
+
+
+_NESTED_TEI = f'''<TEI xmlns="{TEI_NS}"><text>
+  <front><div xml:id="pref"><p>Preface</p></div></front>
+  <body>
+    <div xml:id="ch1">
+      <head>Chapter</head>
+      <p>Opening</p>
+      <div xml:id="s1"><p>one</p></div>
+      <div xml:id="s2"><p>two</p></div>
+    </div>
+    <div xml:id="ch2">
+      <!-- no intro here --><pb n="2"/>
+      <div xml:id="s3"><p>three</p></div>
+    </div>
+    <div xml:id="ch3"><p>leaf</p></div>
+  </body>
+</text></TEI>'''
+
+
+def test_tei_div_chunks_carves_intro_before_children() -> None:
+    """A div's content before its first child div becomes a chunk of its own."""
+    root = _parse(_NESTED_TEI)
+    source_map.clear()
+    try:
+        chunks = tei_div_chunks(root, ChunkingConfig(depth=2))
+        assert [c.get(XML_ID) for c in chunks] == ['ch1', 's1', 's2', 's3', 'ch3']
+        intro = chunks[0]
+        assert intro.getroottree().getroot() is intro
+        assert [etree.QName(c).localname for c in intro] == ['head', 'p']
+    finally:
+        source_map.clear()
+
+
+def test_tei_div_chunks_skips_parent_without_intro_content() -> None:
+    root = _parse(_NESTED_TEI)
+    source_map.clear()
+    try:
+        ids = [c.get(XML_ID) for c in tei_div_chunks(root, ChunkingConfig(depth=2))]
+        assert 'ch2' not in ids
+    finally:
+        source_map.clear()
+
+
+def test_tei_div_chunks_depth_one_returns_top_level_divs() -> None:
+    root = _parse(_NESTED_TEI)
+    chunks = tei_div_chunks(root, ChunkingConfig(depth=1))
+    assert [c.get(XML_ID) for c in chunks] == ['ch1', 'ch2', 'ch3']
+    assert all(c.getroottree().getroot() is root for c in chunks)
+
+
+def test_tei_div_intro_maps_back_to_original_div() -> None:
+    """``$get()`` on the intro copy reaches the stored div and its siblings."""
+    from opm.runtime.xpath_env import XPathEnvironment
+
+    root = _parse(_NESTED_TEI)
+    source_map.clear()
+    try:
+        intro = tei_div_chunks(root, ChunkingConfig(depth=2))[0]
+        original = root.xpath('//tei:div[@xml:id="ch1"]', namespaces={'tei': TEI_NS})[0]
+        assert source_map.source_of(intro) is original
+        head = intro[0]
+        assert source_map.source_of(head) is original[0]
+        env = XPathEnvironment(root=root)
+        assert env.select(intro, 'count(tp:source-node(.)/div)') == 2
+    finally:
+        source_map.clear()
