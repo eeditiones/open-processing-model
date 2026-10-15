@@ -208,6 +208,31 @@ def select_epub_chapters(
 HEADING_TAGS = frozenset({'h1', 'h2', 'h3', 'h4', 'h5', 'h6'})
 
 
+# Inline markers that are not part of a heading's wording: page numbers and
+# note callouts (and the footnote asides still sitting next to them).
+_NOT_HEADING_TEXT = frozenset({'pagebreak', 'noteref', 'footnote'})
+
+
+def _heading_text(el: etree._Element) -> str:
+    """*el*'s text as a table of contents should show it."""
+    parts: list[str] = []
+
+    def walk(node: etree._Element) -> None:
+        if node.get(EPUB_TYPE) not in _NOT_HEADING_TEXT:
+            if node.text:
+                parts.append(node.text)
+            for child in node:
+                if isinstance(child.tag, str):
+                    if _local(child) == 'br':
+                        parts.append(' ')
+                    walk(child)
+                if child.tail:
+                    parts.append(child.tail)
+
+    walk(el)
+    return ' '.join(''.join(parts).split())
+
+
 def _has_text(el: etree._Element) -> bool:
     return bool(' '.join(el.itertext()).strip())
 
@@ -220,7 +245,7 @@ def _collect_opening_headings(el: etree._Element, parts: list[str]) -> bool:
         if not isinstance(child.tag, str):
             continue
         if _local(child) in HEADING_TAGS:
-            text = ' '.join(child.itertext()).strip()
+            text = _heading_text(child)
             if text:
                 parts.append(text)
         elif any(_local(d) in HEADING_TAGS for d in child.iter()):
@@ -249,7 +274,7 @@ def _rendered_heading_text(nodes: Sequence[etree._Element]) -> str | None:
         if not isinstance(node.tag, str):
             continue
         if _local(node) in HEADING_TAGS:
-            text = ' '.join(node.itertext()).strip()
+            text = _heading_text(node)
             if text:
                 parts.append(text)
             continue

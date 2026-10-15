@@ -481,3 +481,63 @@ def test_epub_chunking_defaults_to_the_reading_view(tmp_path: Path) -> None:
     )
     cfg = load_project_config(tmp_path / 'opm.toml')
     assert cfg.epub_chunking is cfg.chunking
+
+
+def test_epub_labelled_note_keeps_its_label_and_the_running_number() -> None:
+    """A note with its own ``@n`` shows it and does not advance the count."""
+    pmf = EpubOutputFunctions()
+    config = _config()
+    ref_a, aside_a = pmf.note(config, etree.Element('note'), [], 'apparatus', label='a')
+    ref_1, aside_1 = pmf.note(config, etree.Element('note'), [], 'commentary')
+    assert ref_a.text == 'a'
+    assert ref_a.get('data-n') == 'a' and aside_a.get('data-n') == 'a'
+    assert aside_a[0][0].get('class') == 'fn-number' and aside_a[0][0].text == 'a'
+    assert ref_1.text == '1'
+    assert ref_1.get('data-n') is None
+    assert aside_1[0][0].text == '1'
+
+
+def test_epub_lemma_range_markers() -> None:
+    """``a-`` at the anchor, ``-a`` at the note, ``a-a`` on the note itself."""
+    tei = 'http://www.tei-c.org/ns/1.0'
+    root = etree.fromstring(
+        f'<p xmlns="{tei}">x <anchor type="note" xml:id="r1"/>lemma'
+        f'<note n="b" target="#r1" xml:id="nb">reading</note></p>'
+    )
+    anchor, note = root[0], root[1]
+    pmf = EpubOutputFunctions()
+    config = _config()
+    (start,) = pmf.note(config, anchor, [], (), place='start', label='b')
+    ref, aside = pmf.note(config, note, [], 'reading', label='b')
+    assert start.text == 'b-'
+    assert start.get('href') == ref.get('href') == f'#{aside.get("id")}'
+    assert ref.text == '-b'
+    assert aside[0][0].text == 'b-b'
+
+
+def test_epub_alternate_without_extra_content_stays_text() -> None:
+    """A register reference that resolves to nothing new is not a popup."""
+    pmf = EpubOutputFunctions()
+    node = etree.Element('persName')
+    for alternate in ('', 'Paulus'):
+        res = pmf.alternate(_config(), node, ['persName'], None, 'Paulus', alternate)
+        assert len(res) == 1
+        assert res[0].tag == 'span' and res[0].text == 'Paulus'
+
+
+def test_epub_synthetic_ids_do_not_collide_with_source_ids() -> None:
+    pmf = EpubOutputFunctions()
+    config = _config()
+    _ref, aside = pmf.note(config, etree.Element('note'), [], 'body')
+    assert not aside.get('id').startswith('fnn')
+
+
+def test_epub_heading_text_skips_page_breaks_and_callouts() -> None:
+    from opm.epub import _heading_text
+
+    h = etree.fromstring(
+        f'<h1 xmlns="{XHTML_NS}" xmlns:epub="http://www.idpf.org/2007/ops">'
+        '<span epub:type="pagebreak">45</span>1. Kapitel<br/>EINGANG'
+        '<a epub:type="noteref" href="#x">1</a></h1>'
+    )
+    assert _heading_text(h) == '1. Kapitel EINGANG'

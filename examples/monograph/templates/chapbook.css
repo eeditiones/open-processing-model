@@ -373,6 +373,42 @@ body.chapbook {
   font-weight: 600;
 }
 
+/* The monograph's contents (toc mode in monograph.odd): chapters with their
+   number line, and under the chapter being read its sections, each ending in
+   its pericope. The template marks the page's own links aria-current. */
+.rb-toc li { margin: 0; }
+
+.rb-toc__chapter + .rb-toc__chapter { margin-top: var(--space-3); }
+
+.rb-toc__num {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.chap-toc__body .rb-toc__sections {
+  margin: 2px 0 0;
+  font-size: 15px;
+}
+
+.rb-toc__ref {
+  font-style: italic;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+/* Sections only for the current chapter. */
+.rb-toc__chapter:not(:has([aria-current])) > .rb-toc__sections { display: none; }
+
+.rb-toc__chapter > a[aria-current] { font-weight: inherit; }
+
+.rb-toc__chapter:has([aria-current]) > a .rb-toc__num,
+.rb-toc__sections [aria-current] .rb-toc__ref {
+  color: var(--rubric);
+}
+
 /* ── Page ─────────────────────────────────────────────────── */
 
 .chap-page {

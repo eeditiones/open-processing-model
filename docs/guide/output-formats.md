@@ -90,6 +90,10 @@ or `depth`: the EPUB contents might be very different from the browser-based rea
 translation into a second panel in the HTML preview, but not in the EPUB. A page-milestone
 selector (`tei_pb_chunks`) is always replaced by divisions, since a EPUB readers repaginate anyway.
 
+The book's language comes from `xml:lang` on the root element or the header
+(`teiHeader` / DocBook `info`), and falls back to English. Reading systems use
+it for hyphenation, so set it in the source.
+
 ```bash
 opm transform examples/tei-test.xml -t epub -o book.epub
 ```

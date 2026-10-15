@@ -19,7 +19,11 @@ from opm.runtime.output_functions import (
     XML_ID,
     add_lang_attrs,
     classes,
+    is_lemma_range_note,
+    lemma_range_markers,
     normalize,
+    note_for_anchor,
+    param_str,
 )
 
 EPUB_NS = 'http://www.idpf.org/2007/ops'
@@ -37,10 +41,12 @@ def _epub_safe_id(node, config) -> str:
     existing = node.get(XML_ID) if node is not None else None
     if existing:
         return re.sub(r'[^A-Za-z0-9_-]', '_', existing)
-    return f'n{config.state.next_id()}'
+    # Prefixed so a synthetic id cannot collide with the source's own: TEI
+    # notes are commonly ``n1``, ``n2``, … which a bare ``n{counter}`` repeats.
+    return f'opm-n{config.state.next_id()}'
 
 
-def _footnote_body(config, node, content) -> etree._Element:
+def _footnote_body(config, node, content, marker: str | None = None) -> etree._Element:
     """Wrap footnote content so popover styling can target a plain class.
 
     Register entries (person, place, …) get their own ``output="epub"`` models
@@ -50,6 +56,13 @@ def _footnote_body(config, node, content) -> etree._Element:
     """
     body = etree.Element('div')
     body.set('class', 'fn-body')
+    if marker:
+        # The note's own number or letter, so the footnotes section at the end
+        # of a chapter (and a reader's popup) shows which callout it answers.
+        num = etree.SubElement(body, 'span')
+        num.set('class', 'fn-number')
+        num.text = marker
+        num.tail = ' '
     if content is not None:
         config.apply_children(config, node, content, body)
     return body
@@ -96,41 +109,97 @@ class EpubOutputFunctions(HtmlOutputFunctions):
         return super().break_(config, node, cls, content, type=type, label=label)
 
     def note(self, config, node, cls, content, place=None, label=None) -> PMResult:
-        """Emit an EPUB noteref + footnote aside (in-flow; packager may hoist)."""
-        _ = place, label
-        nr = config.state.next_note()
+        """Emit an EPUB noteref + footnote aside (in-flow; packager may hoist).
+
+        Labels and lemma ranges follow
+        [`HtmlOutputFunctions.note`][opm.runtime.html_output_functions.HtmlOutputFunctions.note]:
+        a note carrying its own ``@n`` shows that label and leaves the running
+        number alone, and a range reads ``a-`` … ``-a`` in the text and ``a-a``
+        on the note. The label is kept as ``data-n`` so a stylesheet can set the
+        two series apart.
+        """
+        label_s = param_str(label) or None
+        place_s = param_str(place) or None
+        if place_s == 'start':
+            return self._lemma_range_start(config, node, cls, label_s)
+        # A lookup that found neither content nor a label is not a note.
+        if not label_s and isinstance(content, (list, tuple)) and not content:
+            return []
+
+        range_note = bool(label_s) and is_lemma_range_note(node)
+        if label_s:
+            if range_note:
+                _start, ref_marker, fn_marker = lemma_range_markers(label_s)
+            else:
+                ref_marker = fn_marker = label_s
+        else:
+            ref_marker = fn_marker = str(config.state.next_note())
         fn_id = _epub_safe_id(node, config)
 
         ref = etree.Element('a', nsmap={'epub': EPUB_NS})
         ref.set(EPUB_TYPE, 'noteref')
         ref.set('href', f'#fn{fn_id}')
         ref.set('class', 'noteref')
-        ref.text = str(nr)
+        ref.text = ref_marker
 
         aside = etree.Element('aside', nsmap={'epub': EPUB_NS})
         aside.set(EPUB_TYPE, 'footnote')
         aside.set('id', f'fn{fn_id}')
         aside.set('class', classes('note', *cls))
+        if label_s:
+            for el in (ref, aside):
+                el.set('data-n', label_s)
+                if range_note:
+                    el.set('data-range', 'end')
         add_lang_attrs(aside, node)
-        aside.append(_footnote_body(config, node, content))
+        aside.append(_footnote_body(config, node, content, fn_marker))
         return [ref, aside]
 
-    def alternate(self, config, node, cls, content, default, alternate, optional=None) -> PMResult:
-        """Default reading as noteref; alternate body as footnote aside."""
-        _ = content, optional
-        fn_id = _epub_safe_id(node, config)
+    def _lemma_range_start(self, config, node, cls, label_s: str | None) -> PMResult:
+        """Opening marker of a lemma range (``a-``), linking to the end note."""
+        if not label_s:
+            return []
+        start_marker, _end, _fn = lemma_range_markers(label_s)
+        end_note = note_for_anchor(node)
+        target = end_note if end_note is not None else node
+        ref = etree.Element('a', nsmap={'epub': EPUB_NS})
+        ref.set(EPUB_TYPE, 'noteref')
+        ref.set('href', f'#fn{_epub_safe_id(target, config)}')
+        ref.set('class', classes('noteref', *cls, 'note-range-start'))
+        ref.set('data-n', label_s)
+        ref.set('data-range', 'start')
+        ref.text = start_marker
+        return [ref]
 
+    def alternate(self, config, node, cls, content, default, alternate, optional=None) -> PMResult:
+        """Default reading as noteref; alternate body as footnote aside.
+
+        An alternate that adds nothing — empty, or only the default reading
+        again, as a register reference does when no register is configured —
+        stays plain text: a popup repeating the word just tapped is noise.
+        """
+        _ = content, optional
+        body = _footnote_body(config, node, alternate)
+        shown = self._el('span', cls, node)
+        config.apply_children(config, node, default, shown)
+        extra = ' '.join(''.join(body.itertext()).split())
+        if not extra or extra == ' '.join(''.join(shown.itertext()).split()):
+            return [shown]
+
+        fn_id = _epub_safe_id(node, config)
         ref = etree.Element('a', nsmap={'epub': EPUB_NS})
         ref.set(EPUB_TYPE, 'noteref')
         ref.set('href', f'#fn{fn_id}')
         ref.set('class', classes('alternate', *cls))
-        config.apply_children(config, node, default, ref)
+        ref.text = shown.text
+        for child in list(shown):
+            ref.append(child)
 
         aside = etree.Element('aside', nsmap={'epub': EPUB_NS})
         aside.set(EPUB_TYPE, 'footnote')
         aside.set('id', f'fn{fn_id}')
         aside.set('class', classes('altcontent', *cls))
-        aside.append(_footnote_body(config, node, alternate))
+        aside.append(body)
         return [ref, aside]
 
     def webcomponent(self, config, node, cls, content, name, optional=None) -> PMResult:

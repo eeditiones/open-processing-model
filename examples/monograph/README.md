@@ -59,6 +59,9 @@ becomes a page of its own ahead of the sections that follow.
 - **Breadcrumbs.** Each page shows the work, chapter, and current section.
   The `div` and `head` models answer `mode='breadcrumb'` with those titles as
   plain text.
+- **Contents.** The `toc` fragment lists the chapters, and under the
+  current chapter its sections with their Bible passages. Each entry links to
+  the `xml:id` of its `div`, which opm resolves to the page holding it.
 - **Highlights.** `<hi rend="bold">` — Barth's translation of the letter — is
   set in a light semibold.
 
@@ -70,7 +73,9 @@ becomes a page of its own ahead of the sections that follow.
 | `templates/monograph.html.j2` | Page shell (running head, contents, page turns) |
 | `templates/chapbook.css` | Edition design: paper, type, layout |
 | `templates/monograph.css` | TEI-specific styles: headings, notes, page breaks |
-| `templates/book.typ.j2`, `templates/default.docx` | Typst and DOCX output |
+| `templates/book.typ.j2` | Typst/PDF output in the same design |
+| `templates/epub.css` | EPUB output in the same design |
+| `templates/default.docx` | DOCX output |
 | `opm.toml` | ODD, assets, chunking and fragments |
 | `data/47009.xml` | Sample TEI |
 

@@ -25,6 +25,11 @@
             <schemaSpec ident="monograph" start="TEI teiCorpus" source="teipublisher.odd">
                 <elementSpec ident="anchor" mode="change">
                     <model predicate="$parameters?mode=('toc', 'title', 'breadcrumb')" behaviour="omit"/>
+                    <model output="typst" predicate="@type = 'note'" behaviour="inline" cssClass="note-range-start">
+                        <desc>Typst: the opening marker (a-) as a styled superscript, like the
+                            web's lettered callouts; the note itself supplies -a.</desc>
+                        <param name="content" value="let $id := @xml:id return (root($parameters?root)//note[@target = $id or @target = '#' || $id])[1]/@n/string() || '-'"/>
+                    </model>
                     <model predicate="@type = 'note'" behaviour="note">
                         <desc>Start of a lemma range: the text-critical note sits at the end of
                             the passage with @target pointing here. Emit the opening marker
@@ -33,6 +38,14 @@
                         <param name="place" value="'start'"/>
                         <param name="label" value="let $id := @xml:id return (root($parameters?root)//note[@target = $id or @target = '#' || $id])[1]/@n/string()"/>
                         <param name="content" value="()"/>
+                    </model>
+                </elementSpec>
+                <elementSpec ident="body" mode="change">
+                    <model predicate="$parameters?mode='toc'" behaviour="pass-through">
+                        <desc>Contents: one list of chapters, for the `toc` fragment in
+                            opm.toml.</desc>
+                        <param name="content" value="div"/>
+                        <pb:template xml:space="preserve" xmlns=""><ol>[[content]]</ol></pb:template>
                     </model>
                 </elementSpec>
                 <elementSpec ident="div" mode="change">
@@ -44,16 +57,21 @@
                         <param name="content" value="(ancestor::div/head[not(@type = 'sub')][not(hi/@rend = 'smallCaps')], head[not(@type = 'sub')])"/>
                         <pb:template xml:space="preserve" xmlns=""><ol>[[content]]</ol></pb:template>
                     </model>
-                    <model predicate="$parameters?mode='toc' and div" behaviour="pass-through">
-                        <param name="content" value="div"/>
-                        <param name="head" value="head"/>
-                        <pb:template xml:space="preserve" xmlns=""><ul><li>
-                            <details><summary>[[head]]</summary><ul>[[content]]</ul></details>
-                        </li></ul></pb:template>
+                    <model predicate="$parameters?mode='toc' and parent::body" behaviour="pass-through">
+                        <desc>Contents entry of a chapter: the line before the lb of its head
+                            ("1. Kapitel"), then the title after it and the titles of its parts
+                            (DIE NACHT), set in title case. Below it the sections: the chapter's
+                            own opening section, then its child divs.</desc>
+                        <param name="id" value="@xml:id"/>
+                        <param name="num" value="normalize-space(string-join(head[lb][1]/lb/preceding-sibling::text(), ''))"/>
+                        <param name="title" value="let $titles := (normalize-space(string-join(head[lb][1]/lb/following-sibling::text(), '')), div/head[not(@type)][not(*)] ! normalize-space(.)) return string-join(for $t in $titles return string-join(for $w in tokenize(lower-case($t), ' ') return upper-case(substring($w, 1, 1)) || substring($w, 2), ' '), ' · ')"/>
+                        <param name="sections" value="(head[hi/@rend = 'smallCaps'], div)"/>
+                        <pb:template xml:space="preserve" xmlns=""><li class="rb-toc__chapter"><a href="#[[id]]"><span class="rb-toc__num">[[num]]</span>[[title]]</a><ol class="rb-toc__sections">[[sections]]</ol></li></pb:template>
                     </model>
                     <model predicate="$parameters?mode='toc'" behaviour="pass-through">
-                        <param name="head" value="head"/>
-                        <pb:template xml:space="preserve" xmlns=""><li>[[head]]</li></pb:template>
+                        <desc>A section adds no entry of its own: its small-caps head is the
+                            entry.</desc>
+                        <param name="content" value="head[hi/@rend = 'smallCaps']"/>
                     </model>
                     <model predicate="$parameters?mode = 'register'" behaviour="pass-through">
                         <desc>Output register data if register profile is enabled</desc>
@@ -78,6 +96,14 @@
                     <model behaviour="block"/>
                 </elementSpec>
                 <elementSpec ident="head" mode="change">
+                    <model predicate="$parameters?mode='toc' and hi/@rend = 'smallCaps'" behaviour="pass-through">
+                        <desc>Contents entry of a section: its title, then the pericope from the
+                            following sub head. Links to the div, which is the section's page.</desc>
+                        <param name="id" value="parent::div/@xml:id"/>
+                        <param name="title" value="normalize-space(string-join(hi[@rend = 'smallCaps']//text(), ''))"/>
+                        <param name="ref" value="normalize-space(following-sibling::head[@type = 'sub'][1])"/>
+                        <pb:template xml:space="preserve" xmlns=""><li><a href="#[[id]]">[[title]] <span class="rb-toc__ref">[[ref]]</span></a></li></pb:template>
+                    </model>
                     <model predicate="$parameters?mode='toc' and $parameters?mode-sub='toc-odd'" behaviour="pass-through">
                         <param name="id" value="parent::div/@xml:id"/>
                         <param name="hash" value="parent::div/@xml:id"/>
@@ -96,6 +122,17 @@
                     <model predicate="parent::table" behaviour="block" cssClass="table-head"/>
                     <model predicate="parent::lg" behaviour="block" cssClass="lg-head"/>
                     <model predicate="parent::list" behaviour="block" cssClass="list-head"/>
+                    <model output="epub" predicate="parent::div and @type='top'" behaviour="heading" cssClass="rb-title">
+                        <desc>EPUB: the kind of head as a class, since not every reading
+                            system supports the :has() rules monograph.css uses.</desc>
+                        <param name="level" value="count(ancestor::div)"/>
+                    </model>
+                    <model output="epub" predicate="parent::div and lb" behaviour="heading" cssClass="rb-chapter">
+                        <param name="level" value="count(ancestor::div)"/>
+                    </model>
+                    <model output="epub" predicate="parent::div and not(@type)" behaviour="heading" cssClass="rb-section">
+                        <param name="level" value="count(ancestor::div)"/>
+                    </model>
                     <model predicate="parent::div and @type='sub'" behaviour="heading" cssClass="monograph-subhead">
                         <desc>Subheading (the Bible passage below a section title): same level,
                             smaller and set close to the heading above. Sized in monograph.css,
@@ -122,11 +159,24 @@
                         <desc>Only the page breaks of the Gesamtausgabe itself are shown.</desc>
                     </model>
                     <model output="print" behaviour="omit"/>
-                    <model output="typst" behaviour="inline">
-                        <param name="content" value="'|' || replace(@xml:id, '^p0*', '')"/>
-                        <outputRendition xml:space="preserve">
-                        font-size: 0.75em; color: grey;
-                        </outputRendition>
+                    <model output="typst" predicate="@rend = 'noPipe' or (parent::div and not(preceding-sibling::*))" behaviour="inline" cssClass="monograph-pb-nopipe">
+                        <desc>As on the web: no | where the source asks for none or where the
+                            break opens a division; the page number alone goes in the margin.</desc>
+                        <param name="content" value="replace(@xml:id, '^p0*', '')"/>
+                    </model>
+                    <model output="typst" behaviour="inline" cssClass="monograph-pb">
+                        <desc>The | in the text, the page number in the margin (book.typ.j2).</desc>
+                        <param name="content" value="replace(@xml:id, '^p0*', '')"/>
+                    </model>
+                    <model output="epub" predicate="@rend = 'noPipe' or (parent::div and not(preceding-sibling::*))" behaviour="break" cssClass="monograph-pb monograph-pb-nopipe">
+                        <desc>EPUB: a page-break marker reading systems can navigate by;
+                            epub.css shows it as on the web, without the |.</desc>
+                        <param name="type" value="'page'"/>
+                        <param name="label" value="replace(@xml:id, '^p0*', '')"/>
+                    </model>
+                    <model output="epub" behaviour="break" cssClass="monograph-pb">
+                        <param name="type" value="'page'"/>
+                        <param name="label" value="replace(@xml:id, '^p0*', '')"/>
                     </model>
                     <model output="web" behaviour="inline" cssClass="monograph-pb">
                         <desc>A | at the exact position of the break (inside the word when

@@ -153,7 +153,7 @@
   font-family: var(--font-serif);
   font-size: 0.65em;
   font-weight: 400;
-  font-style: italic;
+  font-style: normal;
   color: var(--entity);
 }
 
@@ -167,7 +167,7 @@
   font-family: var(--font-serif);
   font-size: 0.65em;
   font-weight: 400;
-  font-style: italic;
+  font-style: normal;
   line-height: 0;
   vertical-align: super;
   color: var(--entity);
@@ -304,7 +304,7 @@
   font-family: var(--font-serif);
   font-size: 1em;
   font-weight: 400;
-  font-style: italic;
+  font-style: normal;
   color: var(--entity);
 }
 

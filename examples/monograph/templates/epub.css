@@ -1,0 +1,319 @@
+/* SPDX-FileCopyrightText: 2026 e-editiones
+   SPDX-License-Identifier: CC0-1.0 */
+
+/* Karl Barth-Gesamtausgabe: "Der Römerbrief" design for the EPUB.
+
+   The reading view's design (chapbook.css, monograph.css) for a reading
+   system: paper and ink are left to the reader's theme, everything else —
+   rubric red, EB Garamond, centred heads, book-set paragraphs, the two note
+   series — follows the web edition. Cascades after opm's EPUB baseline, so
+   it overrides that baseline's sans-serif heads and blue links.
+
+   Differences forced by the medium: no margin, so the original page number
+   sits in the line, raised and small, after the |; heads are told apart by
+   classes the ODD gives them for EPUB (rb-title, rb-chapter, rb-section)
+   rather than by :has(), which not every reading system supports. Sizes are
+   relative throughout, so the reader's text-size setting still works. */
+
+@namespace epub url("http://www.idpf.org/2007/ops");
+
+:root {
+  --ink: #211c16;
+  --ink-muted: #675d51;
+  --ink-faint: #8f8474;
+  --rule: #ddd3c2;
+  --rule-strong: #b8ab96;
+  --rubric: #962a1c;
+  --entity: #2f5468;
+
+  --font-serif: "EB Garamond", Garamond, "Iowan Old Style", Palatino, "Times New Roman", serif;
+  --font-sans: "Alegreya Sans", "Gill Sans", "Helvetica Neue", sans-serif;
+
+  --opm-body-font: var(--font-serif);
+  --opm-heading-font: var(--font-serif);
+  --opm-rule: var(--rule);
+  --opm-muted: var(--ink-muted);
+  --opm-accent: var(--rubric);
+}
+
+body {
+  font-family: var(--font-serif);
+  line-height: 1.55;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+}
+
+/* ── Links ────────────────────────────────────────────────── */
+
+a {
+  color: var(--rubric);
+  text-decoration: none;
+}
+
+/* Bible references and pointers into other volumes lead nowhere inside the
+   book: keep their colour, drop the link. */
+a.tei-ref:not([href^="#"]):not([href^="http"]) {
+  pointer-events: none;
+}
+
+/* Names are register references on the web; in the book they are text. */
+.context:not(.disable),
+.persName,
+.placeName,
+.orgName {
+  color: inherit;
+}
+
+/* ── Headings ─────────────────────────────────────────────── */
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  line-height: 1.25;
+  text-align: center;
+  font-variant-numeric: lining-nums;
+}
+
+/* The work title ("An die Römer"). */
+.rb-title {
+  margin: 1.2em 0 1.4em;
+  font-size: 2.2em;
+  letter-spacing: 0.02em;
+}
+
+/* "1. Kapitel<br/>EINGANG": the first line is the rubric chapter-number line,
+   the second the letterspaced title, then a short rule. */
+.rb-chapter {
+  margin: 2.4em 0 1.2em;
+  font-size: 1.5em;
+  line-height: 1.6;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.rb-chapter::first-line {
+  font-size: 0.5em;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: var(--rubric);
+}
+
+.rb-chapter::after {
+  content: "";
+  display: block;
+  width: 2.5em;
+  height: 0;
+  margin: 0.4em auto 0;
+  border-top: 1px solid var(--rubric);
+  font-size: 0.66em;
+}
+
+/* Section titles (small caps), and part titles such as DIE NACHT. */
+.rb-section {
+  margin: 2em 0 0;
+  font-size: 1.1em;
+  letter-spacing: 0.05em;
+  font-variant: small-caps;
+}
+
+/* Pericope: the Bible reference, italic, close under the section title. */
+.monograph-subhead {
+  margin: 0.3em 0 1.6em;
+  font-size: 0.85em;
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
+/* A chapter file that opens with a section title needs no gap above it. */
+body > div > div > .rb-section:first-child {
+  margin-top: 0;
+}
+
+/* ── Paragraphs ───────────────────────────────────────────── */
+
+/* Book setting: justified, hyphenated, indented, no gap between paragraphs. */
+p.tei-p {
+  margin: 0;
+  text-align: justify;
+  text-indent: 1.4em;
+  -webkit-hyphens: auto;
+  -epub-hyphens: auto;
+  hyphens: auto;
+  orphans: 2;
+  widows: 2;
+}
+
+h1 + p.tei-p, h2 + p.tei-p, h3 + p.tei-p, h4 + p.tei-p,
+.tei-q.block + p.tei-p,
+.tei-lg + p.tei-p {
+  text-indent: 0;
+}
+
+/* Highlights. Bold = Barth's translation of the letter: a light semibold. */
+.tei-hi { font-style: normal; }
+.tei-hi.bold { font-weight: 600; }
+.tei-hi.italic { font-style: italic; }
+.tei-hi.smallCaps { font-variant: small-caps; letter-spacing: 0.03em; }
+.tei-hi.sup { font-size: 0.65em; line-height: 0; vertical-align: super; }
+.tei-foreign[lang="grc"] { font-style: normal; }
+
+/* Quotations and verse. */
+.tei-q.block {
+  display: block;
+  margin: 0.8em 0 0.8em 1.6em;
+  font-size: 0.9em;
+  line-height: 1.55;
+  text-indent: 0;
+}
+
+.tei-lg { margin: 0.6em 0 0.6em 1.6em; }
+.tei-l { text-indent: 0; }
+
+/* ── Original pagination ──────────────────────────────────── */
+
+/* opm's EPUB baseline hides page breaks; these are part of the text. The |
+   stays where the page of the 1922 edition turned, the page number follows it
+   small and raised. */
+.pagebreak.monograph-pb {
+  display: inline;
+  position: relative;
+  top: -0.6em;
+  font-size: 0.65em;
+  font-style: italic;
+  font-variant-numeric: lining-nums;
+  color: var(--ink-muted);
+  text-indent: 0;
+}
+
+.pagebreak.monograph-pb::before {
+  content: "|";
+  position: relative;
+  top: 0.6em;
+  margin-right: 0.15em;
+  font-size: 1.54em;
+  font-style: normal;
+  color: var(--ink-faint);
+}
+
+/* In a head the number would sit in the title; the marker stays for
+   navigation, unseen. */
+h1 .pagebreak.monograph-pb,
+h2 .pagebreak.monograph-pb,
+h3 .pagebreak.monograph-pb {
+  display: none;
+}
+
+/* No | where the source asks for none, or where a division opens. */
+.pagebreak.monograph-pb-nopipe::before {
+  content: none;
+}
+
+/* ── Note callouts ────────────────────────────────────────── */
+
+/* Numbered: commentary of the Gesamtausgabe (sources, quotations). */
+a.noteref {
+  margin-left: 0.06em;
+  padding: 0 0.1em;
+  font-family: var(--font-sans);
+  font-size: 0.6em;
+  font-weight: 500;
+  font-style: normal;
+  line-height: 0;
+  vertical-align: super;
+  color: var(--rubric);
+  text-decoration: none;
+  text-indent: 0;
+}
+
+/* Lettered: text-critical apparatus, with lemma ranges (a- … -a). */
+a.noteref[data-n] {
+  font-family: var(--font-serif);
+  font-size: 0.65em;
+  font-weight: 400;
+  font-style: normal;
+  color: var(--entity);
+}
+
+a.noteref.note-range-start {
+  margin-left: 0;
+}
+
+/* ── Notes ────────────────────────────────────────────────── */
+
+section[epub|type="footnotes"] {
+  margin-top: 3em;
+  padding-top: 1.5em;
+  border-top: 1px solid var(--rule);
+  font-size: 0.8em;
+  line-height: 1.5;
+}
+
+section[epub|type="footnotes"]::before {
+  content: "Anmerkungen";
+  display: block;
+  margin-bottom: 1em;
+  font-family: var(--font-sans);
+  font-size: 0.8em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+aside.note {
+  margin: 0 0 0.3em;
+}
+
+/* The note's number or letter hangs in a column of its own. */
+aside.note .fn-body {
+  padding: 0 0 0 2.4em;
+  text-indent: -2.4em;
+  font-family: var(--font-serif);
+  text-align: left;
+  -webkit-hyphens: auto;
+  -epub-hyphens: auto;
+  hyphens: auto;
+}
+
+aside.note .fn-body p,
+aside.note .fn-body .tei-q.block,
+aside.note .fn-body .tei-lg {
+  text-indent: 0;
+}
+
+aside.note .fn-body .tei-q.block {
+  margin: 0.3em 0 0.3em 1.4em;
+  font-size: 1em;
+}
+
+.fn-number {
+  display: inline-block;
+  width: 2em;
+  margin-right: 0.4em;
+  text-indent: 0;
+  text-align: right;
+  font-family: var(--font-sans);
+  font-size: 0.8em;
+  font-weight: 500;
+  font-style: normal;
+  color: var(--rubric);
+}
+
+aside.note[data-n] .fn-number {
+  width: 1.6em;
+  font-family: var(--font-serif);
+  font-size: 1em;
+  font-weight: 400;
+  font-style: normal;
+  color: var(--entity);
+}
+
+/* ── Title page ───────────────────────────────────────────── */
+
+#title .doc-title {
+  font-size: 2.2em;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}

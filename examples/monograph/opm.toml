@@ -95,6 +95,11 @@ template = "templates/default.docx"
 [transform.typst]
 template = "templates/book.typ.j2"
 
+[transform.epub]
+# The "Der Römerbrief" design for reading systems; cascades after opm's
+# EPUB baseline and the ODD's own CSS.
+css = "templates/epub.css"
+
 [transform.markdown]
 # Optional per-type ODD override: odd = "odd/custom.odd"
 
@@ -108,6 +113,14 @@ name = "title"
 scope = "global"
 xpath = "(//teiHeader/fileDesc/titleStmt/title)[1]"
 parameters = { mode = "title" }
+
+# Contents rail: chapters, and under the current one its sections with their
+# pericopes. The template marks the entry of the page being read.
+[[chunking.fragments]]
+name = "toc"
+scope = "global"
+xpath = "//text/body"
+parameters = { mode = "toc" }
 
 [[chunking.fragments]]
 name = "breadcrumbs"

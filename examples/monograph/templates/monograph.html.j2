@@ -85,8 +85,13 @@ classes = ["chapbook"]
         <span class="chap-toc__drawer-title">Contents</span>
         <label for="opm-before-toggle" class="chap-toc__close">Close</label>
       </header>
-      <nav class="chap-toc__body" aria-label="Contents">
+      <nav class="chap-toc__body rb-toc" aria-label="Contents">
+        {# Links to the page being read come out as `#<its xml:id>`: mark them. #}
+        {% if is_chunk and chunk.xml_id %}
+        {{ fragments.toc | replace('href="#' ~ chunk.xml_id ~ '"', 'href="#' ~ chunk.xml_id ~ '" aria-current="page"') | safe }}
+        {% else %}
         {{ fragments.toc | safe }}
+        {% endif %}
       </nav>
     </div>
   </div>
