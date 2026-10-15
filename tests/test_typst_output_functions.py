@@ -418,6 +418,23 @@ def test_escape_typst_text_node_escapes_special_chars() -> None:
     assert escape_typst_text_node('.texts as') == '\\.texts as'
 
 
+def test_escape_typst_text_node_escapes_line_start_markers() -> None:
+    from opm.runtime.typst_output_functions import escape_typst_text_node
+
+    # Would otherwise become an enum item, list item, term or heading.
+    assert escape_typst_text_node('1. Abdruck') == '1\\. Abdruck'
+    assert escape_typst_text_node('  12. Mai') == '  12\\. Mai'
+    assert escape_typst_text_node('- dash') == '\\- dash'
+    assert escape_typst_text_node('+ plus') == '\\+ plus'
+    assert escape_typst_text_node('/ term: x') == '\\/ term: x'
+    assert escape_typst_text_node('== Head') == '\\== Head'
+    assert escape_typst_text_node('a\n2. b') == 'a\n2\\. b'
+    # Not a marker: no space after it, or not at a line start.
+    assert escape_typst_text_node('1.5 cm') == '1.5 cm'
+    assert escape_typst_text_node('-x') == '-x'
+    assert escape_typst_text_node('Kap. 1. und 2.') == 'Kap. 1. und 2.'
+
+
 def test_apply_typst_finish_cleanup_does_not_escape_chars_in_prose() -> None:
     """Character escaping is done at text-node level; cleanup must not add it."""
     raw = 'Pay attention to the @mode attribute on elementSpec.'

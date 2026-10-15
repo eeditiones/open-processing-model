@@ -118,8 +118,22 @@ def escape_typst_text_node(text: str) -> str:
     # read as field access on its result.
     if text.startswith('.'):
         text = '\\' + text
+    # A line opening with a list, enum, term or heading marker (`1. `, `- `,
+    # `+ `, `/ `, `= `) would become that element: "1. Abdruck" at the start of
+    # a note turns into an enumerated item. A text node may begin a line, so
+    # its start counts as one; escaping where it does not is harmless.
+    text = _LINE_START_MARKER.sub(_escape_line_start_marker, text)
     # // opens a comment, which also swallows the rest of a bare URL.
     return text.replace('//', '/\\/')
+
+
+_LINE_START_MARKER = re.compile(r'(^|\n)([ \t]*)(\d+\.|[-+/]|=+)(?=\s|$)')
+
+
+def _escape_line_start_marker(m: re.Match) -> str:
+    marker = m.group(3)
+    escaped = marker[:-1] + '\\.' if marker.endswith('.') else '\\' + marker
+    return m.group(1) + m.group(2) + escaped
 
 
 def escape_typst_underscores(text: str) -> str:
