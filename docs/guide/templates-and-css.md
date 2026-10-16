@@ -270,16 +270,40 @@ application has:
 | Block | Where it appears |
 | --- | --- |
 | `header` | Across the top of the page; it stays visible while the reader scrolls |
+| `header_tools` | Controls next to the brand (zoom, prev/next, …); empty by default |
 | `hero` | Across the page, below the header |
 | `before_top`, `before` | A column left of the text, e.g. a table of contents |
 | `content_top`, `content` | The text itself; `content` shows the transformed document unless a template fills it |
 | `after_top`, `after` | A column right of the text, e.g. a list of people and places |
 | `footer` | Across the bottom of the page |
 
+The default `header` is a brand bar when any of `context.logo`,
+`context.author`, `context.site_name` / `context.title`, the collection
+index `title`, or a `work_title` set by the page template is present. A bare
+filename in `context.logo` is resolved under the shared `assets/` folder.
+The packaged collection index uses that bar, so chunk pages and the index
+share the same chrome. Reading shells such as `chapbook` fill `header_tools`
+for zoom and page turns; `journal` and `handbook` replace `header` entirely
+with their own masthead.
+
+Theme the bar (and the page background) by setting CSS variables in a
+stylesheet listed under `[transform.web] assets`:
+
+| Variable | Role |
+| --- | --- |
+| `--opm-surface` | Page and header background |
+| `--opm-ink` | Body text |
+| `--opm-muted` | Secondary text (author, meta) |
+| `--opm-rule` | Hairlines |
+| `--opm-accent` | Links and hover |
+| `--opm-font-body`, `--opm-font-ui` | Reading and UI type |
+
 A template fills a block by repeating it with new content:
 
 ```jinja
-{% block header %}<a href="index.html">My edition</a>{% endblock %}
+{% block header_tools %}
+  <a class="opm-running__link" href="/about">About</a>
+{% endblock %}
 ```
 
 An area left empty takes no room on the page. Besides the layout areas, these
@@ -317,11 +341,14 @@ these files the example already has.
     {% extends "opm/layout.html.j2" %}
     ```
 
-2. Add a block for each area you want to fill. This puts the edition's title
-   in the header and the work's title above the text:
+2. Add a block for each area you want to fill. With `site_name` (or `author` /
+   `logo`) in `[context]`, the layout already shows a brand bar — add tools
+   beside it, and put the work's title above the text:
 
     ```jinja
-    {% block header %}<a href="index.html">My edition</a>{% endblock %}
+    {% block header_tools %}
+      <a class="opm-running__link" href="/about">About</a>
+    {% endblock %}
 
     {% block content_top %}
       {% if fragments is defined and fragments.title %}{{ fragments.title | safe }}{% endif %}

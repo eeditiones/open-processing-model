@@ -1,4 +1,6 @@
-{#- The packaged collection index, written by `opm chunk` for a directory. -#}
+{#- The packaged collection index, written by `opm chunk` for a directory.
+    Extends the layout's brand header; theme stylesheets linked as assets
+    recolour it through --opm-* variables. -#}
 ---toml
 [layout]
 class = "opm-index"
@@ -11,22 +13,37 @@ class = "opm-index"
 {#- After the ODD's stylesheet, which may style headings and links too. -#}
 {% block odd_overrides %}
   <style type="text/css">
-    :root { color-scheme: light dark; }
     .opm-index { --opm-layout-content-max: 46rem; }
     .opm-index .opm-main { padding: 2rem 0 4rem; }
-    .index-title { font-size: 1.5rem; font-weight: 600; margin: 0 0 1.5rem; }
     .index-list { list-style: none; margin: 0; padding: 0; }
-    .index-item { padding: 1rem 0; border-top: 1px solid rgba(128, 128, 128, .3); }
-    .index-item :is(h1, h2, h3, h4, h5, h6) { margin: 0 0 .25rem; font-size: 1.05rem; }
-    .index-item a { text-decoration: none; }
-    .index-item a:hover { text-decoration: underline; }
-    .index-meta { font-size: .85rem; opacity: .7; }
-    .sample-description { font-size: .9rem; opacity: .85; }
+    .index-item {
+      padding: 1rem 0;
+      border-top: 1px solid var(--opm-rule);
+    }
+    .index-item :is(h1, h2, h3, h4, h5, h6) {
+      margin: 0 0 .25rem;
+      font-size: 1.05rem;
+      color: var(--opm-ink);
+    }
+    .index-item a {
+      color: inherit;
+      text-decoration: none;
+    }
+    .index-item a:hover {
+      color: var(--opm-accent);
+      text-decoration: underline;
+    }
+    .index-meta {
+      font-size: .85rem;
+      color: var(--opm-muted);
+    }
+    .sample-description {
+      font-size: .9rem;
+      color: var(--opm-muted);
+    }
   </style>
 {% endblock %}
-{% block body_class %}content{% endblock %}
 {% block content %}
-  <h1 class="index-title">{{ title }}</h1>
   <ul class="index-list">
     {% for doc in documents %}
     <li class="index-item">

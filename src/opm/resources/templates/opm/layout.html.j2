@@ -11,6 +11,13 @@
   before_top, content_top, after_top). A region left empty takes no room.
   The content block defaults to the transformed document.
 
+  The default header is a brand bar (logo / author / title) when any of those
+  are present — from context.logo, context.author, context.site_name /
+  context.title, the index `title`, or a `work_title` set by a child template.
+  Shells add controls in `header_tools` without replacing the brand; journal
+  and handbook override `header` entirely. Theme via --opm-surface / --opm-ink
+  and related variables in opm-layout.css.
+
   Settings, under `layout` in the context (defaults in opm/defaults.toml,
   overridden by opm.toml [context] and then by template frontmatter):
     layout.class          extra classes on the layout container
@@ -143,7 +150,45 @@
 </div>
 {#- The regions' blocks, rendered above and placed where they belong. -#}
 {%- if false %}
-{% block header %}{% endblock %}
+{% block header %}
+{#- Resolve brand here (not at template top) so a child's `{% set work_title %}`
+    after extends is visible when this block runs. Brand markup is inlined:
+    nested blocks do not see `{% set %}` from the enclosing block. -#}
+{%- set brand_title = (
+      (work_title if work_title is defined and work_title else '')
+      or (context.site_name if context is defined and context.site_name else '')
+      or (context.title if context is defined and context.title else '')
+      or (title if title is defined else '')
+    ) -%}
+{%- set brand_author = context.author if context is defined and context.author else '' -%}
+{%- set brand_logo = context.logo if context is defined and context.logo else '' -%}
+{%- set home_href = (
+      (context.home_url if context is defined and context.home_url else '')
+      or (index_url if index_url is defined and index_url else '')
+      or 'index.html'
+    ) -%}
+{#- A bare filename in context.logo is resolved under the shared assets/ dir. -#}
+{%- if brand_logo and assets is defined and assets
+      and not (brand_logo.startswith('/') or brand_logo.startswith('http')
+               or brand_logo.startswith('.') or '/' in brand_logo) -%}
+  {%- set brand_logo_src = assets ~ '/' ~ brand_logo -%}
+{%- else -%}
+  {%- set brand_logo_src = brand_logo -%}
+{%- endif -%}
+{%- set tools_html -%}{% block header_tools %}{% endblock %}{%- endset -%}
+{%- if brand_logo or brand_author or brand_title or (tools_html | trim) %}
+  <div class="opm-running">
+    <div class="opm-running__inner">
+      <a class="opm-running__brand" href="{{ home_href }}">
+        {% if brand_logo_src %}<img class="opm-running__logo" src="{{ brand_logo_src }}" alt="">{% endif %}
+        {% if brand_author %}<span class="opm-running__author">{{ brand_author }}</span>{% endif %}
+        {% if brand_title %}<span class="opm-running__work">{{ brand_title }}</span>{% endif %}
+      </a>
+      <div class="opm-running__tools">{{ tools_html }}</div>
+    </div>
+  </div>
+{%- endif %}
+{% endblock %}
 {% block hero %}{% endblock %}
 {% block before_top %}{% endblock %}
 {% block before %}{% endblock %}

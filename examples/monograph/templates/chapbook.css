@@ -72,6 +72,15 @@
   --chap-bar-h: var(--bar-height);
   --chap-rail-gap: var(--space-5);
 
+  /* Layout brand bar / body chrome (opm/opm-layout.css). */
+  --opm-surface: var(--paper);
+  --opm-ink: var(--ink);
+  --opm-muted: var(--ink-muted);
+  --opm-rule: var(--rule);
+  --opm-accent: var(--rubric);
+  --opm-font-body: var(--font-serif);
+  --opm-font-ui: var(--font-sans);
+
   /* Entity popovers (pb-popover / tippy), when the ODD emits them */
   --pb-popover-theme: "light-border";
 
@@ -150,12 +159,12 @@ body.chapbook {
 
 /* ── Running head ─────────────────────────────────────────── */
 
-.chap-running {
+.opm-running {
   background: var(--paper);
   border-bottom: 1px solid var(--rule);
 }
 
-.chap-running__inner {
+.opm-running__inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -166,7 +175,7 @@ body.chapbook {
   padding: 0 var(--space-5);
 }
 
-.chap-running__brand {
+.opm-running__brand {
   display: flex;
   align-items: baseline;
   gap: var(--space-3);
@@ -175,14 +184,14 @@ body.chapbook {
   text-decoration: none;
 }
 
-.chap-running__logo {
+.opm-running__logo {
   flex: none;
   align-self: center;
   height: 2rem;
   width: auto;
 }
 
-.chap-running__author {
+.opm-running__author {
   flex: none;
   font-family: var(--font-sans);
   font-size: 12px;
@@ -192,7 +201,7 @@ body.chapbook {
   color: var(--ink-muted);
 }
 
-.chap-running__work {
+.opm-running__work {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -201,24 +210,24 @@ body.chapbook {
   letter-spacing: 0.02em;
 }
 
-.chap-running__brand:hover .chap-running__work {
+.opm-running__brand:hover .opm-running__work {
   color: var(--rubric);
 }
 
-.chap-running__tools {
+.opm-running__tools {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   flex: none;
 }
 
-.chap-running__group {
+.opm-running__group {
   display: flex;
   align-items: center;
   gap: var(--space-1);
 }
 
-.chap-running__link {
+.opm-running__link {
   padding: 6px 8px;
   font-family: var(--font-sans);
   font-size: 14px;
@@ -228,7 +237,7 @@ body.chapbook {
   border-radius: var(--radius-sm);
 }
 
-.chap-running__link:hover {
+.opm-running__link:hover {
   color: var(--ink);
   background: var(--rubric-soft);
 }
@@ -779,32 +788,32 @@ body.chapbook {
 
 @media (max-width: 48em) {
   /* Let the controls wrap under the title rather than widen the page. */
-  .chap-running__inner {
+  .opm-running__inner {
     flex-wrap: wrap;
     gap: var(--space-2) var(--space-4);
     padding: var(--space-2) var(--space-4);
   }
 
-  .chap-running__brand,
-  .chap-running__tools {
+  .opm-running__brand,
+  .opm-running__tools {
     flex: 1 1 100%;
     min-width: 0;
   }
 
-  .chap-running__tools {
+  .opm-running__tools {
     flex-wrap: wrap;
   }
 
-  .chap-running__author {
+  .opm-running__author {
     display: none;
   }
 
-  .chap-running__work {
+  .opm-running__work {
     font-size: 17px;
   }
 
   /* The foot of the page carries the same two links. */
-  .chap-running__tools .chap-step {
+  .opm-running__tools .chap-step {
     display: none;
   }
 
@@ -814,7 +823,7 @@ body.chapbook {
 }
 
 @media print {
-  .chap-running,
+  .opm-running,
   .chap-toc,
   .chap-folio-nav__rail,
   .chap-folio-nav__foot,

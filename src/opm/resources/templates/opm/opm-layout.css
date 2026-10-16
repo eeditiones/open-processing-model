@@ -13,7 +13,21 @@
      --opm-layout-sticky-top    how far below the viewport top sticky sidebars
                                 stop, e.g. the height of a sticky header
      --opm-layout-drawer-bg     background of a sidebar opened as a drawer
+
+   Brand / page chrome (the default header in layout.html.j2):
+     --opm-surface, --opm-ink, --opm-muted, --opm-rule, --opm-accent
+     --opm-font-body, --opm-font-ui
 */
+
+:root {
+  --opm-surface: Canvas;
+  --opm-ink: CanvasText;
+  --opm-muted: color-mix(in srgb, CanvasText 65%, Canvas);
+  --opm-rule: color-mix(in srgb, CanvasText 18%, Canvas);
+  --opm-accent: LinkText;
+  --opm-font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --opm-font-ui: var(--opm-font-body);
+}
 
 *,
 *::before,
@@ -23,8 +37,77 @@
 
 :where(body) {
   margin: 0;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--opm-surface);
+  color: var(--opm-ink);
+  font-family: var(--opm-font-body);
   line-height: 1.5;
+}
+
+/* Default brand bar (logo / author / title). Shells fill header_tools. */
+.opm-running {
+  background: var(--opm-surface);
+  border-bottom: 1px solid var(--opm-rule);
+}
+
+.opm-running__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  max-width: 76rem;
+  min-height: 3.5rem;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+.opm-running__brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  min-width: 0;
+  color: var(--opm-ink);
+  text-decoration: none;
+}
+
+.opm-running__logo {
+  flex: none;
+  align-self: center;
+  height: 2rem;
+  width: auto;
+}
+
+.opm-running__author {
+  flex: none;
+  font-family: var(--opm-font-ui);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--opm-muted);
+}
+
+.opm-running__work {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+}
+
+.opm-running__brand:hover .opm-running__work {
+  color: var(--opm-accent);
+}
+
+.opm-running__tools {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+}
+
+.opm-running__tools:empty {
+  display: none;
 }
 
 .opm-layout {

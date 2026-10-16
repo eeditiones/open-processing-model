@@ -87,6 +87,7 @@ assets = ["templates/chapbook.css", "templates/monograph.css"]
 
 [context]
 author = "Karl Barth"
+site_name = "Karl Barth Gesamtausgabe"
 lang = "de"
 
 [transform.docx]

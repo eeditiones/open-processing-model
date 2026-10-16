@@ -18,57 +18,43 @@ styles = [
 classes = ["chapbook"]
 ---
 {% extends "opm/layout.html.j2" %}
-{% set work_title = fragments.title | striptags | trim if fragments is defined and fragments.title else '' %}
+{% set work_title = (fragments.title | striptags | trim if fragments is defined and fragments.title else '') or 'Chapbook' %}
 {% set is_chunk = chunk is defined and chunk %}
 {% set has_toc = fragments is defined and fragments.toc %}
-{# `index_url` is the collection index at the output root, already carrying the
-   hop back from a chunk page. #}
-{% set home_href = context.home_url or (index_url if index_url is defined and index_url else 'index.html') %}
 
 {% block meta %}{{ super() }}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 {% endblock %}
 
-{% block title %}<title>{{ work_title or 'Chapbook' }}</title>{% endblock %}
+{% block title %}<title>{{ work_title }}</title>{% endblock %}
 
 {% block body_class %}{% if has_toc %}chapbook--with-toc{% endif %}{% endblock %}
 
-{% block header %}
-  <div class="chap-running">
-    <div class="chap-running__inner">
-      <a class="chap-running__brand" href="{{ home_href }}">
-        {% if context.logo %}<img class="chap-running__logo" src="{{ context.logo }}" alt="">{% endif %}
-        <span class="chap-running__work">{{ work_title or 'Chapbook' }}</span>
-      </a>
+{% block header_tools %}
+  {% for item in context.nav | default([], true) %}
+  <a class="opm-running__link" href="{{ item.url }}">{{ item.label }}</a>
+  {% endfor %}
 
-      <div class="chap-running__tools">
-        {% for item in context.nav | default([], true) %}
-        <a class="chap-running__link" href="{{ item.url }}">{{ item.label }}</a>
-        {% endfor %}
-
-        {# Reader-set text size, remembered per browser. #}
-        <div class="chap-running__group">
-          <button type="button" class="chap-zoom" data-chap-zoom="-0.1" title="Smaller text" aria-label="Smaller text">A&minus;</button>
-          <button type="button" class="chap-zoom" data-chap-zoom="0.1" title="Larger text" aria-label="Larger text">A+</button>
-        </div>
-
-        {% if has_toc %}
-        {# Opens the layout's drawer on narrow screens. #}
-        <div class="chap-running__group">
-          <label for="opm-before-toggle" class="chap-toc__open">Contents</label>
-        </div>
-        {% endif %}
-
-        {% if is_chunk and (chunk.prev or chunk.next) %}
-        <div class="chap-running__group">
-          {% if chunk.prev %}<a class="chap-step" href="{{ chunk.prev }}.html" rel="prev">&#8592; Previous</a>{% endif %}
-          {% if chunk.next %}<a class="chap-step" href="{{ chunk.next }}.html" rel="next">Next &#8594;</a>{% endif %}
-        </div>
-        {% endif %}
-      </div>
-    </div>
+  {# Reader-set text size, remembered per browser. #}
+  <div class="opm-running__group">
+    <button type="button" class="chap-zoom" data-chap-zoom="-0.1" title="Smaller text" aria-label="Smaller text">A&minus;</button>
+    <button type="button" class="chap-zoom" data-chap-zoom="0.1" title="Larger text" aria-label="Larger text">A+</button>
   </div>
+
+  {% if has_toc %}
+  {# Opens the layout's drawer on narrow screens. #}
+  <div class="opm-running__group">
+    <label for="opm-before-toggle" class="chap-toc__open">Contents</label>
+  </div>
+  {% endif %}
+
+  {% if is_chunk and (chunk.prev or chunk.next) %}
+  <div class="opm-running__group">
+    {% if chunk.prev %}<a class="chap-step" href="{{ chunk.prev }}.html" rel="prev">&#8592; Previous</a>{% endif %}
+    {% if chunk.next %}<a class="chap-step" href="{{ chunk.next }}.html" rel="next">Next &#8594;</a>{% endif %}
+  </div>
+  {% endif %}
 {% endblock %}
 
 {% block before %}

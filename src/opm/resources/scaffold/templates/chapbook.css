@@ -50,6 +50,15 @@
   /* Entity popovers (pb-popover / tippy), when the ODD emits them */
   --pb-popover-theme: "light-border";
 
+  /* Layout brand bar / body chrome (opm/opm-layout.css). */
+  --opm-surface: var(--chap-warm);
+  --opm-ink: var(--chap-ink);
+  --opm-muted: var(--chap-muted);
+  --opm-rule: var(--chap-rule);
+  --opm-accent: var(--chap-primary);
+  --opm-font-body: var(--chap-body);
+  --opm-font-ui: var(--chap-meta);
+
   color-scheme: light;
 }
 
@@ -81,13 +90,13 @@ body.chapbook--with-toc {
 
 /* ── Menu bar ─────────────────────────────────────────────── */
 
-.chap-running {
+.opm-running {
   background: var(--chap-primary);
   color: var(--chap-bar-ink);
   box-shadow: 0 1px 3px rgb(97 78 55 / 0.12);
 }
 
-.chap-running__inner {
+.opm-running__inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -98,7 +107,7 @@ body.chapbook--with-toc {
   padding: 0 var(--chap-pad);
 }
 
-.chap-running__brand {
+.opm-running__brand {
   display: flex;
   align-items: center;
   gap: 0.65rem;
@@ -107,7 +116,7 @@ body.chapbook--with-toc {
   text-decoration: none;
 }
 
-.chap-running__logo {
+.opm-running__logo {
   flex: none;
   height: 2.25rem;
   width: auto;
@@ -116,7 +125,7 @@ body.chapbook--with-toc {
   box-shadow: 0 0 0 1px rgb(255 255 255 / 0.45);
 }
 
-.chap-running__work {
+.opm-running__work {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -126,14 +135,14 @@ body.chapbook--with-toc {
   letter-spacing: -0.01em;
 }
 
-.chap-running__tools {
+.opm-running__tools {
   display: flex;
   align-items: center;
   gap: 0.35rem;
   flex: none;
 }
 
-.chap-running__link {
+.opm-running__link {
   padding: 0.35rem 0.6rem;
   color: rgb(255 255 255 / 0.9);
   font-size: 0.85rem;
@@ -143,12 +152,12 @@ body.chapbook--with-toc {
   transition: color 0.15s ease, background-color 0.15s ease;
 }
 
-.chap-running__link:hover {
+.opm-running__link:hover {
   color: #fff;
   background: rgb(255 255 255 / 0.12);
 }
 
-.chap-running__group {
+.opm-running__group {
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -193,7 +202,7 @@ body.chapbook--with-toc {
 
 .chap-zoom:focus-visible,
 .chap-step:focus-visible,
-.chap-running__link:focus-visible,
+.opm-running__link:focus-visible,
 .chap-toc__open:focus-visible,
 .chap-toc__close:focus-visible {
   outline: 2px solid #fff;
@@ -763,33 +772,33 @@ body.chapbook--with-toc {
   /* The bar carries a work title of unknown length beside several controls.
      Let the controls wrap under the title: left to themselves they widen the
      document instead, and the page scrolls sideways. */
-  .chap-running__inner {
+  .opm-running__inner {
     flex-wrap: wrap;
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
   }
 
-  .chap-running__brand,
-  .chap-running__tools {
+  .opm-running__brand,
+  .opm-running__tools {
     flex: 1 1 100%;
     min-width: 0;
   }
 
-  .chap-running__tools {
+  .opm-running__tools {
     flex-wrap: wrap;
     justify-content: flex-start;
   }
 
-  .chap-running__work {
+  .opm-running__work {
     font-size: 0.95rem;
   }
 
   /* The foot of the page carries the same two links. */
-  .chap-running__tools .chap-step {
+  .opm-running__tools .chap-step {
     display: none;
   }
 
-  .chap-running__tools > .chap-running__group:first-of-type {
+  .opm-running__tools > .opm-running__group:first-of-type {
     margin-left: 0;
     padding-left: 0;
     border-left: 0;
@@ -797,7 +806,7 @@ body.chapbook--with-toc {
 }
 
 @media print {
-  .chap-running,
+  .opm-running,
   .chap-toc,
   .chap-folio-nav__rail,
   .chap-folio-nav__foot,
