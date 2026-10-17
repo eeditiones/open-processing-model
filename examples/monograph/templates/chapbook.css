@@ -408,8 +408,9 @@ body.chapbook {
   white-space: nowrap;
 }
 
-/* Sections only for the current chapter. */
-.rb-toc__chapter:not(:has([aria-current])) > .rb-toc__sections { display: none; }
+/* On a chunk page, sections only for the current chapter; a whole-document
+   page has no current chapter and lists them all. */
+.rb-toc--chunk .rb-toc__chapter:not(:has([aria-current])) > .rb-toc__sections { display: none; }
 
 .rb-toc__chapter > a[aria-current] { font-weight: inherit; }
 
