@@ -1,0 +1,32 @@
+/* SPDX-FileCopyrightText: 2026 e-editiones
+   SPDX-License-Identifier: CC0-1.0 */
+
+/* Karl Barth-Gesamtausgabe: how the edition renders its TEI, whatever the
+   page around it. Referenced from monograph.odd (tagsDecl/rendition), so it
+   travels with the ODD into every HTML output: web, chunks and EPUB. The page
+   design (heads, notes, pagination, colours, fonts) lives with each template:
+   templates/monograph.css for the web, templates/epub.css for EPUB. */
+
+/* tp.css makes every .tei-hi italic and every register name grey; undo both
+   so only the rend that asks for it applies. */
+.tei-hi { font-style: normal; }
+.context:not(.disable) { color: inherit; }
+.tei-foreign[lang="grc"] { font-style: normal; }
+
+/* Highlights. Bold = Barth's translation of the letter: a light semibold. */
+.tei-hi.bold { font-weight: 560; }
+.tei-hi.italic { font-style: italic; }
+.tei-hi.smallCaps { font-variant-caps: small-caps; letter-spacing: 0.03em; }
+.tei-hi.sup { font-size: 0.65em; line-height: 0; vertical-align: super; }
+
+/* Quotations and verse. */
+.tei-q.block {
+  display: block;
+  margin: 0.8em 0 0.8em 1.6em;
+  font-size: 0.9em;
+  line-height: 1.55;
+  text-indent: 0;
+}
+
+.tei-lg { margin: 0.6em 0 0.6em 1.6em; }
+.tei-l { text-indent: 0; }

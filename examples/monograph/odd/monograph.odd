@@ -19,6 +19,11 @@
                     of the Karl Barth-Gesamtausgabe (Der Römerbrief 1922).</p>
             </sourceDesc>
         </fileDesc>
+        <encodingDesc>
+            <tagsDecl>
+                <rendition source="monograph.css"/>
+            </tagsDecl>
+        </encodingDesc>
     </teiHeader>
     <text>
         <body>

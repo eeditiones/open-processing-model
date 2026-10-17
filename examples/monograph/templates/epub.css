@@ -151,25 +151,9 @@ h1 + p.tei-p, h2 + p.tei-p, h3 + p.tei-p, h4 + p.tei-p,
   text-indent: 0;
 }
 
-/* Highlights. Bold = Barth's translation of the letter: a light semibold. */
-.tei-hi { font-style: normal; }
+/* hi, q and verse come from the ODD's stylesheet (odd/monograph.css). E-readers
+   rarely have the variable weight it asks for bold; take the next static one. */
 .tei-hi.bold { font-weight: 600; }
-.tei-hi.italic { font-style: italic; }
-.tei-hi.smallCaps { font-variant: small-caps; letter-spacing: 0.03em; }
-.tei-hi.sup { font-size: 0.65em; line-height: 0; vertical-align: super; }
-.tei-foreign[lang="grc"] { font-style: normal; }
-
-/* Quotations and verse. */
-.tei-q.block {
-  display: block;
-  margin: 0.8em 0 0.8em 1.6em;
-  font-size: 0.9em;
-  line-height: 1.55;
-  text-indent: 0;
-}
-
-.tei-lg { margin: 0.6em 0 0.6em 1.6em; }
-.tei-l { text-indent: 0; }
 
 /* ── Original pagination ──────────────────────────────────── */
 

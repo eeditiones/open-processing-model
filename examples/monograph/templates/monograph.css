@@ -2,8 +2,9 @@
    SPDX-License-Identifier: CC0-1.0 */
 
 /* Karl Barth-Gesamtausgabe: additions to chapbook.css
-   "Der Römerbrief" edition design — the TEI-specific parts: heads, Barth's
-   paraphrase, references, the two note series and the original pagination.
+   "Der Römerbrief" web design — heads, paragraphs, the two note series and the
+   original pagination. How the edition renders hi, q and verse in any output
+   is in odd/monograph.css, which the ODD references.
    Colours, fonts and spacing come from the custom properties in chapbook.css. */
 
 /* ── Headings ─────────────────────────────────────────────── */
@@ -97,30 +98,12 @@
   text-indent: 0;
 }
 
-/* The ODD's generated stylesheet makes every .tei-hi italic and every
-   register name grey; undo both so only the rend that asks for it applies. */
-.chap-page .content .tei-hi { font-style: normal; }
-.chap-page .content .context:not(.disable) { color: inherit; }
+/* Register names: the ODD's stylesheet (odd/monograph.css) sets them in the
+   text colour; they take the entity colour on hover. */
 .chap-page .content .context:not(.disable):hover { color: var(--entity); }
-.chap-page .content .tei-foreign[lang="grc"] { font-style: normal; }
 
-/* Highlights. Bold = Barth's translation of the letter: a light semibold. */
-.chap-page .content .tei-hi.bold { font-weight: 560; }
-.chap-page .content .tei-hi.italic { font-style: italic; }
-.chap-page .content .tei-hi.smallCaps { font-variant-caps: small-caps; letter-spacing: 0.03em; }
-.chap-page .content .tei-hi.sup { font-size: 0.65em; line-height: 0; vertical-align: super; }
-
-/* Quotations and verse. */
-.chap-page .content .tei-q.block {
-  display: block;
-  margin: 0.8em 0 0.8em 1.6em;
-  font-size: 0.9em;
-  line-height: 1.55;
-  text-indent: 0;
-}
-
-.chap-page .content .tei-lg { margin: 0.6em 0 0.6em 1.6em; }
-.chap-page .content .tei-l { text-indent: 0; }
+/* hi, q and verse: see odd/monograph.css. A quotation in a note keeps the
+   note's size. */
 .chap-page .content .footnote .tei-q.block { margin: 0.3em 0 0.3em 1.4em; font-size: 1em; }
 
 /* ── Note callouts ────────────────────────────────────────── */
