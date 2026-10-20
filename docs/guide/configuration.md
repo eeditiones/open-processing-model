@@ -59,7 +59,10 @@ template = "templates/book.typ.j2"
 # preserved; a [transform.<type>.context] table overlays this per output type.
 site_name = "The Serafin Letters"
 show_downloads = true
-nav = [{ label = "Home", url = "/" }]
+
+[context.menu]
+# Links in the menu bar of opm's page layout
+items = [{ label = "Home", url = "/" }]
 
 [chunking]
 # ODD used for chunking (falls back to [transform].odd / packaged default)

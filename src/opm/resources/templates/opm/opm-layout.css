@@ -14,9 +14,10 @@
                                 stop, e.g. the height of a sticky header
      --opm-layout-drawer-bg     background of a sidebar opened as a drawer
 
-   Brand / page chrome (the default header in layout.html.j2):
+   Page chrome (the menubar and toolbar layout.html.j2 writes):
      --opm-surface, --opm-ink, --opm-muted, --opm-rule, --opm-accent
      --opm-font-body, --opm-font-ui
+     --opm-menubar-max          widest the menubar's content grows
 */
 
 :root {
@@ -43,42 +44,70 @@
   line-height: 1.5;
 }
 
-/* Default brand bar (logo / author / title). Shells fill header_tools. */
-.opm-running {
+/* Menubar: the logo and menu links on the left, the template's controls and
+   the drawer triggers on the right. Each side is a list, as in jinks. */
+.page-header {
   background: var(--opm-surface);
   border-bottom: 1px solid var(--opm-rule);
 }
 
-.opm-running__inner {
+.menubar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1.25rem;
-  max-width: 76rem;
+  max-width: var(--opm-menubar-max, 76rem);
   min-height: 3.5rem;
   margin: 0 auto;
   padding: 0 1.25rem;
+  font-family: var(--opm-font-ui);
 }
 
-.opm-running__brand {
+.menubar ul,
+.toolbar ul {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.menubar > ul:last-child {
+  flex: none;
+}
+
+.menubar a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.menubar a:hover {
+  color: var(--opm-accent);
+}
+
+.menubar .logo {
+  min-width: 0;
+}
+
+.menubar .logo a {
   display: flex;
   align-items: baseline;
   gap: 0.75rem;
   min-width: 0;
   color: var(--opm-ink);
-  text-decoration: none;
 }
 
-.opm-running__logo {
+.logo__image {
   flex: none;
   align-self: center;
   height: 2rem;
   width: auto;
 }
 
-.opm-running__author {
+.logo__author {
   flex: none;
-  font-family: var(--opm-font-ui);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -86,28 +115,57 @@
   color: var(--opm-muted);
 }
 
-.opm-running__work {
+.logo__title {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: var(--opm-font-body);
   font-size: 1.15rem;
   letter-spacing: 0.02em;
 }
 
-.opm-running__brand:hover .opm-running__work {
+.menubar .logo a:hover .logo__title {
   color: var(--opm-accent);
 }
 
-.opm-running__tools {
+/* Toolbar: breadcrumbs on the left, controls and page links on the right. */
+.toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  flex: none;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding-block: 0.75rem;
+  font-family: var(--opm-font-ui);
+  font-size: 0.85rem;
 }
 
-.opm-running__tools:empty {
-  display: none;
+.toolbar .breadcrumb {
+  min-width: 0;
+}
+
+.toolbar .breadcrumb :is(ul, ol) {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.toolbar .breadcrumb li:not(:last-child)::after {
+  content: "›";
+  margin: 0 0.5rem;
+  color: var(--opm-muted);
+}
+
+.toolbar a {
+  color: inherit;
+}
+
+.toolbar__navigation {
+  display: flex;
+  gap: 1rem;
 }
 
 .opm-layout {
@@ -222,8 +280,8 @@
   border: 0;
 }
 
-.opm-drawer__bar,
-.opm-drawer__close,
+.trigger,
+.opm-drawer__head,
 .opm-drawer__backdrop {
   display: none;
 }
@@ -258,20 +316,13 @@
     padding-inline: 0;
   }
 
-  .opm-drawer__bar {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    padding-block: 0.5rem;
+  .trigger {
+    display: list-item;
   }
 
   .opm-drawer__open,
   .opm-drawer__close {
     cursor: pointer;
-  }
-
-  .opm-drawer__open--after {
-    margin-inline-start: auto;
   }
 
   /* A sidebar that slides in over the page. */
@@ -310,10 +361,13 @@
     visibility: visible;
   }
 
-  .opm-drawer__close {
-    display: block;
+  /* The drawer's own head: its label and the link that closes it. */
+  .opm-drawer__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
     margin-bottom: 1rem;
-    text-align: end;
   }
 
   .opm-drawer__backdrop {
@@ -354,7 +408,7 @@
   }
 
   .opm-layout > :is(.page-header, .before, .before-top, .after-top),
-  .opm-drawer__bar {
+  .toolbar {
     display: none;
   }
 

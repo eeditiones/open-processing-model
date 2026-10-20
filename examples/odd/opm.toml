@@ -4,8 +4,9 @@
 # Documentation for an ODD: a website with `opm odd document`, a PDF or a
 # Markdown file with `opm odd prepare` and `opm transform -t typst|markdown`.
 # All build with the ODD, runs,
-# templates and assets of this project rather than the packaged ones; anything
-# you delete from templates/ falls back to the packaged file of the same name.
+# templates and assets of this project rather than the packaged ones. The two
+# templates named below must stay; delete any other file in templates/ and the
+# packaged one of the same name is used instead.
 # `opm init --example odd` starts a project of your own from this one.
 
 # What to document: without a source, the TEI Guidelines. `opm odd document
@@ -13,6 +14,11 @@
 [document]
 # source = "my-customization.odd"
 lang = "en"
+
+# The logo in the menubar and the browser tab: templates/logo.svg, or another
+# image you put beside it.
+[context]
+logo = "logo.svg"
 
 [transform]
 odd = "odd/tagdocs.odd"

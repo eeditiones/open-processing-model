@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from importlib import resources
 from pathlib import Path
+from typing import Any
 
 from jinja2 import Environment, TemplateNotFound
 from lxml import etree
@@ -68,6 +69,27 @@ def packaged_templates_dir() -> Path:
     return default_template_path().parent
 
 
+class TrimmedBlocks:
+    """A template's blocks, each rendered on first use and trimmed.
+
+    Templates get one through the ``trimmed`` global: ``{% set blocks =
+    trimmed(self) %}``, then ``blocks.before`` is the rendered ``before``
+    block, an empty string when it holds only whitespace. That lets a layout
+    test whether a region has content before it writes the region's wrapper.
+    """
+
+    def __init__(self, template_ref: Any) -> None:
+        self._ref = template_ref
+        self._rendered: dict[str, str] = {}
+
+    def __getattr__(self, name: str) -> str:
+        if name.startswith('_'):
+            raise AttributeError(name)
+        if name not in self._rendered:
+            self._rendered[name] = str(self._ref[name]()).strip()
+        return self._rendered[name]
+
+
 def template_environment(template_path: Path) -> Environment:
     """A Jinja2 environment for rendering *template_path*.
 
@@ -76,13 +98,17 @@ def template_environment(template_path: Path) -> Environment:
     "opm/layout.html.j2" %}`` and can replace a packaged file by giving its
     own the same relative path. Frontmatter is removed from every source and
     feeds the template ``context`` (see
-    [`template_context`][opm.template_frontmatter.template_context]).
+    [`template_context`][opm.template_frontmatter.template_context]). The
+    global ``trimmed`` gives access to a template's rendered blocks (see
+    [`TrimmedBlocks`][opm.template_rendering.TrimmedBlocks]).
     """
     searchpaths = [str(template_path.parent)]
     packaged = str(packaged_templates_dir())
     if packaged not in searchpaths:
         searchpaths.append(packaged)
-    return Environment(loader=FrontmatterLoader(searchpaths), autoescape=False)
+    env = Environment(loader=FrontmatterLoader(searchpaths), autoescape=False)
+    env.globals['trimmed'] = TrimmedBlocks
+    return env
 
 
 def load_template(env: Environment, template_path: Path, label: str = 'Template'):

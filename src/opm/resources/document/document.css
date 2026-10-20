@@ -136,38 +136,38 @@ a:hover { color: var(--doc-link-hover); text-decoration: underline; text-underli
 
 /* ── Header ─────────────────────────────────────────────────────────────── */
 
-.doc-header {
-  display: flex; align-items: center; gap: 1.5rem;
-  min-height: var(--doc-header-h);
-  padding: 0.75rem 1.75rem;
+.doc .page-header {
   background: var(--doc-surface);
   border-bottom: 1px solid var(--doc-rule);
+}
+.doc .menubar {
+  --opm-menubar-max: 100%;
+  gap: 1.5rem;
+  min-height: var(--doc-header-h);
+  padding: 0.75rem 1.75rem;
   font-family: var(--doc-body);
   color: var(--doc-ink);
 }
-.doc-brand {
-  display: inline-flex;
+.doc .menubar ul { gap: 1.5rem; }
+.doc .menubar > ul:last-child { flex: 0 1 auto; gap: 1.5rem; }
+.doc .menubar .logo a {
   align-items: center;
   gap: 0.75rem;
-  font-family: var(--doc-body);
   font-weight: 600;
   font-size: 0.938rem;
   letter-spacing: -0.01em;
   color: var(--doc-ink);
-  text-decoration: none;
-  min-width: 0;
 }
-.doc-brand:hover { color: var(--doc-ink); text-decoration: none; }
-.doc-brand__logo {
-  flex: 0 0 auto;
+.doc .menubar .logo a:hover { text-decoration: none; }
+.doc .menubar .logo a:hover .logo__title { color: var(--doc-ink); }
+.doc .logo__image {
   width: 1.875rem;
   height: 1.875rem;
-  display: block;
 }
-.doc-brand__title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.doc .logo__title {
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
 }
 .doc-edition {
   font-size: 0.75rem;
@@ -176,8 +176,7 @@ a:hover { color: var(--doc-link-hover); text-decoration: underline; text-underli
   border-left: 1px solid var(--doc-rule);
   padding-left: 1.25rem;
 }
-.doc-header__spacer { flex: 1; }
-.doc-search { position: relative; flex: 0 1 22rem; }
+.doc-search { position: relative; width: 22rem; min-width: 0; }
 .doc-search input {
   width: 100%;
   padding: 0.44rem 0.8rem;
@@ -1139,18 +1138,20 @@ a.spec__chip:hover { border-color: var(--doc-amber); color: var(--doc-ink); text
 /* Narrow screens: the layout slides the navigation in as a drawer, opened
    from the bar above the page. */
 @media (max-width: 64em) {
-  .doc .opm-drawer__bar {
-    padding: 0.75rem 1.25rem 0;
-    font-family: var(--doc-body);
+  .doc .menubar .trigger label {
     font-size: 0.813rem;
     font-weight: 600;
     color: var(--doc-amber-text);
   }
-  .doc .opm-drawer__close {
+  .doc .opm-drawer__head {
     padding: 0.75rem 1.25rem 0;
     font-family: var(--doc-body);
     font-size: 0.813rem;
     color: var(--doc-muted);
+  }
+  .doc .opm-drawer__title {
+    font-weight: 600;
+    color: var(--doc-amber-text);
   }
   .doc-sidebar { border-right: 0; }
 }
@@ -1159,12 +1160,12 @@ a.spec__chip:hover { border-color: var(--doc-amber); color: var(--doc-ink); text
   .chapter-nav { grid-template-columns: minmax(0, 1fr); }
   .chapter-nav a[href=""], .chapter-nav a:not([href]) { display: none; }
   .doc-edition { display: none; }
-  /* Brand and toggle share the first row; the search field takes the second. */
-  .doc-header { flex-wrap: wrap; gap: 0.75rem 1rem; padding: 0.75rem 1.25rem; }
-  .doc-brand { flex: 1 1 auto; }
-  .doc-header__spacer { display: none; }
-  .doc-theme { order: 2; }
-  .doc-search { order: 3; flex: 1 1 100%; }
+  /* Logo and buttons share the first row; the search field takes the second. */
+  .doc .menubar { flex-wrap: wrap; gap: 0.75rem 1rem; padding: 0.75rem 1.25rem; }
+  .doc .menubar > ul:first-child { flex: 1 1 auto; }
+  .doc .menubar > ul:last-child { display: contents; }
+  .doc .menubar > ul:last-child > li { order: 2; }
+  .doc-search { order: 3 !important; flex: 1 1 100%; width: auto; }
   .doc-main { padding: 2.25rem 1.25rem 4.5rem; }
   .doc-main h1 { font-size: 2.125rem; }
   .spec__ident { font-size: 1.875rem; }
@@ -1174,7 +1175,7 @@ a.spec__chip:hover { border-color: var(--doc-amber); color: var(--doc-ink); text
 }
 
 @media print {
-  .doc-header, .doc-sidebar, .doc-aside, .doc-footer, .chapter-nav { display: none !important; }
+  .doc-sidebar, .doc-aside, .doc-footer, .chapter-nav { display: none !important; }
   .doc-main { max-width: none; padding: 0; }
   body.doc { background: #fff; }
 }

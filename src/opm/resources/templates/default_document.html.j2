@@ -1,4 +1,8 @@
 {#- The packaged web template: the transformed document in the opm layout. -#}
+---toml
+[features.toolbar]
+navigation = true
+---
 {% extends "opm/layout.html.j2" %}
 {% block meta %}{{ super() }}
   <!-- opm-default-template -->

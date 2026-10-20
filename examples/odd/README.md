@@ -56,11 +56,13 @@ opm transform schema.xml -t markdown --xpath 'id("HD")' -o docs.md # just one ch
 | `templates/page.html.j2` | the page around each chunk: header, sidebar, rails, extending opm's page layout (`opm/layout.html.j2`) |
 | `templates/document.css`, `search.js`, `theme.js` | the site's look, search box and light/dark switch |
 | `templates/nav.xml` | the sidebar list |
-| `templates/logo.svg` | the logo in the header and the browser tab; replace it with your own |
+| `templates/logo.svg` | the logo in the header and the browser tab; replace it with your own, or put another image beside it and name it under `[context]` in `opm.toml` |
 | `templates/tagdocs.typ.j2` | the PDF: title page, contents, page layout |
 
-Anything you delete from `templates/` falls back to the packaged file of the
-same name; the fonts always come from there. The stylesheets, scripts, fonts
+Keep `page.html.j2` and `tagdocs.typ.j2`: `opm.toml` points to them, so the
+site and the PDF cannot be built without them. Delete any other file in
+`templates/` and opm uses its own copy instead; the fonts always come from
+there. The stylesheets, scripts, fonts
 and logo are copied into `assets/` in the site.
 
 ## Other outputs

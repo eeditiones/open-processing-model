@@ -55,50 +55,46 @@ body.jr {
   line-height: 1.65;
 }
 
-/* --- masthead ------------------------------------------------------- */
+/* --- masthead: the layout's menubar -------------------------------- */
 
-.jr-masthead {
+.jr .page-header {
   background: var(--jr-surface);
   border-bottom: 1px solid var(--jr-rule);
 }
 
-.jr-masthead__inner {
-  max-width: calc(var(--jr-rail) + var(--jr-measure) + 8rem);
-  margin: 0 auto;
-  padding: 0.6rem var(--jr-pad);
-  display: flex;
+.jr .menubar {
+  --opm-menubar-max: calc(var(--jr-rail) + var(--jr-measure) + 8rem);
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.25rem 1rem;
+  min-height: 0;
+  padding: 0.6rem var(--jr-pad);
   font-family: var(--jr-sans);
+  font-size: 0.8125rem;
 }
 
-.jr-masthead__journal {
-  font-size: 0.8125rem;
+.jr-journal {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--jr-accent);
 }
 
 /* journal-meta prints title, publisher and ISSN as inline spans */
-.jr-masthead__journal .journal-meta {
+.jr-journal .journal-meta {
   font-size: inherit;
 }
 
-.jr-masthead__article {
-  font-size: 0.8125rem;
-  color: var(--jr-muted);
-  margin-left: auto;
+.jr .menubar > ul:last-child {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.jr-article {
   max-width: 24rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* Nothing on the left of the masthead without a `journal` fragment, so the
-   article title starts there instead of hanging off the right edge. */
-.jr:not(.jr--journal-meta) .jr-masthead__article {
-  margin-left: 0;
+  color: var(--jr-muted);
 }
 
 /* --- page ----------------------------------------------------------- */
@@ -378,32 +374,31 @@ body.jr--with-toc {
 
 /* --- narrow screens: the rail becomes a drawer ----------------------- */
 
-/* The layout shows the button that opens it on narrow screens only. */
-.jr .opm-drawer__open {
-  font-family: var(--jr-sans);
-}
-
+/* The layout shows the menubar's Contents button on narrow screens only. */
 @media (max-width: 64em) {
-  .jr .opm-drawer__bar {
-    padding-block: 0;
-  }
-
-  .jr .opm-drawer__open {
+  .jr .menubar .trigger label {
     display: inline-block;
-    margin-top: 1.25rem;
-    padding: 0.4rem 0.8rem;
+    padding: 0.2rem 0.7rem;
     border: 1px solid var(--jr-rule);
     border-radius: 999px;
     background: var(--jr-surface);
-    font-family: var(--jr-sans);
-    font-size: 0.8125rem;
-    cursor: pointer;
   }
 
-  .jr .opm-drawer__close {
+  .jr .opm-drawer__head {
     font-family: var(--jr-sans);
     font-size: 0.8125rem;
     color: var(--jr-muted);
+  }
+
+  .jr .opm-drawer__title {
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* The drawer's head carries the title. */
+  .jr-rail__title {
+    display: none;
   }
 
   .jr-rail__nav {

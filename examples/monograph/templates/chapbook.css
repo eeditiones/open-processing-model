@@ -72,7 +72,7 @@
   --chap-bar-h: var(--bar-height);
   --chap-rail-gap: var(--space-5);
 
-  /* Layout brand bar / body chrome (opm/opm-layout.css). */
+  /* Menubar, toolbar and body chrome (opm/opm-layout.css). */
   --opm-surface: var(--paper);
   --opm-ink: var(--ink);
   --opm-muted: var(--ink-muted);
@@ -157,94 +157,66 @@ body.chapbook {
   border-radius: var(--radius-sm);
 }
 
-/* ── Running head ─────────────────────────────────────────── */
+/* ── Menubar ──────────────────────────────────────────────── */
 
-.opm-running {
+.chapbook .page-header {
   background: var(--paper);
   border-bottom: 1px solid var(--rule);
 }
 
-.opm-running__inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.chapbook .menubar {
   gap: var(--space-5);
-  max-width: 76rem;
   min-height: var(--bar-height);
-  margin: 0 auto;
   padding: 0 var(--space-5);
 }
 
-.opm-running__brand {
-  display: flex;
-  align-items: baseline;
+.chapbook .menubar ul {
+  gap: var(--space-2);
+}
+
+.chapbook .menubar .logo a {
   gap: var(--space-3);
-  min-width: 0;
   color: var(--ink);
-  text-decoration: none;
 }
 
-.opm-running__logo {
-  flex: none;
-  align-self: center;
-  height: 2rem;
-  width: auto;
-}
-
-.opm-running__author {
-  flex: none;
+.chapbook .logo__author {
   font-family: var(--font-sans);
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--ink-muted);
 }
 
-.opm-running__work {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.chapbook .logo__title {
+  font-family: var(--font-serif);
   font-size: 19px;
-  letter-spacing: 0.02em;
 }
 
-.opm-running__brand:hover .opm-running__work {
+.chapbook .menubar .logo a:hover .logo__title {
   color: var(--rubric);
 }
 
-.opm-running__tools {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex: none;
-}
-
-.opm-running__group {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.opm-running__link {
+/* Menu links. */
+.chapbook .menubar li:not(.logo, .trigger, .chap-zoom) > a {
   padding: 6px 8px;
   font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 500;
   color: var(--ink-muted);
-  text-decoration: none;
   border-radius: var(--radius-sm);
 }
 
-.opm-running__link:hover {
+.chapbook .menubar li:not(.logo, .trigger, .chap-zoom) > a:hover {
   color: var(--ink);
   background: var(--rubric-soft);
 }
 
-.chap-zoom,
-.chap-step,
-.chap-toc__open {
+/* Text size and the drawer trigger: small outlined buttons. */
+.chap-zoom {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.chap-zoom button,
+.chapbook .menubar .trigger label {
   display: inline-flex;
   align-items: center;
   min-width: 2.25rem;
@@ -258,14 +230,12 @@ body.chapbook {
   background: transparent;
   border: 1px solid var(--ink-faint);
   border-radius: var(--radius-sm);
-  text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
 }
 
-.chap-zoom:hover,
-.chap-step:hover,
-.chap-toc__open:hover {
+.chap-zoom button:hover,
+.chapbook .menubar .trigger label:hover {
   color: var(--ink);
   border-color: var(--ink-muted);
   background: var(--paper-raised);
@@ -277,35 +247,22 @@ body.chapbook {
   background: var(--paper);
 }
 
-/* The running head opens and closes the drawer itself. */
-.chapbook .opm-drawer__bar,
-.chapbook .opm-drawer__close {
-  display: none;
-}
-
 /* ── Contents rail ────────────────────────────────────────── */
 
 .chap-toc {
-  font-family: var(--font-serif);
-}
-
-.chap-toc__drawer {
   position: sticky;
   top: var(--bar-height);
   max-height: calc(100vh - var(--bar-height));
   overflow-y: auto;
   padding: var(--space-7) 0 var(--space-6);
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--ink);
 }
 
-.chap-toc__drawer-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-4);
-}
-
-.chap-toc__drawer-title {
+.chap-toc__title {
+  margin: 0 0 var(--space-4);
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 700;
@@ -314,43 +271,30 @@ body.chapbook {
   color: var(--ink-muted);
 }
 
-.chap-toc__close {
-  font-family: var(--font-sans);
-  font-size: 14px;
-  color: var(--ink-muted);
-  cursor: pointer;
-}
-
-.chap-toc__body {
-  font-size: 16px;
-  line-height: 1.4;
-  color: var(--ink);
-}
-
-.chap-toc__body ul,
-.chap-toc__body ol {
+.chap-toc ul,
+.chap-toc ol {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.chap-toc__body li {
+.chap-toc li {
   margin: 0 0 var(--space-2);
 }
 
-.chap-toc__body li > ul,
-.chap-toc__body li > ol {
+.chap-toc li > ul,
+.chap-toc li > ol {
   margin: var(--space-1) 0 var(--space-3);
   font-size: 15px;
 }
 
-.chap-toc__body li li a {
+.chap-toc li li a {
   color: var(--ink-muted);
 }
 
 /* A TOC fragment is ODD output: it may arrive as headings and divs rather
    than a list, so the rail neutralises heading sizes rather than assuming. */
-.chap-toc__body :is(h1, h2, h3, h4, h5, h6) {
+.chap-toc :is(h1, h2, h3, h4, h5, h6) {
   margin: var(--space-4) 0 var(--space-1);
   font-family: var(--font-serif);
   font-size: 12px;
@@ -360,11 +304,11 @@ body.chapbook {
   color: var(--ink-muted);
 }
 
-.chap-toc__body :is(h1, h2, h3, h4, h5, h6):first-child {
+.chap-toc :is(h1, h2, h3, h4, h5, h6):first-child {
   margin-top: 0;
 }
 
-.chap-toc__body a {
+.chap-toc a {
   display: block;
   margin-left: calc(-1 * var(--space-2));
   padding: 2px var(--space-2);
@@ -373,11 +317,11 @@ body.chapbook {
   border-radius: var(--radius-sm);
 }
 
-.chap-toc__body a:hover {
+.chap-toc a:hover {
   background: var(--rubric-soft);
 }
 
-.chap-toc__body [aria-current] {
+.chap-toc [aria-current] {
   color: var(--ink);
   font-weight: 600;
 }
@@ -397,7 +341,7 @@ body.chapbook {
   color: var(--ink-muted);
 }
 
-.chap-toc__body .rb-toc__sections {
+.chap-toc .rb-toc__sections {
   margin: 2px 0 0;
   font-size: 15px;
 }
@@ -426,8 +370,9 @@ body.chapbook {
   padding: var(--space-6) 0 var(--space-7);
 }
 
-.chap-crumbs {
-  margin-bottom: var(--space-6);
+/* Breadcrumbs: the toolbar above the text. */
+.chapbook .toolbar {
+  padding: var(--space-6) 0 0;
   font-family: var(--font-sans);
   font-size: 13px;
   color: var(--ink-muted);
@@ -436,36 +381,30 @@ body.chapbook {
 /* An ODD stylesheet may set the breadcrumb nav to `white-space: nowrap`; on a
    narrow screen an unbreakable trail drags the whole page sideways, so the
    crumb bar wraps instead. */
-.chap-crumbs,
-.chap-crumbs [aria-label="breadcrumb"],
-.chap-crumbs [aria-label="Breadcrumb"] {
+.chapbook .toolbar .breadcrumb,
+.chapbook .toolbar .breadcrumb [aria-label="breadcrumb"],
+.chapbook .toolbar .breadcrumb [aria-label="Breadcrumb"] {
   white-space: normal;
   min-width: 0;
 }
 
-.chap-crumbs ul,
-.chap-crumbs ol {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  margin: 0;
-  padding: 0;
-}
-
-.chap-crumbs li:not(:last-child)::after {
+.chapbook .toolbar .breadcrumb li:not(:last-child)::after {
   content: "·";
   margin: 0 var(--space-2);
   color: var(--ink-faint);
 }
 
-.chap-crumbs a {
-  color: inherit;
+.chapbook .toolbar a {
   text-decoration: none;
 }
 
-.chap-crumbs a:hover {
+.chapbook .toolbar a:hover {
   color: var(--rubric);
+}
+
+/* Under the breadcrumbs the page needs no space of its own above. */
+.content-top + .opm-main .chap-page {
+  padding-top: 0;
 }
 
 .chap-body {
@@ -756,11 +695,6 @@ body.chapbook {
 /* ── Contents beside the page / in a drawer ───────────────── */
 
 @media (min-width: 64.001em) {
-  .chap-toc__open,
-  .chap-toc__close {
-    display: none;
-  }
-
   .chap-folio-nav__rail {
     display: block;
     position: fixed;
@@ -776,11 +710,27 @@ body.chapbook {
 }
 
 @media (max-width: 64em) {
+  /* The layout's Close link, level with the contents title, which the rail
+     shows itself. */
+  .chapbook .opm-drawer__title {
+    display: none;
+  }
+
+  .chapbook .opm-drawer__head {
+    position: absolute;
+    top: var(--space-4);
+    right: var(--space-4);
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    color: var(--ink-muted);
+  }
+
   .chapbook .opm-layout > .before {
     padding: 0;
   }
 
-  .chap-toc__drawer {
+  .chap-toc {
     position: static;
     max-height: none;
     padding: var(--space-4);
@@ -789,33 +739,23 @@ body.chapbook {
 
 @media (max-width: 48em) {
   /* Let the controls wrap under the title rather than widen the page. */
-  .opm-running__inner {
+  .chapbook .menubar {
     flex-wrap: wrap;
     gap: var(--space-2) var(--space-4);
     padding: var(--space-2) var(--space-4);
   }
 
-  .opm-running__brand,
-  .opm-running__tools {
+  .chapbook .menubar > ul {
     flex: 1 1 100%;
-    min-width: 0;
-  }
-
-  .opm-running__tools {
     flex-wrap: wrap;
   }
 
-  .opm-running__author {
+  .chapbook .logo__author {
     display: none;
   }
 
-  .opm-running__work {
+  .chapbook .logo__title {
     font-size: 17px;
-  }
-
-  /* The foot of the page carries the same two links. */
-  .opm-running__tools .chap-step {
-    display: none;
   }
 
   .chap-page .content {
@@ -824,7 +764,6 @@ body.chapbook {
 }
 
 @media print {
-  .opm-running,
   .chap-toc,
   .chap-folio-nav__rail,
   .chap-folio-nav__foot,

@@ -151,6 +151,62 @@ def test_layout_settings_from_frontmatter(tmp_path: Path) -> None:
     assert 'id="opm-before-toggle"' in out
 
 
+def test_layout_menubar_takes_menu_items_and_slots(tmp_path: Path) -> None:
+    page = _write(tmp_path / 'page.j2', '{% extends "opm/layout.html.j2" %}'
+                  '{% set work_title = "The Work" %}'
+                  '{% block menu_left %}<li class="left">L</li>{% endblock %}'
+                  '{% block menu_toggles %}<li class="right">R</li>{% endblock %}'
+                  '{% block header %}<div class="band">B</div>{% endblock %}'
+                  '{% block before %}<nav>toc</nav>{% endblock %}')
+    out = render_document_template(
+        serialized_html=_DOC, template_path=page, odd_css='', parameters={},
+        context={'author': 'A. Author', 'menu': {'items': [{'label': 'About', 'url': 'about.html'}]}},
+    )
+    menubar = out[out.index('<nav class="menubar"'):out.index('</nav>', out.index('<nav class="menubar"'))]
+    left, right = menubar.split('</ul>')[:2]
+    assert '<span class="logo__author">A. Author</span>' in left
+    assert '<span class="logo__title">The Work</span>' in left
+    assert left.index('logo__title') < left.index('<a href="about.html">About</a>') < left.index('class="left"')
+    # The drawer trigger follows the template's own controls.
+    assert right.index('class="right"') < right.index('<li class="trigger">')
+    # The header block is a slot after the menubar, not a replacement for it.
+    assert out.index('</nav>', out.index('class="menubar"')) < out.index('<div class="band">B</div>')
+
+
+def test_layout_without_menubar_moves_triggers_to_the_toolbar(tmp_path: Path) -> None:
+    page = _write(tmp_path / 'page.j2', '---toml\n[features]\nmenubar = false\n---\n'
+                  '{% extends "opm/layout.html.j2" %}{% set work_title = "W" %}'
+                  '{% block before %}<nav>toc</nav>{% endblock %}')
+    out = render_document_template(serialized_html=_DOC, template_path=page, odd_css='', parameters={})
+    assert 'class="menubar"' not in out
+    assert 'class="page-header"' not in out
+    toolbar = out[out.index('<nav class="toolbar"'):]
+    assert '<li class="trigger"><label for="opm-before-toggle"' in toolbar
+
+
+def test_layout_toolbar_shows_breadcrumbs_and_page_links(tmp_path: Path) -> None:
+    page = _write(tmp_path / 'page.j2', '{% extends "opm/layout.html.j2" %}'
+                  '{% set chunk = {"prev": "001", "next": "003"} %}'
+                  '{% block toolbar %}<li class="tool">T</li>{% endblock %}')
+
+    def render(context: dict | None = None) -> str:
+        return render_document_template(
+            serialized_html=_DOC, template_path=page, odd_css='', parameters={}, context=context,
+            fragments={'breadcrumbs': '<ol><li>Book</li><li>Chapter</li></ol>'},
+        )
+
+    out = render()
+    assert '<div class="breadcrumb"><ol><li>Book</li><li>Chapter</li></ol></div>' in out
+    assert '<li class="tool">T</li>' in out
+    # Previous/next links only when the template or project asks for them.
+    assert 'rel="prev"' not in out
+    out = render({'features': {'toolbar': {'navigation': True}}})
+    assert '<a href="001.html" rel="prev">&#8592; Previous</a>' in out
+    assert '<a href="003.html" rel="next">Next &#8594;</a>' in out
+    out = render({'features': {'toolbar': {'enabled': False}}})
+    assert 'class="toolbar"' not in out
+
+
 def test_project_file_replaces_a_packaged_one(tmp_path: Path) -> None:
     (tmp_path / 'opm').mkdir()
     _write(tmp_path / 'opm' / 'base.html.j2', 'OWN BASE {% block body %}{% endblock %}')

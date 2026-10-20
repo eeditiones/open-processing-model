@@ -106,7 +106,7 @@ def build_document_site(
         base_cfg,
         template_context={
             **base_cfg.template_context,
-            'site_title': site_title,
+            'site_name': site_title,
             'lang': lang,
             'edition': _edition_line(compiled.tree) or _edition_line(header_source),
             'rights': _rights_line(header_source) or _rights_line(compiled.tree),
@@ -118,7 +118,7 @@ def build_document_site(
     if not runs:
         raise ValueError(f'{config_file} declares no [chunking] run')
 
-    assets = site_assets(site_dir)
+    assets = site_assets(site_dir, logo=cfg.template_context.get('logo'))
 
     chapters = [
         div for div in iter_guideline_chapters(tree)
@@ -569,12 +569,13 @@ def site_assets_dir(cfg: ProjectConfig, config_file: Path) -> Path:
     return config_file.parent
 
 
-def site_assets(site_dir: Path | None = None) -> tuple[Path, ...]:
+def site_assets(site_dir: Path | None = None, logo: str | None = None) -> tuple[Path, ...]:
     """The stylesheets, scripts, fonts and logo every page links from assets/.
 
     Each is taken from *site_dir* where it has one — a project's own — else
     from the packaged ``resources/document``, so a project only keeps the
-    files it changes.
+    files it changes. *logo* is ``context.logo``: a bare filename found in
+    *site_dir* is added, since the page template resolves it under assets/.
     """
     packaged = Path(str(resources.files('opm').joinpath('resources/document')))
 
@@ -582,7 +583,17 @@ def site_assets(site_dir: Path | None = None) -> tuple[Path, ...]:
         own = site_dir / name if site_dir is not None else None
         return own if own is not None and own.exists() else packaged / name
 
-    return tuple(source(name) for name in SITE_ASSETS)
+    found = [source(name) for name in SITE_ASSETS]
+    if (
+        logo
+        and site_dir is not None
+        and logo not in SITE_ASSETS
+        and '/' not in logo
+        and not logo.startswith(('.', 'http'))
+        and (site_dir / logo).is_file()
+    ):
+        found.append(site_dir / logo)
+    return tuple(found)
 
 
 def _edition_line(root: etree._Element | None) -> str:

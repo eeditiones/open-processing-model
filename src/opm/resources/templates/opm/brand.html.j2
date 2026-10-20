@@ -1,0 +1,15 @@
+{#-
+  Brand helpers shared by opm/layout.html.j2 and templates built on it.
+  Import inside the block that uses them:
+    {% import "opm/brand.html.j2" as brand %}
+-#}
+
+{#- The src for a logo set in context.logo: a bare filename is resolved under
+    the shared assets/ dir; a path or URL is used as given. -#}
+{%- macro logo_src(logo, assets) -%}
+{%- if logo and assets and '/' not in logo and ':' not in logo -%}
+{{ assets }}/{{ logo }}
+{%- else -%}
+{{ logo or '' }}
+{%- endif -%}
+{%- endmacro -%}

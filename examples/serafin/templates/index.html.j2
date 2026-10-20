@@ -9,8 +9,8 @@
 
 {% block title %}<title>{{ title }}</title>{% endblock %}
 
-{% block menubar_extra %}
-  <span class="app-menubar__folio">{{ documents | length }} letters</span>
+{% block menu_toggles %}
+  <li class="letter-count">{{ documents | length }} letters</li>
 {% endblock %}
 
 {% block breadcrumb %}{{ title }}{% endblock %}

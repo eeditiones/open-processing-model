@@ -75,135 +75,101 @@ body.handbook {
   border-radius: var(--hb-radius);
 }
 
-/* ── Header ───────────────────────────────────────────────── */
+/* ── Menubar ──────────────────────────────────────────────── */
 
-.hb-header {
-  height: var(--hb-header-h);
+.handbook .page-header {
   border-bottom: 1px solid var(--hb-rule);
   background: color-mix(in srgb, var(--hb-surface) 88%, transparent);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
 
-.hb-header__inner {
-  display: flex;
-  align-items: center;
+.handbook .menubar {
+  --opm-menubar-max: 100%;
   gap: 0.85rem;
-  height: 100%;
+  min-height: var(--hb-header-h);
+  height: var(--hb-header-h);
   padding: 0 var(--hb-pad);
-  max-width: 100%;
 }
 
-.hb-brand {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.handbook .menubar a {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--hb-muted);
+}
+
+.handbook .menubar a:hover,
+.handbook .menubar a:focus-visible {
+  color: var(--hb-accent);
+}
+
+.handbook .menubar .logo a {
+  color: var(--hb-ink);
+}
+
+.handbook .logo__title {
   font-family: var(--hb-display);
   font-size: 1rem;
   font-weight: 600;
   letter-spacing: -0.02em;
-  color: var(--hb-ink);
 }
 
-.hb-menu {
-  flex: 0 0 auto;
-}
-
-.hb-menu__home {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--hb-muted);
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.hb-menu__home:hover,
-.hb-menu__home:focus-visible {
-  color: var(--hb-accent);
-  text-decoration: underline;
-}
-
-/* ── Shell / sidebar ──────────────────────────────────────── */
-
-/* The header's burger button and the panel's Close link open and close the
-   drawer themselves. */
-.handbook .opm-drawer__bar,
-.handbook .opm-drawer__close {
-  display: none;
-}
-
-.hb-nav__open {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+/* The drawer trigger: a burger button. Its text stays for screen readers. */
+.handbook .menubar .trigger label {
+  position: relative;
+  display: block;
   width: 2.25rem;
   height: 2.25rem;
   border: 1px solid var(--hb-rule);
   border-radius: var(--hb-radius);
-  background: var(--hb-surface);
+  background:
+    linear-gradient(var(--hb-ink), var(--hb-ink)) center / 1rem 1.5px no-repeat,
+    var(--hb-surface);
+  font-size: 0;
   cursor: pointer;
-  flex: none;
 }
 
-.hb-nav__burger,
-.hb-nav__burger::before,
-.hb-nav__burger::after {
-  display: block;
+.handbook .menubar .trigger label::before,
+.handbook .menubar .trigger label::after {
+  content: "";
+  position: absolute;
+  left: calc(50% - 0.5rem);
   width: 1rem;
   height: 1.5px;
   background: var(--hb-ink);
   border-radius: 1px;
 }
 
-.hb-nav__burger {
-  position: relative;
+.handbook .menubar .trigger label::before {
+  top: calc(50% - 0.3rem - 0.75px);
 }
 
-.hb-nav__burger::before,
-.hb-nav__burger::after {
-  content: "";
-  position: absolute;
-  left: 0;
+.handbook .menubar .trigger label::after {
+  top: calc(50% + 0.3rem - 0.75px);
 }
 
-.hb-nav__burger::before {
-  top: -0.3rem;
-}
-
-.hb-nav__burger::after {
-  top: 0.3rem;
-}
-
-.hb-nav__open:focus-visible,
-.hb-nav__close:focus-visible {
+.handbook .menubar .trigger label:focus-visible,
+.handbook .opm-drawer__close:focus-visible {
   outline: 2px solid var(--hb-accent);
   outline-offset: 2px;
 }
 
+/* ── Shell / sidebar ──────────────────────────────────────── */
+
 .handbook .opm-layout > .before {
   padding: 0;
-}
-
-.hb-sidebar__panel {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
   background: var(--hb-sidebar);
   border-right: 1px solid var(--hb-rule);
 }
 
-.hb-sidebar__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+/* The drawer's head: its title and Close link, as a bar. */
+.handbook .opm-drawer__head {
+  margin: 0;
   padding: 0.85rem 1rem;
   border-bottom: 1px solid var(--hb-rule);
 }
 
-.hb-sidebar__title {
+.handbook .opm-drawer__title {
   font-family: var(--hb-display);
   font-size: 0.78rem;
   font-weight: 600;
@@ -212,62 +178,59 @@ body.handbook {
   color: var(--hb-muted);
 }
 
-.hb-nav__close {
+.handbook .opm-drawer__close {
   color: var(--hb-muted);
   font-size: 0.82rem;
   font-weight: 500;
-  cursor: pointer;
 }
 
-.hb-nav__close:hover {
+.handbook .opm-drawer__close:hover {
   color: var(--hb-accent);
 }
 
-.hb-sidebar__body {
-  flex: 1;
-  overflow: auto;
+.hb-sidebar {
   padding: 0.65rem 0.65rem 1.75rem;
   -webkit-overflow-scrolling: touch;
   font-size: 0.875rem;
   line-height: 1.35;
 }
 
-.hb-sidebar__body .toc,
-.hb-sidebar__body nav {
+.hb-sidebar .toc,
+.hb-sidebar nav {
   margin: 0;
 }
 
-.hb-sidebar__body ul {
+.hb-sidebar ul {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.hb-sidebar__body > ul > li {
+.hb-sidebar > ul > li {
   margin: 0 0 0.55rem;
 }
 
-.hb-sidebar__body > ul > li + li {
+.hb-sidebar > ul > li + li {
   margin-top: 0.85rem;
 }
 
 /* Nested lists: indent + vertical rail (Starlight-style) */
-.hb-sidebar__body li > ul,
-.hb-sidebar__body details > ul {
+.hb-sidebar li > ul,
+.hb-sidebar details > ul {
   margin: 0.15rem 0 0.35rem 0.35rem;
   padding: 0.15rem 0 0.15rem 0.75rem;
   border-left: 1px solid var(--hb-rule);
 }
 
-.hb-sidebar__body li > ul ul,
-.hb-sidebar__body details > ul ul {
+.hb-sidebar li > ul ul,
+.hb-sidebar details > ul ul {
   margin-left: 0.15rem;
   padding-left: 0.7rem;
 }
 
 /* Leaf / nested page links */
-.hb-sidebar__body a,
-.hb-sidebar__body pb-link {
+.hb-sidebar a,
+.hb-sidebar pb-link {
   display: block;
   padding: 0.32rem 0.55rem;
   border-radius: var(--hb-radius);
@@ -278,39 +241,39 @@ body.handbook {
   cursor: pointer;
 }
 
-.hb-sidebar__body a:hover,
-.hb-sidebar__body pb-link:hover {
+.hb-sidebar a:hover,
+.hb-sidebar pb-link:hover {
   color: var(--hb-ink);
   background: color-mix(in srgb, var(--hb-surface) 72%, transparent);
 }
 
-.hb-sidebar__body a:focus-visible,
-.hb-sidebar__body pb-link:focus-visible {
+.hb-sidebar a:focus-visible,
+.hb-sidebar pb-link:focus-visible {
   outline: 2px solid var(--hb-accent);
   outline-offset: 1px;
 }
 
-.hb-sidebar__body a[aria-current="page"],
-.hb-sidebar__body .is-active > a,
-.hb-sidebar__body li.active > a,
-.hb-sidebar__body pb-link[aria-current="page"] {
+.hb-sidebar a[aria-current="page"],
+.hb-sidebar .is-active > a,
+.hb-sidebar li.active > a,
+.hb-sidebar pb-link[aria-current="page"] {
   color: var(--hb-accent-strong);
   background: var(--hb-accent-soft);
   box-shadow: inset 3px 0 0 var(--hb-accent);
   font-weight: 500;
 }
 
-.hb-sidebar__body .tei-title,
-.hb-sidebar__body span {
+.hb-sidebar .tei-title,
+.hb-sidebar span {
   font-weight: inherit;
 }
 
 /* Group headers: details/summary (sections with children) */
-.hb-sidebar__body details {
+.hb-sidebar details {
   margin: 0;
 }
 
-.hb-sidebar__body summary {
+.hb-sidebar summary {
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -326,15 +289,15 @@ body.handbook {
   user-select: none;
 }
 
-.hb-sidebar__body summary::-webkit-details-marker {
+.hb-sidebar summary::-webkit-details-marker {
   display: none;
 }
 
-.hb-sidebar__body summary::marker {
+.hb-sidebar summary::marker {
   content: "";
 }
 
-.hb-sidebar__body summary::after {
+.hb-sidebar summary::after {
   content: "";
   flex: none;
   width: 0.4rem;
@@ -348,23 +311,23 @@ body.handbook {
   opacity: 0.75;
 }
 
-.hb-sidebar__body details[open] > summary::after {
+.hb-sidebar details[open] > summary::after {
   transform: rotate(-135deg);
   margin-top: 0.2rem;
 }
 
-.hb-sidebar__body summary:hover {
+.hb-sidebar summary:hover {
   background: color-mix(in srgb, var(--hb-surface) 65%, transparent);
 }
 
-.hb-sidebar__body summary:focus-visible {
+.hb-sidebar summary:focus-visible {
   outline: 2px solid var(--hb-accent);
   outline-offset: 1px;
 }
 
 /* Link inside a group header keeps group weight/color */
-.hb-sidebar__body summary a,
-.hb-sidebar__body summary pb-link {
+.hb-sidebar summary a,
+.hb-sidebar summary pb-link {
   flex: 1;
   min-width: 0;
   padding: 0.4rem 0.45rem;
@@ -374,15 +337,15 @@ body.handbook {
   border-radius: var(--hb-radius);
 }
 
-.hb-sidebar__body summary a:hover,
-.hb-sidebar__body summary pb-link:hover {
+.hb-sidebar summary a:hover,
+.hb-sidebar summary pb-link:hover {
   color: var(--hb-accent-strong);
   background: transparent;
 }
 
 /* Top-level leaf (no children): still read as a section entry */
-.hb-sidebar__body > ul > li > a,
-.hb-sidebar__body > ul > li > pb-link {
+.hb-sidebar > ul > li > a,
+.hb-sidebar > ul > li > pb-link {
   padding: 0.4rem 0.55rem;
   color: var(--hb-ink);
   font-family: var(--hb-display);
@@ -393,18 +356,13 @@ body.handbook {
 
 /* Narrow screens: the layout slides the navigation in as a drawer. */
 @media (max-width: 64em) {
-  .hb-sidebar__panel {
+  .handbook .opm-layout > .before {
     border-right: 0;
   }
 }
 
 /* Wide screens: the navigation fills the height below the header. */
 @media (min-width: 64.01em) {
-  .hb-nav__open,
-  .hb-sidebar__head {
-    display: none;
-  }
-
   .handbook .opm-layout > .before {
     height: calc(100vh - var(--hb-header-h));
   }
@@ -492,46 +450,56 @@ body.handbook {
 
 /* ── Breadcrumbs ──────────────────────────────────────────── */
 
-.hb-crumbs {
-  margin: 0 0 1.25rem;
+/* The toolbar above the text, centred like the page below it. With the
+   outline beside the text, the page sits in the column left of it. */
+.handbook .content-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
 }
 
-.hb-crumbs [aria-label="breadcrumb"] ul,
-.hb-crumbs ul {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.15rem 0;
-  margin: 0;
-  padding: 0;
+@media (min-width: 72em) {
+  .handbook:has(.hb-outline:not([hidden])) .content-top {
+    grid-template-columns: minmax(0, 1fr) var(--hb-outline-w);
+  }
+}
+
+.handbook .toolbar {
+  width: min(100%, calc(var(--hb-measure) + 2 * var(--hb-pad)));
+  margin: 0 auto;
+  padding: clamp(1.5rem, 4vh, 2.5rem) var(--hb-pad) 0;
+  font-family: inherit;
   font-size: 0.82rem;
   color: var(--hb-muted);
 }
 
-.hb-crumbs li {
-  display: inline;
+.handbook .toolbar .breadcrumb :is(ul, ol) {
+  align-items: baseline;
+  gap: 0.15rem 0;
 }
 
-.hb-crumbs li:not(:last-child)::after {
+.handbook .toolbar .breadcrumb li:not(:last-child)::after {
   content: "/";
   display: inline-block;
   margin: 0 0.45rem;
   color: var(--hb-rule);
 }
 
-.hb-crumbs a {
-  color: inherit;
+.handbook .toolbar a {
   text-decoration: none;
 }
 
-.hb-crumbs a:hover {
+.handbook .toolbar a:hover {
   color: var(--hb-accent);
 }
 
-.hb-crumbs li:last-child {
+.handbook .toolbar .breadcrumb li:last-child {
   color: var(--hb-ink);
   font-weight: 500;
+}
+
+/* Under the breadcrumbs the page needs no space of its own above. */
+.handbook .content-top + .opm-main .hb-page {
+  padding-top: 1.25rem;
 }
 
 /* ── Content typography ───────────────────────────────────── */

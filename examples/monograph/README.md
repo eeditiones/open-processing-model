@@ -70,7 +70,7 @@ becomes a page of its own ahead of the sections that follow.
 | Path | Role |
 | --- | --- |
 | `odd/monograph.odd` | Processing model |
-| `templates/monograph.html.j2` | Page shell (tools in the layout brand bar, contents, page turns) |
+| `templates/monograph.html.j2` | Page shell (text-size buttons in the menu bar, contents, page turns) |
 | `templates/chapbook.css` | Edition design: paper, type, layout (`--opm-*` aliases) |
 | `templates/monograph.css` | TEI-specific styles: headings, notes, page breaks |
 | `templates/book.typ.j2` | Typst/PDF output in the same design |

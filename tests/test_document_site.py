@@ -272,7 +272,7 @@ def test_cli_document_mini_schema(tmp_path: Path) -> None:
     assert (dest / 'assets' / 'logo.svg').is_file()
     home = (dest / 'index.html').read_text(encoding='utf-8')
     assert 'assets/logo.svg' in home
-    assert 'doc-brand__logo' in home
+    assert 'class="logo__image"' in home
     # The tab icon, on every page rather than only the home page.
     icon = '<link rel="icon" href="assets/logo.svg" type="image/svg+xml">'
     assert icon in home
@@ -1453,6 +1453,35 @@ def test_odd_document_builds_with_the_project_it_runs_in(
     # Not in the project, so the packaged ones: fonts and logo.
     assert (site / 'assets' / 'logo.svg').is_file()
     assert any((site / 'assets' / 'fonts').glob('*.woff2'))
+
+
+def test_odd_document_takes_the_logo_from_context(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """`[context] logo` names the site's logo, copied from beside the template."""
+    import sys
+
+    from opm.scaffold import InitOptions, scaffold
+
+    root = scaffold(InitOptions(directory=tmp_path / 'proj', example='odd')).directory
+    config = (root / 'opm.toml').read_text(encoding='utf-8')
+    config = config.replace('# source = "my-customization.odd"', f'source = "{MINI.as_posix()}"')
+    (root / 'opm.toml').write_text(config.replace('logo = "logo.svg"', 'logo = "brand.png"'), encoding='utf-8')
+    (root / 'templates' / 'brand.png').write_bytes(b'\x89PNG\r\n\x1a\n')
+
+    for name in [m for m in sys.modules if m == 'extensions' or m.startswith('extensions.')]:
+        monkeypatch.delitem(sys.modules, name)
+    monkeypatch.setattr(sys, 'path', list(sys.path))
+    monkeypatch.chdir(root)
+
+    assert main(['odd', 'document', '--force']) == 0
+
+    site = root / 'site'
+    assert (site / 'assets' / 'brand.png').is_file()
+    home = (site / 'index.html').read_text(encoding='utf-8')
+    assert '<img class="logo__image" src="assets/brand.png"' in home
+    assert '<link rel="icon" href="assets/brand.png">' in home
+    assert 'assets/logo.svg' not in home
 
 
 def test_prepare_then_chunk_gives_a_static_site_builder_both_runs(

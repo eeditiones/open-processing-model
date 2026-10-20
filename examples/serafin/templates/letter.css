@@ -68,7 +68,7 @@ body.letter {
   --opm-layout-gap: var(--letter-rail-gap);
   --opm-layout-after-width: calc(var(--letter-register-width) + var(--letter-rail-gap));
   /* Sidebars stop clear of the sticky menubar + breadcrumb band. */
-  --opm-layout-sticky-top: calc(var(--letter-menubar-height) + var(--letter-toolbar-height) + 1rem);
+  --opm-layout-sticky-top: calc(var(--letter-menubar-height) + 1rem);
   --opm-layout-drawer-bg: var(--letter-paper);
   margin: 0;
   background: var(--letter-paper);
@@ -79,28 +79,28 @@ body.letter {
   text-rendering: optimizeLegibility;
 }
 
-/* ── Application menubar ──────────────────────────────────── */
+/* ── Menubar ──────────────────────────────────────────────── */
 
-.app-menubar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  height: var(--letter-menubar-height);
-  padding: 0 var(--letter-pad);
+.letter .page-header {
+  border-bottom: 0;
   background: var(--letter-menubar-bg);
   color: var(--letter-menubar-ink);
 }
 
-.app-logo {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  color: inherit;
-  text-decoration: none;
+.letter .menubar {
+  --opm-menubar-max: 100%;
+  gap: 1rem;
+  height: var(--letter-menubar-height);
+  min-height: 0;
+  padding: 0 var(--letter-pad);
 }
 
-.app-logo:focus-visible {
+.letter .menubar .logo a {
+  align-items: center;
+  color: inherit;
+}
+
+.letter .menubar .logo a:focus-visible {
   outline: 2px solid var(--letter-menubar-ink);
   outline-offset: 3px;
 }
@@ -114,8 +114,7 @@ body.letter {
   color: var(--letter-menubar-ink);
 }
 
-.app-menubar__folio {
-  flex: none;
+.letter-count {
   font-family: var(--letter-font-meta);
   font-size: 0.72rem;
   font-weight: 500;
@@ -127,9 +126,12 @@ body.letter {
 
 /* ── Breadcrumb toolbar: parchment band ───────────────────── */
 
-.app-toolbar {
-  display: flex;
-  align-items: center;
+/* The layout's content-top region, stretched across the page. */
+.letter .opm-layout > .content-top {
+  grid-column: 1 / -1;
+}
+
+.letter .toolbar {
   min-height: var(--letter-toolbar-height);
   padding: 0.6rem var(--letter-pad);
   border-bottom: 1px solid var(--letter-rule);
@@ -154,8 +156,7 @@ body.letter {
   background-position: center, center;
 }
 
-.app-breadcrumb {
-  min-width: 0;
+.letter .toolbar .breadcrumb {
   font-family: var(--letter-font-display);
   font-size: 1.05rem;
   font-weight: 400;
@@ -169,8 +170,8 @@ body.letter {
 }
 
 /* The breadcrumb fragment is a nest of tei-* spans — flatten it to one line. */
-.app-breadcrumb .tei-title,
-.app-breadcrumb span {
+.letter .toolbar .breadcrumb .tei-title,
+.letter .toolbar .breadcrumb span {
   font: inherit;
   color: inherit;
   letter-spacing: inherit;
@@ -836,7 +837,6 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
 /* ── Print ────────────────────────────────────────────────── */
 
 @media print {
-  .app-menubar,
   .letter-nav {
     display: none;
   }

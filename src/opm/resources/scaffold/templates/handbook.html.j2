@@ -3,10 +3,10 @@
   SPDX-License-Identifier: CC0-1.0
 
   handbook: documentation-oriented reading (Starlight-inspired), on opm's
-  packaged page layout (opm/layout.html.j2). The header bar is the layout's
-  header, the site navigation its `before` column; the "On this page"
-  outline sits beside the text inside the content block. handbook.css styles
-  what goes inside.
+  packaged page layout (opm/layout.html.j2). The layout writes the menubar
+  and the breadcrumb toolbar; the site navigation is its `before` column, and
+  the "On this page" outline sits beside the text inside the content block.
+  handbook.css styles it all.
 
   Its stylesheet, handbook.css, is listed under [transform.web] assets in
   opm.toml: copied next to the output and linked by the base template.
@@ -20,7 +20,7 @@ styles = [
 classes = ["handbook"]
 ---
 {% extends "opm/layout.html.j2" %}
-{% set work_title = fragments.title | striptags | trim if fragments is defined and fragments.title else '' %}
+{% set work_title = (fragments.title | striptags | trim if fragments is defined and fragments.title else '') or 'Handbook' %}
 {% set is_chunk = chunk is defined and chunk %}
 {% set has_toc = fragments is defined and fragments.toc %}
 
@@ -29,47 +29,21 @@ classes = ["handbook"]
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 {% endblock %}
 
-{% block title %}<title>{{ work_title or 'Handbook' }}</title>{% endblock %}
+{% block title %}<title>{{ work_title }}</title>{% endblock %}
 
 {% block body_class %}{% if has_toc %}handbook--with-toc{% endif %}{% endblock %}
 
-{% block header %}
-  <div class="hb-header">
-    <div class="hb-header__inner">
-      {% if has_toc %}
-      {# Opens the layout's drawer on narrow screens. #}
-      <label for="opm-before-toggle" class="hb-nav__open" aria-label="Open menu">
-        <span class="hb-nav__burger" aria-hidden="true"></span>
-      </label>
-      {% endif %}
-      <span class="hb-brand">{{ work_title or 'Handbook' }}</span>
-    </div>
-  </div>
-{% endblock %}
-
 {% block before %}
   {% if has_toc %}
-  <div class="hb-sidebar__panel">
-    <header class="hb-sidebar__head">
-      <span class="hb-sidebar__title">Contents</span>
-      <label for="opm-before-toggle" class="hb-nav__close">Close</label>
-    </header>
-    <nav class="hb-sidebar__body" aria-label="Site navigation">
-      {{ fragments.toc | safe }}
-    </nav>
-  </div>
+  <nav class="hb-sidebar" aria-label="Site navigation">
+    {{ fragments.toc | safe }}
+  </nav>
   {% endif %}
 {% endblock %}
 
 {% block content %}
   <div class="hb-main">
     <div class="hb-page{% if is_chunk %} hb-page--chunk{% endif %}">
-      {% if is_chunk and fragments is defined and fragments.breadcrumbs %}
-      <nav class="hb-crumbs" aria-label="Breadcrumb">
-        {{ fragments.breadcrumbs | safe }}
-      </nav>
-      {% endif %}
-
       <article class="content">
         {{ content_html | safe }}
       </article>

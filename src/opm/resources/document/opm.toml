@@ -10,6 +10,10 @@
 # document` run inside it uses those instead of these. A test keeps the two in
 # step.
 
+# The logo in the menubar and the browser tab, copied into assets/.
+[context]
+logo = "logo.svg"
+
 [transform]
 odd = "../odd/tagdocs.odd"
 # The tree tagdocs renders already holds every relation and link (see

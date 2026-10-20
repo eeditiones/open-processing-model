@@ -4,7 +4,9 @@
 
   journal: a single-column scholarly article with a sticky masthead and a
   contents rail, on opm's packaged page layout (opm/layout.html.j2). The
-  rail is the layout's `before` column; journal.css styles what goes inside.
+  masthead is the layout's menubar: the journal line in place of the logo,
+  the article title on the right. The rail is the layout's `before` column;
+  journal.css styles it all.
 
   Its stylesheet, journal.css, is listed under [transform.web] assets in
   opm.toml: copied next to the output and linked by the base template.
@@ -36,19 +38,12 @@ classes = ["jr"]
   {%- if has_journal %} jr--journal-meta{% endif %}
 {% endblock %}
 
-{% block header %}
-  {% if has_journal or (is_chunk and work_title) %}
-  <div class="jr-masthead">
-    <div class="jr-masthead__inner">
-      {% if has_journal %}
-      <div class="jr-masthead__journal">{{ fragments.journal | safe }}</div>
-      {% endif %}
-      {% if is_chunk and work_title %}
-      <div class="jr-masthead__article">{{ work_title }}</div>
-      {% endif %}
-    </div>
-  </div>
-  {% endif %}
+{% block logo %}
+  {% if has_journal %}<div class="jr-journal">{{ fragments.journal | safe }}</div>{% endif %}
+{% endblock %}
+
+{% block menu_toggles %}
+  {% if is_chunk and work_title %}<li class="jr-article">{{ work_title }}</li>{% endif %}
 {% endblock %}
 
 {% block before %}

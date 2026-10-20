@@ -3,10 +3,11 @@
   SPDX-License-Identifier: CC0-1.0
 
   The Serafin page shell shared by the letter pages and the letter list: the
-  edition's fonts, the menubar and the parchment breadcrumb band, on top of
-  opm's packaged layout. letter.css (from [transform.web] assets) supplies the
-  theme. Templates extending this one fill `breadcrumb`, `menubar_extra` and
-  the layout's content and sidebar blocks.
+  edition's fonts and its wordmark as the menubar's logo, on top of opm's
+  packaged layout, which also writes the breadcrumb toolbar (letter.css turns
+  it into the parchment band). letter.css (from [transform.web] assets)
+  supplies the theme. Templates extending this one fill the layout's blocks:
+  `breadcrumb`, `menu_toggles`, content and sidebars.
 -#}
 ---toml
 styles = [
@@ -23,14 +24,7 @@ classes = ["letter"]
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 {% endblock %}
 
-{% block header %}
-  {# The collection index at the output root: one level up from a letter. #}
-  {% set home_href = index_url if index_url is defined and index_url else 'index.html' %}
-  <nav class="app-menubar" aria-label="Edition">
-    <a class="app-logo" href="{{ home_href }}">{% include "logo-textmark.svg" %}</a>
-    {% block menubar_extra %}{% endblock %}
-  </nav>
-  <div class="app-toolbar">
-    <nav class="app-breadcrumb" aria-label="breadcrumb">{% block breadcrumb %}{% endblock %}</nav>
-  </div>
+{# The collection index at the output root: one level up from a letter. #}
+{% block logo %}
+  <a href="{{ index_url or 'index.html' }}" aria-label="Home">{% include "logo-textmark.svg" %}</a>
 {% endblock %}

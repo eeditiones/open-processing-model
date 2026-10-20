@@ -13,9 +13,9 @@
    furniture. Headings stay light rather than bold — an editorial voice, not a
    documentation one.
 
-   The page grid is opm's packaged layout (opm/layout.html.j2): the menu bar
-   is its header, the contents rail its `before` column, which the layout
-   turns into a drawer on narrow screens. This file sets the layout's
+   The page grid is opm's packaged layout (opm/layout.html.j2): it writes the
+   menubar and the breadcrumb toolbar, and turns the contents rail, its
+   `before` column, into a drawer on narrow screens. This file sets the layout's
    measurements through the --opm-layout-* properties on body.chapbook.
    =========================================================================== */
 
@@ -50,7 +50,7 @@
   /* Entity popovers (pb-popover / tippy), when the ODD emits them */
   --pb-popover-theme: "light-border";
 
-  /* Layout brand bar / body chrome (opm/opm-layout.css). */
+  /* Menubar, toolbar and body chrome (opm/opm-layout.css). */
   --opm-surface: var(--chap-warm);
   --opm-ink: var(--chap-ink);
   --opm-muted: var(--chap-muted);
@@ -90,83 +90,84 @@ body.chapbook--with-toc {
 
 /* ── Menu bar ─────────────────────────────────────────────── */
 
-.opm-running {
+.chapbook .page-header {
   background: var(--chap-primary);
   color: var(--chap-bar-ink);
+  border-bottom: 0;
   box-shadow: 0 1px 3px rgb(97 78 55 / 0.12);
 }
 
-.opm-running__inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.chapbook .menubar {
+  --opm-menubar-max: var(--chap-shell);
   gap: 1rem;
-  width: min(100%, var(--chap-shell));
   min-height: var(--chap-bar-h);
-  margin: 0 auto;
   padding: 0 var(--chap-pad);
 }
 
-.opm-running__brand {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  min-width: 0;
-  color: inherit;
-  text-decoration: none;
+.chapbook .menubar ul {
+  gap: 0.35rem;
 }
 
-.opm-running__logo {
-  flex: none;
+.chapbook .menubar .logo a {
+  align-items: center;
+  gap: 0.65rem;
+  color: inherit;
+}
+
+.chapbook .logo__image {
   height: 2.25rem;
-  width: auto;
   border-radius: 0.2rem;
   /* A dark mark on the taupe bar needs an edge of its own to read as one. */
   box-shadow: 0 0 0 1px rgb(255 255 255 / 0.45);
 }
 
-.opm-running__work {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.chapbook .logo__author {
+  color: rgb(255 255 255 / 0.75);
+}
+
+.chapbook .logo__title {
+  font-family: var(--chap-meta);
   font-size: 1.05rem;
   font-weight: 500;
   letter-spacing: -0.01em;
 }
 
-.opm-running__tools {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex: none;
-}
-
-.opm-running__link {
+/* Menu links and the drawer trigger. */
+.chapbook .menubar li:not(.logo) > :is(a, label) {
+  display: inline-block;
   padding: 0.35rem 0.6rem;
   color: rgb(255 255 255 / 0.9);
   font-size: 0.85rem;
   font-weight: 500;
-  text-decoration: none;
   border-radius: 0.3rem;
+  cursor: pointer;
   transition: color 0.15s ease, background-color 0.15s ease;
 }
 
-.opm-running__link:hover {
+.chapbook .menubar li:not(.logo) > :is(a, label):hover,
+.chapbook .menubar .logo a:hover .logo__title {
   color: #fff;
   background: rgb(255 255 255 / 0.12);
 }
 
-.opm-running__group {
+.chapbook .menubar .logo a:hover .logo__title {
+  background: none;
+}
+
+.chapbook .menubar .trigger label {
+  border: 1px solid rgb(255 255 255 / 0.7);
+  font-size: 0.78rem;
+}
+
+.chap-zoom {
   display: flex;
-  align-items: center;
   gap: 0.25rem;
   margin-left: 0.35rem;
   padding-left: 0.6rem;
   border-left: 1px solid rgb(255 255 255 / 0.3);
 }
 
-.chap-zoom {
+.chap-zoom button {
   padding: 0.15rem 0.5rem;
   border: 0;
   background: transparent;
@@ -179,32 +180,12 @@ body.chapbook--with-toc {
   transition: color 0.15s ease, background-color 0.15s ease;
 }
 
-.chap-zoom:hover {
+.chap-zoom button:hover {
   color: #fff;
   background: rgb(255 255 255 / 0.12);
 }
 
-.chap-step {
-  padding: 0.3rem 0.7rem;
-  border: 1px solid rgb(255 255 255 / 0.7);
-  border-radius: 0.3rem;
-  color: #fff;
-  font-size: 0.78rem;
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: background-color 0.15s ease;
-}
-
-.chap-step:hover {
-  background: rgb(255 255 255 / 0.12);
-}
-
-.chap-zoom:focus-visible,
-.chap-step:focus-visible,
-.opm-running__link:focus-visible,
-.chap-toc__open:focus-visible,
-.chap-toc__close:focus-visible {
+.chapbook .menubar :is(a, label, button):focus-visible {
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
@@ -215,55 +196,64 @@ body.chapbook--with-toc {
   background: var(--chap-surface);
 }
 
-/* The menu bar opens and closes the drawer itself. */
-.chapbook .opm-drawer__bar,
-.chapbook .opm-drawer__close {
-  display: none;
+/* ── Breadcrumbs ──────────────────────────────────────────── */
+
+/* The toolbar sits on the page, above the text, with the page's padding. */
+.chapbook .content-top {
+  background: var(--chap-surface);
+}
+
+.chapbook .toolbar {
+  padding: 2rem var(--chap-pad) 0;
+  color: var(--chap-dark);
+}
+
+/* An ODD stylesheet may set the breadcrumb nav to `white-space: nowrap`
+   (docbook.css does, on the lowercase aria-label the ODD itself emits). On a
+   narrow screen an unbreakable trail is wider than the viewport and drags the
+   whole page with it, clipping every line of text — so the crumb bar overrides
+   it and wraps instead. */
+.chapbook .toolbar .breadcrumb,
+.chapbook .toolbar .breadcrumb [aria-label="breadcrumb"],
+.chapbook .toolbar .breadcrumb [aria-label="Breadcrumb"] {
+  white-space: normal;
+  min-width: 0;
+}
+
+.chapbook .toolbar .breadcrumb li:not(:last-child)::after {
+  color: var(--chap-light);
+}
+
+.chapbook .toolbar .breadcrumb a {
+  text-decoration: none;
+  border-bottom: 1px solid var(--chap-light);
+}
+
+.chapbook .toolbar .breadcrumb a:hover {
+  color: var(--chap-primary);
 }
 
 /* ── Contents rail ────────────────────────────────────────── */
 
-.chap-toc__open {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.7rem;
-  border: 1px solid rgb(255 255 255 / 0.7);
-  border-radius: 0.3rem;
-  color: #fff;
-  font-size: 0.78rem;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.chap-toc__open:hover {
-  background: rgb(255 255 255 / 0.12);
+.chapbook .opm-layout > .before {
+  background: var(--chap-cream);
+  border-right: 1px solid var(--chap-rule);
 }
 
 .chap-toc {
-  min-height: 100%;
-  background: var(--chap-cream);
-  border-right: 1px solid var(--chap-rule);
-  font-family: var(--chap-meta);
-}
-
-.chap-toc__drawer {
   position: sticky;
   top: var(--chap-bar-h);
   max-height: calc(100vh - var(--chap-bar-h));
   overflow-y: auto;
   padding: 1.5rem 1rem;
+  font-family: var(--chap-meta);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--chap-muted);
 }
 
-.chap-toc__drawer-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.chap-toc__drawer-title {
+.chap-toc__title {
+  margin: 0 0 1rem;
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.1em;
@@ -271,31 +261,19 @@ body.chapbook--with-toc {
   color: var(--chap-dark);
 }
 
-.chap-toc__close {
-  color: var(--chap-muted);
-  font-size: 0.78rem;
-  cursor: pointer;
-}
-
-.chap-toc__body {
-  font-size: 0.88rem;
-  line-height: 1.5;
-  color: var(--chap-muted);
-}
-
-.chap-toc__body ul,
-.chap-toc__body ol {
+.chap-toc ul,
+.chap-toc ol {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.chap-toc__body li {
+.chap-toc li {
   margin: 0 0 0.45em;
 }
 
-.chap-toc__body li > ul,
-.chap-toc__body li > ol {
+.chap-toc li > ul,
+.chap-toc li > ol {
   margin: 0.4em 0 0.6em;
   padding-left: 0.8em;
   border-left: 1px solid var(--chap-rule);
@@ -303,7 +281,7 @@ body.chapbook--with-toc {
 
 /* A TOC fragment is ODD output: it may arrive as headings and divs rather
    than a list, so the rail neutralises heading sizes rather than assuming. */
-.chap-toc__body :is(h1, h2, h3, h4, h5, h6) {
+.chap-toc :is(h1, h2, h3, h4, h5, h6) {
   margin: 1.1em 0 0.5em;
   font-size: 0.72rem;
   font-weight: 600;
@@ -312,23 +290,23 @@ body.chapbook--with-toc {
   color: var(--chap-dark);
 }
 
-.chap-toc__body :is(h1, h2, h3, h4, h5, h6):first-child {
+.chap-toc :is(h1, h2, h3, h4, h5, h6):first-child {
   margin-top: 0;
 }
 
-.chap-toc__body a {
+.chap-toc a {
   color: inherit;
   text-decoration: none;
   border-bottom: 1px solid transparent;
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
-.chap-toc__body a:hover {
+.chap-toc a:hover {
   color: var(--chap-dark);
   border-bottom-color: var(--chap-light);
 }
 
-.chap-toc__body a:focus-visible {
+.chap-toc a:focus-visible {
   outline: 2px solid var(--chap-dark);
   outline-offset: 2px;
 }
@@ -338,52 +316,8 @@ body.chapbook--with-toc {
 .chap-page {
   flex: 1;
   min-width: 0;
-  padding: 2rem var(--chap-pad) 3rem;
+  padding: 1.5rem var(--chap-pad) 3rem;
   background: var(--chap-surface);
-}
-
-.chap-crumbs {
-  margin-bottom: 1.5rem;
-  font-size: 0.85rem;
-  color: var(--chap-dark);
-}
-
-/* An ODD stylesheet may set the breadcrumb nav to `white-space: nowrap`
-   (docbook.css does, on the lowercase aria-label the ODD itself emits). On a
-   narrow screen an unbreakable trail is wider than the viewport and drags the
-   whole page with it, clipping every line of text — so the crumb bar overrides
-   it and wraps instead. */
-.chap-crumbs,
-.chap-crumbs [aria-label="breadcrumb"],
-.chap-crumbs [aria-label="Breadcrumb"] {
-  white-space: normal;
-  min-width: 0;
-}
-
-.chap-crumbs ul,
-.chap-crumbs ol {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  margin: 0;
-  padding: 0;
-}
-
-.chap-crumbs li:not(:last-child)::after {
-  content: "›";
-  margin: 0 0.5rem;
-  color: var(--chap-light);
-}
-
-.chap-crumbs a {
-  color: inherit;
-  text-decoration: none;
-  border-bottom: 1px solid var(--chap-light);
-}
-
-.chap-crumbs a:hover {
-  color: var(--chap-primary);
 }
 
 .chap-body {
@@ -699,25 +633,33 @@ body.chapbook--with-toc {
     max-height: none;
     overflow: visible;
   }
-
-  .chap-toc__open,
-  .chap-toc__close {
-    display: none;
-  }
 }
 
 /* Narrow screens: the layout slides the column in as a drawer, opened from
-   the bar's Contents button. */
+   the menubar. */
 @media (max-width: 64em) {
-  .chapbook .opm-layout > .before {
-    padding: 0;
+  /* The layout's Close link, level with the contents title, which the rail
+     shows itself. */
+  .chapbook .opm-drawer__title {
+    display: none;
   }
 
-  .chap-toc {
+  .chapbook .opm-drawer__head {
+    position: absolute;
+    top: 1.5rem;
+    right: 1rem;
+    margin: 0;
+    font-family: var(--chap-meta);
+    font-size: 0.78rem;
+    color: var(--chap-muted);
+  }
+
+  .chapbook .opm-layout > .before {
+    padding: 0;
     border-right: 0;
   }
 
-  .chap-toc__drawer {
+  .chap-toc {
     position: static;
     max-height: none;
   }
@@ -725,7 +667,11 @@ body.chapbook--with-toc {
 
 @media (min-width: 48em) {
   .chap-page {
-    padding: 2.5rem 2.5rem 3.5rem;
+    padding: 1.5rem 2.5rem 3.5rem;
+  }
+
+  .chapbook .toolbar {
+    padding: 2.5rem 2.5rem 0;
   }
 }
 
@@ -737,12 +683,20 @@ body.chapbook--with-toc {
   }
 
   .chapbook--with-toc .opm-layout > .before,
-  .chapbook:not(.chapbook--with-toc) .opm-main {
+  .chapbook:not(.chapbook--with-toc) :is(.opm-main, .content-top) {
     border-left: 1px solid var(--chap-rule);
   }
 
+  .chapbook .content-top {
+    border-right: 1px solid var(--chap-rule);
+  }
+
   .chap-page {
-    padding: 2.5rem var(--chap-rail-gap) 3.5rem;
+    padding: 1.5rem var(--chap-rail-gap) 3.5rem;
+  }
+
+  .chapbook .toolbar {
+    padding: 2.5rem var(--chap-rail-gap) 0;
   }
 
   .chap-folio-nav__rail {
@@ -772,33 +726,22 @@ body.chapbook--with-toc {
   /* The bar carries a work title of unknown length beside several controls.
      Let the controls wrap under the title: left to themselves they widen the
      document instead, and the page scrolls sideways. */
-  .opm-running__inner {
+  .chapbook .menubar {
     flex-wrap: wrap;
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
   }
 
-  .opm-running__brand,
-  .opm-running__tools {
+  .chapbook .menubar > ul {
     flex: 1 1 100%;
-    min-width: 0;
-  }
-
-  .opm-running__tools {
     flex-wrap: wrap;
-    justify-content: flex-start;
   }
 
-  .opm-running__work {
+  .chapbook .logo__title {
     font-size: 0.95rem;
   }
 
-  /* The foot of the page carries the same two links. */
-  .opm-running__tools .chap-step {
-    display: none;
-  }
-
-  .opm-running__tools > .opm-running__group:first-of-type {
+  .chap-zoom {
     margin-left: 0;
     padding-left: 0;
     border-left: 0;
@@ -806,7 +749,6 @@ body.chapbook--with-toc {
 }
 
 @media print {
-  .opm-running,
   .chap-toc,
   .chap-folio-nav__rail,
   .chap-folio-nav__foot,
@@ -897,11 +839,11 @@ body.chapbook--with-toc {
 
 @media (min-width: 64em) {
   /* The facsimile now closes the shell on the right. */
-  .chapbook--with-facs .chap-page {
+  .chapbook--with-facs :is(.chap-page, .toolbar) {
     padding-right: 0;
   }
 
-  .chapbook--with-facs .opm-main {
+  .chapbook--with-facs :is(.opm-main, .content-top) {
     border-right: 0;
   }
 

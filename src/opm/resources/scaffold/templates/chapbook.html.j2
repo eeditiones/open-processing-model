@@ -3,8 +3,10 @@
   SPDX-License-Identifier: CC0-1.0
 
   chapbook: multi-page, text-centric reading, on opm's packaged page layout
-  (opm/layout.html.j2). The running bar is the layout's header, the contents
-  the `before` column; chapbook.css styles what goes inside.
+  (opm/layout.html.j2). The layout writes the menubar and the breadcrumb
+  toolbar; chapbook adds its text-size buttons to the menubar, the contents
+  as the `before` column and page-turn links around the text. chapbook.css
+  styles it all.
 
   Its stylesheet, chapbook.css, is listed under [transform.web] assets in
   opm.toml: copied next to the output and linked by the base template.
@@ -31,56 +33,25 @@ classes = ["chapbook"]
 
 {% block body_class %}{% if has_toc %}chapbook--with-toc{% endif %}{% endblock %}
 
-{% block header_tools %}
-  {% for item in context.nav | default([], true) %}
-  <a class="opm-running__link" href="{{ item.url }}">{{ item.label }}</a>
-  {% endfor %}
-
-  {# Reader-set text size, remembered per browser. #}
-  <div class="opm-running__group">
-    <button type="button" class="chap-zoom" data-chap-zoom="-0.1" title="Smaller text" aria-label="Smaller text">A&minus;</button>
-    <button type="button" class="chap-zoom" data-chap-zoom="0.1" title="Larger text" aria-label="Larger text">A+</button>
-  </div>
-
-  {% if has_toc %}
-  {# Opens the layout's drawer on narrow screens. #}
-  <div class="opm-running__group">
-    <label for="opm-before-toggle" class="chap-toc__open">Contents</label>
-  </div>
-  {% endif %}
-
-  {% if is_chunk and (chunk.prev or chunk.next) %}
-  <div class="opm-running__group">
-    {% if chunk.prev %}<a class="chap-step" href="{{ chunk.prev }}.html" rel="prev">&#8592; Previous</a>{% endif %}
-    {% if chunk.next %}<a class="chap-step" href="{{ chunk.next }}.html" rel="next">Next &#8594;</a>{% endif %}
-  </div>
-  {% endif %}
+{# Reader-set text size, remembered per browser. #}
+{% block menu_toggles %}
+  <li class="chap-zoom">
+    <button type="button" data-chap-zoom="-0.1" title="Smaller text" aria-label="Smaller text">A&minus;</button>
+    <button type="button" data-chap-zoom="0.1" title="Larger text" aria-label="Larger text">A+</button>
+  </li>
 {% endblock %}
 
 {% block before %}
   {% if has_toc %}
-  <div class="chap-toc">
-    <div class="chap-toc__drawer">
-      <header class="chap-toc__drawer-head">
-        <span class="chap-toc__drawer-title">Contents</span>
-        <label for="opm-before-toggle" class="chap-toc__close">Close</label>
-      </header>
-      <nav class="chap-toc__body" aria-label="Contents">
-        {{ fragments.toc | safe }}
-      </nav>
-    </div>
-  </div>
+  <nav class="chap-toc" aria-label="Contents">
+    <p class="chap-toc__title">Contents</p>
+    {{ fragments.toc | safe }}
+  </nav>
   {% endif %}
 {% endblock %}
 
 {% block content %}
   <div class="chap-page{% if is_chunk %} chap-page--chunk{% endif %}{% if has_toc %} chap-page--with-toc{% endif %}">
-    {% if fragments is defined and fragments.breadcrumbs %}
-    <nav class="chap-crumbs" aria-label="Breadcrumb">
-      {{ fragments.breadcrumbs | safe }}
-    </nav>
-    {% endif %}
-
     <div class="chap-body">
       <article class="content" id="chap-content">
         {{ content_html | safe }}

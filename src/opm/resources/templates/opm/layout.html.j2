@@ -11,12 +11,19 @@
   before_top, content_top, after_top). A region left empty takes no room.
   The content block defaults to the transformed document.
 
-  The default header is a brand bar (logo / author / title) when any of those
-  are present — from context.logo, context.author, context.site_name /
-  context.title, the index `title`, or a `work_title` set by a child template.
-  Shells add controls in `header_tools` without replacing the brand; journal
-  and handbook override `header` entirely. Theme via --opm-surface / --opm-ink
-  and related variables in opm-layout.css.
+  The header and the content-top region are written by the layout, as in
+  jinks, so a template fills slots in them instead of replacing them:
+
+      header       menubar: logo, context.menu.items, menu_left |
+                   menu_toggles, drawer triggers; then the header block
+      content-top  toolbar: breadcrumb | toggle, prev/next, toolbar;
+                   then the content_top block
+
+  logo defaults to context.logo, context.author and the title (a child's
+  `work_title`, context.site_name, context.title or the index `title`);
+  breadcrumb to the `breadcrumbs` fragment. menu_left, menu_toggles, toggle
+  and toolbar take <li> items. Theme via --opm-surface / --opm-ink and
+  related variables in opm-layout.css.
 
   Settings, under `layout` in the context (defaults in opm/defaults.toml,
   overridden by opm.toml [context] and then by template frontmatter):
@@ -26,6 +33,10 @@
                           "stack" (shown below the content)
     layout.before.label   label of the drawer's open button
     layout.after.*        the same for the after column
+    menu.items            links after the logo: [{ label, url }]
+    features.menubar      false drops the menubar (the header block stays)
+    features.toolbar.enabled     false drops the toolbar
+    features.toolbar.navigation  previous/next links for chunk pages
 -#}
 {% extends "opm/base.html.j2" %}
 
@@ -46,20 +57,32 @@
 {%- set widths = [] %}
 {%- if L.before.width %}{% set _ = widths.append('--opm-layout-before-width: ' ~ L.before.width ~ ';') %}{% endif %}
 {%- if L.after.width %}{% set _ = widths.append('--opm-layout-after-width: ' ~ L.after.width ~ ';') %}{% endif %}
-{%- set header_html = self.header() | trim %}
-{%- set hero_html = self.hero() | trim %}
-{%- set before_top_html = self.before_top() | trim %}
-{%- set before_html = self.before() | trim %}
-{%- set content_top_html = self.content_top() | trim %}
-{%- set after_top_html = self.after_top() | trim %}
-{%- set after_html = self.after() | trim %}
-{%- set footer_html = self.footer() | trim %}
-{%- set before_drawer = before_html and L.before.mobile == 'drawer' %}
-{%- set after_drawer = after_html and L.after.mobile == 'drawer' %}
+{%- set F = context.features %}
+{#- Each block rendered once and trimmed, so an empty region can be left out. -#}
+{%- set blocks = trimmed(self) %}
+{%- set before_drawer = blocks.before and L.before.mobile == 'drawer' %}
+{%- set after_drawer = blocks.after and L.after.mobile == 'drawer' %}
+{%- set menu_items = context.menu['items'] or [] %}
+{%- set show_menubar = F.menubar and (blocks.logo or menu_items or blocks.menu_left or blocks.menu_toggles or before_drawer or after_drawer) %}
+{#- The links that open the drawers: in the menubar, or in the toolbar without one. -#}
+{%- set triggers_html -%}
+  {%- if before_drawer %}<li class="trigger"><label for="opm-before-toggle" class="opm-drawer__open opm-drawer__open--before">{{ L.before.label }}</label></li>{% endif %}
+  {%- if after_drawer %}<li class="trigger"><label for="opm-after-toggle" class="opm-drawer__open opm-drawer__open--after">{{ L.after.label }}</label></li>{% endif %}
+{%- endset %}
+{%- set navigation_html -%}
+  {%- if F.toolbar.navigation and chunk is defined and chunk and (chunk.prev or chunk.next) %}
+  <li class="toolbar__navigation">
+    {%- if chunk.prev %}<a href="{{ chunk.prev }}.html" rel="prev">&#8592; {{ L.previous_label }}</a>{% endif %}
+    {%- if chunk.next %}<a href="{{ chunk.next }}.html" rel="next">{{ L.next_label }} &#8594;</a>{% endif %}
+  </li>
+  {%- endif %}
+{%- endset %}
+{%- set toolbar_end_html = blocks.toggle ~ navigation_html ~ blocks.toolbar ~ ('' if show_menubar else triggers_html) %}
+{%- set show_toolbar = F.toolbar.enabled and (blocks.breadcrumb or toolbar_end_html | trim) %}
 <div class="opm-layout
   {%- if L.class %} {{ L.class }}{% endif %}
-  {%- if before_html %} has-before opm-before--{{ 'drawer' if before_drawer else 'stack' }}{% endif %}
-  {%- if after_html %} has-after opm-after--{{ 'drawer' if after_drawer else 'stack' }}{% endif %}"
+  {%- if blocks.before %} has-before opm-before--{{ 'drawer' if before_drawer else 'stack' }}{% endif %}
+  {%- if blocks.after %} has-after opm-after--{{ 'drawer' if after_drawer else 'stack' }}{% endif %}"
   {%- if widths %} style="{{ widths | join(' ') }}"{% endif %}>
   <a class="opm-skip" href="#opm-content">{{ L.skip_label }}</a>
   {%- if before_drawer %}
@@ -69,46 +92,66 @@
   <input type="checkbox" id="opm-after-toggle" class="opm-drawer__toggle" autocomplete="off">
   {%- endif %}
 
-  {%- if header_html %}
+  {%- if show_menubar or blocks.header %}
   <header class="page-header">
-    {{ header_html }}
+    {%- if show_menubar %}
+    <nav class="menubar" aria-label="Site">
+      <ul>
+        {%- if blocks.logo %}
+        <li class="logo">{{ blocks.logo }}</li>
+        {%- endif %}
+        {%- for item in menu_items %}
+        <li><a href="{{ item.url }}">{{ item.label }}</a></li>
+        {%- endfor %}
+        {{ blocks.menu_left }}
+      </ul>
+      <ul>
+        {{ blocks.menu_toggles }}
+        {{ triggers_html }}
+      </ul>
+    </nav>
+    {%- endif %}
+    {{ blocks.header }}
   </header>
   {%- endif %}
 
-  {%- if hero_html %}
+  {%- if blocks.hero %}
   <div class="hero">
-    {{ hero_html }}
+    {{ blocks.hero }}
   </div>
   {%- endif %}
 
-  {%- if before_top_html %}
+  {%- if blocks.before_top %}
   <nav class="before-top">
-    {{ before_top_html }}
+    {{ blocks.before_top }}
   </nav>
   {%- endif %}
 
-  {%- if before_html %}
+  {%- if blocks.before %}
   <aside class="before" id="opm-before">
     {%- if before_drawer %}
-    <label for="opm-before-toggle" class="opm-drawer__close">Close</label>
+    <div class="opm-drawer__head">
+      <span class="opm-drawer__title">{{ L.before.label }}</span>
+      <label for="opm-before-toggle" class="opm-drawer__close">{{ L.close_label }}</label>
+    </div>
     {%- endif %}
-    {{ before_html }}
+    {{ blocks.before }}
   </aside>
   {%- endif %}
 
-  {%- if content_top_html or before_drawer or after_drawer %}
+  {%- if show_toolbar or blocks.content_top %}
   <header class="content-top">
-    {%- if before_drawer or after_drawer %}
-    <div class="opm-drawer__bar">
-      {%- if before_drawer %}
-      <label for="opm-before-toggle" class="opm-drawer__open opm-drawer__open--before">{{ L.before.label }}</label>
+    {%- if show_toolbar %}
+    <nav class="toolbar" aria-label="Toolbar">
+      <div class="breadcrumb">{{ blocks.breadcrumb }}</div>
+      {%- if toolbar_end_html | trim %}
+      <ul>
+        {{ toolbar_end_html }}
+      </ul>
       {%- endif %}
-      {%- if after_drawer %}
-      <label for="opm-after-toggle" class="opm-drawer__open opm-drawer__open--after">{{ L.after.label }}</label>
-      {%- endif %}
-    </div>
+    </nav>
     {%- endif %}
-    {{ content_top_html }}
+    {{ blocks.content_top }}
   </header>
   {%- endif %}
 
@@ -120,24 +163,27 @@
     {% endblock %}
   </main>
 
-  {%- if after_top_html %}
+  {%- if blocks.after_top %}
   <nav class="after-top">
-    {{ after_top_html }}
+    {{ blocks.after_top }}
   </nav>
   {%- endif %}
 
-  {%- if after_html %}
+  {%- if blocks.after %}
   <aside class="after" id="opm-after">
     {%- if after_drawer %}
-    <label for="opm-after-toggle" class="opm-drawer__close">Close</label>
+    <div class="opm-drawer__head">
+      <span class="opm-drawer__title">{{ L.after.label }}</span>
+      <label for="opm-after-toggle" class="opm-drawer__close">{{ L.close_label }}</label>
+    </div>
     {%- endif %}
-    {{ after_html }}
+    {{ blocks.after }}
   </aside>
   {%- endif %}
 
-  {%- if footer_html %}
+  {%- if blocks.footer %}
   <footer class="page-footer">
-    {{ footer_html }}
+    {{ blocks.footer }}
   </footer>
   {%- endif %}
 
@@ -150,45 +196,26 @@
 </div>
 {#- The regions' blocks, rendered above and placed where they belong. -#}
 {%- if false %}
-{% block header %}
-{#- Resolve brand here (not at template top) so a child's `{% set work_title %}`
-    after extends is visible when this block runs. Brand markup is inlined:
-    nested blocks do not see `{% set %}` from the enclosing block. -#}
-{%- set brand_title = (
-      (work_title if work_title is defined and work_title else '')
-      or (context.site_name if context is defined and context.site_name else '')
-      or (context.title if context is defined and context.title else '')
-      or (title if title is defined else '')
-    ) -%}
-{%- set brand_author = context.author if context is defined and context.author else '' -%}
-{%- set brand_logo = context.logo if context is defined and context.logo else '' -%}
-{%- set home_href = (
-      (context.home_url if context is defined and context.home_url else '')
-      or (index_url if index_url is defined and index_url else '')
-      or 'index.html'
-    ) -%}
-{#- A bare filename in context.logo is resolved under the shared assets/ dir. -#}
-{%- if brand_logo and assets is defined and assets
-      and not (brand_logo.startswith('/') or brand_logo.startswith('http')
-               or brand_logo.startswith('.') or '/' in brand_logo) -%}
-  {%- set brand_logo_src = assets ~ '/' ~ brand_logo -%}
-{%- else -%}
-  {%- set brand_logo_src = brand_logo -%}
-{%- endif -%}
-{%- set tools_html -%}{% block header_tools %}{% endblock %}{%- endset -%}
-{%- if brand_logo or brand_author or brand_title or (tools_html | trim) %}
-  <div class="opm-running">
-    <div class="opm-running__inner">
-      <a class="opm-running__brand" href="{{ home_href }}">
-        {% if brand_logo_src %}<img class="opm-running__logo" src="{{ brand_logo_src }}" alt="">{% endif %}
-        {% if brand_author %}<span class="opm-running__author">{{ brand_author }}</span>{% endif %}
-        {% if brand_title %}<span class="opm-running__work">{{ brand_title }}</span>{% endif %}
-      </a>
-      <div class="opm-running__tools">{{ tools_html }}</div>
-    </div>
-  </div>
+{% block header %}{% endblock %}
+{% block logo %}
+{#- Resolved here (not at template top) so a child's `{% set work_title %}`
+    after extends is visible when this block runs. -#}
+{%- import "opm/brand.html.j2" as brand -%}
+{%- set logo_src = brand.logo_src(context.logo, assets) | trim -%}
+{%- set logo_title = work_title or context.site_name or context.title or title -%}
+{%- if logo_src or context.author or logo_title %}
+<a href="{{ context.home_url or index_url or 'index.html' }}">
+  {%- if logo_src %}<img class="logo__image" src="{{ logo_src }}" alt="">{% endif %}
+  {%- if context.author %}<span class="logo__author">{{ context.author }}</span>{% endif %}
+  {%- if logo_title %}<span class="logo__title">{{ logo_title }}</span>{% endif %}
+</a>
 {%- endif %}
 {% endblock %}
+{% block menu_left %}{% endblock %}
+{% block menu_toggles %}{% endblock %}
+{% block breadcrumb %}{% if fragments is defined and fragments.breadcrumbs %}{{ fragments.breadcrumbs | safe }}{% endif %}{% endblock %}
+{% block toggle %}{% endblock %}
+{% block toolbar %}{% endblock %}
 {% block hero %}{% endblock %}
 {% block before_top %}{% endblock %}
 {% block before %}{% endblock %}

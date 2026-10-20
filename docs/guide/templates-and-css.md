@@ -184,17 +184,10 @@ variable, `context`, filled from a `[context]` table in `opm.toml`:
 [context]
 site_name = "The Serafin Letters"
 show_downloads = true
-nav = [
-    { label = "Home", url = "/" },
-    { label = "About", url = "/about" },
-]
 ```
 
 ```jinja
 <h1>{{ context.site_name }}</h1>
-<nav>
-  {% for item in context.nav %}<a href="{{ item.url }}">{{ item.label }}</a>{% endfor %}
-</nav>
 {% if context.show_downloads %}<a href="{{ chunk.file }}.pdf">PDF</a>{% endif %}
 ```
 <!--This is how a project drives its own template without a code change. Two
@@ -247,10 +240,11 @@ as follows:
   the transcription and translation, and the right-hand column with the
   people and places mentioned. Everything else is inherited via the extended
   `serafin.html.j2`.
-- `templates/serafin.html.j2` – adds the edition's menu bar and the parchment
-  breadcrumb band at the top of the page. The letter list (`index.html.j2`)
-  extends it too, so both share the same look.
-- `opm/layout.html.j2` – contributes the page layout.
+- `templates/serafin.html.j2` – puts the edition's logo into the menu bar at
+  the top of the page. The letter list (`index.html.j2`) extends it too, so
+  both share the same look.
+- `opm/layout.html.j2` – contributes the page layout, including the menu bar
+  and the breadcrumb band, which the edition's stylesheet colours.
 - `opm/base.html.j2` – the root template.
 
 A template says which one it extends in its first line:
@@ -269,24 +263,48 @@ application has:
 
 | Block | Where it appears |
 | --- | --- |
-| `header` | Across the top of the page; it stays visible while the reader scrolls |
-| `header_tools` | Controls next to the brand (zoom, prev/next, …); empty by default |
+| `header` | Across the top of the page, below the menu bar; it stays visible while the reader scrolls |
 | `hero` | Across the page, below the header |
 | `before_top`, `before` | A column left of the text, e.g. a table of contents |
 | `content_top`, `content` | The text itself; `content` shows the transformed document unless a template fills it |
 | `after_top`, `after` | A column right of the text, e.g. a list of people and places |
 | `footer` | Across the bottom of the page |
 
-The default `header` is a brand bar when any of `context.logo`,
-`context.author`, `context.site_name` / `context.title`, the collection
-index `title`, or a `work_title` set by the page template is present. A bare
-filename in `context.logo` is resolved under the shared `assets/` folder.
-The packaged collection index uses that bar, so chunk pages and the index
-share the same chrome. Reading shells such as `chapbook` fill `header_tools`
-for zoom and page turns; `journal` and `handbook` replace `header` entirely
-with their own masthead.
+As in a TEI Publisher application, the layout writes two bars itself, and a
+template only fills the places it leaves for its own items:
 
-Theme the bar (and the page background) by setting CSS variables in a
+- The **menu bar** at the top. On the left it shows the logo with the author
+  and title, then the links listed in `[context.menu]`, then the `menu_left`
+  block. On the right it shows the `menu_toggles` block and, on narrow
+  screens, the button that opens the contents.
+- The **toolbar** above the text. On the left it shows the breadcrumbs (the
+  `breadcrumbs` fragment, or the `breadcrumb` block); on the right the
+  `toggle` block, links to the previous and next page if you ask for them, and
+  the `toolbar` block.
+
+| Block | What it holds |
+| --- | --- |
+| `logo` | The left end of the menu bar. By default the image named in `context.logo`, `context.author` and the title: a `work_title` set by the page template, `context.site_name`, `context.title` or the collection index title |
+| `menu_left` | Items after the menu links, as `<li>` elements |
+| `menu_toggles` | Items at the right of the menu bar, as `<li>` elements |
+| `breadcrumb` | The left side of the toolbar; by default the `breadcrumbs` fragment |
+| `toggle`, `toolbar` | Items at the right of the toolbar, as `<li>` elements |
+
+A bar with nothing in it is left out. The menu links come from `opm.toml`:
+
+```toml
+[context.menu]
+items = [
+    { label = "About", url = "about.html" },
+    { label = "Letters", url = "index.html" },
+]
+```
+
+A bare filename in `context.logo` is found in the shared `assets/` folder.
+The packaged collection index uses the same menu bar, so chunk pages and the
+index look alike.
+
+Colour the bars (and the page background) by setting CSS variables in a
 stylesheet listed under `[transform.web] assets`:
 
 | Variable | Role |
@@ -297,12 +315,13 @@ stylesheet listed under `[transform.web] assets`:
 | `--opm-rule` | Hairlines |
 | `--opm-accent` | Links and hover |
 | `--opm-font-body`, `--opm-font-ui` | Reading and UI type |
+| `--opm-menubar-max` | The widest the menu bar's content grows |
 
 A template fills a block by repeating it with new content:
 
 ```jinja
-{% block header_tools %}
-  <a class="opm-running__link" href="/about">About</a>
+{% block menu_toggles %}
+  <li><a href="https://example.org/edition.pdf">PDF</a></li>
 {% endblock %}
 ```
 
@@ -342,12 +361,12 @@ these files the example already has.
     ```
 
 2. Add a block for each area you want to fill. With `site_name` (or `author` /
-   `logo`) in `[context]`, the layout already shows a brand bar — add tools
-   beside it, and put the work's title above the text:
+   `logo`) in `[context]`, the layout already shows a menu bar. Add an item to
+   it, and put the work's title above the text:
 
     ```jinja
-    {% block header_tools %}
-      <a class="opm-running__link" href="/about">About</a>
+    {% block menu_toggles %}
+      <li><a href="about.html">About</a></li>
     {% endblock %}
 
     {% block content_top %}
@@ -432,7 +451,13 @@ opm's templates understand the following settings:
 | `layout.class` | Classes for the layout grid |
 | `layout.before.width`, `layout.after.width` | Width of the side columns |
 | `layout.before.mobile`, `layout.after.mobile` | On narrow screens, `"drawer"` (slides in) or `"stack"` (below the text) |
-| `layout.before.label`, `layout.after.label` | Text of the button that opens a drawer |
+| `layout.before.label`, `layout.after.label` | Text of the button that opens a drawer, and the drawer's heading |
+| `layout.close_label` | Text of the link that closes a drawer |
+| `layout.previous_label`, `layout.next_label` | Text of the toolbar's links to the previous and next page |
+| `menu.items` | Links in the menu bar, each with a `label` and a `url` |
+| `features.menubar` | `false` leaves out the menu bar |
+| `features.toolbar.enabled` | `false` leaves out the toolbar |
+| `features.toolbar.navigation` | `true` adds links to the previous and next page to the toolbar |
 
 Your own templates can read any other setting as `context.<name>`.
 

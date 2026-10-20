@@ -67,6 +67,10 @@ assets = ["templates/{{ html_template }}.css"]
 #                               # assets copies it to <output-root>/assets/,
 #                               # one directory above the chunk pages
 #
+# Links in the menu bar of opm/layout.html.j2, after the logo:
+# [context.menu]
+# items = [{ label = "About", url = "about.html" }]
+#
 # Templates extending opm/layout.html.j2 read their layout settings here too.
 # The defaults (opm/defaults.toml in the package) are:
 # [context.layout.before]

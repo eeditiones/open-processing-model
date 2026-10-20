@@ -12,6 +12,11 @@
 class = ""
 # Text of the link that lets keyboard users jump past the header.
 skip_label = "Skip to content"
+# Labels of the toolbar's links to the previous and next page.
+previous_label = "Previous"
+next_label = "Next"
+# Text of the link that closes a drawer.
+close_label = "Close"
 
 [layout.before]
 # Width of the column left of the text (any CSS length). Unset, the template's
@@ -26,3 +31,18 @@ label = "Contents"
 # width = "18rem"
 mobile = "stack"
 label = "More"
+
+# Links in the menubar, after the logo, e.g.
+#   items = [{ label = "About", url = "about.html" }]
+[menu]
+items = []
+
+[features]
+# The menubar across the top: logo, menu links and the template's controls.
+menubar = true
+
+[features.toolbar]
+# The toolbar above the text: breadcrumbs and the template's controls.
+enabled = true
+# Links to the previous and next page of a chunked document.
+navigation = false

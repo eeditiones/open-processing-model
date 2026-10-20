@@ -962,9 +962,9 @@ def test_chapbook_running_head_uses_title_fragment(tmp_path: Path) -> None:
     )
 
     html = (tmp_path / 'title-chunks' / '001.html').read_text(encoding='utf-8')
-    assert 'class="opm-running__work">The Book of Tests</span>' in html
+    assert 'class="logo__title">The Book of Tests</span>' in html
     assert '<title>The Book of Tests</title>' in html
-    assert 'class="opm-running__work">Chapbook</span>' not in html
+    assert 'class="logo__title">Chapbook</span>' not in html
 
 
 def _write_manifest(out_dir: Path, name: str, *, chunks: int = 2, fragments: dict | None = None) -> None:
