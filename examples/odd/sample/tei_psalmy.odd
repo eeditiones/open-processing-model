@@ -1,0 +1,899 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="http://www.tei-c.org/release/xml/tei/custom/schema/relaxng/tei_odds.rng" type="application/xml" schematypens="http://relaxng.org/ns/structure/1.0"?>
+<?xml-model href="http://www.tei-c.org/release/xml/tei/custom/schema/relaxng/tei_odds.rng" type="application/xml"
+	schematypens="http://purl.oclc.org/dsdl/schematron"?>
+<TEI xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:svg="http://www.w3.org/2000/svg"
+  xmlns:sch="http://purl.oclc.org/dsdl/schematron" xmlns:math="http://www.w3.org/1998/Math/MathML"
+  xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader>
+    <fileDesc>
+      <titleStmt>
+        <title>TEI Psalmy</title>
+        <author>Magdalena Turska</author>
+      </titleStmt>
+      <publicationStmt>
+        <publisher>JinnTec</publisher>
+        <availability status="free">
+          <licence target="https://creativecommons.org/licenses/by-sa/4.0/">Distributed under a
+            Creative Commons Attribution-ShareAlike 4.0 International</licence>
+
+          <p>Copyright 2026 <ref target="https://github.com/tuurma">Magdalena Turska</ref> and 
+            <ref target="https://github.com/HelenaSabel">Helena Bermúdez Sabel</ref>
+          </p>
+          <p>Copyright 2013 <ref target="https://github.com/jamescummings">James Cummings</ref> and TEI Consortium</p>
+          <p>Initialized with TEI Roma by Raffaele Viglianti and based on TEI Minimal by James Cummings</p>
+          
+        </availability>
+      </publicationStmt>
+      <sourceDesc>
+        <p>Generated from Roma and extended with custom rules</p>
+      </sourceDesc>
+    </fileDesc>
+    <encodingDesc>
+      <appInfo>
+        <application ident="RomaJS" version="1.3.3" when="2026-09-23T12:52:33.311Z">
+          <desc>File edited with <ref target="https://github.com/TEIC/romajs">RomaJS</ref></desc>
+        </application>
+      </appInfo>
+    </encodingDesc>
+  </teiHeader>
+  <text>
+    <body>
+      <head>A TEI Customization for the didactic edition of Polish Psalters</head>
+
+      <p>This TEI ODD defines a TEI customization closely tailored to the needs of the 
+        didactic edition of Polish translations of the Book of Psalms.
+        The tightly constrained schema affords provisions for the representation of alignment across extant
+        text versions, canonical structure of the work across psalms and verses, enhanced 
+        with several layers of analysis (morphological and phonetic analysis, spelling regularization, 
+        editorial and linguistic commentary).
+      </p>
+      
+      <p>Designed for: <ref target="https://labedyt.dhlab.uj.edu.pl/index.html">Jagiellonian Digital Platform</ref> (Jagiellońska Platforma Cyfrowa)</p>
+      
+      <p>Schema design: Magdalena Turska and Helena Bermúdez Sabel</p>
+      <p>Guidelines: Magdalena Turska</p>
+      
+      <p>Distributed under the <ref target="https://creativecommons.org/licenses/by-sa/4.0/">
+          Creative Commons Attribution-ShareAlike 4.0 International</ref> license.</p>
+      
+      <p>Copyright 2026 <ref target="https://github.com/tuurma">Magdalena Turska</ref> and 
+        <ref target="https://github.com/HelenaSabel">Helena Bermúdez Sabel</ref>
+      </p>
+      <p>Copyright 2013 <ref target="https://github.com/jamescummings">James Cummings</ref> and TEI Consortium</p>
+      
+      <p>Initialized with <ref target="https://roma.tei-c.org/">TEI Roma</ref> by Raffaele Viglianti et al. and based on TEI Minimal by James Cummings</p>
+      <p>Published with <ref target="https://opm.e-editiones.org/">OPM</ref> by <ref target="https://github.com/wolfgangmm">Wolfgang Meier</ref> et al.</p>
+      
+      <schemaSpec ident="tei_psalmy" start="TEI" prefix="tei_" targetLang="en" docLang="en">
+
+        <!-- required header elements -->
+        <moduleRef key="header"
+          include="teiHeader fileDesc titleStmt publicationStmt sourceDesc abstract correspDesc correspContext idno profileDesc textClass langUsage catRef language sponsor"/>
+
+        <!-- required core elements -->
+        <moduleRef key="core"
+          include="p title abbr author add bibl cb choice corr del expan gap head hi lb note orig pb reg unclear ref resp respStmt sic date publisher pubPlace name"/>
+
+        <!-- required textstructure elements -->
+        <moduleRef key="textstructure" include="TEI text body argument div epigraph"/>
+
+        <!-- required module tei instantiates lots of classes used for further expansion of this odd -->
+        <moduleRef key="tei"/>
+
+        <moduleRef key="linking" include="ab anchor seg standOff listAnnotation"/>
+        <moduleRef key="textcrit" include="app lem rdg"/>
+        <moduleRef key="analysis" include="m pc w"/>
+        <moduleRef key="transcr" include="supplied fw ex"/>
+
+        <elementSpec ident="body" mode="change" module="textstructure">
+          <content>
+            <elementRef key="div" minOccurs="1" maxOccurs="unbounded"/>
+          </content>
+        </elementSpec>
+        <elementSpec ident="div" mode="change" module="textstructure">
+          <content>
+            <alternate minOccurs="0" maxOccurs="unbounded">
+              <elementRef key="div"/>
+              <!-- we might be able to get rid of note -->
+              <elementRef key="note"/>
+              <elementRef key="ab"/>
+              <elementRef key="head"/>
+              <elementRef key="pb"/>
+              <elementRef key="cb"/>
+              <elementRef key="epigraph"/>
+            </alternate>
+          </content>
+          <attList>
+            <attDef ident="type" usage="rec" mode="change">
+              <datatype>
+                <dataRef key="teidata.text"/>
+              </datatype>
+            </attDef>
+            <attDef ident="n" usage="req" mode="change">
+              <datatype>
+                <dataRef key="teidata.text"/>
+              </datatype>
+            </attDef>
+            <attDef ident="xml:id" usage="req" mode="change">
+              <datatype>
+                <dataRef name="ID"/>
+              </datatype>
+            </attDef>
+            <attDef ident="synch" usage="req" mode="change">
+              <datatype>
+                <dataRef key="teidata.pointer"/>
+              </datatype>
+            </attDef>
+          </attList>
+        </elementSpec>
+        <elementSpec ident="ab" module="linking" mode="change">
+          <content>
+            <alternate minOccurs="0" maxOccurs="unbounded">
+              <textNode/>
+              <elementRef key="w"/>
+              <elementRef key="seg"/>
+              <elementRef key="choice"/>
+              <elementRef key="lb"/>
+              <elementRef key="pb"/>
+              <elementRef key="cb"/>
+              <elementRef key="fw"/>
+              <elementRef key="app"/>
+              <!-- we might be able to get rid of anchor, as notes should be stand off and hooked via corresp -->
+              
+              <elementRef key="anchor"/>
+              <!-- we might be able to get rid of note -->
+              <elementRef key="note"/>
+            </alternate>
+          </content>
+          <constraintSpec scheme="schematron" ident="type">
+            <constraint>
+              <sch:rule context="tei:ab[@type eq 'verse']">
+                <sch:assert test="@synch and @n">If the type is "verse" this element must have attributes @synch and @n</sch:assert>
+              </sch:rule>
+            </constraint>
+          </constraintSpec>
+          <attList>
+            <attDef ident="type" usage="req" mode="change">
+              <valList type="closed">
+                <valItem ident="verse">
+                  <desc>Verse</desc>
+                </valItem>
+                <valItem ident="argument">
+                  <desc>Argument</desc>
+                </valItem>
+                <valItem ident="incipit">
+                  <desc>Incipit</desc>
+                </valItem>
+                <valItem ident="epigraph">
+                  <desc>Epigraph</desc>
+                </valItem>
+              </valList>
+            </attDef>
+            <attDef ident="xml:id" usage="req" mode="change">
+              <datatype>
+                <dataRef name="ID"/>
+              </datatype>
+            </attDef>
+            <attDef ident="synch" usage="opt" mode="change">
+              <datatype>
+                <dataRef key="teidata.pointer"/>
+              </datatype>
+            </attDef>
+            <attDef ident="n" usage="opt" mode="change">
+              <datatype>
+                <dataRef key="teidata.text"/>
+              </datatype>
+            </attDef>
+          </attList>          
+        </elementSpec>
+        <elementSpec ident="epigraph" module="linking" mode="change">
+          <content>
+            <alternate minOccurs="0" maxOccurs="unbounded">
+              <elementRef key="w"/>
+              <elementRef key="seg"/>
+              <elementRef key="choice"/>
+              <elementRef key="lb"/>
+              <elementRef key="pb"/>
+              <elementRef key="cb"/>
+              <elementRef key="app"/>
+              
+              <!-- we might be able to get rid of anchor/note, as notes should be stand off and hooked via corresp -->
+              <elementRef key="anchor"/>
+              <elementRef key="note"/>
+            </alternate>
+          </content>
+          <attList>
+            <attDef ident="type" usage="rec" mode="change">
+              <datatype>
+                <dataRef key="teidata.text"/>
+              </datatype>
+            </attDef>
+            <attDef ident="xml:id" usage="req" mode="change">
+              <datatype>
+                <dataRef name="ID"/>
+              </datatype>
+            </attDef>
+            <attDef ident="synch" usage="req" mode="change">
+              <datatype>
+                <dataRef key="teidata.pointer"/>
+              </datatype>
+            </attDef>
+          </attList>
+        </elementSpec>
+        <elementSpec ident="lem" module="textcrit" mode="change">
+          <content>
+            <alternate minOccurs="0" maxOccurs="unbounded">
+              <elementRef key="w"/>
+              <elementRef key="seg"/>
+              <elementRef key="choice"/>
+            </alternate>
+          </content>
+        </elementSpec>
+        <elementSpec ident="rdg" module="textcrit" mode="change">
+          <content>
+            <alternate minOccurs="0" maxOccurs="unbounded">
+              <elementRef key="w"/>
+              <elementRef key="seg"/>
+              <elementRef key="choice"/>
+            </alternate>
+          </content>
+        </elementSpec>
+        <elementSpec ident="choice" module="core" mode="change">
+          <attList>
+            <attDef ident="ana" usage="rec" mode="change">
+              <datatype maxOccurs="unbounded" minOccurs="1">
+                <dataRef key="teidata.pointer"/>
+              </datatype>
+            </attDef>
+            <attDef ident="corresp" usage="rec" mode="change">
+              <datatype>
+                <dataRef key="teidata.pointer"/>
+              </datatype>
+            </attDef>
+          </attList>
+          <!-- constraint content to reg and orig only? -->
+        </elementSpec>
+        <elementSpec ident="w" module="analysis" mode="change">
+          <desc>represents a grammatical (not necessarily orthographic) word. In the psalmy project,
+            the contel model is very restricted. </desc>
+          <content>
+            <alternate minOccurs="0" maxOccurs="unbounded">
+              <textNode/>
+              <elementRef key="m"/>
+              
+              <!-- 
+              <classRef key="model.hiLike"/> 
+              -->
+              
+            </alternate>
+          </content>
+          <attList>
+            <attDef ident="msd" usage="rec" mode="change">
+              <datatype>
+                <dataRef key="teidata.text"/>
+              </datatype>
+            </attDef>
+            <attDef ident="lemma" usage="rec" mode="change">
+              <datatype>
+                <dataRef key="teidata.text"/>
+              </datatype>
+            </attDef>
+            <attDef ident="ana" usage="rec" mode="change">
+              <datatype maxOccurs="unbounded" minOccurs="1">
+                <dataRef key="teidata.pointer"/>
+              </datatype>
+            </attDef>
+            <attDef ident="corresp" usage="rec" mode="change">
+              <datatype>
+                <dataRef key="teidata.pointer"/>
+              </datatype>
+            </attDef>
+          </attList>
+        </elementSpec>
+        <elementSpec ident="m" module="analysis" mode="change">
+          <attList>
+            <attDef ident="ana" usage="req" mode="change">
+              <datatype maxOccurs="unbounded" minOccurs="1">
+                <dataRef  key="teidata.pointer"/>
+              </datatype>
+            </attDef>
+          </attList>
+        </elementSpec>
+        <elementSpec ident="cb" module="core" mode="change">
+          <attList>
+            <attDef ident="n" usage="req" mode="change">
+              <datatype>
+                <dataRef key="teidata.text"/>
+              </datatype>
+            </attDef>
+          </attList>
+        </elementSpec>
+        <elementSpec ident="pb" module="core" mode="change">
+          <attList>
+            <attDef ident="n" usage="req" mode="change">
+              <datatype>
+                <dataRef key="teidata.text"/>
+              </datatype>
+            </attDef>
+          </attList>
+        </elementSpec>
+        <elementSpec ident="note" mode="change" module="core">
+          <attList>
+            <attDef ident="xml:id" usage="req" mode="change">
+              <datatype>
+                <dataRef name="ID"/>
+              </datatype>
+            </attDef>
+            <attDef ident="n" usage="req" mode="change">
+              <datatype>
+                <dataRef key="teidata.text"/>
+              </datatype>
+            </attDef>
+          </attList>
+        </elementSpec>
+        
+        <!-- Example of how to reduce number of available attributes by deleting
+        some of the global ones-->
+        <classSpec module="tei" type="atts" ident="att.global" mode="change">
+          <classes>
+            <memberOf key="att.global.analytic"/>
+            <!-- <memberOf key="att.global.change"/>-->
+            <!-- <memberOf key="att.global.editorialStatus"/>-->
+            <memberOf key="att.global.facs"/>
+            <memberOf key="att.global.linking"/>    
+            <memberOf key="att.global.rendition"/>
+            <memberOf key="att.global.responsibility"/>
+            <!-- <memberOf key="att.global.source"/>-->
+          </classes>
+        </classSpec>
+        <classSpec module="linking" type="atts" ident="att.global.linking" mode="change">
+          <attList>
+            <attDef ident="sameAs" mode="delete"/>
+            <attDef ident="copyOf" mode="delete"/>
+            <attDef ident="next" mode="delete"/>
+            <attDef ident="prev" mode="delete"/>
+            <attDef ident="exclude" mode="delete"/>
+            <attDef ident="select" mode="delete"/>
+          </attList>
+        </classSpec>
+        <classSpec module="tei" type="atts" ident="att.global.rendition" mode="change">
+          <attList>
+           <attDef ident="style" mode="delete"/>
+          </attList>
+        </classSpec>
+        <classSpec module="tei" ident="att.cmc" type="atts" mode="delete"/>
+        <classSpec module="tei" ident="att.datcat" type="atts" mode="delete"/>
+      </schemaSpec>
+      <div xml:id="identifiers">
+        <head>Identifiers and referencing mechanisms</head>
+        <p>Identifiers, represented as <att>xml:id</att> attributes on appropriate elements follow a
+          consistent naming scheme across the Psalter editions, witnesses, psalms and annotation
+          layers.</p>
+        <list>
+          <item>Edition (Psalter) siglum: e.g. <code>PK</code> (<hi>Psałterz krakowski</hi>), or
+              <code>PF</code> (<hi>Psałterz floriański</hi>)</item>
+          <item>Witness siglum (used in the critical apparatus entries): constructed from the
+            edition siglum followed by year, e.g. <code>PK1532</code>, <code>PK1535</code></item>
+          <item>Psalm number: sequential number, padded to 3 digits, e.g. <code>001</code> for Psalm
+            1</item>
+          <item>Canonical psalm identifier (shared across editions): <code>ps-</code> followed by
+            the psalm number, e.g. <code>ps-001</code> (for Psalm 1). Used as the value of
+              <att>synch</att> on <gi>div</gi>.</item>
+          <item>Psalm introductory article identifier (shared across editions):
+              <code>commentary-ps-001</code> (for the introduction to Psalm 1). Used as the value of
+              <att>corresp</att> on <gi>div</gi>.</item>
+          <item>Psalm identifier (in a given edition): edition siglum followed by the psalm number,
+            e.g. <code>PK-001</code> (Psalm 1 in <hi>Psałterz krakowski</hi>)</item>
+          <item>Canonical verse identifier (shared across editions): <code>ps-001-01</code> (Psalm
+            1, verse 1).</item>
+          <item>Verse identifier (in a given edition): <code>PK-001-01</code> (Psalm 1, verse 1 in
+              <hi>Psałterz krakowski</hi>).</item>
+          <item>Incipit (in a given edition): <code>PK-001-incipit</code>.</item>
+        </list>
+
+        <p>Identifiers are defined exactly once across the dataset, where they occur as a value of
+            <att>xml:id</att> attribute on an XML element</p>
+        <p>Identifiers may be used multiple times when they are <hi>referenced</hi> from another
+          element. This may be done via a number of pointing attributes, such as <att>corresp</att>,
+            <att>synch</att>, etc. Each of these attributes has a specific function across the
+          Psalters dataset.</p>
+        
+        <div><head>Registers</head>
+        <p>References for analytical features can be resolved against appropriate registers.</p>
+
+        <list>
+          <item><code>versions.xml</code>: catalogue of editions (psalters) with their identifiers,
+            names and ordinal numbers.</item>
+          <item><code>lexicon.xml</code>: dictionary of lexical explanations; identifiers are
+            defined on <gi>sense</gi> and <gi>entry</gi> elements (e.g. <code>lex-stolec-1</code>)
+            and pointed to via <code>@corresp</code>.</item>
+          <item><code>commentary.xml</code>: psalm introductory articles (e.g.
+              <code>commentary-ps-001</code>) and pointed to via <code>div/@corresp</code>.</item>
+          <item><code>phonetics.xml</code>: register of phonetic phenomena with explanations (e.g.
+              <code>phon-wzdluzenie</code>), pointed to via <code>m/@ana</code>.</item>
+          <item><code>morphology.xml</code>: morphological classification; register of identifiers
+            from the NKJP tagset; referenced by individual labels in <code>w/@msd</code>.</item>
+          <item><code>taxonomy.xml</code>: metadata classifications, e.g. psalm types (<code>div/@ana</code>) and kinds of
+            translation (<code>catRef/@target</code>).</item>
+        </list>
+        </div>
+      </div>
+      <div xml:id="structure">
+        <head>General structure of the Psalter</head>
+        <p>Each of the Psalters, e.g. Psałterz floriański, or Psałterz krakowski is represented as
+          an individual TEI document.</p>
+        <p>Such a document is composed of three parts: the <gi>teiHeader</gi>, <gi>standOff</gi> and
+            <gi>text</gi> sections.</p>
+
+        <p>The <gi>TEI</gi> element must carry an obligatory <att>xml:id</att> attribute with a
+          psalter identifier, e.g. <code>PK</code>.</p>
+        
+        <p>The <gi>div</gi> element is used as a main organizational unit in the text, representing
+          a single psalm. Thus in the <gi>text</gi>/<gi>body</gi> section, nothing but a series of <gi>div</gi>s may occur.</p>
+
+        <p>The <gi>text</gi> and <gi>body</gi> hold the annotated manuscript or printed primary source.</p>
+        <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:space="preserve">
+          <TEI xml:lang="pl" xml:id="PK">
+            <teiHeader>
+              ...
+            </teiHeader>
+            <standOff>
+              ...
+            </standOff>
+            <text>
+              <body>
+                <div>
+                  
+                  <head>Psalm 1</head>
+                   ...
+                </div>
+                
+                <div>
+                  
+                  <head>Psalm 2</head>
+                  ...
+                </div>
+                
+                ...
+              </body>
+            </text>
+          </TEI>
+        </egXML>
+
+      </div>
+      <div xml:id="division">
+        <head>Anatomy of a psalm</head>
+        
+        <p>Every psalm is represented as a <gi>div</gi> element with certain obligatory attributes.
+          Internally, it comprises of an obligatory <gi>head</gi> element, followed by a number of
+            <gi>ab</gi>, representing canonical verses of the Book of Psalms.</p>
+        <p>The example below shows the initial verse of Psalm 1</p>
+
+        <egXML xmlns="http://www.tei-c.org/ns/Examples"  xml:id="gi-div-egXML-p1">
+            <div type="psalm" n="1" xml:id="PF-001" corresp="commentary-ps-001" synch="ps-001" ana="#wisdom">
+
+            <pb facs="334664cd-855a-4ffd-b87b-757d5c6841f6" n="3r" xml:id="PF-pb-001"/>
+              
+            <head><supplied>Psalm 1</supplied></head>
+              
+            <ab type="verse" n="1" xml:id="PF-001-01" synch="ps-001-01">
+                  <lb/> Beatus vir qui non abiit 
+                  <lb/> inconsilio impiorum et 
+                  <lb/> inuia peccatorum non 
+                  <lb/> stetit et inkathedra 
+                  <lb/> pestilencie non sedit
+              </ab>
+
+          </div>
+        </egXML>
+
+        <div>
+          <head>The psalm (div)</head>
+          <p>The <gi>div</gi> element representing a psalm must have a number of obligatory
+            attributes. These are:</p>
+
+          <list>
+            <item><att>xml:id</att>: a psalm identifier</item>
+            <item><att>synch</att>: reference to the <hi>canonical verse identifier</hi></item>
+            <item><att>ana</att>: reference(s) to psalm classification taxonomy</item>
+            <item><att>type</att>: <code>psalm</code></item>
+            <item><att>n</att>: verse ordinal (a number)</item>
+          </list>
+        </div>
+
+        <div>
+          <head>Psalm title (head)</head>
+
+          <p>Each of the psalms <gi>div</gi> MUST have a <gi>head</gi> providing the psalm's title.
+            Where it doesn't appear in the source text, it must be supplied and additionally marked
+            up with <gi>supplied</gi> element.</p>
+        </div>
+
+        <div>
+          <head>Verse (ab)</head>
+
+          <p>Each psalm must have at least one verse, encoded with <gi>ab</gi> element. Each verse
+            must have a number of obligatory attributes. These are:</p>
+
+          <list>
+            <item><att>xml:id</att>: a verse identifier</item>
+            <item><att>corresp</att>: pointer to a <hi>psalm introductory article</hi></item>
+            <item><att>synch</att>: reference to the <hi>canonical psalm identifier</hi></item>
+            <item><att>ana</att>: reference(s) to psalm classification taxonomy</item>
+            <item><att>type</att>: <code>verse</code></item>
+            <item><att>n</att>: psalm ordinal (a number)</item>
+          </list>
+        </div>
+
+        <div>
+          <head>Epigraphs and arguments</head>
+          
+          <p>In some of the editions, non-canonical content may occur. These may be encoded as <gi>epigraph</gi>s
+          or <hi>arguments</hi> (with <gi>ab</gi> element, but marked as <code>type="argument"</code>).</p>
+          
+          <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-epigraph-egXML-mt">
+          <epigraph>
+            <foreign xml:lang="la">Quare fremuerunt</foreign>
+          </epigraph>
+          </egXML>
+          
+          <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-argument-egXML-mt">
+          <ab type="argument">Ten psalm powiada, iże Krystus w dziedzictwo bierze
+            wszystek lud od Boga Ojca Dawidowo.</ab>
+          </egXML>
+        </div>
+      </div>
+      
+      <div>
+        <head>Anatomy of verse</head>
+
+        <p>A number of high-level phenomena can be encoded as descendants of verse. The elements
+          allowed in verse (<gi>ab</gi>) are:</p>
+        <list>
+          <item>page (<gi>pb</gi>), line (<gi>lb</gi>), and column (<gi>cb</gi>) beginnings</item>
+          <item><gi>seg</gi>: an arbitrary segment</item>
+          <item><gi>w</gi>: a word with morphological analysis results</item>
+          <item><gi>choice</gi>: phrase with spelling regularization</item>
+          <item><gi>app</gi>: phrase with alternate readings across extant witnesses</item>
+
+        </list>
+        <div>
+          <head>Multi-lingual verses (PF)</head>
+          <p>In <hi>Psałterz floriański</hi>, each verse is repeated three times, in Latin, Polish
+            and German. In this case, each language version is wrapped in a <gi>seg</gi> element
+            with <att>xml:lang</att> and <att>rend</att> attributes. No other content is present
+            between these segments.</p>
+          <p><att>xml:lang</att> values are <code>la</code> for Latin, <code>de</code> for German
+            and <code>pl</code> for Polish. See the simplified example below.</p>
+
+          <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-seg-ab-egXML-mt">
+            <seg xml:lang="la" rend="ab">Beatus vir qui non abiit...</seg>
+            <seg xml:lang="de" rend="ab">Der zelige man der nicht gink...</seg>
+          </egXML>
+        </div>
+        <div>
+          <head>Spelling regularization (choice)</head>
+          <p>Words or phrases where spelling of the primary source differs from the transcription
+            are wrapped in a <gi>choice</gi> with <gi>orig</gi> (for the transliteration) and
+              <gi>reg</gi> (for transcription).</p>
+
+          <p>Regularized version may include further morphological and phonetic analysis, see
+            further below.</p>
+          <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-choice-egXML-e1">
+            <choice>
+              <orig>møsz</orig>
+              <reg>
+                <w lemma="Mąż" msd="subst:sg:nom:m">mąż</w>
+              </reg>
+            </choice>
+          </egXML>
+
+          <p>Where regularized spelling involves multiple orthographic words, each of these MUST be
+            encoded with <gi>w</gi>, and whitespace between them explicitly encoded with
+            <gi>pc</gi>. Cf. the example below:</p>
+
+          <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-choice-egXML-e2">
+            <choice>
+              <orig>neszedl</orig>
+              <reg>
+                <w lemma="Nie" msd="1:part">nie</w>
+                <pc msd="interp"> </pc>
+                <w lemma="iść" msd="ppraetact2:sg:nom:m:imperf:aff:ncompos">szedł</w>
+              </reg>
+            </choice>
+          </egXML>
+          <div><head>Punctuation</head>
+            <p>Punctuation should only be marked up where it requires regularization, otherwise it should just be transcribed.</p>
+            <p>Care must be taken not to introduce unnecessary whitespace between punctuation and preceding text.</p>
+            
+            <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-pc-egXML-e2">
+            <choice><orig><pc>/</pc></orig><reg><pc>,</pc></reg></choice>
+            </egXML>
+          </div>
+        </div>
+        
+      </div>
+      
+      <div>
+        <head>Facsimiles, pages, lines, and columns</head>
+        <p>Beginnings of each page, column and line in the primary source need to be encoded with
+          <gi>pb</gi>, <gi>cb</gi> and <gi>lb</gi> elements, respectively.</p>
+        
+        <div><head>Pages</head>
+        
+        <p>Page beginning markers must be placed as a first node in a <gi>div</gi>, or wherever
+          they occurr in the source text.</p>
+        
+        <p>Page beginnings require <att>facs</att>, <att>n</att> and <att>xml:id</att>
+          attributes.</p>
+        
+        <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-pb-cb-egXML-mt">
+          
+          <div type="psalm" n="1" xml:id="PF-001" corresp="commentary-ps-001" synch="ps-001" ana="#wisdom">
+            <pb facs="334664cd-855a-4ffd-b87b-757d5c6841f6" n="3r" xml:id="PF-pb-001"/>
+            <cb n="a"/>
+            
+            <head>Psalm 1</head>
+            ... 
+          </div>
+        </egXML>
+        </div>
+        
+        <div><head>Facsimiles</head>
+        
+        <p>Default IIIF service is Polona, since most of the Psalter editions are 
+          available in facsimile from there.</p>
+        
+        <p>The value of <att>facs</att> should be the facsimile identifier from Polona, as in the
+          example above. Facsimiles from the Jagiellonian IIIF service must use the
+          <code>hub:</code> prefix and a relative path to the image resource.</p>
+        
+        <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-facs-hub-egXML-mt">
+          <pb xml:id="PK-pb-013" facs="hub:PF/PF_page_013.tif" n="1"/>
+          <head>Pſalm Dawidow 1</head>
+        </egXML>
+        
+        </div>
+        
+       
+        
+        <div><head>Lines</head>
+          <p>Line beginnings should be marked just before the text occurring on the line in question.
+            The <gi>lb</gi> element should be kept within the parent element of the text starting on that line,
+            usually <gi>ab</gi>.</p>
+          
+          <p>Where line beginning occurs within a word, it should be encoded in the original 
+            (not the regularized) form and additionally marked with a <att>break</att> attribute with a value <code>no</code>.</p>
+          
+          <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-lb-egXML-mt">
+            <choice>
+              <orig>cze<lb break="no"/>køcych</orig>
+              <reg>...</reg>
+            </choice>   
+          </egXML>
+          
+        </div>
+        
+        <div><head>Columns</head>
+          
+          <p>If the primary source is divided into columns, these may be marked with
+            <gi>cb</gi>.</p>
+          
+          <p>The first column beginning on the page directly follows the page beginning marker. 
+            Other column beginning markers are placed as they occur, but where possible are kept at the <gi>ab</gi> level.</p> 
+          
+          <p>Where column starts within a word, it should be marked only in the <emph>original</emph> form, not the regularized.
+          The line beginning marker naturally then <emph>follows</emph> the column beginning.</p>
+          
+          <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-cb-egXML">
+            <ab type="verse" n="2" xml:id="PF-001-02" synch="ps-001-02">
+              
+              <lb/> ... meditabitur die ac nocte
+              <cb n="b"/>
+              <lb/>Ale w zacone
+              ...
+            </ab>
+          </egXML>
+        </div>
+        
+        
+      </div>
+      
+      <div>
+        <head>Morphological analysis</head>
+        <p>Only the <emph>regularized</emph> forms (<gi>reg</gi>) are subject to morphological analysis. 
+          A <gi>w</gi> element is always used as a wrapper to provide the analysis with <att>lemma</att>
+        for the base form and <att>msd</att> for NKJP-style morphological annotation.</p>
+        
+        <p>Classifications in <att>msd</att> are resolved against the <hi>Morphology register</hi>.</p>
+        
+        <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-morpho-egXML-mt">
+          
+        <reg>
+          <w lemma="Niemiłościwy" msd="adj:pl:gen:m:pos:compos">niemiłościwych</w>
+        </reg>
+        </egXML>
+      </div>
+      
+      <div>
+        <head>Phonetic analysis</head>
+        <p>Only the <emph>regularized</emph> forms (<gi>reg</gi>) are subject to phonetic analysis. 
+          Within the <gi>w</gi> element, smaller segments are marked with <gi>m</gi>, which is always 
+          used as a wrapper to provide the analysis of the phonetic phenomena with <att>ana</att>.</p>
+        
+        <p>References in <att>ana</att> are resolved against the <hi>Phonetic register</hi>.</p>
+        
+        <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-phon-egXML-mt">
+          
+          <reg>
+            <w lemma="Droga" msd="subst:sg:loc:f">d<m ana="#phon-metateza">ro</m><m ana="#phon-2-palat">dz</m>e</w>
+          </reg>
+        </egXML>
+        
+        <p>Multiple phenomena may be linked to the same <gi>m</gi>, by separating references with space.</p>
+      
+        <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-phon-multi-egXML">
+        <m ana="#phon-metateza #phon-r-sonant">rze</m>wo
+        </egXML>
+      </div>
+      
+      <div>
+        <head>Editorial commentary (standOff)</head>
+        <p><gi>standOff</gi> with <gi>listAnnotation</gi> and <gi>note</gi> elements to store
+          editorial commentary, linked from the <gi>text</gi> via <att>corresp</att>.</p>
+        
+        <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-anno-egXML">
+          
+          <standOff>
+            <listAnnotation>
+              ...
+              <note xml:id="PF-001-note-002" n="2">po radzie – ‘za radą’</note>
+              ...
+            </listAnnotation>
+          </standOff>
+        </egXML>
+        
+        <p>There are two ways to connect the stand-off commentary notes with the source text.
+          When the note concerns a single orthographic word in the source, it should be attached
+          to the <gi>choice</gi> with a <att>corresp</att>.</p>
+        
+        <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-corr-choice-egXML-mt">
+          
+          <choice corresp="PF-001-note-002">
+            <orig>poradze</orig>
+            <reg>
+              <w lemma="Po" msd="prep:loc">po</w>
+              <pc msd="interp"> </pc>
+              <w lemma="Rada" msd="subst:sg:loc:f">radzie</w>
+            </reg>
+          </choice>
+        </egXML>
+        
+        <p>Where commentary regards a longer phrase, or there's no adequate <gi>choice</gi> wrapper available,
+          a <gi>seg</gi> element must be added around the relevant phrase, as required. 
+          The link is still established via <att>corresp</att> attribute.</p>  
+        
+        <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-corr-seg-egXML">
+          
+        <seg corresp="PF-001-note-001">
+          <choice>
+            <orig>iest</orig>
+            <reg>
+              <w lemma="Być" msd="1:sg:ter:imperf">jest</w>
+            </reg>
+          </choice>
+          <choice>
+            <orig>neszedl</orig>
+            <reg>
+              <w lemma="Nie" msd="1:part">nie</w>
+              <pc msd="interp"> </pc>
+              <w lemma="iść" msd="ppraetact2:sg:nom:m:imperf:aff:ncompos">szedł</w>
+            </reg>
+          </choice>
+        </seg>
+        </egXML>
+      </div>
+      
+      <div>
+        <head>Metadata (teiHeader)</head>
+
+        <list rend="numbered">          
+          <item><gi>titleStmt</gi>to record the psalter title and contributors</item>
+          <item><gi>sourceDesc</gi> from the header module to record information about the source
+            document (or documents where multiple witnesses were used); there must be
+            as many nested <gi>bibl</gi> elements as are the witnesses for a given text version</item>
+          <item><gi>profileDesc</gi> from the header module to record the most important metadata:
+            <gi>abstract</gi>, <gi>textClass</gi> and <gi>langUsage</gi></item>
+        </list>
+        
+        <div>
+          <head>Title and contributors (titleStmt)</head>
+          
+          <p>In the <gi>fileDesc</gi> section of the TEI Header, the <gi>titleStmt</gi>
+            element is used to store the title of the document,
+            and responsibility statement for the contributors working on the 
+            text in question.</p>
+          
+          <p><gi>titleStmt</gi> MUST provide the publication <gi>title</gi> of the edited
+            text, and one or more <gi>respStmt</gi> entries listing all contributors involved
+            in a certain role.</p>
+          
+          <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="ex-fileDesc-bibl">
+            <fileDesc>
+            <titleStmt>
+              <title>Psałterz floriański</title>
+              <respStmt>
+                <resp>tłumaczenie</resp>
+                <name>Anonim</name>
+              </respStmt>
+              ...
+            </titleStmt>
+            <publicationStmt>
+              <p>Jagiellońska Platforma Cyfrowa</p>
+            </publicationStmt>
+            <sourceDesc>
+              <bibl xml:id="PF1395">
+                <title>Psałterz floriański</title>
+                <date when="1395">ca 1395-ca 1405</date>
+                <ref target="https://polona.pl/preview/43713d40-72bd-439c-b7ce-300541ade137">Biblioteka Narodowa <idno type="BN">Rps 8002 III</idno></ref>
+              </bibl>
+            </sourceDesc>
+            </fileDesc>
+          </egXML>      
+        </div>
+         <div>
+            <head>Responsibility statements</head>
+            
+            <p>Each of the individuals involved at any stage of the preparation of the edited text
+              has a right to be duly acknowledged with their contribution. To this end, for each
+              role or type of contribution, irregardles if directly reflected in the source control
+              repository, a list of <gi>name</gi> elements with all individuals involved must be provided.</p>
+            
+            <p>It is typical that certain individuals will appear in multiple <gi>respStmt</gi>,
+              and equally typical that certain statements will comprise a long list of individuals.</p>
+            
+            <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="ex-respStmt-bibl">
+              
+              <respStmt>
+                <resp>transliteracja</resp>
+                <name>Joanna Hałaczkiewicz</name>
+              </respStmt>
+              <respStmt>
+                <resp>transkrypcja</resp>
+                <name>Magdalena Komorowska</name>
+              </respStmt>
+              <respStmt>
+                <resp>komentarz rzeczowy</resp>
+                <name>Magdalena Komorowska</name>
+              </respStmt>
+              
+              <respStmt>
+                <resp>znakowanie TEI</resp>
+                <name>Joanna Hałaczkiewicz</name>
+                <name>Magdalena Komorowska</name>
+                <name>Magdalena Turska</name>
+              </respStmt>
+              
+            </egXML>      
+          </div>
+          
+          <div><head>Description of sources and witnesses</head>
+            <p>Each of the witnesses used in preparation of the edition MUST be described with <gi>bibl</gi> in the <gi>sourceDesc</gi> section.</p>
+            
+            <p>NB: <code>bibl/@xml:id</code> identifier is used as a witness siglum (reference) for any apparatus entries attested by that witness.</p>
+            
+            <egXML xmlns="http://www.tei-c.org/ns/Examples" xml:id="gi-bibl-egXML">
+              <sourceDesc>
+                <bibl xml:id="PF1395">
+                  <title>Psałterz floriański</title>
+                  <date when="1395">ca 1395-ca 1405</date>
+                  <ref target="https://polona.pl/preview/43713d40-72bd-439c-b7ce-300541ade137">Biblioteka Narodowa <idno type="BN">Rps 8002 III</idno></ref>
+                </bibl>
+              </sourceDesc>
+            </egXML>         
+          </div>
+        </div>    
+    </body>
+  </text>
+</TEI>

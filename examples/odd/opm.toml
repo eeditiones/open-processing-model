@@ -13,6 +13,7 @@
 # SOURCE` on the command line wins over this.
 [document]
 # source = "my-customization.odd"
+# source = "sample/tei_psalmy.odd"   # a sample customisation with guidelines
 lang = "en"
 
 # The logo in the menubar and the browser tab: templates/logo.svg, or another

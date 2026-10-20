@@ -86,6 +86,17 @@ SPDX-FileCopyrightText = [
 ]
 SPDX-License-Identifier = "CC-BY-4.0"
 
+# A third-party customisation shipped as the sample for `examples/odd`: the
+# Polish Psalters ODD of the Jagiellonian Digital Platform, under its authors'
+# CC BY-SA licence (stated in its teiHeader).
+[[annotations]]
+path = "examples/odd/sample/tei_psalmy.odd"
+SPDX-FileCopyrightText = [
+  "2026 Magdalena Turska and Helena Bermúdez Sabel",
+  "2013 James Cummings and TEI Consortium",
+]
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+
 # ---------------------------------------------------------------------------
 # Scholarly source documents. Not covered by the CC0 dedication: each carries its own
 # provenance and rights, described in LICENSES/LicenseRef-SourceDocuments.txt and in the
