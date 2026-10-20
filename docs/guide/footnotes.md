@@ -19,19 +19,6 @@ Notes that carry their own TEI `@n` keep that label and do not consume the
 running counter, so the commentary still reads 1, 2, 3 even when apparatus
 notes (a, b, c) sit between them.
 
-### Lemma ranges
-
-When a note covers a span of text, put an `<anchor type="note"/>` at the start
-and the `<note>` at the end with `@target` pointing at the anchor:
-
-```xml
-…vielmehr <anchor type="note" xml:id="fn-b"/>eine nur als Ausnahme mögliche,
-ja unmögliche Erscheinung<note n="b" target="fn-b" type="textcritical">…</note>…
-```
-
-The start is marked `b-`, the end `-b`, and the footnote is labelled `b-b`.
-Point notes without an anchor still show a single marker (`b`).
-
 ## Configuring the order
 
 Set `[transform] footnote_order` in `opm.toml` to a Python callable:

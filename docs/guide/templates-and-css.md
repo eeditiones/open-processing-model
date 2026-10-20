@@ -1,27 +1,38 @@
 # Templates & CSS
 
-When a transform returns a **full document** (the `document` behaviour), HTML and
-Typst output are wrapped in a [Jinja2 template](https://jinja.palletsprojects.com). Fragment output — for example when
-you select a single element with `--xpath`, or when `opm chunk` transforms a
-section — is **not** a complete HTML document; the template supplies the rest
-of the page around it.
+The transform turns your XML into HTML (or Typst), but that alone is not yet a
+web page anyone would want to read: a page also needs a title, stylesheets,
+perhaps a menu bar or a table of contents. This is what templates are for. A
+template is a [Jinja2](https://jinja.palletsprojects.com) file describing the
+page around the transformed text. opm puts the output of the transform into
+it, and the result is the final page.
+
+The template is used in two situations:
+
+- you transform a **whole document**, e.g. a TEI file with `opm transform`
+- you transform only a **part** of a document. This happens when you pick a
+  single element with `--xpath`, or when `opm chunk` splits a document into
+  sections and transforms each of them separately. The output is then just a
+  piece of HTML, and it is the template which turns it into a complete page.
 
 ## HTML templates
 
-The HTML template used for a page is the first one found among:
+opm looks for the HTML template in the following places and uses the first one
+it finds:
 
 1. the template given with `--template` on the command line
-2. `[transform.web] template` in `opm.toml`
+2. the `template` setting under `[transform.web]` in `opm.toml`
 3. opm's own default template
 
-Chunk pages use the same template, unless `[chunking]` names a template of its
-own.
+Chunk pages use the same template, unless the `[chunking]` section names a
+different one.
 
 ### Templates created by opm init
 
-`opm init` copies one HTML template into the project's `templates/` folder:
-`journal` for a JATS project, `chapbook` for all others. With `--templates`,
-it copies the alternatives as well:
+For a new project, `opm init` copies one HTML template into the project's
+`templates/` folder: `chapbook` for TEI, `handbook` for DocBook and `journal`
+for JATS. If you start from an example (`--example`), you get the templates of
+that example instead. With `--templates`, opm copies the alternatives as well:
 
 | Template | Suited for |
 | --- | --- |
@@ -31,18 +42,17 @@ it copies the alternatives as well:
 | `tufte` | a demo, styled with [Tufte CSS](https://edwardtufte.github.io/tufte-css/) |
 | `bootstrap` | a demo, styled with [Bootstrap](https://getbootstrap.com) |
 
-It also copies `document.typ.j2`, the plain Typst template opm uses when no
-other is set. Once copied, the templates are yours: edit them in place.
+Once copied, the templates are yours: you can edit them as you like.
 
-When you run `opm init` in a terminal without `--templates`, it asks whether
-you want the alternatives. Combined with `--example`, `--templates` adds them
-next to the templates the example already has, without overwriting any of
-them.
+If you run `opm init` in a terminal without `--templates`, it asks you
+whether you want the other templates too. When you start from an example
+(`--example`), `--templates` adds them to the templates which come with the
+example, but does not overwrite any of them.
 
-`chapbook`, `journal` and `handbook` extend opm's page layout
-(`opm/layout.html.j2`), so they only contain what makes each of them
-different. `tufte` and `bootstrap` extend just `opm/base.html.j2`, because
-their frameworks lay out the page themselves. See
+`chapbook`, `journal` and `handbook` build on opm's page layout
+(`opm/layout.html.j2`), so each of them only contains what is particular to
+it. `tufte` and `bootstrap` build only on `opm/base.html.j2`, because Tufte CSS
+and Bootstrap come with a page layout of their own. See
 [Template inheritance](#template-inheritance).
 
 ### Switching to another template
@@ -65,97 +75,49 @@ opm transform data/sample.xml --template templates/tufte.html.j2 -o out.html
 
 ### Print templates
 
-`-t print` uses its own template<!-- so reading-view chrome (nav, web components) stays
-out of paged output-->:
+Output for print (`-t print`) uses a template of its own<!-- so reading-view chrome (nav, web components) stays
+out of paged output-->. A page meant for the screen contains many things which
+make no sense on paper, like menus or navigation buttons. opm therefore looks
+for the print template in different places:
 
-1. `--template`
-2. `[transform.print] template`
-3. Packaged `default_print.html.j2` (not `[transform.web] template`)
+1. the template given with `--template` on the command line
+2. the `template` setting under `[transform.print]` in `opm.toml`
+3. opm's own `default_print.html.j2`
+
+Note that the template configured for the web is never used for print.
 
 ```toml
 [transform.print]
 template = "templates/print.html.j2"
 ```
 
-The DocBook example project contains a complete print template in
+You can find a complete print template in the DocBook example project:
 `examples/docbook/templates/print.html.j2`.
-
-The same Jinja file can wrap both a full-document transform and chunked pages.
-The contents of `<head>` have to work for **both** pipelines, which differ in
-how CSS arrives.
-
-### Document vs fragment output
-
-A model with `behaviour="document"` (typically the TEI / DocBook root) emits a
-complete HTML tree:
-
-```html
-<html>
-  <head>
-    <meta charset="utf-8">
-    <style type="text/css">/* ODD-generated CSS */</style>
-  </head>
-  <body>…transformed content…</body>
-</html>
-```
-
-Before the Jinja template runs, that tree is split:
-
-| Variable | Full-document transform (`opm transform` of the root) |
-| --- | --- |
-| `head_html` | Inner HTML of `<head>`, without the ODD stylesheet |
-| `content_html` | Inner HTML of `<body>` |
-| `odd_css` | The ODD-generated stylesheet, taken out of `<head>` so the template decides where it goes |
-
-`opm chunk` does **not** start at that root. It transforms each selected
-division (`div`, DocBook `section`, a reconstructed page, …). Those elements
-use `block` / `heading` / `pb-observable` models and produce a **fragment** —
-a `<div>` or similar, not `<html>`. There is no `<head>` to extract:
-
-| Variable | Chunked / `--xpath` fragment |
-| --- | --- |
-| `head_html` | Empty string |
-| `content_html` | The serialized fragment |
-| `odd_css` | ODD-generated stylesheet text — the template must emit it |
-
-JSON chunk files expose the same split as `head` and `odd_css` keys: `head` is
-empty for normal section chunks.
-
-Either way the ODD stylesheet arrives as `odd_css`. A template that works in
-both cases renders `head_html` **and** `odd_css`, the ODD stylesheet last so its
-renditions win over the page's own styles:
-
-```jinja
-<head>
-  <meta charset="utf-8">
-  {{ head_html | safe }}
-  {% if odd_css %}
-  <style type="text/css">{{ odd_css }}</style>
-  {% endif %}
-</head>
-```
-
-`{{ head_html | safe }}` on a chunk page is a no-op. Leave it in so the
-template can also wrap `opm transform`. A template that extends one of opm's
-templates (see [Template inheritance](#template-inheritance)) does all of this
-for you.
 
 ### Template variables
 
-A document or chunk template receives:
+Every page template receives the following variables:
 
 | Variable | Contents |
 | --- | --- |
-| `content_html` | The transformed document body, or the chunk/fragment markup |
-| `head_html` | Inner HTML of the transform `<head>`, or empty for fragments (see above) |
-| `odd_css` | ODD-generated stylesheet text (with chunking also written to a file, see `odd_css_url`) |
-| `context` | The project's own `[context]` values — see [Template context](#template-context) |
-| `lang` | Document language, from the transformed document's `<html lang>`; empty when unknown (set `context.lang` to fix it) |
-| `chunk` | Chunk metadata (`id`, `file`, `prev`, `next`, …) when rendering via `opm chunk` |
-| `fragments` | Named HTML or text from `[chunking.fragments]`; a whole-document page gets only the `global` ones |
-| `parameters` | The `[transform.parameters]` map, as also bound to XPath `$parameters` |
+| `content_html` | The transformed text: the body of a whole document, or the transformed part (chunk or `--xpath` selection) |
+| `context` | Your project's own settings from `[context]` – see [Template context](#template-context) |
+| `chunk` | Information about the current chunk (`id`, `file`, `prev`, `next`, …), only when the page is created by `opm chunk` |
+| `fragments` | Named pieces of HTML or text configured in `[chunking.fragments]`. A page for a whole document only gets those with `scope = "global"` |
+| `parameters` | The parameters from `[transform.parameters]`, which are also available in XPath as `$parameters` |
+| `lang` | The language of the document, taken from `<html lang>` in the transformed output. It is empty if unknown; set `context.lang` to provide it |
+| `head_html` | Additional content for `<head>` created by the transform. Empty for chunks and `--xpath` selections |
+| `odd_css` | The stylesheet generated from the ODD. When chunking, opm also writes it to a file, whose address is in `odd_css_url` |
 
-A minimal template:
+If your template extends one of opm's templates (see
+[Template inheritance](#template-inheritance)), you will mostly use
+`context`, `chunk` and `fragments`. opm's templates already take care of the
+rest: they put `content_html` into the page and add `head_html` and `odd_css`
+to `<head>`.
+
+Only if you write a template from scratch, without extending opm's templates,
+do you have to output these yourself. Put the ODD stylesheet last, so its
+styles take precedence over other stylesheets in the page:
 
 ```jinja
 <!DOCTYPE html>
@@ -164,12 +126,8 @@ A minimal template:
     <meta charset="utf-8">
     {{ head_html | safe }}
     {% if odd_css %}<style type="text/css">{{ odd_css }}</style>{% endif %}
-    {% if context.webcomponents_url %}<script type="module" src="{{ context.webcomponents_url }}"></script>{% endif %}
   </head>
   <body>
-    {% if fragments is defined and fragments.title %}
-    <p>{{ fragments.title | striptags }}</p>
-    {% endif %}
     {{ content_html | safe }}
   </body>
 </html>
@@ -177,8 +135,10 @@ A minimal template:
 
 ### Template context
 
-Everything a template needs beyond the transform output comes through one
-variable, `context`, filled from a `[context]` table in `opm.toml`:
+Templates often need information which is not part of the transformed text:
+the name of the edition, a logo, or whether to show a download link. You
+provide such settings in a `[context]` section in `opm.toml`, and the template
+finds them in the variable `context`:
 
 ```toml
 [context]
@@ -205,10 +165,10 @@ properties matter:
 <!--A missing key is falsy rather than an error, so `{% if context.foo %}` is safe
 for a value the project has not set.-->
 
-The same `context` reaches document templates, chunk templates, the collection
-index template, and Typst templates. To vary it by output type, add a
-`[transform.<type>.context]` table — it overlays `[context]` for that type
-only:
+All templates receive the same `context`: templates for whole documents, for
+chunks, for the collection index, and also Typst templates. If you need a
+different value for one output type, add a `[transform.<type>.context]`
+section. Its settings replace those in `[context]`, but only for that type:
 
 ```toml
 [context]
@@ -258,7 +218,7 @@ A template says which one it extends in its first line:
 For template inheritance to be useful, templates further down the chain need a
 way to put content into places defined by the templates they extend. These
 places are called **blocks**. `opm/layout.html.j2` defines one block for each
-area of the page; they are the same layout areas a TEI Publisher (jinks)
+area of the page; they are the same layout areas a [TEI Publisher](https://tei-publisher.org) (jinks)
 application has:
 
 | Block | Where it appears |
@@ -506,10 +466,14 @@ per project should leave such settings out of its frontmatter.
 
 ## Two kinds of CSS
 
-- **ODD-generated CSS** — produced at compile time from `<outputRendition>`
-  rules and linked stylesheets in the ODD (see [ODD files](odd-files.md)). It
-  styles the classes the transform emits. How it reaches the page is described
-  above: inside `head_html` for `document` output, via `odd_css` for fragments.
+The styles of a page come from two different sources:
+
+- **The ODD stylesheet.** opm creates it from the `<outputRendition>` rules in
+  your ODD and from any stylesheets the ODD links to (see
+  [ODD files](odd-files.md)). It styles the classes which the transform
+  writes into the HTML. opm's templates add it to every page; a template
+  written from scratch finds it in `odd_css` (see
+  [Template variables](#template-variables)).
 <!--
     It opens with a packaged set of base rules for markup the runtime emits
     regardless of ODD — the `.alternate` / `.altcontent` popover behind
@@ -517,21 +481,36 @@ per project should leave such settings out of its frontmatter.
     ODD's own `outputRendition` overrides them, and they travel with the ODD
     stylesheet everywhere it is used.
 -->
-- **Base override** (`--css` / `[transform] css`) — replaces those packaged base
-  rules for every output mode. It is compiled into the ODD stylesheet rather
-  than layered after it, and forms part of the ODD cache key. Use it to restyle
-  what the runtime emits; for a project's own design CSS use `[transform.web]
-  assets`, which can also carry the images and fonts that stylesheet
-  references. Note that `[transform.epub] css` is not a per-mode version of
-  this key: it adds a stylesheet to the EPUB package on top of everything else.
+- **The base styles.** Some markup is created by opm itself, independent of
+  the ODD, e.g. popups for alternate readings or column breaks. opm has a set
+  of basic styles for it. You can replace them with your own using `--css` on
+  the command line or the `css` setting under `[transform]`. The replacement
+  becomes part of the ODD stylesheet and applies to all output types.
+
+For the design of your project, use neither of the two. Instead, list your
+stylesheets under `assets` in `[transform.web]`, together with any images and
+fonts they use. opm copies them next to the output and the template links
+them.
+
+Note that `css` under `[transform.epub]` does something different from
+`[transform] css`: it does not replace the base styles, but adds one more
+stylesheet to the EPUB.
 
 ## Web components
 
-With web components mode enabled (`--webcomponents` or
-`[transform.web] webcomponents = true`),
-`alternate` behaviours emit `<pb-alternate>` and `context.webcomponents_url` is
-filled in with the pinned default bundle, so the template can load the
-tei-publisher `pb-components` bundle:
+TEI Publisher comes with a library of web
+components – interactive HTML elements, e.g.
+for showing alternate readings in a popup. To use them, turn on web components
+mode with `--webcomponents` on the command line, or in `opm.toml`:
+
+```toml
+[transform.web]
+webcomponents = true
+```
+
+The transform will then output `<pb-alternate>` elements for the `alternate`
+behaviour, and `context.webcomponents_url` will contain the address of the
+web components library. The template loads the library with:
 
 ```jinja
 {% if context.webcomponents_url %}
@@ -539,18 +518,20 @@ tei-publisher `pb-components` bundle:
 {% endif %}
 ```
 
-This integrates output with the [TEI Publisher](https://teipublisher.com/) web
-component ecosystem. The URL is an ordinary template value with a default, not
-a setting of its own: give `webcomponents_url` in `[context]` or
-`[transform.web.context]` and yours wins — useful to serve the bundle from your
-own host, or to pin a different version.
+By default, the address points to a fixed version of the library. To load it
+from your own server, or to use a different version, set `webcomponents_url`
+under `[context]` or `[transform.web.context]`.
 
 ## Typst and DOCX templates
 
-- **Typst** uses `.typ.j2` Jinja2 templates configured under `[transform.typst]`.
-  `opm init` copies `book.typ.j2` (TEI) or `docbook.typ.j2` (DocBook). If none
-  is given, the packaged `default_document.typ.j2` is used.
-- **DOCX** uses a binary `.docx` file as a *style* template (not Jinja2),
-  configured under `[transform.docx]` or passed with `--template`. `opm init`
-  copies `templates/default.docx`; a one-off transform falls back to that same
-  packaged file — see [Output formats](output-formats.md#docx).
+- **Typst** uses Jinja2 templates as well, with the extension `.typ.j2`. They
+  are configured under `[transform.typst]`. `opm init` copies `book.typ.j2`
+  for TEI and JATS projects, and `docbook.typ.j2` for DocBook. If no template
+  is configured, opm uses its own `default_document.typ.j2`, a plain template.
+  `opm init --templates` copies it into your project as
+  `templates/document.typ.j2`, so you can use it as a starting point.
+- **DOCX** does not use Jinja2. Instead, the template is an ordinary Word file
+  (`.docx`), from which the output takes its styles. Configure it under
+  `[transform.docx]` or pass it with `--template`. `opm init` copies
+  `templates/default.docx` into your project; without a template, opm uses its
+  own copy of the same file – see [Output formats](output-formats.md#docx).

@@ -123,7 +123,7 @@ italic red. `opm` notices that the ODD has changed and prepares it anew.
 
 This is the general pattern for all changes: find the element, decide on a
 *behaviour* (paragraph, heading, inline, note, link, …), and add styling where
-needed. The [TEI Publisher documentation](https://teipublisher.org/doc/documentation.xml?id=odd#odd)
+needed. The [TEI Publisher documentation](https://tei-publisher.org/doc/documentation.xml?id=odd#odd)
 explains the available behaviours and includes a short tutorial on writing
 processing models.
 
@@ -147,7 +147,7 @@ practical advantages:
 * one set of rules produces HTML, PDF, EPUB, Word and Markdown
 * ODD expands to _One Document Does it all_ for a reason: it can host schema definitions,
 encoding guidelines, documentation and the processing document — all in the same TEI file
-* the same ODD also works in [TEI Publisher](https://teipublisher.org), so you
+* the same ODD also works in [TEI Publisher](https://tei-publisher.org), so you
   can move between a static setup and a full web application without starting
   over
 

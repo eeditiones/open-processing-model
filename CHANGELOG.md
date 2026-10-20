@@ -33,11 +33,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- `opm init --vocabulary docbook` now sets up the `handbook` template instead
+  of `chapbook`, matching the DocBook example.
 - Notes with their own TEI `@n` no longer consume the running counter, so
   lettered and numbered series count independently. HTML notes also expose
   `data-n` for styling, as `print` already did.
-- Lemma-range notes (`<anchor type="note"/>` … `<note target="…">`) display as
-  `a-` / `-a` in the text and `a-a` in the footnote list.
 - `opm coverage` is now `opm odd coverage` (old name kept as a hidden alias).
 - DocBook `programlisting` / `synopsis` (and tagdocs `egXML`) use
   `tp:highlight` on `opm-web` / `opm-print`.

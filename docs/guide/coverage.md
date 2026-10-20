@@ -62,7 +62,7 @@ order, with the first model that has **no** `@predicate` as the `else`. So:
 -->
 ### Expressions OPM cannot run
 
-There could be predicates and params that use what only TEI Publisher's eXist-DB 
+There could be predicates and params that use what only [TEI Publisher's](https://tei-publisher.org) eXist-DB 
 runtime has, such as `util:document-name()` or XQuery's `try`/`catch`. The
 compiler skips them — a predicate counts as false, a param falls back — and
 this table lists each with the reason and its line in the ODD. See

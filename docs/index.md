@@ -14,10 +14,10 @@ description: opm converts TEI, JATS, Docbook or other XML languages to HTML, PDF
 
 While originally conceived for documents following the TEI XML standard, the [TEI Processing Model](https://tei-c.org/release/doc/tei-p5-doc/en/html/TD.html#TDPM) is in fact not limited to TEI, but works equally well for any other kind of text-centric XML.
 
-`opm` is pure Python with minimal dependencies and implements the full _TEI Processing Model_. Most ODDs will be compatible and can be exchanged between _TEI Publisher_ and `opm`, allowing users to combine the benefits of a dynamic, database-backed website with the speed of static rendering.
+`opm` is pure Python with minimal dependencies and implements the full _TEI Processing Model_. Most ODDs will be compatible and can be exchanged between [_TEI Publisher_](https://tei-publisher.org) and `opm`, allowing users to combine the benefits of a dynamic, database-backed website with the speed of static rendering.
 
-To get started, have a look at the [short tutorial](tutorials/tei-to-html.md) included in this documentation. To learn more about ODD as the underlying standard, it is best to read the [TEI Publisher documentation](https://teipublisher.org/doc/documentation.xml?id=odd#odd).
-It also includes a more extensive tutorial in the [Gentle Introduction](https://teipublisher.org/doc/quickstart.xml?id=pm-tutorial#pm-tutorial) document.
+To get started, have a look at the [short tutorial](tutorials/tei-to-html.md) included in this documentation. To learn more about ODD as the underlying standard, it is best to read the [TEI Publisher documentation](https://tei-publisher.org/doc/documentation.xml?id=odd#odd).
+It also includes a more extensive tutorial in the [Gentle Introduction](https://tei-publisher.org/doc/quickstart.xml?id=pm-tutorial#pm-tutorial) document.
 
 <div class="slideshow" data-interval="5000" role="region" aria-roledescription="carousel" aria-label="Output samples" tabindex="0">
   <div class="slideshow__track">

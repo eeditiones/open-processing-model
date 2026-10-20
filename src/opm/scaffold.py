@@ -38,7 +38,7 @@ _TYPST_TEMPLATE = {
 # the journal surface; the rest read as books or documentation.
 _HTML_TEMPLATE = {
     'tei': 'chapbook',
-    'docbook': 'chapbook',
+    'docbook': 'handbook',
     'jats': 'journal',
 }
 #: Reading shells ``--templates`` copies beside the one the project wires up.

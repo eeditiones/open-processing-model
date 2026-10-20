@@ -1,9 +1,9 @@
 # Integration with TEI Publisher
 
-TEI Publisher normally turns XML into HTML at the moment a reader opens a page.
+[TEI Publisher](https://tei-publisher.org) normally turns XML into HTML at the moment a reader opens a page.
 That is flexible, but for a large edition every click can mean waiting on the
 server. `opm` can do that work in advance: it splits each document into the same
-sections [`pb-view`](https://teipublisher.com/doc/documentation.xml?id=webcomponents#webcomponents)
+sections [`pb-view`](https://tei-publisher.org/doc/documentation.xml?id=webcomponents#webcomponents)
 would show, writes them as ready-made files, and TEI Publisher then serves those
 files instead of transforming on the fly.
 

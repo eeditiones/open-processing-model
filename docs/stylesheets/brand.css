@@ -24,6 +24,22 @@
   height: 1.6rem;
 }
 
+/* Homepage: keep the bold site name in the menubar. The search-engine title
+   is only used in <title>, so don't slide a second label in on scroll. */
+.md-header__title--active:has(.md-header__topic--site) .md-header__topic:first-child {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+  z-index: 0;
+}
+
+.md-header__title--active .md-header__topic.md-header__topic--site {
+  opacity: 0;
+  pointer-events: none;
+  transform: none;
+  z-index: -1;
+}
+
 /* --- Supporters ------------------------------------------------------- */
 
 /* :not([hidden]) matches the theme's own `display: flow-root` specificity */

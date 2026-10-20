@@ -4,14 +4,14 @@ An **ODD** (One Document Does it all) file is a TEI XML document which includes
 *processing model* instructions. `opm` compiles an ODD on demand into a Python
 transform module. The compiled module will automatically be cached for further use.
 
-To learn more about ODD, it is best to read the [TEI Publisher documentation](https://teipublisher.org/doc/documentation.xml?id=odd#odd).
-It also includes a small tutorial in the [Gentle Introduction](https://teipublisher.org/doc/quickstart.xml?id=pm-tutorial#pm-tutorial) document.
+To learn more about ODD, it is best to read the [TEI Publisher documentation](https://tei-publisher.org/doc/documentation.xml?id=odd#odd).
+It also includes a small tutorial in the [Gentle Introduction](https://tei-publisher.org/doc/quickstart.xml?id=pm-tutorial#pm-tutorial) document.
 
 > **Note**: if you are using an editor based on Visual Studio Code (Cursor, Antigravity, Windsurf, Kiro …), check the marketplace for an extension called [ODDity](https://open-vsx.org/extension/e-editiones/oddity) – it provides a graphical environment for editing ODDs.
 
 The library packages three stock ODDs:
 
-- `teipublisher.odd` (+ `tp.css`) — main TEI Publisher model, and the fallback
+- `teipublisher.odd` (+ `tp.css`) — main [TEI Publisher](https://tei-publisher.org) model, and the fallback
   when `--odd` is omitted
 - `docbook.odd` (+ `docbook.css`) — DocBook v5 model (`opm init --vocabulary docbook`)
 - `jats.odd` (+ `jats.css`) — JATS journal article model (`opm init --vocabulary jats`)
@@ -91,7 +91,7 @@ Inside `opm`, `$get()` is an alias for the function `tp:source-node($n)`, which 
 
 ### `<pb:template>`
 
-A model in TEI Publisher may provide a custom markup template in a [`<pb:template>`](https://teipublisher.org/doc/documentation.xml?id=pb-template#pb-template). 
+A model in TEI Publisher may provide a custom markup template in a [`<pb:template>`](https://tei-publisher.org/doc/documentation.xml?id=pb-template#pb-template). 
 Without it, producing more complex output for a single element
 would not be possible. Markup templates also help with plain-text markup languages like LaTeX or typst.
 

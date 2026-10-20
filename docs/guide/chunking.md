@@ -12,7 +12,7 @@ Three different types of output are supported (use `--format` to switch between 
 - **`json`** — one JSON file per chunk, including the rendered content and optional fragments. Ideal for integration into 
 static site generators like [Eleventy](https://www.11ty.dev/), [Hugo](https://gohugo.io/), [Astro](https://astro.build/) and others 
 that consume data files.
-- **`pb-view`** — an index table plus part files to be consumed by TEI Publisher's
+- **`pb-view`** — an index table plus part files to be consumed by [TEI Publisher's](https://tei-publisher.org)
   viewer web component. Use this to pre-render content for fast display in an existing
   TEI Publisher-based website (see [Integration with TEI Publisher](tei-publisher.md)) for
   uploading those files into an app, and switching the webcomponent to static mode.
