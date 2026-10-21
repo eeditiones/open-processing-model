@@ -33,7 +33,7 @@ You can change the default ODD to render by setting `source` under `[document]` 
 
 ## A sample customisation
 
-`sample/tei_psalmy.odd` is a real customisation to try this on: the schema of
+`data/tei_psalmy.odd` is a real customisation to try this on: the schema of
 a didactic edition of Polish Psalters, made for the
 [Jagiellonian Digital Platform](https://labedyt.dhlab.uj.edu.pl/index.html) by
 Magdalena Turska and Helena Bermúdez Sabel. Besides the schema it carries its
@@ -43,7 +43,7 @@ chapters first, followed by reference pages for every element, class and
 macro the schema keeps.
 
 ```bash
-opm odd document sample/tei_psalmy.odd --force --preview
+opm odd document data/tei_psalmy.odd --force --preview
 ```
 
 The ODD is distributed under the Creative Commons Attribution-ShareAlike 4.0
@@ -76,7 +76,7 @@ opm transform schema.xml -t markdown --xpath 'id("HD")' -o docs.md # just one ch
 | `templates/nav.xml` | the sidebar list |
 | `templates/logo.svg` | the logo in the header and the browser tab; replace it with your own, or put another image beside it and name it under `[context]` in `opm.toml` |
 | `templates/tagdocs.typ.j2` | the PDF: title page, contents, page layout |
-| `sample/tei_psalmy.odd` | a sample customisation with its own encoding guidelines |
+| `data/tei_psalmy.odd` | a sample customisation with its own encoding guidelines |
 
 Keep `page.html.j2` and `tagdocs.typ.j2`: `opm.toml` points to them, so the
 site and the PDF cannot be built without them. Delete any other file in

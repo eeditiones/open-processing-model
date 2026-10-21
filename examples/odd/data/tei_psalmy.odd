@@ -478,13 +478,12 @@
             <head><supplied>Psalm 1</supplied></head>
               
             <ab type="verse" n="1" xml:id="PF-001-01" synch="ps-001-01">
-                  <lb/> Beatus vir qui non abiit 
-                  <lb/> inconsilio impiorum et 
-                  <lb/> inuia peccatorum non 
-                  <lb/> stetit et inkathedra 
-                  <lb/> pestilencie non sedit
-              </ab>
-
+              <lb/> Beatus vir qui non abiit 
+              <lb/> inconsilio impiorum et 
+              <lb/> inuia peccatorum non 
+              <lb/> stetit et inkathedra 
+              <lb/> pestilencie non sedit
+            </ab>
           </div>
         </egXML>
 

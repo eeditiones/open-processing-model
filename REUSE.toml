@@ -90,7 +90,7 @@ SPDX-License-Identifier = "CC-BY-4.0"
 # Polish Psalters ODD of the Jagiellonian Digital Platform, under its authors'
 # CC BY-SA licence (stated in its teiHeader).
 [[annotations]]
-path = "examples/odd/sample/tei_psalmy.odd"
+path = "examples/odd/data/tei_psalmy.odd"
 SPDX-FileCopyrightText = [
   "2026 Magdalena Turska and Helena Bermúdez Sabel",
   "2013 James Cummings and TEI Consortium",
