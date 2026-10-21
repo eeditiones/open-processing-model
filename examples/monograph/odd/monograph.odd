@@ -45,6 +45,43 @@
                         <param name="content" value="()"/>
                     </model>
                 </elementSpec>
+                <elementSpec ident="note" mode="change">
+                    <model predicate="$parameters?mode='register-overview' and $parameters?show-notes and text()" behaviour="block"/>
+                    <model predicate="$parameters?mode='register-overview' and not($parameters?show-notes)" behaviour="omit"/>
+                    <model output="epub" predicate="ancestor::person or ancestor::place or ancestor::org" behaviour="block"/>
+                    <model predicate="parent::person or parent::place or parent::org" behaviour="block"/>
+                    <model predicate="$parameters?mode='toc' or ancestor::listAnnotation" behaviour="omit"/>
+                    <modelSequence output="print" predicate="not(@place = 'margin') and not(@n) and (normalize-space() or *)">
+                        <desc>Print: every note brings its own callout and label, so neither
+                            Prince nor Paged.js has to count. Paged.js copies only the classes
+                            of a note into the callout it makes and counts every note, so it
+                            could show neither the apparatus letters nor a commentary count
+                            that skips them. The commentary is numbered as on the web: notes
+                            without @n, in document order, empty ones left out.</desc>
+                        <model behaviour="inline" cssClass="rb-call rb-commentary">
+                            <param name="content" value="string(count(preceding::note[not(@n)][ancestor::text][normalize-space() or *]) + 1)"/>
+                        </model>
+                        <model behaviour="note" cssClass="rb-commentary">
+                            <param name="place" value="@place"/>
+                            <param name="label" value="string(count(preceding::note[not(@n)][ancestor::text][normalize-space() or *]) + 1)"/>
+                        </model>
+                    </modelSequence>
+                    <modelSequence output="print" predicate="not(@place = 'margin') and @n">
+                        <desc>Print: the text-critical apparatus, lettered from @n. At the end
+                            of a lemma range the callout reads -a; the note is listed as a-a.</desc>
+                        <model behaviour="inline" cssClass="rb-call rb-apparatus">
+                            <param name="content" value="let $t := replace(@target, '^#', '') return if ($t and root($parameters?root)//anchor[@xml:id = $t]) then '‑' || @n else string(@n)"/>
+                        </model>
+                        <model behaviour="note" cssClass="rb-apparatus">
+                            <param name="place" value="@place"/>
+                            <param name="label" value="@n"/>
+                        </model>
+                    </modelSequence>
+                    <model behaviour="note">
+                        <param name="place" value="@place"/>
+                        <param name="label" value="@n"/>
+                    </model>
+                </elementSpec>
                 <elementSpec ident="body" mode="change">
                     <model predicate="$parameters?mode='toc'" behaviour="pass-through">
                         <desc>Contents: one list of chapters, for the `toc` fragment in
@@ -138,6 +175,17 @@
                     <model output="epub" predicate="parent::div and not(@type)" behaviour="heading" cssClass="rb-section">
                         <param name="level" value="count(ancestor::div)"/>
                     </model>
+                    <model output="print" predicate="parent::div and @type='top'" behaviour="heading" cssClass="rb-title">
+                        <desc>Print: the same classes as for EPUB, so print.css needs no
+                            :has(), which not every paged-media processor supports.</desc>
+                        <param name="level" value="count(ancestor::div)"/>
+                    </model>
+                    <model output="print" predicate="parent::div and lb" behaviour="heading" cssClass="rb-chapter">
+                        <param name="level" value="count(ancestor::div)"/>
+                    </model>
+                    <model output="print" predicate="parent::div and not(@type)" behaviour="heading" cssClass="rb-section">
+                        <param name="level" value="count(ancestor::div)"/>
+                    </model>
                     <model predicate="parent::div and @type='sub'" behaviour="heading" cssClass="monograph-subhead">
                         <desc>Subheading (the Bible passage below a section title): same level,
                             smaller and set close to the heading above. Sized in monograph.css,
@@ -213,7 +261,14 @@
                     <model predicate="@ed != 'pga'" behaviour="omit">
                         <desc>Only the page breaks of the Gesamtausgabe itself are shown.</desc>
                     </model>
-                    <model output="print" behaviour="omit"/>
+                    <model output="print" behaviour="inline" cssClass="monograph-pb">
+                        <desc>Print: as in Typst, the | in the text and the page number in the
+                            right margin (print.css), but no | where the source asks for none
+                            or where the break opens a division.</desc>
+                        <param name="pipe" value="if (@rend = 'noPipe' or (parent::div and not(preceding-sibling::*))) then '' else '|'"/>
+                        <param name="page" value="replace(@xml:id, '^p0*', '')"/>
+                        <pb:template xml:space="preserve" xmlns=""><span class="monograph-pb__pipe">[[pipe]]</span><span class="monograph-pb__page">[S. [[page]]]</span></pb:template>
+                    </model>
                     <model output="typst" predicate="@rend = 'noPipe' or (parent::div and not(preceding-sibling::*))" behaviour="inline" cssClass="monograph-pb-nopipe">
                         <desc>As on the web: no | where the source asks for none or where the
                             break opens a division; the page number alone goes in the margin.</desc>

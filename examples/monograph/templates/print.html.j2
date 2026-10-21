@@ -1,0 +1,50 @@
+{#
+  SPDX-FileCopyrightText: 2026 e-editiones
+  SPDX-License-Identifier: CC0-1.0
+
+  Paged-media counterpart of book.typ.j2, for `opm transform -t print` and a
+  CSS paged-media processor (Prince, Paged.js): the "Der Römerbrief" design on
+  an A5 book page. No menubar, contents or page turns — just the text, with a
+  running head that print.css places in the page's top margin.
+
+  Optional context values (opm.toml [context] or [transform.print.context]):
+  context.author (running head), context.lang (default "de", for hyphenation).
+-#}
+---toml
+styles = [
+  "https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap",
+]
+---
+{% extends "opm/base.html.j2" %}
+{#- Print gets no [chunking] fragments; the transform leaves the source's
+    title as a <title> at the start of the content instead. -#}
+{% set source_title = content_html.split('</title>')[0].split('<title>')[-1] | striptags | trim if '<title>' in content_html else '' %}
+{% set work_title = (fragments.title | striptags | trim if fragments is defined and fragments.title else '') or source_title or context.site_name or '' %}
+
+{% block meta %}{{ super() }}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+{% endblock %}
+
+{% block title %}{% if work_title %}<title>{{ work_title }}</title>{% endif %}{% endblock %}
+
+{# After the ODD's stylesheet: tp.css and odd/monograph.css are written for
+   the screen, and the page design has to win over them. #}
+{% block odd_overrides %}
+  <style type="text/css">
+{% include "print.css" %}
+  </style>
+{% endblock %}
+
+{% block body_class %}print{% endblock %}
+
+{% block body %}
+  {# Running head: taken out of the flow into @top-center (print.css). #}
+  <div class="rb-running-head" aria-hidden="true">
+    {%- if context.author %}<span class="rb-running-head__author">{{ context.author }}</span><span class="rb-running-head__sep">·</span>{% endif -%}
+    <span class="rb-running-head__title">{{ work_title }}</span>
+  </div>
+  <article class="content" lang="{{ context.lang or 'de' }}">
+    {{ content_html | safe }}
+  </article>
+{% endblock %}

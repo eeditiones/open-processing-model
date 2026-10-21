@@ -37,8 +37,9 @@ opm transform data/doc/quickstart.xml -t typst -o /tmp/quickstart.typ
 ```
 
 `-t print` uses `templates/print.html.j2` (no handbook chrome / web components).
-The ODD’s `docbook.css` supplies `@page` and `float: footnote` rules for Prince
-or the browser print dialog.
+The ODD’s `docbook.css` supplies `@page` and `float: footnote` rules for Prince,
+Paged.js, or the browser print dialog. Screen-only layout in `print.css` stays
+under `@media screen` so those engines see the print rules.
 ## Chunk and preview
 
 Sections are split at depth 2 (same as the `<?teipublisher … depth="2"?>`

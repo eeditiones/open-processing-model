@@ -90,6 +90,10 @@ author = "Karl Barth"
 site_name = "Karl Barth Gesamtausgabe"
 lang = "de"
 
+[transform.print]
+# Paged media (Prince, Paged.js) in the design of the Typst output.
+template = "templates/print.html.j2"
+
 [transform.docx]
 template = "templates/default.docx"
 

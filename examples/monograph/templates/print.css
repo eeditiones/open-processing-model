@@ -1,0 +1,390 @@
+/* SPDX-FileCopyrightText: 2026 e-editiones
+   SPDX-License-Identifier: CC0-1.0 */
+
+/* Karl Barth-Gesamtausgabe: "Der Römerbrief" design for paged media.
+
+   The CSS counterpart of book.typ.j2, for Prince or Paged.js: A5, EB Garamond
+   at 10pt, justified and indented, one rubric red; Alegreya Sans for the
+   furniture (running head, folio, note numbers). Measurements are those of
+   the Typst template, so the two PDFs read alike.
+
+   Cascades after opm's print baseline (float: footnote) and the ODD's own
+   stylesheet. Heads are told apart by the classes the ODD gives them for
+   print (rb-title, rb-chapter, rb-section), not by :has().
+
+   What CSS cannot do that Typst does: list the apparatus after the commentary
+   on each page. Notes are listed in the order of their callouts. */
+
+:root {
+  --ink: #211c16;
+  --ink-muted: #675d51;
+  --ink-faint: #8f8474;
+  --rule-strong: #b8ab96;
+  --rubric: #962a1c;
+  --entity: #2f5468;
+
+  --font-serif: "EB Garamond", "Iowan Old Style", "Libertinus Serif", serif;
+  --font-sans: "Alegreya Sans", "Gill Sans", "Helvetica Neue", sans-serif;
+
+  --opm-body-font: var(--font-serif);
+  --opm-heading-font: var(--font-serif);
+  --opm-footnote-font-size: 8.4pt;
+}
+
+/* ── Page ─────────────────────────────────────────────────── */
+
+/* Margins as marginalia.setup in book.typ.j2: 1.6cm inside, and outside a
+   1.4cm column for the page numbers of the 1922 edition, 0.4cm from the
+   text and 0.5cm from the edge. */
+@page {
+  size: A5;
+  margin: 1.9cm 2.3cm 2.1cm 1.6cm;
+
+  @top-center {
+    content: element(rb-running-head);
+    vertical-align: middle;
+  }
+
+  @bottom-center {
+    content: counter(page);
+    vertical-align: middle;
+    font-family: var(--font-sans);
+    font-size: 8pt;
+    font-variant-numeric: lining-nums;
+    color: var(--ink-muted);
+  }
+
+  @footnote {
+    float: bottom;
+    margin-top: 1.1em;
+    padding-top: 0.6em;
+    /* A short rule, not one across the measure. */
+    background: linear-gradient(var(--rule-strong), var(--rule-strong)) no-repeat left top / 2.5em 0.5pt;
+    font-family: var(--font-serif);
+    font-size: 8.4pt;
+  }
+}
+
+/* No running head on the first page. */
+@page :first {
+  @top-center { content: none; }
+}
+
+.rb-running-head {
+  position: running(rb-running-head);
+  font-family: var(--font-sans);
+  font-size: 7.5pt;
+  font-variant-numeric: lining-nums;
+  text-align: center;
+  color: var(--ink-muted);
+}
+
+.rb-running-head__author {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.rb-running-head__sep {
+  margin: 0 0.6em;
+}
+
+.rb-running-head__title {
+  font-style: italic;
+}
+
+/* ── Text ─────────────────────────────────────────────────── */
+
+html {
+  font-size: 10pt;
+}
+
+body.print {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 10pt;
+  line-height: 1.3;
+  color: var(--ink);
+  background: #fff;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  font-kerning: normal;
+}
+
+/* The source's own title, which the transform leaves in the body. */
+body.print > title {
+  display: none;
+}
+
+/* References are set in rubric; in print they are text, not links. */
+.print a {
+  color: var(--rubric);
+  text-decoration: none;
+}
+
+/* Names are register references on the web; in the book they are text. */
+.print .context:not(.disable),
+.print .tei-persName,
+.print .tei-placeName,
+.print .tei-orgName {
+  color: inherit;
+}
+
+/* Book setting: justified, hyphenated, no gap between paragraphs; only a
+   paragraph that follows another is indented. Sibling and footnote rules
+   below go without .print: Paged.js matches them against the content alone,
+   outside the body. */
+.print .tei-p {
+  margin: 0;
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  orphans: 2;
+  widows: 2;
+}
+
+.tei-p + .tei-p {
+  text-indent: 1.4em;
+}
+
+/* Bold is Barth's translation of the letter: a light semibold, not black.
+   The ODD's own rendition asks for bold and comes later than monograph.css. */
+.print .tei-hi.bold {
+  font-weight: 560;
+}
+
+/* Quotations set off from the text, verse included. */
+.print .tei-q.block {
+  margin: 0.8em 0 0.8em 1.6em;
+  font-size: 0.9em;
+  line-height: 1.3;
+  text-align: left;
+  text-indent: 0;
+}
+
+.print .tei-lg {
+  margin: 0;
+}
+
+/* ── Headings ─────────────────────────────────────────────── */
+
+.print h1, .print h2, .print h3,
+.print h4, .print h5, .print h6 {
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  line-height: 1.25;
+  text-align: center;
+  text-indent: 0;
+  font-variant-numeric: lining-nums;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+/* The work title ("An die Römer"). Margins are those of the Typst block,
+   divided by the head's own size. */
+.print .rb-title {
+  margin: 0.55em 0 0.73em;
+  font-size: 2.2em;
+  letter-spacing: 0.02em;
+}
+
+/* "1. Kapitel<br/>EINGANG": the rubric chapter-number line, the title
+   letterspaced in capitals, then a short rubric rule. */
+.print .rb-chapter {
+  margin: 1.73em 0 1.07em;
+  font-size: 1.5em;
+  line-height: 1.45;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.print .rb-chapter::first-line {
+  font-size: 0.5em;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: var(--rubric);
+}
+
+.print .rb-chapter::after {
+  content: "";
+  display: block;
+  width: 1.47em;
+  height: 0;
+  margin: 0.15em auto 0;
+  border-top: 0.6pt solid var(--rubric);
+}
+
+/* Section title, in small caps. */
+.print .rb-section {
+  margin: 2em 0 0;
+  font-size: 1.1em;
+  letter-spacing: 0.05em;
+  font-variant-caps: small-caps;
+}
+
+/* The source sets the title in small caps already. */
+.print .rb-section .tei-hi.smallCaps {
+  letter-spacing: inherit;
+}
+
+/* Pericope: the Bible reference, italic, close under the section title. */
+.print .monograph-subhead {
+  margin: 0.41em 0 1.65em;
+  font-size: 0.85em;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  font-variant-caps: normal;
+}
+
+/* ── Original pagination ──────────────────────────────────── */
+
+/* The | stays where the page of the 1922 edition turned; the page number
+   floats into the right margin at the height of that line. Its negative
+   margin is wider than the box, so it always fits beside the line. */
+.print .monograph-pb__pipe {
+  color: var(--ink-faint);
+  font-style: normal;
+  font-weight: 400;
+}
+
+.print .monograph-pb__page {
+  float: right;
+  width: 1.4cm;
+  margin-right: -1.8cm;
+  font-family: var(--font-serif);
+  font-size: 7.5pt;
+  font-style: italic;
+  font-weight: 400;
+  font-variant: normal;
+  font-variant-numeric: lining-nums;
+  letter-spacing: 0;
+  line-height: 13pt;
+  text-align: left;
+  text-indent: 0;
+  text-transform: none;
+  color: var(--ink-muted);
+}
+
+/* ── Notes ────────────────────────────────────────────────── */
+
+/* Numbered: commentary (sans, rubric). Lettered, from the source's @n: the
+   text-critical apparatus (upright serif, blue). For print the ODD writes
+   each callout into the text (.rb-call) and gives every note its label as
+   data-n, commentary included, so nothing here depends on CSS counters:
+   Prince never advances footnote-marker, Paged.js counts every note and
+   copies only classes into its callouts. */
+.print span.footnote {
+  margin: 0.35em 0 0 2.1em;
+  font-family: var(--font-serif);
+  font-size: 8.4pt;
+  font-style: normal;
+  font-weight: 400;
+  font-variant: normal;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-align: left;
+  text-indent: 0;
+  text-transform: none;
+  color: var(--ink);
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  /* The label hangs in the 2.1em left of the note, flush right, like the
+     1.6em column and 0.5em gutter of the Typst entries. Prince takes
+     footnote-style-position; Paged.js makes the marker a list marker. */
+  footnote-style-position: outside;
+  list-style-position: outside;
+}
+
+/* A date, say, whose alternate reading is empty leaves an empty note.
+   (Paged.js turns callouts into empty a.footnote: leave those alone.) */
+.print span.footnote:empty {
+  display: none;
+}
+
+.print .footnote .tei-q.block {
+  margin: 0.3em 0 0.3em 1.4em;
+  font-size: 1em;
+  line-height: inherit;
+}
+
+/* The processor's own callouts give way to the ODD's. The last rule is as
+   specific as the baseline's lemma-range rule, and later, so it wins over
+   all of them; Paged.js's callout is an element of its own. One selector per
+   rule: Paged.js drops selector lists around its footnote pseudo-elements. */
+::footnote-call {
+  content: none;
+}
+
+.footnote[data-n]::footnote-call {
+  content: none;
+}
+
+.footnote[data-n][data-range]::footnote-call {
+  content: none;
+}
+
+a[data-footnote-call] {
+  display: none;
+}
+
+/* The callout in the text. */
+.print .rb-call {
+  margin-left: 0.06em;
+  font-family: var(--font-sans);
+  font-size: 0.6em;
+  font-weight: 500;
+  font-style: normal;
+  font-variant-numeric: lining-nums;
+  letter-spacing: 0;
+  line-height: 0;
+  text-indent: 0;
+  vertical-align: super;
+  color: var(--rubric);
+}
+
+.print .rb-call.rb-apparatus {
+  margin-left: 0;
+  font-family: var(--font-serif);
+  font-size: 0.65em;
+  font-weight: 400;
+  color: var(--entity);
+}
+
+/* The label in the notes. The en space is the gutter: Prince drops a
+   trailing plain space. */
+.footnote[data-n]::footnote-marker {
+  content: attr(data-n) "\2002";
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 1em;
+  font-weight: 500;
+  font-style: normal;
+  font-variant-numeric: lining-nums;
+  vertical-align: baseline;
+  color: var(--rubric);
+}
+
+.footnote.rb-apparatus[data-n]::footnote-marker {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  color: var(--entity);
+}
+
+/* Lemma range: listed as a-a, with a non-breaking hyphen. */
+.footnote[data-n][data-range="end"]::footnote-marker {
+  content: attr(data-n) "\2011" attr(data-n) "\2002";
+}
+
+/* The a- at the start of the passage. */
+.print .note-range-start {
+  font-family: var(--font-serif);
+  font-size: 0.65em;
+  font-style: normal;
+  font-weight: 400;
+  font-variant-numeric: lining-nums;
+  line-height: 0;
+  vertical-align: super;
+  color: var(--entity);
+}

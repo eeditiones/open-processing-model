@@ -1,8 +1,12 @@
 /* SPDX-FileCopyrightText: 2026 e-editiones
    SPDX-License-Identifier: CC0-1.0 */
 
-/* Screen defaults for the DocBook print shell.
-   Paged layout (@page, float: footnote) lives in odd/docbook.css under @media print. */
+/* DocBook print shell.
+
+   Paged layout (@page, float: footnote) lives in odd/docbook.css under
+   @media print. Screen-only rules below stay out of that media query so
+   Prince / Paged.js see the ODD's print rules untouched (same pattern as
+   the JATS print.css). */
 
 :root {
   --jinks-content-font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
@@ -21,14 +25,11 @@ html {
 }
 
 body.print {
-  margin: 0 auto;
-  max-width: 40rem;
-  padding: 2rem 1.25rem 3rem;
+  margin: 0;
   font-family: var(--jinks-content-font-family);
   font-size: var(--jinks-content-font-size);
   line-height: var(--jinks-base-line-height);
   color: #1a1a1a;
-  background: #fff;
 }
 
 body.print h1,
@@ -42,7 +43,6 @@ body.print h6 {
   line-height: var(--jinks-heading-line-height);
 }
 
-/* Keep footnotes readable on screen; @media print in the ODD floats them. */
 body.print .footnote,
 body.print .margin-note {
   font-size: var(--jinks-footnote-font-size);
@@ -62,7 +62,18 @@ body.print .programlisting {
   border: 1px solid #e0e0e0;
 }
 
+/* Continuous reading view — not applied when printing or when a paged-media
+   engine (Prince / Paged.js) rewrites @media print. Page-sheet chrome for
+   Paged.js is injected by the preview host after layout; @media screen rules
+   for .pagedjs_* do not survive Paged.js's stylesheet polishing. */
 @media screen {
+  body.print {
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+    background: #fff;
+  }
+
   body.print .footnote::before {
     content: " [";
   }

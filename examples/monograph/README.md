@@ -38,6 +38,19 @@ opm chunk data/47009.xml --force --preview
 first section) sits in the chapter `div` before its first child `div`, so it
 becomes a page of its own ahead of the sections that follow.
 
+## Print
+
+```bash
+opm transform data/47009.xml -t print -o print.html
+prince print.html -o print.pdf
+```
+
+`templates/print.html.j2` and `templates/print.css` set the text as a book
+page in the design of the Typst output: A5, running head and folio, the
+original page numbers in the right margin, footnotes at the foot of the page.
+Unlike Typst, CSS cannot move the apparatus behind the commentary, so each
+page lists its notes in the order of their callouts.
+
 ## What the ODD adds
 
 - **Original pagination.** `<pb ed="pga">` marks a page of the printed
@@ -74,6 +87,7 @@ becomes a page of its own ahead of the sections that follow.
 | `templates/chapbook.css` | Edition design: paper, type, layout (`--opm-*` aliases) |
 | `templates/monograph.css` | TEI-specific styles: headings, notes, page breaks |
 | `templates/book.typ.j2` | Typst/PDF output in the same design |
+| `templates/print.html.j2`, `templates/print.css` | Print (paged media) output in the same design |
 | `templates/epub.css` | EPUB output in the same design |
 | `templates/default.docx` | DOCX output |
 | `opm.toml` | ODD, assets, chunking and fragments |
