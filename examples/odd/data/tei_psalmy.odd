@@ -9,6 +9,7 @@
     <fileDesc>
       <titleStmt>
         <title>TEI Psalmy</title>
+        <title type="sub">A TEI Customization for the didactic edition of Polish Psalters</title>
         <author>Magdalena Turska</author>
       </titleStmt>
       <publicationStmt>

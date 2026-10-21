@@ -49,8 +49,17 @@
                         </model>
                         <model behaviour="body"/>
                     </modelSequence>
-                    <!-- PDF: the release line for the title page, as metadata. -->
+                    <!-- PDF: subtitle, authors and the release line for the title
+                         page, as metadata. -->
                     <modelSequence output="plain">
+                        <model behaviour="metadata">
+                            <param name="key" value="'subtitle'"/>
+                            <param name="content" value="string-join(root(.)/*/teiHeader/fileDesc/titleStmt/title[@type='sub']/normalize-space(.), ' ')"/>
+                        </model>
+                        <model behaviour="metadata">
+                            <param name="key" value="'author'"/>
+                            <param name="content" value="string-join(root(.)/*/teiHeader/fileDesc/titleStmt/author/normalize-space(.), ', ')"/>
+                        </model>
                         <model behaviour="metadata">
                             <param name="key" value="'edition'"/>
                             <param name="content" value="normalize-space(root(.)/*/teiHeader/fileDesc/editionStmt/edition)"/>
@@ -324,6 +333,8 @@
                 </elementSpec>
                 <elementSpec ident="list" mode="change">
                     <model output="plain" predicate="@type=('siteNav', 'chapterNav')" behaviour="omit"/>
+                    <!-- One page (opm transform -t web): no other pages to link to. -->
+                    <model predicate="@type=('siteNav', 'chapterNav') and $parameters?mode='ref'" behaviour="omit"/>
                     <model output="plain" predicate="@type='attTree'" behaviour="list"/>
                     <model output="plain" predicate="@type='atts'" behaviour="pass-through">
                         <param name="content" value="(': ', item)"/>

@@ -11,14 +11,36 @@
 
 {% set _title = (metadata.get('title') or ['ODD documentation'])[0] -%}
 {% set _edition = (metadata.get('edition') or [''])[0] -%}
+{% set _subtitle = (metadata.get('subtitle') or [''])[0] -%}
+{% set _author = (metadata.get('author') or [''])[0] -%}
 #set text(lang: "{{ parameters.get('lng', 'en') }}")
 
 #show: ilm.with(
   title: [{{ _title }}],
   authors: "",
   date: none,
-  abstract: {% if _edition %}[#set par(justify: false)
-    {{ _edition }}]{% else %}none{% endif %},
+  cover-page: [
+    #set par(justify: false, leading: 0.5em)
+    #set text(font: ("Libertinus Serif",))
+    #place(top + left, dx: -1.2cm, dy: 0cm, rect(width: 0.35cm, height: 100%, fill: rgb("#f7a823"), stroke: none))
+    #v(1fr)
+    #text(size: 2.9em, weight: "bold", [{{ _title }}])
+{% if _subtitle %}
+    #v(0.6em)
+    #text(size: 1.35em, style: "italic", fill: rgb("#6e6860"), [{{ _subtitle }}])
+{% endif %}
+    #v(1.4em)
+    #line(length: 4cm, stroke: (paint: rgb("#f7a823"), thickness: 2pt, cap: "round"))
+{% if _author %}
+    #v(1.4em)
+    #text(size: 1.15em, tracking: 0.04em, [{{ _author }}])
+{% endif %}
+    #v(2fr)
+{% if _edition %}
+    #text(size: 0.9em, fill: rgb("#6e6860"), [{{ _edition }}])
+{% endif %}
+  ],
+  abstract: none,
   table-of-contents: outline(depth: 2),
   raw-text: (font: ("DejaVu Sans Mono", "Menlo", "Courier New"), size: 0.82em),
 )
@@ -37,22 +59,66 @@
 
 {{ odd_typst }}
 
+// Palette and type follow the HTML site (document.css): serif text, warm
+// paper tones, amber accents. Fonts fall back to what Typst ships with.
+#let amber = rgb("#9a6510")
+#let ink = rgb("#222120")
+#let muted = rgb("#6e6860")
+#let rule = rgb("#e5dfd4")
+#let wash = rgb("#f6f3ec")
+#let serif = ("Libertinus Serif",)
+#let sans = ("Work Sans", "Avenir Next", "Helvetica Neue", "Libertinus Serif")
+
 // ilm's body size is set for a thesis; a reference of this length reads
 // better smaller.
-#set text(size: 10pt)
+#set text(size: 10pt, font: serif, fill: ink)
+#set par(leading: 0.7em, spacing: 0.95em)
 // The outline labels are part of each heading already ("Chapter 3", "iv.1.",
 // "Appendix A"): no numbering of ilm's on top.
 #set heading(numbering: none)
-#show heading.where(level: 2): set text(size: 1.15em)
-#show heading.where(level: 3): set text(size: 1em)
+#show heading: set text(font: serif, fill: ink, weight: "semibold")
+#show heading: set par(justify: false)
+#set list(spacing: 1.1em)
+#set enum(spacing: 1.1em)
+#show heading.where(level: 1): it => {
+  pagebreak(weak: true)
+  block(width: 100%, above: 0pt, below: 1.4em, {
+  text(size: 1.6em, weight: "bold", it.body)
+  v(0.35em, weak: true)
+  line(length: 100%, stroke: (paint: rgb("#f7a823"), thickness: 2pt, cap: "round"))
+  })
+}
+#show heading.where(level: 2): it => block(above: 1.9em, below: 0.9em, {
+  text(size: 1.3em, it.body)
+  v(0.25em, weak: true)
+  line(length: 100%, stroke: 0.5pt + rule)
+})
+#show heading.where(level: 3): it => block(above: 1.5em, below: 0.7em,
+  text(size: 1.05em, fill: amber, it.body))
+#show heading.where(level: 4): it => block(above: 1.2em, below: 0.5em,
+  text(size: 0.95em, style: "italic", it.body))
+
+// Contents: chapters set apart from their sections.
+#show outline.entry.where(level: 1): it => {
+  v(0.5em, weak: true)
+  strong(it)
+}
+#show outline.entry.where(level: 2): set text(fill: muted)
+
+// Code: a warm panel with an amber edge, as on the site.
+#show raw: set text(fill: rgb("#55504a"))
 #show raw.where(block: true): block.with(
   width: 100%,
-  inset: 0.6em,
-  radius: 2pt,
-  fill: luma(246),
+  inset: (x: 0.9em, y: 0.7em),
+  radius: (right: 3pt),
+  fill: wash,
+  stroke: (left: 2.5pt + rgb("#f7a823")),
 )
+#show raw.where(block: false): it => box(
+  fill: wash, inset: (x: 0.25em), outset: (y: 0.3em), radius: 2pt, it)
+#show quote.where(block: true): set text(style: "italic", fill: muted)
 // Links into the document (element names, pointers) and out of it.
-#show link: set text(fill: rgb("#1f4e79"))
+#show link: set text(fill: amber)
 
 // Running footer: the page number on the outer edge, the current chapter
 // beside it — ilm's alternating footer, which only names numbered chapters.
@@ -66,9 +132,9 @@
   }
   let gap = 1.75em
   if calc.odd(here().page()) {
-    align(right, [#chapter #h(gap) #page-number])
+    align(right, text(fill: muted, [#chapter #h(gap) #page-number]))
   } else {
-    align(left, [#page-number #h(gap) #chapter])
+    align(left, text(fill: muted, [#page-number #h(gap) #chapter]))
   }
 })
 
