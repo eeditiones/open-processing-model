@@ -141,6 +141,37 @@ def test_serialize_egxml_preserves_element_nesting() -> None:
     assert 'I viewed\nthe ocean green,' in body
 
 
+def test_serialize_egxml_indents_mixed_content_line_breaks() -> None:
+    """``<lb/>`` verse lines must keep source breaks at the child indent, not col 0."""
+    from lxml import etree
+
+    parent = etree.fromstring(
+        '<egXML xmlns="http://www.tei-c.org/ns/Examples">\n'
+        '            <div type="psalm" n="1">\n'
+        '            <pb n="3r"/>\n'
+        '            <head><supplied>Psalm 1</supplied></head>\n'
+        '            <ab type="verse" n="1">\n'
+        '              <lb/> Beatus vir qui non abiit \n'
+        '              <lb/> inconsilio impiorum et \n'
+        '              <lb/> pestilencie non sedit\n'
+        '            </ab>\n'
+        '          </div>\n'
+        '        </egXML>'
+    )
+    body = serialize_egxml(parent)
+    assert body.startswith('<div')
+    assert '\n  <pb' in body
+    assert '\n  <ab' in body
+    # Each verse line stays indented under ``ab`` (not flush left).
+    assert '\n    <lb/> Beatus vir qui non abiit\n' in body
+    assert '\n    <lb/> inconsilio impiorum et\n' in body
+    assert '\n    <lb/> pestilencie non sedit\n' in body
+    assert '\n  </ab>' in body
+    # No outdented mixed-content line at column 0.
+    assert '\n<lb/>' not in body
+    assert '\nBeatus' not in body
+
+
 def test_normalize_egxml_dedents_plain_eg() -> None:
     raw = (
         '\n            CHAPTER 38\n            \n'

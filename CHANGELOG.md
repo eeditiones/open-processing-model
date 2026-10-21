@@ -30,6 +30,9 @@ All notable changes to this project are documented here. The format follows
 ### Fixed
 
 - Empty stand-off notes no longer emit a footnote labelled `[]`.
+- `tp:serialize_egxml` keeps intentional line breaks in mixed content
+  (e.g. `<lb/>` verse lines) indented with the element nest, instead of
+  flushing them to column 0.
 
 ### Changed
 

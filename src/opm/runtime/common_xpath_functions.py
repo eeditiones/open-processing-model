@@ -146,38 +146,69 @@ def _normalize_egxml_source(text: str) -> str:
     return '\n'.join(lines).strip()
 
 
-def _normalize_egxml_text_node(text: str) -> str:
-    """Drop per-line indent from soft-wrapped text; keep the line breaks."""
+_EGXML_INDENT = '  '
+
+
+def _normalize_egxml_text_node(text: str, trailing_indent: str | None = None) -> str:
+    """Drop per-line indent from soft-wrapped text; keep the line breaks.
+
+    A trailing newline that only carried ODD embedding indent (before the next
+    sibling or closing tag) is rewritten to a newline plus *trailing_indent* so
+    mixed content like ``<lb/>`` verse lines keeps its line structure instead of
+    collapsing to column 0 under naive pretty-printing.
+    """
     if '\n' not in text:
         return text
     lines = text.split('\n')
-    out = [lines[0].rstrip()]
-    for line in lines[1:]:
-        out.append(line.strip())
-    return '\n'.join(out)
+    first = lines[0].rstrip()
+    rest = [line.strip() for line in lines[1:]]
+    had_trailing_ws_line = bool(rest) and rest[-1] == ''
+    while rest and rest[-1] == '':
+        rest.pop()
+    if rest:
+        return '\n'.join([first, *rest])
+    if had_trailing_ws_line and trailing_indent is not None:
+        return first + '\n' + trailing_indent
+    return first
 
 
-def _normalize_egxml_tree_text(el: ET._Element) -> None:
-    """Normalize soft-wraps; clear indent-only whitespace so pretty_print can indent."""
+def _normalize_egxml_tree_text(el: ET._Element, depth: int = 0) -> None:
+    """Normalize soft-wraps and keep intentional breaks at the right indent.
+
+    Whitespace-only text that contained a newline becomes a break plus the
+    indent for the next sibling (or the closing tag). Significant tails that
+    ended with an indent-only continuation line keep that break with the same
+    indent, so empty elements such as ``lb`` stay readable after serialization.
+    """
+    child_pad = _EGXML_INDENT * (depth + 1)
+    parent_pad = _EGXML_INDENT * depth
     if el.text is not None:
         if not el.text.strip():
-            el.text = None
+            el.text = ('\n' + child_pad) if ('\n' in el.text and len(el)) else None
         else:
-            el.text = _normalize_egxml_text_node(el.text)
-    for child in el:
-        _normalize_egxml_tree_text(child)
-        if child.tail is not None:
-            if not child.tail.strip():
-                child.tail = None
-            else:
-                child.tail = _normalize_egxml_text_node(child.tail)
+            trail = child_pad if len(el) else None
+            el.text = _normalize_egxml_text_node(el.text, trailing_indent=trail)
+    children = list(el)
+    for i, child in enumerate(children):
+        _normalize_egxml_tree_text(child, depth + 1)
+        if child.tail is None:
+            continue
+        nxt = children[i + 1] if i + 1 < len(children) else None
+        trail = child_pad if nxt is not None else parent_pad
+        if not child.tail.strip():
+            child.tail = ('\n' + trail) if '\n' in child.tail else None
+        else:
+            child.tail = _normalize_egxml_text_node(child.tail, trailing_indent=trail)
 
 
 def _serialize_egxml_element(el: ET._Element) -> str:
     copy = ET.fromstring(ET.tostring(el, with_tail=False))
     ET.cleanup_namespaces(copy)
     _normalize_egxml_tree_text(copy)
-    text = ET.tostring(copy, encoding='unicode', pretty_print=True)
+    # ``indent`` expands pure element structure; mixed-content breaks we set
+    # above are left alone (non-whitespace tails are not rewritten).
+    ET.indent(copy, space=_EGXML_INDENT)
+    text = ET.tostring(copy, encoding='unicode')
     return _XMLNS_ATTR_RE.sub('', text).strip()
 
 
