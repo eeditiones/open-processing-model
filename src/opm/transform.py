@@ -78,6 +78,8 @@ from typing import Any, Callable, Sequence, TypedDict
 from elementpath.tree_builders import get_node_tree
 from lxml import etree
 
+from opm.xml_parser import parse as parse_xml
+
 from opm.config import (
     ChunkingConfig,
     CollectionConfig,
@@ -233,7 +235,7 @@ def load_xpath_documents(paths: Sequence[Path]) -> dict[str, Any]:
     for path in paths:
         resolved = path.resolve()
         uri = resolved.as_uri()
-        documents[uri] = get_node_tree(etree.parse(str(resolved)), None, uri)
+        documents[uri] = get_node_tree(parse_xml(str(resolved)), None, uri)
     return documents
 
 
@@ -264,7 +266,7 @@ def load_xpath_collections(
             uri = resolved.as_uri()
             node = merged_documents.get(uri)
             if node is None:
-                node = get_node_tree(etree.parse(str(resolved)), None, uri)
+                node = get_node_tree(parse_xml(str(resolved)), None, uri)
                 merged_documents[uri] = node
             members.append(node)
         result.setdefault(entry.uri, []).extend(members)
@@ -666,7 +668,7 @@ def transform_file(
     """
     return transform_with_config(
         module if isinstance(module, ModuleType) else load_transform_module(module),
-        etree.parse(str(xml_path)).getroot(),
+        parse_xml(str(xml_path)).getroot(),
         xml_path,
         config if config is not None else load_project_config(),
         xpath=xpath,

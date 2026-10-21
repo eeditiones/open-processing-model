@@ -34,6 +34,8 @@ from pathlib import Path
 
 from lxml import etree
 
+from opm.xml_parser import parse as parse_xml
+
 from opm.odd_compiler.codegen import (
     _local,
     _model_children,
@@ -504,7 +506,7 @@ def analyze(
     registers = load_project_documents(project)
 
     for document in documents:
-        root = etree.parse(str(document)).getroot()
+        root = parse_xml(str(document)).getroot()
         env = project_xpath_env(project, document, documents=registers)
         payload = json.loads(module.transform(root, dict(merged) or None, xpath_env=env)[0])
         seen = _Seen()

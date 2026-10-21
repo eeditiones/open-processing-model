@@ -35,6 +35,8 @@ from urllib.request import url2pathname
 
 from lxml import etree
 
+from opm.xml_parser import parse as parse_xml
+
 from opm.chunking import build_index, chunk_document
 from opm.config import (
     CONFIG_FILENAME,
@@ -148,7 +150,7 @@ def _source_path(source: Source) -> Path | None:
 
 def _source_root(source: Source) -> etree._Element:
     if isinstance(source, (str, Path)):
-        return etree.parse(str(source)).getroot()
+        return parse_xml(str(source)).getroot()
     if isinstance(source, etree._ElementTree):
         return source.getroot()
     return source

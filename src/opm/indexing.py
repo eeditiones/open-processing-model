@@ -31,6 +31,8 @@ from typing import TYPE_CHECKING, Any
 
 from lxml import etree
 
+from opm.xml_parser import parse as parse_xml
+
 if TYPE_CHECKING:
     from opm.config import ProjectConfig
 
@@ -757,7 +759,7 @@ def index_document(
     )
     module = load_transform_module(resolved.module_path)
 
-    root = etree.parse(str(xml_path)).getroot()
+    root = parse_xml(str(xml_path)).getroot()
     title = document_title(root)
     parameters = dict(cfg.parameters)
 
