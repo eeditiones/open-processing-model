@@ -71,11 +71,23 @@ def _inside_egxml(el: etree._Element) -> bool:
 
 
 def strip_comments(root: etree._Element) -> etree._Element:
-    """Remove comments from *root*, except those inside egXML examples."""
+    """Remove comments from *root*, except those inside egXML examples.
+
+    Text after a comment lives in the comment's ``.tail``; that must be merged
+    back before removal, or Guidelines headings like
+    ``<head><!--4.1-->Historical Considerations</head>`` lose their title.
+    """
     for comment in root.xpath('.//comment()[not(ancestor::*[namespace-uri() = $ns])]', ns=EX_NS):
         parent = comment.getparent()
-        if parent is not None:
-            parent.remove(comment)
+        if parent is None:
+            continue
+        if comment.tail:
+            prev = comment.getprevious()
+            if prev is not None:
+                prev.tail = (prev.tail or '') + comment.tail
+            else:
+                parent.text = (parent.text or '') + comment.tail
+        parent.remove(comment)
     return root
 
 
