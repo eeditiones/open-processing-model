@@ -1820,7 +1820,12 @@ def _document_single(
 ) -> None:
     """``opm odd document -t``: prepare the tree as ``opm odd prepare`` does
     and transform it as ``opm transform`` does, without the file in between."""
-    from opm.document_site import prepare_document_tree, site_assets_dir
+    from opm.document_site import (
+        copy_figures,
+        figure_files,
+        prepare_document_tree,
+        site_assets_dir,
+    )
     from opm.resources import packaged_document_dir
 
     config_file = project_file or packaged_document_dir() / 'opm.toml'
@@ -1843,6 +1848,17 @@ def _document_single(
         compiled, lang=lang, nav=site_assets_dir(project.config, config_file) / 'nav.xml',
     )
     typer.echo(f'Documenting {compiled.title or compiled.source_path or "schema"} → {output}')
+    figures, figure_warnings = figure_files(compiled, tree)
+    for warning in figure_warnings:
+        _note(warning)
+    # The figures go into a directory of their own, which the EPUB writer
+    # resolves image paths against (the document's own) and Typst compiles in.
+    staging = tempfile.TemporaryDirectory(prefix='opm-figures-')
+    root = Path.cwd()
+    if figures:
+        root = Path(staging.name)
+        copy_figures(figures, root)
+        tree.getroottree().docinfo.URL = (root / 'document.xml').as_uri()
     try:
         _report_resolved_module(project.compile(transform_type, odd))
         with collect_xpath_errors() as xpath_log:
@@ -1854,9 +1870,11 @@ def _document_single(
                 parameters={'lng': lang, 'mode': 'ref'},
             )
         if pdf:
-            out = compile_pdf(str(out), root=Path.cwd(), open_viewer=preview)
+            out = compile_pdf(str(out), root=root, open_viewer=preview)
     except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as exc:
         _die(str(exc), cause=exc)
+    finally:
+        staging.cleanup()
 
     output.parent.mkdir(parents=True, exist_ok=True)
     if isinstance(out, bytes):
@@ -2039,6 +2057,8 @@ def document_cmd(
                 for e in site.unsupported[:_XPATH_FAILURES_SHOWN]
             )
         )
+    for warning in site.warnings:
+        _note(warning)
     _report_xpath_errors(xpath_log)
     if preview:
         _serve_directory(out_dir, port, open_browser=True)

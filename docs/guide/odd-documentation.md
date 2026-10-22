@@ -44,6 +44,14 @@ opm odd document -o tei-ref --preview
     documentation does not change unexpectedly when a new TEI version comes
     out.
 
+    The figures in the Guidelines chapters are a separate download, fetched
+    only when you document the Guidelines themselves. They are kept in an
+    `Images` folder next to the cached schema, and copied into the site, the
+    EPUB or the PDF. Figures in your own ODD's prose are looked up next to the
+    ODD, the way its `graphic/@url` gives them. A figure that cannot be found
+    is reported and shows as a broken image; the documentation is still
+    written.
+
 ## What the documentation contains
 
 If your ODD contains prose, such as chapters describing your encoding

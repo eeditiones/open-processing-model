@@ -1665,3 +1665,83 @@ def test_epub_documentation_holds_the_reference_entries(tmp_path: Path, monkeypa
             file, _, fragment = href.partition('#')
             if fragment and (file or name) in ids and fragment.startswith('ref-'):
                 assert fragment in ids[file or name], (name, href)
+
+
+_FIGURE_SOURCE = '''<?xml version="1.0" encoding="UTF-8"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader>
+    <fileDesc>
+      <titleStmt><title>Figures</title></titleStmt>
+      <publicationStmt><publisher>test</publisher></publicationStmt>
+      <sourceDesc><p>fixture</p></sourceDesc>
+    </fileDesc>
+  </teiHeader>
+  <text><body>
+    <div type="div1" xml:id="CO">
+      <head>Core</head>
+      <figure><graphic url="Images/fig.png"/></figure>
+      <egXML xmlns="http://www.tei-c.org/ns/Examples">
+        <graphic url="Images/quoted.png"/>
+      </egXML>
+    </div>
+    <elementSpec ident="p" module="core">
+      <desc xml:lang="en">marks paragraphs.</desc>
+      <content><textNode/></content>
+    </elementSpec>
+  </body></text>
+</TEI>'''
+
+
+def test_figures_are_copied_from_beside_the_source(tmp_path: Path) -> None:
+    """A figure resolves against the documented file, as in its own repository.
+
+    A graphic quoted in an example is markup, not a figure, so not copied.
+    """
+    source = tmp_path / 'src' / 'p5.xml'
+    (source.parent / 'Images').mkdir(parents=True)
+    source.write_text(_FIGURE_SOURCE, encoding='utf-8')
+    (source.parent / 'Images' / 'fig.png').write_bytes(b'png')
+
+    site = build_document_site(compile_schema(source), tmp_path / 'out')
+    assert (site.output_dir / 'Images' / 'fig.png').read_bytes() == b'png'
+    assert not (site.output_dir / 'Images' / 'quoted.png').exists()
+    assert site.warnings == []
+
+
+def test_a_missing_figure_is_reported_not_fatal(tmp_path: Path) -> None:
+    source = tmp_path / 'p5.xml'
+    source.write_text(_FIGURE_SOURCE, encoding='utf-8')
+
+    site = build_document_site(compile_schema(source), tmp_path / 'out')
+    assert (site.output_dir / 'CO.html').is_file()
+    assert not (site.output_dir / 'Images').exists()
+    assert site.warnings == [
+        '1 figure not found, shown as broken images: Images/fig.png',
+    ]
+
+
+def test_guidelines_figures_are_fetched_when_a_page_shows_one(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """The TEI's figures are not in p5all; they come from the tei-data release."""
+    artifact = tmp_path / 'tei' / 'p5all.xml'
+    artifact.parent.mkdir()
+    artifact.write_text(_FIGURE_SOURCE, encoding='utf-8')
+    monkeypatch.setattr('opm.odd_schema.ensure_p5all', lambda **_kwargs: artifact)
+    fetched = tmp_path / 'fetched'
+    (fetched / 'Images').mkdir(parents=True)
+    (fetched / 'Images' / 'fig.png').write_bytes(b'png')
+    calls: list[int] = []
+
+    def fake_images(**_kwargs) -> Path:
+        calls.append(1)
+        return fetched
+
+    monkeypatch.setattr('opm.document_site.ensure_guideline_images', fake_images)
+
+    site = build_document_site(
+        compile_schema(use_guidelines=True), tmp_path / 'out',
+    )
+    assert calls == [1]
+    assert (site.output_dir / 'Images' / 'fig.png').read_bytes() == b'png'
+    assert site.warnings == []

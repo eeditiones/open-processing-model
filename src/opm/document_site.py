@@ -18,13 +18,15 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import tempfile
 import unicodedata
 from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from importlib import resources
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from urllib.parse import unquote, urlparse
 
 from lxml import etree
 
@@ -32,11 +34,17 @@ from opm.chunking import chunk_document
 from opm.config import ProjectConfig, load_project_config
 from opm.odd_cache import ensure_compiled_module
 from opm.odd_expand import CATALOGS, expand_document_tree
-from opm.odd_schema import CompiledSchema, iter_guideline_chapters
+from opm.odd_schema import (
+    CompiledSchema,
+    SchemaError,
+    ensure_guideline_images,
+    iter_guideline_chapters,
+)
 from opm.resources import packaged_document_dir, packaged_odd
 from opm.spec_index import (
     SPEC_TAGS,
     SpecIndex,
+    _inside_egxml,
     iter_canonical_specs,
     localname,
     qn,
@@ -66,6 +74,8 @@ class DocumentSite:
     #: Expressions the documentation ODD uses that opm cannot evaluate, as the
     #: compiler recorded them in ``ODD_UNSUPPORTED``. They render as empty.
     unsupported: list[dict] = field(default_factory=list)
+    #: What the build could not do but did not stop for, e.g. missing figures.
+    warnings: list[str] = field(default_factory=list)
 
 
 def build_document_site(
@@ -166,6 +176,8 @@ def build_document_site(
             written = len(set(anchors.values()))
 
     _write_idents(index, output_dir)
+    figures, warnings = figure_files(compiled, tree)
+    copy_figures(figures, output_dir)
 
     module_path, _fresh = ensure_compiled_module(odd_path, output_mode='web')
     mod = load_transform_module(module_path)
@@ -181,6 +193,7 @@ def build_document_site(
         pages=len(html_pages),
         chapters=len(chapters),
         unsupported=unsupported,
+        warnings=warnings,
     )
 
 
@@ -594,6 +607,80 @@ def site_assets(site_dir: Path | None = None, logo: str | None = None) -> tuple[
     ):
         found.append(site_dir / logo)
     return tuple(found)
+
+
+def figure_urls(tree: etree._Element) -> list[str]:
+    """The relative ``graphic/@url`` values *tree* shows, in document order.
+
+    A graphic quoted in an example is markup being explained, not a figure;
+    an absolute URL, or one climbing out of the output, is left as it is.
+    """
+    seen: dict[str, None] = {}
+    for graphic in tree.iter(qn('graphic')):
+        url = (graphic.get('url') or '').strip()
+        if url and _is_local_url(url) and not _inside_egxml(graphic):
+            seen.setdefault(url, None)
+    return list(seen)
+
+
+def _is_local_url(url: str) -> bool:
+    if urlparse(url).scheme or url.startswith('/'):
+        return False
+    return '..' not in PurePosixPath(unquote(url)).parts
+
+
+def figure_files(
+    compiled: CompiledSchema, tree: etree._Element,
+) -> tuple[dict[str, Path], list[str]]:
+    """Map each figure *tree* shows to its file, and say which were not found.
+
+    Figures resolve against the documented source, as they do in its own
+    repository. For the TEI Guidelines that is the cached ``p5all.xml``, and
+    their ``Images/`` are fetched beside it the first time a page needs one.
+    """
+    urls = figure_urls(tree)
+    if not urls:
+        return {}, []
+    warnings: list[str] = []
+    bases: list[Path] = []
+    if compiled.source_path is not None:
+        source = compiled.source_path
+        bases.append(source if source.is_dir() else source.parent)
+
+    def resolve() -> dict[str, Path]:
+        found: dict[str, Path] = {}
+        for url in urls:
+            for base in bases:
+                path = base / unquote(url)
+                if path.is_file():
+                    found[url] = path
+                    break
+        return found
+
+    found = resolve()
+    if len(found) < len(urls) and compiled.fetched_source is not None:
+        try:
+            bases.append(ensure_guideline_images())
+        except SchemaError as exc:
+            warnings.append(f'The TEI figures could not be fetched: {exc}')
+        else:
+            found = resolve()
+    missing = [url for url in urls if url not in found]
+    if missing:
+        shown = ', '.join(missing[:5]) + (', …' if len(missing) > 5 else '')
+        warnings.append(
+            f'{len(missing)} figure{"s" if len(missing) != 1 else ""} not found, '
+            f'shown as broken images: {shown}'
+        )
+    return found, warnings
+
+
+def copy_figures(figures: dict[str, Path], dest: Path) -> None:
+    """Copy *figures* under *dest*, each at the path its URL names."""
+    for url, path in figures.items():
+        target = dest / unquote(url)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(path, target)
 
 
 def _edition_line(root: etree._Element | None) -> str:

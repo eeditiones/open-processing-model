@@ -110,3 +110,62 @@ def test_a_placeholder_with_no_value_is_left_alone() -> None:
     }
     assert 'version' in remaining
     assert _text(root, 'edition') == 'P5 . Last updated on , revision'
+
+
+def test_figures_are_packed_from_where_their_chapter_lives(tmp_path: Path) -> None:
+    """``Images/…`` is relative to the chapter file XInclude pulled in.
+
+    A graphic quoted in an example is not a figure, and one missing upstream
+    is reported rather than failing the build.
+    """
+    import tarfile
+
+    module = _builder()
+    chapters = tmp_path / 'Guidelines' / 'en'
+    (chapters / 'Images').mkdir(parents=True)
+    (chapters / 'Images' / 'fig.png').write_bytes(b'png')
+    (chapters / 'CH.xml').write_text(
+        '''<div xmlns="http://www.tei-c.org/ns/1.0">
+             <figure><graphic url="Images/fig.png"/></figure>
+             <figure><graphic url="Images/gone.png"/></figure>
+             <figure><graphic url="http://example.org/remote.png"/></figure>
+             <egXML xmlns="http://www.tei-c.org/ns/Examples">
+               <graphic url="Images/quoted.png"/>
+             </egXML>
+           </div>''',
+        encoding='utf-8',
+    )
+    source = tmp_path / 'guidelines-en.xml'
+    source.write_text(
+        '''<TEI xmlns="http://www.tei-c.org/ns/1.0"
+                xmlns:xi="http://www.w3.org/2001/XInclude">
+             <text><body><xi:include href="Guidelines/en/CH.xml"/></body></text>
+           </TEI>''',
+        encoding='utf-8',
+    )
+    doc = etree.parse(str(source))
+    doc.xinclude()
+    root = doc.getroot()
+    assert module.figure_urls(root) == ['Images/fig.png', 'Images/gone.png']
+
+    archive = tmp_path / 'images.tar.gz'
+    assert module.write_images(module._figure_files(root), archive) == 1
+    with tarfile.open(archive, 'r:gz') as tar:
+        assert tar.getnames() == ['Images/fig.png']
+    assert module._check_images(root, archive) == []
+
+
+def test_a_figure_archive_holding_none_of_the_figures_fails(tmp_path: Path) -> None:
+    import tarfile
+
+    module = _builder()
+    root = etree.fromstring(
+        b'<TEI xmlns="http://www.tei-c.org/ns/1.0">'
+        b'<graphic url="Images/a.png"/></TEI>'
+    )
+    archive = tmp_path / 'images.tar.gz'
+    with tarfile.open(archive, 'w:gz'):
+        pass
+    assert module._check_images(root, archive) == [
+        f'{archive} holds none of the 1 figures',
+    ]

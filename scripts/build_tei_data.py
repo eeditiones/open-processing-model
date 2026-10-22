@@ -8,6 +8,10 @@ same specs as ``p5subset.xml`` plus the Guidelines chapter prose, so one fetch
 replaces both. Note that ``P5/p5.xml`` is *not* the input — TEI gitignores it
 as a build product of their Makefile, so it does not exist in a checkout.
 
+The figures the prose shows (``graphic/@url``, all under ``Images/``) are not
+in the XML, so ``--images-out`` packs them into a second artifact,
+``images.tar.gz``, with their paths as the prose writes them.
+
 Run by ``.github/workflows/tei-data.yml``; usable by hand to reproduce a
 release locally.
 """
@@ -18,8 +22,10 @@ import argparse
 import gzip
 import re
 import sys
+import tarfile
 from datetime import date as Date
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from urllib.parse import unquote, urljoin, urlparse
 
 from lxml import etree
 
@@ -70,6 +76,61 @@ def _in_example(el: etree._Element) -> bool:
             return True
         parent = parent.getparent()
     return False
+
+
+def figure_urls(root: etree._Element) -> list[str]:
+    """The relative ``graphic/@url`` values the prose shows, in document order.
+
+    Graphics quoted in examples are markup being explained, not figures, and
+    an absolute URL or one climbing out of the tree is nothing to ship.
+    """
+    seen: dict[str, None] = {}
+    for graphic in root.iter(_q('graphic')):
+        url = (graphic.get('url') or '').strip()
+        if url and not _in_example(graphic) and _is_local(url):
+            seen.setdefault(url, None)
+    return list(seen)
+
+
+def _is_local(url: str) -> bool:
+    if urlparse(url).scheme or url.startswith('/'):
+        return False
+    return '..' not in PurePosixPath(url).parts
+
+
+def _figure_files(root: etree._Element) -> dict[str, Path]:
+    """Each figure's URL and the file it names, resolved against its xml:base.
+
+    Call before ``xml:base`` is stripped: XInclude records there which source
+    file a chapter came from, and its figures are relative to that file.
+    """
+    urls = set(figure_urls(root))
+    found: dict[str, Path] = {}
+    for graphic in root.iter(_q('graphic')):
+        url = (graphic.get('url') or '').strip()
+        if url in urls and url not in found and not _in_example(graphic):
+            base = graphic.base or ''
+            found[url] = Path(unquote(urlparse(urljoin(base, url)).path))
+    return found
+
+
+def write_images(figures: dict[str, Path], out: Path) -> int:
+    """Pack *figures* into the tar.gz at *out*, each under its URL; count them.
+
+    A figure missing upstream is reported, not fatal: the page shows a broken
+    image either way, and holding back the whole release for it helps no one.
+    """
+    out.parent.mkdir(parents=True, exist_ok=True)
+    packed = 0
+    with tarfile.open(out, 'w:gz') as tar:
+        for url, path in sorted(figures.items()):
+            if not path.is_file():
+                print(f'figure not found upstream: {url} ({path})', file=sys.stderr)
+                continue
+            tar.add(path, arcname=str(PurePosixPath(url)), recursive=False)
+            packed += 1
+    print(f'{out} ({out.stat().st_size:,} bytes) {packed} figure(s)')
+    return packed
 
 
 def _spec_totals(root: etree._Element) -> dict[str, str]:
@@ -209,6 +270,7 @@ def build(
     version: str = '',
     revision: str = '',
     when: Date | None = None,
+    images_out: Path | None = None,
 ) -> int:
     parser = etree.XMLParser(
         remove_blank_text=False, resolve_entities=False, huge_tree=True,
@@ -217,6 +279,7 @@ def build(
     doc = etree.parse(str(source), parser)
     doc.xinclude()
     root = doc.getroot()
+    figures = _figure_files(root)
     # xml:base is XInclude bookkeeping, meaningless once assembled, and it is
     # on every spec — dropping it saves size and noise.
     for el in root.iter():
@@ -244,12 +307,43 @@ def build(
         f'TEI {describe_version(root)} '
         + ', '.join(f'{tag}={n}' for tag, n in sorted(counts.items()))
     )
+    if images_out is not None:
+        write_images(figures, images_out)
     return 0
 
 
-def verify(path: Path) -> int:
+def _check_images(root: etree._Element, images: Path) -> list[str]:
+    """Reasons the figure archive *images* does not go with *root*."""
+    try:
+        with tarfile.open(images, 'r:gz') as tar:
+            names = {
+                member.name for member in tar.getmembers() if member.isfile()
+            }
+    except (tarfile.TarError, OSError, EOFError) as exc:
+        return [f'{images} could not be read: {exc}']
+    problems = [
+        f'{name} in {images} escapes the archive'
+        for name in sorted(names) if not _is_local(name)
+    ]
+    urls = figure_urls(root)
+    missing = [url for url in urls if url not in names]
+    if urls and len(missing) == len(urls):
+        problems.append(f'{images} holds none of the {len(urls)} figures')
+    elif missing:
+        # The build already said so; one missing upstream is not a reason to
+        # hold back the release.
+        print(
+            f'{len(missing)} figure(s) missing from {images}: {missing}',
+            file=sys.stderr,
+        )
+    return problems
+
+
+def verify(path: Path, images: Path | None = None) -> int:
     root = _load(path)
     problems = _check(root)
+    if images is not None:
+        problems += _check_images(root, images)
     if problems:
         print(f'{path} is not a usable artifact:', file=sys.stderr)
         for problem in problems:
@@ -278,7 +372,15 @@ def main(argv: list[str] | None = None) -> int:
         '--date', default='',
         help='Release date as YYYY-MM-DD (fills <?insert date?> / <?insert year?>).',
     )
+    ap.add_argument(
+        '--images-out', type=Path,
+        help='also pack the figures the prose shows into this .tar.gz',
+    )
     ap.add_argument('--verify', type=Path, help='check a built .xml or .xml.gz')
+    ap.add_argument(
+        '--images', type=Path,
+        help='with --verify: check this figure archive holds every figure',
+    )
     ap.add_argument(
         '--print-version', type=Path,
         help='describe the TEI version of a built artifact',
@@ -289,7 +391,7 @@ def main(argv: list[str] | None = None) -> int:
         print(describe_version(_load(args.print_version)))
         return 0
     if args.verify:
-        return verify(args.verify)
+        return verify(args.verify, args.images)
     if not args.source or not args.out:
         ap.error('--source and --out are required to build')
     when = None
@@ -301,6 +403,7 @@ def main(argv: list[str] | None = None) -> int:
     return build(
         args.source, args.out,
         version=args.version, revision=args.revision, when=when,
+        images_out=args.images_out,
     )
 
 

@@ -702,3 +702,75 @@ def test_download_refuses_an_endless_response(
         _download_file('https://example.invalid/big', dest, max_bytes=1024 * 1024)
     assert not dest.exists()
     assert not list(tmp_path.iterdir())
+
+
+def _images_archive(files: dict[str, bytes]) -> tuple[bytes, str]:
+    import hashlib
+    import tarfile
+
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode='w:gz') as tar:
+        for name, data in files.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+    packed = buf.getvalue()
+    return packed, hashlib.sha256(packed).hexdigest()
+
+
+def test_ensure_guideline_images_unpacks_beside_p5all(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``Images/…`` lands beside the cached p5all, where its URLs resolve."""
+    from opm.odd_schema import ensure_guideline_images
+
+    packed, digest = _images_archive({'Images/a.png': b'png'})
+    cache = tmp_path / 'tei' / 'p5all.xml'
+    monkeypatch.setattr('opm.odd_schema.p5all_cache_path', lambda: cache)
+    urls = _serve(monkeypatch, {
+        'images.tar.gz': packed,
+        'SHA256SUMS': f'{digest}  images.tar.gz\n'.encode(),
+    })
+
+    base = ensure_guideline_images()
+    assert base == cache.parent
+    assert (base / 'Images' / 'a.png').read_bytes() == b'png'
+    # Nothing but the figures left behind, and no second download.
+    assert sorted(q.name for q in base.iterdir()) == ['Images']
+    urls.clear()
+    assert ensure_guideline_images() == base
+    assert urls == []
+
+
+def test_ensure_guideline_images_rejects_a_bad_checksum(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from opm.odd_schema import ensure_guideline_images
+
+    packed, _digest = _images_archive({'Images/a.png': b'png'})
+    cache = tmp_path / 'tei' / 'p5all.xml'
+    monkeypatch.setattr('opm.odd_schema.p5all_cache_path', lambda: cache)
+    _serve(monkeypatch, {
+        'images.tar.gz': packed,
+        'SHA256SUMS': b'0' * 64 + b'  images.tar.gz\n',
+    })
+
+    with pytest.raises(SchemaError, match='Checksum mismatch'):
+        ensure_guideline_images()
+    assert not list(cache.parent.iterdir())
+
+
+def test_ensure_guideline_images_refuses_paths_leaving_the_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from opm.odd_schema import ensure_guideline_images
+
+    packed, _digest = _images_archive({'../escaped.png': b'png'})
+    cache = tmp_path / 'tei' / 'p5all.xml'
+    monkeypatch.setattr('opm.odd_schema.p5all_cache_path', lambda: cache)
+    _serve(monkeypatch, {'images.tar.gz': packed})
+
+    with pytest.raises(SchemaError, match='Could not unpack'):
+        ensure_guideline_images()
+    assert not (tmp_path / 'escaped.png').exists()
+    assert not list(cache.parent.iterdir())

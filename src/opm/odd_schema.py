@@ -26,6 +26,8 @@ import gzip
 import hashlib
 import re
 import shutil
+import tarfile
+import tempfile
 import urllib.request
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -53,6 +55,10 @@ _RELEASE_BASE = (
 P5ALL_URL = f'{_RELEASE_BASE}/p5all.xml.gz'
 P5ALL_CHECKSUMS_URL = f'{_RELEASE_BASE}/SHA256SUMS'
 P5ALL_ASSET = 'p5all.xml.gz'
+#: The figures the Guidelines prose shows, under the ``Images/…`` paths its
+#: ``graphic/@url`` gives. Fetched only when an output needs them.
+IMAGES_URL = f'{_RELEASE_BASE}/images.tar.gz'
+IMAGES_ASSET = 'images.tar.gz'
 _TEI_VERSION_RE = re.compile(r'^\d+\.\d+(?:\.\d+)?$')
 
 # schemaSpec/@source tokens that mean TEI p5subset, not another ODD file.
@@ -124,6 +130,51 @@ def ensure_p5all(
     finally:
         archive.unlink(missing_ok=True)
     return dest
+
+
+def ensure_guideline_images(
+    *,
+    fetch: bool = True,
+    url: str | None = None,
+    checksums_url: str | None = None,
+) -> Path:
+    """Return the directory the Guidelines' figure URLs resolve against.
+
+    That is the directory of the cached ``p5all.xml``, so ``Images/…`` sits
+    beside it just as it does beside the chapters in TEI's source. The figures
+    are downloaded on first use and unpacked whole or not at all.
+    """
+    base = p5all_cache_path().parent
+    images = base / 'Images'
+    if images.is_dir() and any(images.iterdir()):
+        return base
+    if not fetch:
+        raise SchemaError(
+            f'The TEI figures are not cached at {images} and downloading is off.'
+        )
+    base.mkdir(parents=True, exist_ok=True)
+    archive = base / f'{IMAGES_ASSET}.part'
+    staging = Path(tempfile.mkdtemp(prefix='images-', dir=base))
+    try:
+        _download_file(url or IMAGES_URL, archive)
+        _verify_checksum(
+            archive, IMAGES_ASSET, checksums_url or P5ALL_CHECKSUMS_URL,
+        )
+        try:
+            with tarfile.open(archive, 'r:gz') as tar:
+                # 'data' refuses links, devices and paths leaving staging.
+                tar.extractall(staging, filter='data')
+        except (tarfile.TarError, OSError, EOFError) as exc:
+            raise SchemaError(f'Could not unpack {IMAGES_ASSET}: {exc}') from exc
+        unpacked = staging / 'Images'
+        if not unpacked.is_dir():
+            raise SchemaError(f'{IMAGES_ASSET} holds no Images/ directory.')
+        shutil.rmtree(images, ignore_errors=True)
+        unpacked.replace(images)
+    finally:
+        archive.unlink(missing_ok=True)
+        shutil.rmtree(staging, ignore_errors=True)
+    return base
 
 
 def _verify_checksum(path: Path, name: str, checksums_url: str) -> None:

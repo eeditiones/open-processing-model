@@ -4,7 +4,9 @@
 # The artifact is the TEI Guidelines with every spec inlined and XInclude
 # resolved — the same specs as p5subset.xml plus the chapter prose, so one
 # fetch replaces both. It is deliberately NOT committed: git keeps every
-# historical blob, and gzipped XML does not delta-compress.
+# historical blob, and gzipped XML does not delta-compress. Beside it,
+# images.tar.gz carries the figures the prose shows, which opm fetches only
+# when an output needs them.
 #
 # Separate from the package release on purpose. TEI ships on its own schedule,
 # so refreshing this data must not require cutting an opm version.
@@ -69,7 +71,7 @@ jobs:
           sparse-checkout: P5/Source
           sparse-checkout-cone-mode: true
 
-      - name: Build p5all.xml
+      - name: Build p5all.xml and the figure archive
         env:
           VERSION: ${{ steps.tei.outputs.version }}
         run: |
@@ -91,6 +93,7 @@ jobs:
           uv run python scripts/build_tei_data.py \
             --source tei-source/P5/Source/guidelines-en.xml \
             --out build/tei-data/p5all.xml \
+            --images-out build/tei-data/images.tar.gz \
             --version "$release" \
             --revision "$revision" \
             --date "$released"
@@ -100,14 +103,15 @@ jobs:
           set -euo pipefail
           cd build/tei-data
           gzip -9 -c p5all.xml > p5all.xml.gz
-          sha256sum p5all.xml.gz p5all.xml > SHA256SUMS
+          sha256sum p5all.xml.gz p5all.xml images.tar.gz > SHA256SUMS
           cat SHA256SUMS
           ls -l
 
       - name: Verify what we are about to publish
         run: |
           set -euo pipefail
-          uv run python scripts/build_tei_data.py --verify build/tei-data/p5all.xml.gz
+          uv run python scripts/build_tei_data.py --verify build/tei-data/p5all.xml.gz \
+            --images build/tei-data/images.tar.gz
 
       - name: Publish to the rolling tei-data release
         env:
@@ -128,4 +132,5 @@ jobs:
               --title "TEI data ($VERSION)" --notes "$notes"
           fi
           gh release upload tei-data \
-            build/tei-data/p5all.xml.gz build/tei-data/SHA256SUMS --clobber
+            build/tei-data/p5all.xml.gz build/tei-data/images.tar.gz \
+            build/tei-data/SHA256SUMS --clobber
