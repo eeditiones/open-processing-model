@@ -49,7 +49,7 @@ scope = "global"
 xpath = "//list[@type='siteNav']"
 parameters = { mode = "nav" }
 
-# Per-chunk: the compact previous/next pair the right-hand rail shows under
+# Per-chunk: the compact previous/next pair the right-hand rail shows above
 # "On this page". Selects nothing on the home page, so the fragment is empty
 # there.
 [[chunking.fragments]]

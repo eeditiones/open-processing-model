@@ -194,8 +194,11 @@ a:hover { color: var(--doc-link-hover); text-decoration: underline; text-underli
   border-color: var(--doc-amber);
   box-shadow: 0 0 0 3px rgba(247, 168, 35, 0.22);
 }
-.doc-search__hits {
+/* Qualified to outrank the menubar's `.menubar ul` and `.doc .menubar ul`,
+   which would lay the hits out in a row with wide gaps. */
+.doc .doc-search ul.doc-search__hits {
   position: absolute; left: 0; right: 0; top: 100%;
+  display: flex; flex-direction: column; align-items: stretch; gap: 0;
   margin: 0.3rem 0 0; padding: 0.3rem 0;
   list-style: none;
   background: var(--doc-surface);
@@ -206,6 +209,7 @@ a:hover { color: var(--doc-link-hover); text-decoration: underline; text-underli
   box-shadow: 0 10px 28px var(--doc-shadow);
   font-size: 0.875rem;
 }
+.doc .doc-search ul.doc-search__hits[hidden] { display: none; }
 .doc-search__hits a {
   display: block; padding: 0.35rem 0.8rem;
   color: var(--doc-ink); text-decoration: none;
@@ -374,8 +378,8 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--doc-display); font-weight: 600; }
 }
 .doc-main p { margin: 0 0 1.15rem; }
 /* Chapter navigation sits in two places, per the design: a full-width pair of
-   cards after the last section, and a compact pair in the right-hand rail under
-   "On this page" — the rail one stays reachable while scrolled, the cards work
+   cards after the last section, and a compact pair at the top of the right-hand
+   rail, above "On this page" — the rail one stays reachable while scrolled, the cards work
    at any width and are the landing a finished chapter asks for. */
 .chapter-nav {
   display: grid;
@@ -429,13 +433,14 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--doc-display); font-weight: 600; }
   pointer-events: none;
 }
 
-/* Rail variant: no card, just the pair under the on-this-page list. */
+/* Rail variant: no card, just the pair above the on-this-page list. */
 .chapter-nav--rail {
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
-  margin: 1.75rem 0 0;
-  padding-top: 1.25rem;
+  margin: 0 0 2.25rem;
+  padding: 0;
+  border-top: 0;
   font-size: 0.781rem;
 }
 .chapter-nav--rail a {
@@ -461,7 +466,7 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--doc-display); font-weight: 600; }
 /* A chapter with no previous (or no next) leaves no gap in the rail. */
 .chapter-nav--rail a[href=""], .chapter-nav--rail a:not([href]) { display: none; }
 /* Nothing to separate from when the page has no headings to list. */
-.doc-aside ul[hidden] + .chapter-nav--rail { margin: 0; padding-top: 0; border-top: 0; }
+.doc-aside:has(> ul[hidden]) .chapter-nav--rail { margin: 0; }
 
 .lead, .spec__lead {
   font-size: 1.1875rem;

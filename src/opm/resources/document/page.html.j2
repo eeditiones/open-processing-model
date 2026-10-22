@@ -78,9 +78,9 @@ classes = ["doc"]
 
 {% block after %}
   <div class="doc-aside" aria-label="On this page" data-page-toc>
+    {% if fragments.chapternav %}{{ fragments.chapternav | safe }}{% endif %}
     <p class="doc-aside__label">On this page</p>
     <ul></ul>
-    {% if fragments.chapternav %}{{ fragments.chapternav | safe }}{% endif %}
   </div>
 {% endblock %}
 
