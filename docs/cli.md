@@ -94,6 +94,7 @@ opm transform [OPTIONS] [INPUT_XML]
 | `--template PATH` | Template path: Jinja2 for HTML/print/Typst output, or .docx for DOCX output. |
 | `--xpath, -x EXPR` | XPath 3.1 expression evaluated with the document root as the context item; the single selected element becomes the transform root. Unprefixed names use the same default element namespace as the document root. $parameters is bound from --param. |
 | `--xpath-extensions TEXT` | Dotted import path(s) of Python module(s) whose public callables become XPath functions in the tp: namespace (repeat option to add modules; e.g. --xpath-extensions extensions.common --xpath-extensions extensions.dates). Importing these modules runs top-level code: only use trusted code. |
+| `--footnote-order TEXT` | Dotted import path of a callable that orders each run's footnotes before they are placed, e.g. --footnote-order opm.runtime.footnote_order.labelled_first (lettered apparatus before numbered commentary). Applies to the output modes that place footnotes themselves (web, markdown). Falls back to transform.footnote_order in opm.toml. Importing the module runs top-level code: only use trusted code. |
 | `--webcomponents, --no-webcomponents` | Enable/disable tei-publisher web components mode: alternate behaviours emit <pb-alternate> and the document template loads tei-publisher-components. Falls back to transform.web.webcomponents in the project config. |
 | `--strict` | Exit with an error when an XPath expression fails at run time, instead of treating it as false or empty. Expressions opm cannot run at all (eXist functions, XQuery syntax) are reported when the ODD is compiled and do not count. |
 | `--config, -c PATH` | Path to a TOML configuration file (default: opm.toml in the current directory). |
@@ -127,6 +128,7 @@ opm chunk [OPTIONS] [INPUT_XML]
 | `--depth INTEGER` | Maximum division/section depth for chunk splitting (overrides chunking.depth in config). |
 | `--webcomponents, --no-webcomponents` | Enable/disable tei-publisher web components mode. Falls back to transform.web.webcomponents in the project config. |
 | `--xpath-extensions TEXT` | Dotted import path(s) of Python module(s) whose public callables become XPath functions in the tp: namespace (repeatable). Falls back to transform.xpath_extensions in opm.toml. |
+| `--footnote-order TEXT` | Dotted import path of a callable that orders each run's footnotes before they are placed, e.g. --footnote-order opm.runtime.footnote_order.labelled_first (lettered apparatus before numbered commentary). Applies to the output modes that place footnotes themselves (web, markdown). Falls back to transform.footnote_order in opm.toml. Importing the module runs top-level code: only use trusted code. |
 | `--format TEXT` | Output format for chunk files: "html" (default, rendered via Jinja2 template), "json" (one JSON file per chunk containing content, head, odd_css, and fragments — suitable for static site generators such as Eleventy), or "pb-view" (index.json lookup table plus one part file per chunk, consumable by the dynamic pb-view web component in static mode). |
 | `--doc-path TEXT` | For --format pb-view: document path subdirectory. Data is written to <output-dir>/<doc-path>/ and must match the pb-document @path; CSS stays shared at <output-dir>/css/. Falls back to chunking.doc_path in config. |
 | `--preview, -v` | After chunking, start a local HTTP server rooted at the output directory and open the first page in a browser (HTML output only). |
@@ -265,7 +267,10 @@ Run inside a project made by `opm init --example odd`, the site is built
 with that project's ODD, runs, template, assets and extension modules, and
 what to document, the language and the output directory default to its
 [document] and [[chunking]] settings.
-PDF, Markdown and print channels are planned.
+
+With `-t typst`, `-t markdown` or `-t epub`, the same documentation is
+written as one PDF, Markdown or EPUB file instead, through the project's
+[transform] settings: `opm odd prepare` and `opm transform` in one step.
 
 **Usage:**
 
@@ -284,11 +289,12 @@ opm odd document [OPTIONS] [SOURCE]
 
 | Option | Description |
 | --- | --- |
-| `--output-dir, -o PATH` | Output directory (default: odd/<schemaSpec ident>). |
+| `--output-dir, -o PATH` | Output directory (default: odd/<schemaSpec ident>). With -t, the output file (default: <schemaSpec ident>.pdf, .md or .epub); with -t typst, a .typ file name writes the Typst source instead of a PDF. |
+| `--type, -t TYPE` | Write one document instead of a site: typst, markdown, epub. Omit to build the HTML site. |
 | `--lang TEXT` | xml:lang to prefer on gloss/desc/remarks (default: en). |
 | `--odd, -d PATH` | Processing ODD used to render nested TEI (default: packaged tagdocs.odd). |
-| `--force` | Replace the output directory if it already exists. |
-| `--preview, -v` | After building, serve the site and open it in a browser. |
+| `--force` | Replace the output directory or file if it already exists. |
+| `--preview, -v` | After building, serve the site and open it in a browser; with -t, open the document (PDF viewer, Rich for Markdown, the default application for EPUB). |
 | `--port, -p INTEGER` | Port for --preview (default: 8080). |
 | `--help` | Show this message and exit. |
 

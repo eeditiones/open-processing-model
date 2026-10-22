@@ -1356,7 +1356,7 @@ def test_the_odd_example_matches_the_packaged_site() -> None:
         *(
             (example / 'templates' / name, packaged / name)
             for name in ('page.html.j2', 'nav.xml', 'document.css', 'search.js',
-                         'theme.js', 'tagdocs.typ.j2')
+                         'theme.js', 'tagdocs.typ.j2', 'epub.css')
         ),
     ]
     for own, original in pairs:
@@ -1594,3 +1594,74 @@ def test_a_documentation_project_turns_the_prepared_tree_into_markdown(
     ]) == 0
     reference = (root / 'reference.md').read_text(encoding='utf-8')
     assert "<a id='ref-p'></a>" in reference and "<a id='REF-ELEMENTS'></a>" in reference
+
+
+def test_document_with_a_type_writes_one_file_instead_of_a_site(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """`opm odd document -t`: prepare and transform in one step."""
+    from opm.scaffold import InitOptions, scaffold
+
+    root = scaffold(InitOptions(directory=tmp_path / 'proj', example='odd')).directory
+    config = (root / 'opm.toml').read_text(encoding='utf-8')
+    (root / 'opm.toml').write_text(
+        config.replace('# source = "my-customization.odd"', f'source = "{MINI.as_posix()}"'),
+        encoding='utf-8',
+    )
+    monkeypatch.chdir(root)
+
+    assert main(['odd', 'document', '-t', 'markdown']) == 0
+    # Named after the schemaSpec, beside opm.toml rather than in the site
+    # directory or odd/, where the project keeps its ODD.
+    written = [p for p in root.glob('*.md') if p.name != 'README.md']
+    assert len(written) == 1
+    body = written[0].read_text(encoding='utf-8')
+    assert body.lstrip().startswith('# Mini schema')
+    assert '[`<hi>`](#ref-hi)' in body
+    assert not (root / 'site').exists()
+    # A second run refuses to overwrite without --force.
+    assert main(['odd', 'document', '-t', 'markdown']) != 0
+    assert main(['odd', 'document', '-t', 'markdown', '--force']) == 0
+
+    assert main(['odd', 'document', '-t', 'typst', '-o', 'docs.typ']) == 0
+    assert '#label("ref-p")' in (root / 'docs.typ').read_text(encoding='utf-8')
+
+    assert main(['odd', 'document', '-t', 'web']) != 0
+
+
+def test_epub_documentation_holds_the_reference_entries(tmp_path: Path, monkeypatch) -> None:
+    """`opm odd document -t epub`: the appendices hold every spec, and links stay in the book."""
+    import zipfile
+
+    from opm.scaffold import InitOptions, scaffold
+
+    root = scaffold(InitOptions(directory=tmp_path / 'proj', example='odd')).directory
+    config = (root / 'opm.toml').read_text(encoding='utf-8')
+    (root / 'opm.toml').write_text(
+        config.replace('# source = "my-customization.odd"', f'source = "{MINI.as_posix()}"'),
+        encoding='utf-8',
+    )
+    monkeypatch.chdir(root)
+    assert main(['odd', 'document', '-t', 'epub', '-o', 'docs.epub']) == 0
+
+    with zipfile.ZipFile(root / 'docs.epub') as epub:
+        pages = {
+            Path(name).name: etree.fromstring(epub.read(name))
+            for name in epub.namelist() if name.endswith('.xhtml')
+        }
+    ids = {name: {el.get('id') for el in page.iter() if el.get('id')} for name, page in pages.items()}
+    elements = pages['REF-ELEMENTS.xhtml']
+    # Every element of the schema has its entry in the appendix, once.
+    assert {'ref-div', 'ref-hi', 'ref-p'} <= ids['REF-ELEMENTS.xhtml']
+    all_ids = [el.get('id') for el in elements.iter() if el.get('id')]
+    assert len(all_ids) == len(set(all_ids))
+    # Links point into the book, never to the site's pages.
+    for name, page in pages.items():
+        for a in page.iter('{http://www.w3.org/1999/xhtml}a'):
+            href = a.get('href') or ''
+            if '://' in href:
+                continue
+            assert '.html' not in href, (name, href)
+            file, _, fragment = href.partition('#')
+            if fragment and (file or name) in ids and fragment.startswith('ref-'):
+                assert fragment in ids[file or name], (name, href)

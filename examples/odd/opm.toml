@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: 2026 e-editiones
 # SPDX-License-Identifier: CC0-1.0
 #
-# Documentation for an ODD: a website with `opm odd document`, a PDF or a
-# Markdown file with `opm odd prepare` and `opm transform -t typst|markdown`.
+# Documentation for an ODD: a website with `opm odd document`, a PDF, Markdown
+# or EPUB file with `opm odd document -t typst|markdown|epub`.
 # All build with the ODD, runs,
 # templates and assets of this project rather than the packaged ones. The two
 # templates named below must stay; delete any other file in templates/ and the
@@ -30,10 +30,14 @@ xpath_extensions = [
     "opm.runtime.spec_xpath_functions",
 ]
 
-# PDF: `opm odd prepare -o schema.xml`, then
-# `opm transform schema.xml -t typst -o docs.pdf` (or --preview).
+# PDF: `opm odd document -t typst` (or --preview).
 [transform.typst]
 template = "templates/tagdocs.typ.j2"
+
+# EPUB: `opm odd document -t epub`. The site's stylesheet is written for
+# browsers; this one restyles the reference entries for e-readers.
+[transform.epub]
+css = "templates/epub.css"
 
 # What `opm odd document` passes the ODD itself; set here too, so a plain
 # `opm chunk` over a prepared tree (`opm odd prepare`) renders the same.

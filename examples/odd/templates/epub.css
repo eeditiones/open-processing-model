@@ -1,0 +1,201 @@
+/* SPDX-FileCopyrightText: 2026 e-editiones
+   SPDX-License-Identifier: CC0-1.0 */
+
+/* EPUB styling for ODD documentation (`opm odd document -t epub`): the site's
+   look (document.css) for the reference entries, adapted to e-readers.
+
+   Cascades after the packaged EPUB baseline and the ODD stylesheet. Reading
+   systems support little of the site's layout CSS (grid, flex gaps,
+   color-mix), so lists of elements run inline as in the PDF, and labels sit
+   above what they label rather than in a column beside it. */
+
+:root {
+  --doc-ink: #222120;
+  --doc-muted: #6e6860;
+  --doc-rule: #e5dfd4;
+  --doc-wash: #fbf6ec;
+  --doc-code-bg: #f6f3ec;
+  --doc-amber: #f7a823;
+  --doc-tag: #9a6510;
+  --doc-val: #55504a;
+  --doc-mono: "Fira Code", Menlo, Consolas, monospace;
+}
+
+a { color: var(--doc-tag); }
+
+/* ── Inline conventions, as on the site ──────────────────────────────────── */
+
+a.tei-gi, .specList-elementSpec {
+  font-family: var(--doc-mono);
+  font-size: 0.88em;
+  color: var(--doc-tag);
+}
+a.tei-gi::before, .specList-elementSpec::before { content: "<"; }
+a.tei-gi::after, .specList-elementSpec::after { content: ">"; }
+
+.tei-att, .tei-val {
+  font-family: var(--doc-mono);
+  font-size: 0.88em;
+  color: var(--doc-val);
+}
+
+.tei-ident, .tei-dataRef,
+.specList-classSpec, .specList-macroSpec, .specList-dataSpec {
+  font-family: var(--doc-mono);
+  font-size: 0.86em;
+  color: var(--doc-tag);
+  background: var(--doc-code-bg);
+  border-radius: 0.19em;
+  padding: 0.06em 0.31em;
+}
+
+.tei-gloss { color: var(--doc-muted); }
+
+.egXML, .tei-eg, pre.code {
+  font-family: var(--doc-mono);
+  font-size: 0.8em;
+  line-height: 1.6;
+  color: var(--doc-val);
+  background: var(--doc-code-bg);
+  border-left: 3px solid var(--doc-amber);
+  padding: 0.7em 0.9em;
+  white-space: pre-wrap;
+}
+.egXML .nt { color: var(--doc-tag); }
+.egXML .na { color: var(--doc-muted); }
+.egXML .s, .egXML .s2 { color: var(--doc-val); }
+.egXML .c, .egXML .c1, .egXML .cm { color: var(--doc-muted); font-style: italic; }
+
+/* ── Reference entries ──────────────────────────────────────────────────── */
+
+/* Each entry opens on a new page, under a rule like a chapter's. */
+.spec {
+  page-break-before: always;
+  break-before: page;
+}
+.spec > h1 {
+  margin: 0 0 0.3em;
+  padding-bottom: 0.25em;
+  border-bottom: 2px solid var(--doc-amber);
+}
+.spec__ident {
+  font-family: var(--doc-mono);
+  font-weight: 500;
+  color: var(--doc-ink);
+}
+.spec__gloss { margin: 0 0 1em; color: var(--doc-muted); }
+.spec__gloss .tei-gloss { font-style: normal; }
+.spec__lead { margin: 0 0 1em; }
+
+.spec__chips { margin: 0 0 1.5em; font-size: 0.8em; }
+.spec__chip {
+  display: inline-block;
+  margin: 0 0.4em 0.4em 0;
+  padding: 0.2em 0.7em;
+  border: 1px solid var(--doc-rule);
+  border-radius: 1em;
+  background: var(--doc-wash);
+  color: var(--doc-ink);
+  text-decoration: none;
+}
+
+.spec-section { margin: 0 0 1.75em; }
+.spec-section > h2 {
+  font-size: 0.75em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--doc-muted);
+  margin: 0 0 0.8em;
+  padding: 0 0 0.4em;
+  border-bottom: 1px solid var(--doc-rule);
+}
+.spec-note { color: var(--doc-muted); font-size: 0.9em; margin: 0 0 1em; }
+
+/* "May contain", "Contained by", "Member of": a label, then the modules. */
+.spec-facts { margin: 0; }
+.spec-facts > dt {
+  margin: 0.9em 0 0.3em;
+  font-weight: 600;
+  color: var(--doc-ink);
+}
+.spec-facts > dd { margin: 0 0 0 1em; }
+
+/* One line per module: its name, then its elements, separated by commas. */
+.module-group { margin: 0 0 0.4em; }
+.module-group h4 {
+  display: inline;
+  margin: 0;
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--doc-ink);
+}
+.module-group h4::after { content: ":"; }
+.module-group ul, .module-group li {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.module-group ul { margin-left: 0.3em; }
+.module-group li + li::before { content: ", "; color: var(--doc-muted); }
+.spec-links > * + *::before { content: ", "; color: var(--doc-muted); }
+
+/* Inherited attributes: each class with its attributes on one line. */
+.att-class { margin: 0.3em 0; font-size: 0.9em; }
+.att-class > a:first-child { margin-right: 0.3em; }
+.att-class a:not(:first-child), .att-class s {
+  font-family: var(--doc-mono);
+  font-size: 0.9em;
+  color: var(--doc-val);
+  margin-right: 0.5em;
+}
+.att-class s { color: var(--doc-muted); }
+.att-class__nested { margin-left: 1em; }
+
+/* Attribute definitions: the name and gloss, the facts indented beneath. */
+.att-def { margin: 0 0 1em; }
+.att-def > dt { margin: 1em 0 0.3em; color: var(--doc-ink); }
+.att-def__name {
+  font-family: var(--doc-mono);
+  font-weight: 600;
+  color: var(--doc-tag);
+  margin-right: 0.6em;
+}
+.att-def > dd { margin: 0 0 0 1em; }
+.att-def dd dl { margin: 0.3em 0 0; font-size: 0.9em; }
+.att-def dd dl > dt {
+  margin: 0.4em 0 0;
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--doc-muted);
+}
+.att-def dd dl > dd { margin: 0 0 0 1em; }
+.att-def dd dl.val-list > dt {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 1em;
+  color: var(--doc-ink);
+}
+
+/* Processing models. */
+.pm { list-style: none; margin: 0; padding: 0; font-size: 0.9em; }
+.pm__item { margin: 0 0 0.8em; padding: 0 0 0.6em; border-bottom: 1px dashed var(--doc-rule); }
+.pm .pm { margin: 0.4em 0 0 1em; }
+.pm__kind {
+  font-size: 0.8em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--doc-muted);
+  margin-right: 0.5em;
+}
+.pm__behaviour { font-family: var(--doc-mono); color: var(--doc-tag); margin-right: 0.5em; }
+.pm__output, .pm__class { color: var(--doc-muted); margin-right: 0.5em; }
+.pm__pred { display: block; font-family: var(--doc-mono); font-size: 0.85em; color: var(--doc-muted); }
+.pm__params dt { font-family: var(--doc-mono); font-size: 0.85em; color: var(--doc-muted); }
+.pm__params dd { margin: 0 0 0.2em 1em; }
+.pm__desc:empty, .pm__params:empty { display: none; }
+
+.muted { color: var(--doc-muted); }

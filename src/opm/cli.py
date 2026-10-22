@@ -1802,6 +1802,73 @@ def prepare_cmd(
     typer.echo(f'Wrote {output}')
 
 
+#: The output types `opm odd document -t` writes one file in, and their
+#: default extensions; the HTML site is what it builds without -t.
+_DOCUMENT_TYPES = {'typst': '.pdf', 'markdown': '.md', 'epub': '.epub'}
+
+
+def _document_single(
+    compiled,
+    transform_type: str,
+    output: Path | None,
+    *,
+    lang: str,
+    odd: Path | None,
+    force: bool,
+    preview: bool,
+    project_file: Path | None,
+) -> None:
+    """``opm odd document -t``: prepare the tree as ``opm odd prepare`` does
+    and transform it as ``opm transform`` does, without the file in between."""
+    from opm.document_site import prepare_document_tree, site_assets_dir
+    from opm.resources import packaged_document_dir
+
+    config_file = project_file or packaged_document_dir() / 'opm.toml'
+    try:
+        project = Project.load(config_file)
+    except (FileNotFoundError, ValueError) as exc:
+        _die(str(exc), cause=exc)
+
+    if output is None:
+        # Not under odd/, where a documentation project keeps its ODD.
+        output = Path(_document_output_dir(compiled, None).name + _DOCUMENT_TYPES[transform_type]).resolve()
+    if output.exists() and not force:
+        _die(f'{output} already exists; pass --force to overwrite it.')
+    pdf = transform_type == 'typst' and output.suffix.lower() == '.pdf'
+    if pdf:
+        # Fail before the transform rather than after.
+        typst_executable()
+
+    tree = prepare_document_tree(
+        compiled, lang=lang, nav=site_assets_dir(project.config, config_file) / 'nav.xml',
+    )
+    typer.echo(f'Documenting {compiled.title or compiled.source_path or "schema"} → {output}')
+    try:
+        _report_resolved_module(project.compile(transform_type, odd))
+        with collect_xpath_errors() as xpath_log:
+            out = project.transform(
+                tree,
+                mode=transform_type,
+                odd=odd,
+                # What `opm odd document` passes the ODD for the site, too.
+                parameters={'lng': lang, 'mode': 'ref'},
+            )
+        if pdf:
+            out = compile_pdf(str(out), root=Path.cwd(), open_viewer=preview)
+    except (FileNotFoundError, ImportError, AttributeError, OSError, ValueError) as exc:
+        _die(str(exc), cause=exc)
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    if isinstance(out, bytes):
+        output.write_bytes(out)
+    else:
+        output.write_text(out, encoding='utf-8')
+    typer.echo(f'Wrote {output}')
+    _report_xpath_errors(xpath_log)
+    if preview and not pdf:
+        _preview_output(out, module_mode(project.module(transform_type, odd)))
+
+
 @odd_app.command('document')
 def document_cmd(
     source: Annotated[
@@ -1820,7 +1887,23 @@ def document_cmd(
         typer.Option(
             '--output-dir',
             '-o',
-            help='Output directory (default: odd/<schemaSpec ident>).',
+            help=(
+                'Output directory (default: odd/<schemaSpec ident>). With -t, the '
+                'output file (default: <schemaSpec ident>.pdf, .md or .epub); '
+                'with -t typst, a .typ file name writes the Typst source instead of a PDF.'
+            ),
+        ),
+    ] = None,
+    transform_type: Annotated[
+        Optional[str],
+        typer.Option(
+            '--type',
+            '-t',
+            metavar='TYPE',
+            help=(
+                f'Write one document instead of a site: {", ".join(_DOCUMENT_TYPES)}. '
+                'Omit to build the HTML site.'
+            ),
         ),
     ] = None,
     lang: Annotated[
@@ -1837,14 +1920,18 @@ def document_cmd(
     ] = None,
     force: Annotated[
         bool,
-        typer.Option('--force', help='Replace the output directory if it already exists.'),
+        typer.Option('--force', help='Replace the output directory or file if it already exists.'),
     ] = False,
     preview: Annotated[
         bool,
         typer.Option(
             '--preview',
             '-v',
-            help='After building, serve the site and open it in a browser.',
+            help=(
+                'After building, serve the site and open it in a browser; with -t, '
+                'open the document (PDF viewer, Rich for Markdown, the default '
+                'application for EPUB).'
+            ),
         ),
     ] = False,
     port: Annotated[
@@ -1871,7 +1958,10 @@ def document_cmd(
     with that project's ODD, runs, template, assets and extension modules, and
     what to document, the language and the output directory default to its
     [document] and [[chunking]] settings.
-    PDF, Markdown and print channels are planned.
+
+    With `-t typst`, `-t markdown` or `-t epub`, the same documentation is
+    written as one PDF, Markdown or EPUB file instead, through the project's
+    [transform] settings: `opm odd prepare` and `opm transform` in one step.
     """
     from opm.document_site import build_document_site
     from opm.odd_schema import SchemaError, compile_schema
@@ -1880,9 +1970,12 @@ def document_cmd(
     if project is not None and project.document is not None:
         source = source or project.document.source
         lang = lang or project.document.lang
-        if output_dir is None and project.chunking is not None:
+        if output_dir is None and transform_type is None and project.chunking is not None:
             output_dir = project_file.parent / project.chunking.output_dir
     lang = lang or 'en'
+
+    if transform_type is not None and transform_type not in _DOCUMENT_TYPES:
+        _die(f'-t must be one of {", ".join(_DOCUMENT_TYPES)}, not {transform_type!r}.')
 
     try:
         compiled = compile_schema(source, use_guidelines=source is None)
@@ -1891,6 +1984,19 @@ def document_cmd(
 
     for warning in compiled.warnings:
         _note(warning)
+
+    if transform_type is not None:
+        _document_single(
+            compiled,
+            transform_type,
+            output_dir,
+            lang=lang,
+            odd=odd,
+            force=force,
+            preview=preview,
+            project_file=project_file,
+        )
+        return
 
     out_dir = _document_output_dir(compiled, output_dir)
     _prepare_chunk_output_dir(out_dir, force=force)

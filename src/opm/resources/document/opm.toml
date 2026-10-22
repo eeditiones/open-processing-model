@@ -23,10 +23,14 @@ xpath_extensions = [
     "opm.runtime.spec_xpath_functions",
 ]
 
-# PDF: `opm odd prepare -o schema.xml`, then
-# `opm transform schema.xml -t typst -o docs.pdf`.
+# PDF: `opm odd document -t typst`.
 [transform.typst]
 template = "tagdocs.typ.j2"
+
+# EPUB: `opm odd document -t epub`. The site's stylesheet is written for
+# browsers; this one restyles the reference entries for e-readers.
+[transform.epub]
+css = "epub.css"
 
 # ── Run 1: the Guidelines read as a text ────────────────────────────────────
 # Every top-level division of the text is a page — chapters, front matter and
