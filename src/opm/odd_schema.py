@@ -37,10 +37,10 @@ from opm.odd_compiler.parse_odd import resolve_schema_source
 from opm.resources import opm_version, user_opm_cache_dir
 from opm.spec_index import (
     TEI_NS,
-    _PARSER,
     _inside_egxml,
     iter_canonical_specs,
     localname,
+    parse_xml,
     qn,
 )
 
@@ -228,7 +228,7 @@ def load_xml(path: Path) -> etree._Element:
         return _load_spec_directory(path)
     if not path.is_file():
         raise SchemaError(f'No such file or directory: {path}')
-    return etree.parse(str(path), _PARSER).getroot()
+    return parse_xml(path)
 
 
 def targets_tei(root: etree._Element) -> bool:
@@ -644,7 +644,7 @@ def _load_spec_directory(path: Path) -> etree._Element:
     files = sorted(path.rglob('*.xml')) + sorted(path.rglob('*.odd'))
     for file in files:
         try:
-            root = etree.parse(str(file), _PARSER).getroot()
+            root = parse_xml(file)
         except etree.XMLSyntaxError:
             continue
         for spec, _kind in iter_canonical_specs(root):

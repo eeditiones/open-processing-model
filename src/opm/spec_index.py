@@ -32,7 +32,9 @@ TEI_NS = 'http://www.tei-c.org/ns/1.0'
 XML_ID = '{http://www.w3.org/XML/1998/namespace}id'
 EX_NS = 'http://www.tei-c.org/ns/Examples'
 
-_PARSER = make_parser(remove_comments=True)
+# Comments are kept at parse time so egXML examples can show them; everything
+# else drops them through strip_comments().
+_PARSER = make_parser()
 
 SPEC_TAGS = {
     'elementSpec': 'element',
@@ -66,6 +68,20 @@ def _inside_egxml(el: etree._Element) -> bool:
                 return True
         parent = parent.getparent()
     return False
+
+
+def strip_comments(root: etree._Element) -> etree._Element:
+    """Remove comments from *root*, except those inside egXML examples."""
+    for comment in root.xpath('.//comment()[not(ancestor::*[namespace-uri() = $ns])]', ns=EX_NS):
+        parent = comment.getparent()
+        if parent is not None:
+            parent.remove(comment)
+    return root
+
+
+def parse_xml(path: Path | str) -> etree._Element:
+    """Parse *path* with comments removed outside egXML."""
+    return strip_comments(etree.parse(str(path), _PARSER).getroot())
 
 
 def _children(el: etree._Element, name: str) -> list[etree._Element]:
@@ -193,8 +209,7 @@ class SpecIndex:
     @classmethod
     def from_path(cls, path: Path | str, *, lang: str = 'en') -> SpecIndex:
         path = Path(path)
-        tree = etree.parse(str(path), _PARSER)
-        return cls.from_tree(tree.getroot(), lang=lang, title=path.stem)
+        return cls.from_tree(parse_xml(path), lang=lang, title=path.stem)
 
     def get(self, ident: str) -> Spec | None:
         return self._specs.get(ident)

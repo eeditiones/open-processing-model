@@ -118,7 +118,7 @@ def serialize_egxml(node: Any) -> str:
     if isinstance(value, XPathNode):
         value = value.value
     if isinstance(value, ET._Element):
-        if any(isinstance(child.tag, str) for child in value):
+        if any(isinstance(child.tag, str) or isinstance(child, ET._Comment) for child in value):
             return _serialize_egxml_body(value)
         return _normalize_egxml_source(''.join(value.itertext()))
     return _normalize_egxml_source(expect_string(value, arg_name='serialize_egxml()'))
@@ -219,6 +219,8 @@ def _serialize_egxml_body(eg: ET._Element) -> str:
     for child in eg:
         if isinstance(child.tag, str):
             parts.append(_serialize_egxml_element(child))
+        elif isinstance(child, ET._Comment):
+            parts.append(ET.tostring(child, with_tail=False, encoding='unicode'))
         if child.tail and child.tail.strip():
             parts.append(_normalize_egxml_text_node(child.tail))
     return _normalize_egxml_source('\n'.join(parts))

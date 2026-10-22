@@ -9,7 +9,7 @@ import pytest
 from lxml import etree
 
 from opm import odd_expand
-from opm.spec_index import SpecIndex, TEXT_IDENT, qn
+from opm.spec_index import SpecIndex, TEXT_IDENT, qn, strip_comments
 from opm.runtime.common_xpath_functions import normalize_egxml, serialize_egxml
 
 FIXTURES = Path(__file__).resolve().parent / 'fixtures'
@@ -139,6 +139,19 @@ def test_serialize_egxml_preserves_element_nesting() -> None:
     assert '\n  <l>' in body
     assert 'The\ncurse is finally expiated' in body
     assert 'I viewed\nthe ocean green,' in body
+
+
+def test_strip_comments_keeps_egxml_comments() -> None:
+    root = etree.fromstring(
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0"><!-- drop -->'
+        '<egXML xmlns="http://www.tei-c.org/ns/Examples"><!-- top -->'
+        '<title><!-- title of the resource --></title></egXML></TEI>'
+    )
+    strip_comments(root)
+    body = serialize_egxml(root[0])
+    assert 'drop' not in etree.tostring(root, encoding='unicode')
+    assert body.startswith('<!-- top -->')
+    assert '<!-- title of the resource -->' in body
 
 
 def test_serialize_egxml_indents_mixed_content_line_breaks() -> None:
