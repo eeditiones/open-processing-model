@@ -474,34 +474,16 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--doc-display); font-weight: 600; }
   color: var(--doc-ink);
 }
 .lead:empty { display: none; }
-.home-sub:empty, .home-byline:empty { display: none; }
-.home-sub {
-  margin: 0 0 0.35rem;
-  font-family: var(--doc-body);
-  font-size: 1.05rem;
-  color: var(--doc-muted);
-}
-.home-byline {
-  margin: 0 0 1.5rem;
-  font-family: var(--doc-body);
-  font-size: 0.938rem;
-  color: var(--doc-muted);
-}
-/* The edition line closes the masthead: smaller than the byline above it,
-   and gone when the header carries no editionStmt. */
+/* The edition line sits under the title page, inside its bottom margin, and
+   is gone when the header carries no editionStmt. */
 .home-edition {
-  margin: -0.9rem 0 1.5rem;
+  margin: -2rem 0 2.5rem;
+  text-align: center;
   font-family: var(--doc-body);
   font-size: 0.813rem;
   color: var(--doc-muted);
 }
 .home-edition:empty { display: none; }
-.home-author + .home-author::before { content: ", "; }
-/* Both halves of the byline are optional — a TEI docDate holding nothing but a
-   processing instruction renders empty — so neither the separator nor the line
-   itself shows up on its own. */
-.home-date:not(:empty)::before { content: " · "; }
-.home-byline:not(:has(.home-author:not(:empty), .home-date:not(:empty))) { display: none; }
 .home > p {
   font-size: 1.1875rem;
   line-height: 1.55;
@@ -518,6 +500,13 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--doc-display); font-weight: 600; }
   line-height: 1.25;
   margin: 0.75rem 0 1rem;
 }
+.title-page__sub {
+  margin: -0.5rem 0 1rem;
+  font-size: 1.05rem;
+  font-style: italic;
+  color: var(--doc-muted);
+}
+.title-page__sub:empty { display: none; }
 .title-page__byline, .title-page__imprint { color: var(--doc-muted); }
 .muted { color: var(--doc-muted); }
 

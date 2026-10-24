@@ -1159,6 +1159,21 @@ def test_file_pattern_falls_back_when_xml_id_is_missing(tmp_path: Path) -> None:
     assert names == ['001.html', 'named.html']
 
 
+def test_file_pattern_without_fields_is_the_file_name(tmp_path: Path) -> None:
+    module_path = tmp_path / 'chunk_fixture.py'
+    xml_path = tmp_path / 'fixture.xml'
+    _write_chunking_fixture_module(module_path)
+    xml_path.write_text('<doc><front><titlePage><p>t</p></titlePage></front></doc>', encoding='utf-8')
+    proc = ChunkProcessor(
+        module_path=module_path,
+        xml_root=etree.parse(str(xml_path)).getroot(),
+        config=ChunkingConfig(xpath='//titlePage', file_pattern='index.html'),
+        project_root=tmp_path,
+    )
+    proc.select_chunks()
+    assert proc.generate_chunk_metadata(proc.chunks[0], 0).file == 'index.html'
+
+
 def test_prefix_placeholder_tracks_the_depth_chunks_are_written_at(tmp_path: Path) -> None:
     """``{prefix}`` keeps a URL into assets/ correct in both output layouts."""
     module_path = tmp_path / 'chunk_fixture.py'

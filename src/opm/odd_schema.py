@@ -306,8 +306,7 @@ def iter_guideline_chapters(root: etree._Element):
 
     Dedication / title-page verso and other typed front ``div``s are included,
     and so are the A–Z catalog stubs ``opm odd document`` puts in back matter:
-    they are its appendices. The home page it adds sits directly under
-    ``text``, outside all three parts, so it is never one.
+    they are its appendices.
     """
     text = root.find(f'.//{qn("text")}')
     if text is None:
@@ -452,6 +451,7 @@ def compile_schema(
             documenting_base=root is None,
         ),
     )
+    _keep_header(tree, title_root)
     return CompiledSchema(
         tree=tree,
         source_path=input_path or source_path,
@@ -460,6 +460,21 @@ def compile_schema(
         fetched_source=fetched,
         ident=schema_ident(title_root, input_path) if title_root is not None else '',
     )
+
+
+def _keep_header(tree: etree._Element, source: etree._Element | None) -> None:
+    """Give *tree* the ``teiHeader`` of *source* when it has none of its own.
+
+    A customization without chapters compiles to a bare ``schemaSpec``; its
+    header still names the title, authors and edition the site shows.
+    """
+    if source is None or tree.find(qn('teiHeader')) is not None:
+        return
+    header = source.find(qn('teiHeader'))
+    if header is not None:
+        copy = deepcopy(header)
+        copy.tail = None
+        tree.insert(0, copy)
 
 
 def _prose_document(

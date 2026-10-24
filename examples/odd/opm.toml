@@ -81,14 +81,14 @@ xpath = "self::div[parent::front or parent::body or parent::back]"
 parameters = { mode = "chapnav-end" }
 
 # ── Run 2: the home page ──────────────────────────────────────────────────
-# The site builder puts it directly under `text`, because it is no division of
-# the text itself. `mode = "toc"` is what makes tagdocs.odd render the
-# divisions it lists as a table of contents rather than as chapters, so the
-# contents are read off the document here rather than prepared into it.
+# The title page, which the site builder constructs from the teiHeader when the
+# document has none. It is no division, so it stays out of the guidelines run
+# and the chapter sequence. `mode = "toc"` makes tagdocs.odd add the divisions
+# of the text to it as a table of contents.
 [[chunking]]
 name = "home"
-xpath = "/TEI/text/div"
-file_pattern = "{xml_id}.html"
+xpath = "/TEI/text/front/titlePage"
+file_pattern = "index.html"
 template = "templates/page.html.j2"
 parameters = { mode = "toc" }
 

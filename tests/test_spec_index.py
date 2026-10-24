@@ -154,6 +154,21 @@ def test_strip_comments_keeps_egxml_comments() -> None:
     assert '<!-- title of the resource -->' in body
 
 
+def test_strip_comments_keeps_text_after_a_comment() -> None:
+    """Guidelines heads put the title in the comment's tail — do not drop it."""
+    root = etree.fromstring(
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0">'
+        '<head><!--4.1-->Historical Considerations</head>'
+        '<p>Before <!-- mid --> after <hi>x</hi><!-- post -->y</p>'
+        '</TEI>'
+    )
+    strip_comments(root)
+    head, p = root[0], root[1]
+    assert '<!--' not in etree.tostring(root, encoding='unicode')
+    assert ''.join(head.itertext()) == 'Historical Considerations'
+    assert ''.join(p.itertext()) == 'Before  after xy'
+
+
 def test_serialize_egxml_indents_mixed_content_line_breaks() -> None:
     """``<lb/>`` verse lines must keep source breaks at the child indent, not col 0."""
     from lxml import etree

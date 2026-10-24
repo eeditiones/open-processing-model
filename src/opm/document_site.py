@@ -1,17 +1,19 @@
 # SPDX-FileCopyrightText: 2026 e-editiones
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Build a static HTML documentation site from a compiled ODD / Guidelines document.
+"""Build a static HTML documentation site from a compiled ODD or Guidelines document.
 
-The site is two [`chunk_document`][opm.chunking.chunk_document] runs over
-one prepared tree. The prepare step stamps ``xml:id`` values and adds the home
-page and the catalog pages to the compiled tree, then
-[`expand_document_tree`][opm.odd_expand.expand_document_tree] writes into it
-everything the pages show that depends on the schema as a whole: the
-relations of each spec, the A–Z lists, the table of contents, heading numbers
-and link targets. ``tagdocs.odd`` then renders the text — every top-level
-division — and the reference pages, one per spec, as the two runs in
-``resources/document/opm.toml`` select them.
+[`prepare_document_tree`][opm.document_site.prepare_document_tree] turns the
+compiled schema into a TEI tree that already holds every page (title page,
+chapters, catalogs, reference entries) and the schema-wide content those pages show —
+spec relations, A–Z lists, and so on, via
+[`expand_document_tree`][opm.odd_expand.expand_document_tree].
+
+[`build_document_site`][opm.document_site.build_document_site] then runs
+[`chunk_document`][opm.chunking.chunk_document] three times over that tree, as
+configured in ``resources/document/opm.toml``: Guidelines chapters, the home
+page (the ``titlePage``), and one HTML page per spec. ``tagdocs.odd`` supplies the processing
+models that render each chunk.
 """
 
 from __future__ import annotations
@@ -204,28 +206,26 @@ def prepare_document_tree(
     title: str | None = None,
     nav: Path | None = None,
 ) -> etree._Element:
-    """Deep-copy *compiled*, add the nodes ``opm chunk`` needs as pages, and
-    expand it for rendering.
+    """Return a deep copy of *compiled* ready for ``opm chunk`` / tagdocs.
 
-    *nav* is the sidebar list to inject (``nav.xml``); the packaged one when
+    *nav* is the sidebar ``nav.xml`` to inject; the packaged copy is used when
     omitted.
 
-    Three passes. First the tree is normalized: appendix dumps our catalogs
-    replace are dropped, the title page becomes a chapter, and every node that
-    will be a page gets an ``xml:id`` — specs get ``ref-{ident}`` so
-    ``file_pattern = "{xml_id}.html"`` yields the URLs tagdocs links to.
+    The preparation has three steps:
 
-    Then the site's own pages are injected, because ``chunk`` selects chunks by
-    XPath over this tree and names each file after an ``xml:id``: a page with
-    no node cannot exist. Where each goes is what tells the runs and tagdocs
-    what it is, so no page needs a mark of its own. Home sits directly under
-    ``text``, outside front/body/back: it is no division of the text, which
-    keeps it out of the numbering and the chapter sequence. The A–Z catalogs
-    go to ``text/back``, where the appendices they replace stood, and are
-    chapters like any other. The sidebar list goes to ``text/body``.
+    1. **Normalize.** Drop Guidelines appendix dumps that our catalog pages
+       replace and give every page node an ``xml:id``. Specs get
+       ``ref-{ident}`` so ``file_pattern = "{xml_id}.html"`` matches the URLs
+       tagdocs emits.
 
-    Last, [`expand_document_tree`][opm.odd_expand.expand_document_tree] fills
-    the pages in, so the tree holds everything they show.
+    2. **Inject site pages.** Chunking selects nodes by XPath, so every page
+       needs a node in the tree. The home page is ``front/titlePage``, built
+       from the ``teiHeader`` when the document has none. A–Z catalogs go into
+       ``text/back`` as appendices. The sidebar list goes into ``text/body``.
+
+    3. **Expand.** [`expand_document_tree`][opm.odd_expand.expand_document_tree]
+       fills in relations, catalog lists, and the other content each page
+       shows.
     """
     return _prepare(compiled, lang=lang, title=title, nav=nav)[0]
 
@@ -241,19 +241,11 @@ def _prepare(
     the index it expanded the tree from."""
     tree = deepcopy(compiled.tree)
     _drop_schema_catalog_chapters(tree)
-    # Collected before the title page is wrapped into a chapter of its own,
-    # which would move it out of the walk below.
-    opening = _opening_nodes(tree)
-    _ensure_title_chapter(tree)
     _ensure_spec_xml_ids(tree)
     _ensure_chapter_ids(tree)
     body = _ensure_body(tree)
     _inject_nav(body, nav)
-    _inject_home(
-        body.getparent(),
-        title=title or compiled.title or 'ODD documentation',
-        opening=opening,
-    )
+    _ensure_title_page(tree, title or compiled.title or 'ODD documentation')
     _inject_catalogs(_ensure_back(tree))
     # Built before the expansion, so nothing it adds feeds back into the index.
     index = SpecIndex.from_tree(
@@ -273,31 +265,6 @@ def _drop_schema_catalog_chapters(tree: etree._Element) -> None:
         parent = div.getparent()
         if parent is not None:
             parent.remove(div)
-
-
-def _ensure_title_chapter(tree: etree._Element) -> None:
-    """Wrap ``front/titlePage`` so it becomes a chunked Title page."""
-    title = _first_child(_text_part(tree, 'front'), 'titlePage')
-    if title is None:
-        return
-    parent = title.getparent()
-    if parent is None or (localname(parent) == 'div' and parent.get(XML_ID) == 'Title'):
-        return
-    wrap = etree.Element(qn('div'))
-    wrap.set(XML_ID, 'Title')
-    head = etree.SubElement(wrap, qn('head'))
-    head.text = 'Title'
-    parent.insert(list(parent).index(title), wrap)
-    wrap.append(title)
-
-
-def _first_child(parent: etree._Element | None, name: str) -> etree._Element | None:
-    if parent is None:
-        return None
-    for child in parent:
-        if localname(child) == name:
-            return child
-    return None
 
 
 def _ensure_spec_xml_ids(tree: etree._Element) -> None:
@@ -450,7 +417,7 @@ def _text_part(tree: etree._Element, name: str) -> etree._Element | None:
 def _ensure_body(tree: etree._Element) -> etree._Element:
     """``text/body``, created when the compiled tree has neither.
 
-    Everything injected as a page goes here, so it has to exist even for a
+    Nav and chapter prose live here, so it has to exist even for a
     schema-only ODD that never had a ``text`` element of its own.
     """
     body = _text_part(tree, 'body')
@@ -460,6 +427,24 @@ def _ensure_body(tree: etree._Element) -> etree._Element:
     if text is None:
         text = etree.SubElement(tree, qn('text'))
     return etree.SubElement(text, qn('body'))
+
+
+def _ensure_front(tree: etree._Element) -> etree._Element:
+    """``text/front``, created before ``body`` when the ODD has none."""
+    front = _text_part(tree, 'front')
+    if front is not None:
+        return front
+    text = _text_element(tree)
+    if text is None:
+        text = etree.SubElement(tree, qn('text'))
+    front = etree.Element(qn('front'))
+    insert_at = len(text)
+    for i, child in enumerate(text):
+        if localname(child) in {'body', 'group', 'back'}:
+            insert_at = i
+            break
+    text.insert(insert_at, front)
+    return front
 
 
 def _ensure_back(tree: etree._Element) -> etree._Element:
@@ -481,55 +466,55 @@ def _inject_nav(body: etree._Element, path: Path | None = None) -> None:
     body.insert(0, etree.fromstring(data))
 
 
-_OPENING_TAGS = {'titlePage', 'p', 'opener', 'epigraph'}
+def _ensure_title_page(tree: etree._Element, title: str) -> None:
+    """Make sure ``text/front`` opens with a ``titlePage``: it is the home page.
 
-
-def _inject_home(
-    text: etree._Element,
-    *,
-    title: str,
-    opening: list[etree._Element],
-) -> None:
-    """The home page, as the first child of ``text``.
-
-    Not in front, body or back: the home page belongs to the site rather than
-    to the text, and outside the three parts it is no chapter — tagdocs knows
-    it by ``parent::text``, the numbering skips it and prev/next never lands
-    on it, all without a mark.
+    A document without one gets a title page built from its ``teiHeader``,
+    or from *title* alone when there is no header either.
     """
-    home = etree.Element(qn('div'))
-    home.set(XML_ID, 'index')
-    head = etree.SubElement(home, qn('head'))
-    head.text = title
-    home.extend(opening)
-    text.insert(0, home)
+    front = _ensure_front(tree)
+    if any(localname(child) == 'titlePage' for child in front):
+        return
+    page = etree.Element(qn('titlePage'))
+    doc_title = etree.SubElement(page, qn('docTitle'))
+    main = etree.SubElement(doc_title, qn('titlePart'), type='main')
+    titles = _header_elements(tree, 'titleStmt', 'title')
+    main.text = next(
+        (_collapse(' '.join(t.itertext())) for t in titles if t.get('type') != 'sub'),
+        '',
+    ) or title
+    for sub in (t for t in titles if t.get('type') == 'sub'):
+        etree.SubElement(doc_title, qn('titlePart'), type='sub').text = _collapse(
+            ' '.join(sub.itertext())
+        )
+    for author in _header_elements(tree, 'titleStmt', 'author'):
+        etree.SubElement(page, qn('docAuthor')).text = _collapse(' '.join(author.itertext()))
+    publishers = _header_elements(tree, 'publicationStmt', 'publisher')
+    if publishers:
+        imprint = etree.SubElement(page, qn('docImprint'))
+        for publisher in publishers:
+            etree.SubElement(imprint, qn('publisher')).text = _collapse(
+                ' '.join(publisher.itertext())
+            )
+    dates = _header_elements(tree, 'publicationStmt', 'date')
+    if dates:
+        etree.SubElement(page, qn('docDate')).text = _collapse(' '.join(dates[0].itertext()))
+    front.insert(0, page)
 
 
-def _opening_nodes(tree: etree._Element) -> list[etree._Element]:
-    """Copies of the title page and any prose that belongs to no chapter.
-
-    Chapter ``div``s each become their own page, but a ``<p>`` sitting in
-    ``body`` before the first chapter, or a ``titlePage`` in ``front``, has no
-    chapter to be chunked with. The home page carries them instead.
-    """
-    text = _text_element(tree)
-    if text is None:
+def _header_elements(tree: etree._Element, stmt: str, name: str) -> list[etree._Element]:
+    """The non-empty *name* children of ``teiHeader/fileDesc/{stmt}``."""
+    header = next((el for el in tree if localname(el) == 'teiHeader'), None)
+    if header is None:
         return []
-    found: list[etree._Element] = []
-    for part in text:
-        name = localname(part)
-        if name not in {'front', 'body'}:
+    found = []
+    for parent in header.iter():
+        if localname(parent) != stmt:
             continue
-        for child in part:
-            tag = localname(child)
-            if tag == 'div':
-                # Front matter interleaves divs with loose prose; in the body
-                # everything from the first chapter on belongs to a chapter.
-                if name == 'body':
-                    break
-                continue
-            if tag in _OPENING_TAGS:
-                found.append(deepcopy(child))
+        found.extend(
+            el for el in parent
+            if localname(el) == name and ' '.join(el.itertext()).strip()
+        )
     return found
 
 

@@ -451,6 +451,9 @@ class ChunkProcessor:
         pattern = self.config.file_pattern
         if not pattern:
             return numbered
+        # A name without fields is the file name itself (`index.html`).
+        if '{' not in pattern:
+            return pattern if pattern.endswith('.html') else f'{pattern}.html'
         xml_id = _safe_file_stem(chunk.get(XML_ID) or chunk.get('id') or '')
         ident = _safe_file_stem(chunk.get('ident') or '')
         stem = xml_id or ident

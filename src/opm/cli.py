@@ -1768,8 +1768,8 @@ def prepare_cmd(
 ) -> None:
     """Write the tree `opm odd document` chunks, for `opm chunk` to take over.
 
-    The schema merged onto TEI, ids stamped, and the pages the site adds — the
-    home page and the A–Z catalogs — injected. Run inside a documentation
+    The schema merged onto TEI, ids stamped, and the pages the site adds — a
+    title page if there is none, and the A–Z catalogs — injected. Run inside a documentation
     project (`opm init --example odd`), `opm chunk` over the result then
     writes that project's runs in any of its formats, e.g. `--format json` for
     a static site generator; SOURCE and --lang default to the

@@ -75,11 +75,10 @@
                          the catalog appendices included, whose own models below carry no
                          mode guard. -->
                     <!-- Text output (plain: typst and markdown): the text in document
-                         order, then the reference part. The home page, title page and
-                         table of contents belong to the site; the Typst shell makes its
-                         own title page and outline. Each division with an id gets an
+                         order, then the reference part. The table of contents belongs to
+                         the site; the Typst shell makes its own title page and outline. Each division with an id gets an
                          anchor for links to land on. -->
-                    <model output="plain" predicate="parent::text or @xml:id='Title' or @type='guidelines-toc'" behaviour="omit"/>
+                    <model output="plain" predicate="@type='guidelines-toc'" behaviour="omit"/>
                     <!-- `opm transform -t typst|markdown -p part=reference` prints only
                          the A–Z appendices, `-p part=text` only the text. -->
                     <model output="plain" predicate="(parent::front or parent::body or parent::back) and (($parameters?part = 'reference' and not(@xml:id = ('REF-ELEMENTS', 'REF-CLASSES-MODEL', 'REF-CLASSES-ATTS', 'REF-MACROS', 'REF-ATTS'))) or ($parameters?part = 'text' and @xml:id = ('REF-ELEMENTS', 'REF-CLASSES-MODEL', 'REF-CLASSES-ATTS', 'REF-MACROS', 'REF-ATTS')))" behaviour="omit"/>
@@ -146,10 +145,10 @@
                     <model predicate="$parameters?mode='chapnav' and (parent::front or parent::body or parent::back)" behaviour="pass-through">
                         <param name="prevHref" value="let $d := (let $s := preceding-sibling::div[1] return if ($s) then $s else parent::*/preceding-sibling::*[self::front or self::body][div][1]/div[last()]) return if ($d) then concat($d/@xml:id, '.html') else ''"/>
                         <param name="prevTitle" value="normalize-space(((let $s := preceding-sibling::div[1] return if ($s) then $s else parent::*/preceding-sibling::*[self::front or self::body][div][1]/div[last()]))/head)"/>
-                        <param name="prevNum" value="let $t := (let $s := preceding-sibling::div[1] return if ($s) then $s else parent::*/preceding-sibling::*[self::front or self::body][div][1]/div[last()]) return if ($t) then (let $d := $t, $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) else ''"/>
+                        <param name="prevNum" value="let $t := (let $s := preceding-sibling::div[1] return if ($s) then $s else parent::*/preceding-sibling::*[self::front or self::body][div][1]/div[last()]) return if ($t) then (let $d := $t, $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div) + 1 return if (not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) else ''"/>
                         <param name="nextHref" value="let $d := (let $s := following-sibling::div[1] return if ($s) then $s else parent::*/following-sibling::*[self::body or self::back][div][1]/div[1]) return if ($d) then concat($d/@xml:id, '.html') else ''"/>
                         <param name="nextTitle" value="normalize-space(((let $s := following-sibling::div[1] return if ($s) then $s else parent::*/following-sibling::*[self::body or self::back][div][1]/div[1]))/head)"/>
-                        <param name="nextNum" value="let $t := (let $s := following-sibling::div[1] return if ($s) then $s else parent::*/following-sibling::*[self::body or self::back][div][1]/div[1]) return if ($t) then (let $d := $t, $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) else ''"/>
+                        <param name="nextNum" value="let $t := (let $s := following-sibling::div[1] return if ($s) then $s else parent::*/following-sibling::*[self::body or self::back][div][1]/div[1]) return if ($t) then (let $d := $t, $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div) + 1 return if (not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) else ''"/>
                         <pb:template xmlns=""><nav class="chapter-nav chapter-nav--rail" aria-label="Chapter"><a class="chapter-nav__prev" href="[[prevHref]]" rel="prev"><span class="chapter-nav__label">Previous</span><span class="chapter-nav__title"><span class="chapter-nav__num">[[prevNum]]</span>[[prevTitle]]</span></a><a class="chapter-nav__next" href="[[nextHref]]" rel="next"><span class="chapter-nav__label">Next</span><span class="chapter-nav__title"><span class="chapter-nav__num">[[nextNum]]</span>[[nextTitle]]</span></a></nav></pb:template>
                     </model>
                     <!-- Full-width previous/next cards closing the chapter. Kept out of the
@@ -158,31 +157,11 @@
                     <model predicate="$parameters?mode='chapnav-end' and (parent::front or parent::body or parent::back)" behaviour="pass-through">
                         <param name="prevHref" value="let $d := (let $s := preceding-sibling::div[1] return if ($s) then $s else parent::*/preceding-sibling::*[self::front or self::body][div][1]/div[last()]) return if ($d) then concat($d/@xml:id, '.html') else ''"/>
                         <param name="prevTitle" value="normalize-space(((let $s := preceding-sibling::div[1] return if ($s) then $s else parent::*/preceding-sibling::*[self::front or self::body][div][1]/div[last()]))/head)"/>
-                        <param name="prevNum" value="let $t := (let $s := preceding-sibling::div[1] return if ($s) then $s else parent::*/preceding-sibling::*[self::front or self::body][div][1]/div[last()]) return if ($t) then (let $d := $t, $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) else ''"/>
+                        <param name="prevNum" value="let $t := (let $s := preceding-sibling::div[1] return if ($s) then $s else parent::*/preceding-sibling::*[self::front or self::body][div][1]/div[last()]) return if ($t) then (let $d := $t, $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div) + 1 return if (not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) else ''"/>
                         <param name="nextHref" value="let $d := (let $s := following-sibling::div[1] return if ($s) then $s else parent::*/following-sibling::*[self::body or self::back][div][1]/div[1]) return if ($d) then concat($d/@xml:id, '.html') else ''"/>
                         <param name="nextTitle" value="normalize-space(((let $s := following-sibling::div[1] return if ($s) then $s else parent::*/following-sibling::*[self::body or self::back][div][1]/div[1]))/head)"/>
-                        <param name="nextNum" value="let $t := (let $s := following-sibling::div[1] return if ($s) then $s else parent::*/following-sibling::*[self::body or self::back][div][1]/div[1]) return if ($t) then (let $d := $t, $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) else ''"/>
+                        <param name="nextNum" value="let $t := (let $s := following-sibling::div[1] return if ($s) then $s else parent::*/following-sibling::*[self::body or self::back][div][1]/div[1]) return if ($t) then (let $d := $t, $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div) + 1 return if (not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) else ''"/>
                         <pb:template xmlns=""><nav class="chapter-nav" aria-label="Chapter navigation"><a class="chapter-nav__prev" href="[[prevHref]]" rel="prev"><span class="chapter-nav__label">Previous chapter</span><span class="chapter-nav__title"><span class="chapter-nav__num">[[prevNum]]</span>[[prevTitle]]</span></a><a class="chapter-nav__next" href="[[nextHref]]" rel="next"><span class="chapter-nav__label">Next chapter</span><span class="chapter-nav__title"><span class="chapter-nav__num">[[nextNum]]</span>[[nextTitle]]</span></a></nav></pb:template>
-                    </model>
-                    <model predicate="parent::text" behaviour="pass-through">
-                        <param name="title" value="normalize-space((head, root($parameters?root)/*/teiHeader/fileDesc/titleStmt/title, @xml:id)[1])"/>
-                        <param name="blurb" value="titlePage | p | opener | epigraph"/>
-                        <!-- The release line from the header, under the title page's own
-                             byline: "P5 Version 4.12.0. Last updated on …". Flattened to
-                             text because the Guidelines link parts of it to pages that
-                             only exist in TEI's own build. -->
-                        <param name="edition" value="normalize-space(root($parameters?root)/*/teiHeader/fileDesc/editionStmt/edition)"/>
-                        <param name="lead" value="if (empty((titlePage, p, opener, epigraph))) then 'Reference documentation generated from the ODD.' else ''"/>
-                        <param name="toc" value="root($parameters?root)/*/text/(front|body|back)"/>
-                        <!-- One line per catalog, and how many entries it lists.
-                             Counted off the catalog page itself, which the A–Z lists
-                             are already on. -->
-                        <param name="nElements" value="count(id('REF-ELEMENTS')//item[@ident])"/>
-                        <param name="nModel" value="count(id('REF-CLASSES-MODEL')//item[@ident])"/>
-                        <param name="nAtts" value="count(id('REF-CLASSES-ATTS')//item[@ident])"/>
-                        <param name="nMacros" value="count(id('REF-MACROS')//item[@ident])"/>
-                        <param name="nAttributes" value="count(id('REF-ATTS')//item[@ident])"/>
-                        <pb:template xmlns=""><section class="home"><h1>[[title]]</h1>[[blurb]]<p class="home-edition">[[edition]]</p><p class="lead">[[lead]]</p>[[toc]]<h2>Reference</h2><ul class="toc"><li><a href="#REF-ELEMENTS">Elements</a> <span class="muted">[[nElements]]</span></li><li><a href="#REF-CLASSES-MODEL">Model classes</a> <span class="muted">[[nModel]]</span></li><li><a href="#REF-CLASSES-ATTS">Attribute classes</a> <span class="muted">[[nAtts]]</span></li><li><a href="#REF-ATTS">Attributes</a> <span class="muted">[[nAttributes]]</span></li><li><a href="#REF-MACROS">Macros and datatypes</a> <span class="muted">[[nMacros]]</span></li></ul></section></pb:template>
                     </model>
                     <!-- The home page renders in toc mode (see opm.toml): each
                          division of the text becomes an entry carrying its label and a
@@ -190,25 +169,25 @@
                          deeper divisions are left to the page itself. -->
                     <model predicate="$parameters?mode='toc' and div[head] and (parent::front or parent::body or parent::back)" behaviour="listItem">
                         <param name="uri" value="concat(ancestor-or-self::div[parent::body or parent::front or parent::back][1]/@xml:id, '.html', if (parent::body or parent::front or parent::back) then '' else concat('#', @xml:id))"/>
-                        <param name="label" value="let $l := (let $d := ., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if ($l) then concat($l, ' ') else ''"/>
+                        <param name="label" value="let $l := (let $d := ., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div) + 1 return if (not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if ($l) then concat($l, ' ') else ''"/>
                         <param name="head" value="head"/>
                         <param name="content" value="div[head]"/>
                         <pb:template xmlns=""><span class="heading-number">[[label]]</span><a href="[[uri]]">[[head]]</a><ul class="toc">[[content]]</ul></pb:template>
                     </model>
                     <model predicate="$parameters?mode='toc'" behaviour="listItem">
                         <param name="uri" value="concat(ancestor-or-self::div[parent::body or parent::front or parent::back][1]/@xml:id, '.html', if (parent::body or parent::front or parent::back) then '' else concat('#', @xml:id))"/>
-                        <param name="label" value="let $l := (let $d := ., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if ($l) then concat($l, ' ') else ''"/>
+                        <param name="label" value="let $l := (let $d := ., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div) + 1 return if (not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if ($l) then concat($l, ' ') else ''"/>
                         <param name="head" value="head"/>
                         <pb:template xmlns=""><span class="heading-number">[[label]]</span><a href="[[uri]]">[[head]]</a></pb:template>
                     </model>
                     <model predicate="@xml:id = ('REF-ELEMENTS', 'REF-CLASSES-MODEL', 'REF-CLASSES-ATTS', 'REF-MACROS')" behaviour="pass-through">
-                        <param name="label" value="let $s := (let $l := (let $d := ., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
+                        <param name="label" value="let $s := (let $l := (let $d := ., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div) + 1 return if (not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
                         <param name="heading" value="head/node()"/>
                         <param name="catalog" value="list[@type='catalog']"/>
                         <pb:template xmlns=""><section class="catalog"><h1><span class="heading-number">[[label]]</span>[[heading]]</h1>[[catalog]]</section></pb:template>
                     </model>
                     <model predicate="@xml:id = 'REF-ATTS'" behaviour="pass-through">
-                        <param name="label" value="let $s := (let $l := (let $d := ., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
+                        <param name="label" value="let $s := (let $l := (let $d := ., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div) + 1 return if (not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
                         <param name="heading" value="head/node()"/>
                         <param name="catalog" value="list[@type='attCatalog']"/>
                         <pb:template xmlns=""><section class="catalog"><h1><span class="heading-number">[[label]]</span>[[heading]]</h1>[[catalog]]</section></pb:template>
@@ -240,7 +219,7 @@
                         <pb:template xmlns=""><section class="spec-section" id="[[anchor]]"><h2>[[heading]]</h2>[[content]]</section></pb:template>
                     </model>
                     <model predicate="(parent::front or parent::body or parent::back)" behaviour="pass-through">
-                        <param name="content" value="if (titlePage) then *[not(self::head or self::list[@type='chapterNav'])] else *[not(self::list[@type='chapterNav'])]"/>
+                        <param name="content" value="*[not(self::list[@type='chapterNav'])]"/>
                         <pb:template xmlns=""><article class="doc-chapter">[[content]]</article></pb:template>
                     </model>
                     <model predicate="parent::body or parent::front or parent::back" behaviour="section"/>
@@ -302,35 +281,35 @@
                     <model predicate="parent::list" behaviour="block" cssClass="list-head"/>
                     <model output="plain" predicate="parent::div" behaviour="heading">
                         <param name="level" value="count(ancestor::div)"/>
-                        <param name="content" value="(let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else (), node())"/>
+                        <param name="content" value="(let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div) + 1 return if (not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else (), node())"/>
                     </model>
                     <model predicate="parent::div and count(ancestor::div) = 1" behaviour="pass-through">
-                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
+                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div) + 1 return if (not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
                         <param name="content" value="node()"/>
                         <pb:template xmlns=""><h1 class="tei-head"><span class="heading-number">[[label]]</span>[[content]]</h1></pb:template>
                     </model>
                     <model predicate="parent::div and count(ancestor::div) = 2" behaviour="pass-through">
-                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
+                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div) + 1 return if (not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
                         <param name="content" value="node()"/>
                         <pb:template xmlns=""><h2 class="tei-head"><span class="heading-number">[[label]]</span>[[content]]</h2></pb:template>
                     </model>
                     <model predicate="parent::div and count(ancestor::div) = 3" behaviour="pass-through">
-                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
+                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div) + 1 return if (not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
                         <param name="content" value="node()"/>
                         <pb:template xmlns=""><h3 class="tei-head"><span class="heading-number">[[label]]</span>[[content]]</h3></pb:template>
                     </model>
                     <model predicate="parent::div and count(ancestor::div) = 4" behaviour="pass-through">
-                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
+                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div) + 1 return if (not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
                         <param name="content" value="node()"/>
                         <pb:template xmlns=""><h4 class="tei-head"><span class="heading-number">[[label]]</span>[[content]]</h4></pb:template>
                     </model>
                     <model predicate="parent::div and count(ancestor::div) = 5" behaviour="pass-through">
-                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
+                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div) + 1 return if (not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
                         <param name="content" value="node()"/>
                         <pb:template xmlns=""><h5 class="tei-head"><span class="heading-number">[[label]]</span>[[content]]</h5></pb:template>
                     </model>
                     <model predicate="parent::div" behaviour="pass-through">
-                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div[not(titlePage)]) + 1 return if ($d/titlePage or not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
+                        <param name="label" value="let $s := (let $l := (let $d := .., $c := $d/ancestor-or-self::div, $p := local-name($c[1]/..), $i := for $x in $c return count($x/preceding-sibling::div) + 1 return if (not($p = ('front','body','back'))) then '' else concat(string-join((if ($p = 'body') then string($i[1]) else if ($p = 'front') then format-integer($i[1], 'i') else concat('Appendix ', format-integer($i[1], 'A')), for $n in subsequence($i, 2) return string($n)), '.'), if ($p = 'front') then '.' else '')) return if (matches($l, '^[0-9]+$')) then concat('Chapter ', $l) else if (matches($l, '^[ivxlcdm]+\.$')) then concat('Front matter ', substring($l, 1, string-length($l) - 1)) else $l) return if ($s) then concat($s, ' ') else ''"/>
                         <param name="content" value="node()"/>
                         <pb:template xmlns=""><h6 class="tei-head"><span class="heading-number">[[label]]</span>[[content]]</h6></pb:template>
                     </model>
@@ -401,15 +380,35 @@
                     </model>
                 </elementSpec>
                 <elementSpec ident="titlePage" mode="change">
-                    <desc>Home-page byline, or the full title page on Title.html.</desc>
-                    <model predicate="ancestor::div[parent::text]" behaviour="pass-through">
-                        <!-- The docTitle as it reads on the title page: its parts run
-                             together ("TEI P5: Guidelines for ..."). Dropped when it
-                             only repeats the heading above it. -->
-                        <param name="sub" value="if (normalize-space(docTitle) = normalize-space(ancestor::div[parent::text]/head)) then () else docTitle/titlePart"/>
+                    <desc>The title page. In toc mode (the home run in opm.toml) it is
+                        the home page: the title page, then the contents of the text and
+                        the reference catalogs.</desc>
+                    <!-- Text output: the Typst shell makes its own title page. -->
+                    <model output="plain" behaviour="omit"/>
+                    <model predicate="$parameters?mode='toc'" behaviour="pass-through">
                         <param name="authors" value="docAuthor"/>
+                        <param name="title" value="docTitle"/>
+                        <param name="byline" value="byline"/>
+                        <param name="notes" value="note"/>
+                        <param name="imprint" value="docImprint"/>
                         <param name="date" value="docDate"/>
-                        <pb:template xmlns=""><p class="home-sub">[[sub]]</p><p class="home-byline">[[authors]] [[date]]</p></pb:template>
+                        <!-- Prose that belongs to no chapter: beside the title page in
+                             the front matter, or in the body before the first chapter. -->
+                        <param name="blurb" value="../(p | opener | epigraph) | root($parameters?root)/*/text/body/(p | opener | epigraph)[not(preceding-sibling::div)]"/>
+                        <!-- The release line from the header: "P5 Version 4.12.0. Last
+                             updated on …". Flattened to text because the Guidelines link
+                             parts of it to pages that only exist in TEI's own build. -->
+                        <param name="edition" value="normalize-space(root($parameters?root)/*/teiHeader/fileDesc/editionStmt/edition)"/>
+                        <param name="toc" value="root($parameters?root)/*/text/(front|body|back)"/>
+                        <!-- One line per catalog, and how many entries it lists.
+                             Counted off the catalog page itself, which the A–Z lists
+                             are already on. -->
+                        <param name="nElements" value="count(id('REF-ELEMENTS')//item[@ident])"/>
+                        <param name="nModel" value="count(id('REF-CLASSES-MODEL')//item[@ident])"/>
+                        <param name="nAtts" value="count(id('REF-CLASSES-ATTS')//item[@ident])"/>
+                        <param name="nMacros" value="count(id('REF-MACROS')//item[@ident])"/>
+                        <param name="nAttributes" value="count(id('REF-ATTS')//item[@ident])"/>
+                        <pb:template xmlns=""><section class="home"><section class="title-page">[[authors]][[title]][[byline]][[notes]][[imprint]][[date]]</section><p class="home-edition">[[edition]]</p>[[blurb]][[toc]]<h2>Reference</h2><ul class="toc"><li><a href="#REF-ELEMENTS">Elements</a> <span class="muted">[[nElements]]</span></li><li><a href="#REF-CLASSES-MODEL">Model classes</a> <span class="muted">[[nModel]]</span></li><li><a href="#REF-CLASSES-ATTS">Attribute classes</a> <span class="muted">[[nAtts]]</span></li><li><a href="#REF-ATTS">Attributes</a> <span class="muted">[[nAttributes]]</span></li><li><a href="#REF-MACROS">Macros and datatypes</a> <span class="muted">[[nMacros]]</span></li></ul></section></pb:template>
                     </model>
                     <model behaviour="pass-through">
                         <param name="authors" value="docAuthor"/>
@@ -422,8 +421,27 @@
                     </model>
                 </elementSpec>
                 <elementSpec ident="docTitle" mode="change">
+                    <!-- The home page's heading: the parts run together as they read
+                         on the title page ("TEI P5: Guidelines for ..."); a subtitle
+                         goes on a line of its own. -->
+                    <model predicate="$parameters?mode='toc' and parent::titlePage" behaviour="pass-through">
+                        <param name="main" value="titlePart[not(@type='sub')]"/>
+                        <param name="sub" value="titlePart[@type='sub']"/>
+                        <pb:template xmlns=""><h1 class="title-page__title">[[main]]</h1><p class="title-page__sub">[[sub]]</p></pb:template>
+                    </model>
                     <model predicate="ancestor::titlePage" behaviour="block" cssClass="title-page__title"/>
                     <model behaviour="inline"/>
+                </elementSpec>
+                <elementSpec ident="note" mode="change">
+                    <!-- A title page's inline notes are lines of it ("Originally edited
+                         by ..."), on the home page too, which renders in toc mode. The
+                         rest is teipublisher.odd's, which declaring these replaces. -->
+                    <model predicate="parent::titlePage" behaviour="paragraph" cssClass="title-page__byline"/>
+                    <model predicate="$parameters?mode='toc' or ancestor::listAnnotation" behaviour="omit"/>
+                    <model behaviour="note">
+                        <param name="place" value="@place"/>
+                        <param name="label" value="@n"/>
+                    </model>
                 </elementSpec>
                 <elementSpec ident="byline" mode="add">
                     <model behaviour="paragraph" cssClass="title-page__byline"/>
@@ -433,15 +451,13 @@
                     <model behaviour="block"/>
                 </elementSpec>
                 <elementSpec ident="titlePart" mode="change">
-                    <model predicate="ancestor::div[parent::text]" behaviour="inline"/>
+                    <model predicate="$parameters?mode='toc'" behaviour="inline"/>
                     <model behaviour="block"/>
                 </elementSpec>
                 <elementSpec ident="docAuthor" mode="change">
-                    <model predicate="ancestor::div[parent::text]" behaviour="inline" cssClass="home-author"/>
                     <model behaviour="block"/>
                 </elementSpec>
                 <elementSpec ident="docDate" mode="change">
-                    <model predicate="ancestor::div[parent::text]" behaviour="inline" cssClass="home-date"/>
                     <model behaviour="block"/>
                 </elementSpec>
                 <elementSpec ident="p" mode="change">

@@ -378,15 +378,13 @@ def test_guidelines_chapters_are_written(tmp_path: Path) -> None:
     )
     compiled = compile_schema(src)
     site = build_document_site(compiled, tmp_path / 'out')
-    assert site.chapters == 3
-    assert (site.output_dir / 'Title.html').is_file()
+    assert site.chapters == 2
+    # The title page is the home page, not a chapter of its own.
+    assert not (site.output_dir / 'Title.html').exists()
     chapter = (site.output_dir / 'CO.html').read_text(encoding='utf-8')
     assert 'class="chapter-nav"' in chapter
-    assert re.search(r'class="chapter-nav__prev"[^>]*href="Title\.html"', chapter)
+    assert re.search(r'class="chapter-nav__prev"[^>]*href=""', chapter)
     assert re.search(r'class="chapter-nav__next"[^>]*href="NOTES\.html"', chapter)
-    title_page = (site.output_dir / 'Title.html').read_text(encoding='utf-8')
-    assert re.search(r'class="chapter-nav__next"[^>]*href="CO\.html"', title_page)
-    assert re.search(r'class="chapter-nav__prev"[^>]*href=""', title_page)
     notes = (site.output_dir / 'NOTES.html').read_text(encoding='utf-8')
     assert re.search(r'class="chapter-nav__prev"[^>]*href="CO\.html"', notes)
     # The A–Z catalogs close the text as its appendices, so the sequence runs
@@ -416,9 +414,8 @@ def test_guidelines_chapters_are_written(tmp_path: Path) -> None:
     assert 'This document introduces the fixture schema.' in home
     assert 'A short fixture' in home
     assert 'Test Author' in home
-    assert 'Front Matter' in home
-    assert 'Text Body' in home
-    assert 'Title.html' in home
+    assert 'class="title-page"' in home
+    assert 'Title.html' not in home
     ref = (site.output_dir / 'ref-p.html').read_text(encoding='utf-8')
     # Both exempla land in the one Examples section.
     assert ref.count('<h2>Examples</h2>') == 1
@@ -540,8 +537,8 @@ def test_headings_carry_guidelines_outline_numbers(tmp_path: Path) -> None:
         assert match, f'no {level} in {page}'
         return re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', '', match.group(1))).strip()
 
-    # Body chapters are arabic and start at 1: the injected home page is not
-    # a division of the text. A chapter's own label opens the page spelled out.
+    # Body chapters are arabic and start at 1: the title page is not a
+    # division of the text. A chapter's own label opens the page spelled out.
     assert heading('IN.html', 'h1') == 'Chapter 1 Infrastructure'
     assert heading('IN.html', 'h2') == '1.1 Modules'
     assert heading('IN.html', 'h3') == '1.1.1 Classes'
@@ -558,7 +555,8 @@ def test_headings_carry_guidelines_outline_numbers(tmp_path: Path) -> None:
     home = (site.output_dir / 'index.html').read_text(encoding='utf-8')
     assert re.search(r'heading-number">1 </span><a[^>]*href="IN.html"', home)
     assert re.search(r'heading-number">1\.1 </span><a[^>]*href="IN.html#INA"', home)
-    assert heading('index.html', 'h1') == 'Mini guidelines'
+    # Its heading is the title page's own title.
+    assert heading('index.html', 'h1') == 'Mini'
 
 
 def test_chapter_footnotes_and_modulespec(tmp_path: Path) -> None:
@@ -731,7 +729,7 @@ def test_front_and_back_matter_are_grouped_on_home(tmp_path: Path) -> None:
         for child in tree.find('.//{http://www.tei-c.org/ns/1.0}back')
         if child.tag.endswith('div')
     }
-    assert {'Title', 'TitlePageVerso', 'dedication', 'FM1'} <= front
+    assert {'TitlePageVerso', 'dedication', 'FM1'} <= front
     assert 'ST' in body_ids
     assert 'dedication' not in body_ids
     assert 'BIB' in back_ids
@@ -750,7 +748,7 @@ def test_front_and_back_matter_are_grouped_on_home(tmp_path: Path) -> None:
     assert 'Front Matter' in home
     assert 'Text Body' in home
     assert 'Back Matter' in home
-    assert 'Title.html' in home
+    assert 'Title.html' not in home
     assert 'TitlePageVerso.html' in home
     assert 'dedication.html' in home
     assert 'FM1.html' in home
@@ -774,8 +772,8 @@ def test_front_and_back_matter_are_grouped_on_home(tmp_path: Path) -> None:
     # The home page is no chapter: no prev/next of its own.
     assert 'chapter-nav' not in home
 
-    # Preparing the tree leaves the author's @type alone and adds no mark of
-    # its own: which pages a div makes is read off where it sits.
+    # Preparing the tree leaves the author's @type alone. Which pages a div
+    # makes is read off where it sits.
     types = {div.get(XML_ID): div.get('type') for div in iter_guideline_chapters(tree)}
     assert types['dedication'] == 'Dedication'
     assert types['TitlePageVerso'] == 'titlePageVerso'
@@ -784,8 +782,10 @@ def test_front_and_back_matter_are_grouped_on_home(tmp_path: Path) -> None:
         '{http://teipublisher.com/opm/1.0}' in key
         for el in tree.iter() if isinstance(el.tag, str) for key in el.attrib
     )
-    home_div = tree.find('.//{http://www.tei-c.org/ns/1.0}div[@{http://www.w3.org/XML/1998/namespace}id="index"]')
-    assert home_div is not None and home_div.getparent().tag.endswith('}text')
+    # The home page is the document's own title page, left where it was.
+    front = tree.find('.//{http://www.tei-c.org/ns/1.0}front')
+    assert front[0].tag.endswith('}titlePage')
+    assert not any(div.get('type') == 'home' for div in tree.iter('{*}div'))
 
 
 def test_unsupported_expressions_in_own_odd_are_reported(tmp_path: Path) -> None:
@@ -955,6 +955,57 @@ def test_customization_does_not_inherit_tei_chapters(
     assert not (site.output_dir / 'CO.html').exists()
     # The schema itself still merged: the customization's model came through.
     assert (site.output_dir / 'ref-p.html').is_file()
+
+
+def test_customization_without_title_page_gets_one_from_its_header(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """The home page is the title page, built from the teiHeader when missing.
+
+    A customization without chapters compiles to its specs alone; the header
+    has to come along, or neither the title page nor the edition line would
+    have anything to show.
+    """
+    artifact = tmp_path / 'p5all.xml'
+    artifact.write_text(_LIST_REF_ARTIFACT, encoding='utf-8')
+    monkeypatch.setattr('opm.odd_schema.ensure_p5all', lambda **_kwargs: artifact)
+    custom = tmp_path / 'custom.odd'
+    custom.write_text(
+        '''<?xml version="1.0" encoding="UTF-8"?>
+           <TEI xmlns="http://www.tei-c.org/ns/1.0">
+             <teiHeader>
+               <fileDesc>
+                 <titleStmt>
+                   <title>Letters</title>
+                   <title type="sub">An encoding guide</title>
+                   <author>Ada Editor</author>
+                 </titleStmt>
+                 <editionStmt><edition>Version 2.1</edition></editionStmt>
+                 <publicationStmt><publisher>Letters Project</publisher><date>2026</date></publicationStmt>
+                 <sourceDesc><p>t</p></sourceDesc>
+               </fileDesc>
+             </teiHeader>
+             <text><body>
+               <schemaSpec ident="letters">
+                 <moduleRef key="core"/>
+               </schemaSpec>
+             </body></text>
+           </TEI>''',
+        encoding='utf-8',
+    )
+    compiled = compile_schema(custom)
+    tree = prepare_document_tree(compiled)
+    title_page = tree.find('.//{http://www.tei-c.org/ns/1.0}front/{http://www.tei-c.org/ns/1.0}titlePage')
+    assert title_page is not None
+    assert [part.text for part in title_page.iter('{*}titlePart')] == ['Letters', 'An encoding guide']
+
+    site = build_document_site(compiled, tmp_path / 'out')
+    home = (site.output_dir / 'index.html').read_text(encoding='utf-8')
+    assert re.search(r'<h1[^>]*>(?:<[^>]+>)*Letters(?:<[^>]+>)*</h1>', home)
+    assert 'An encoding guide' in home
+    assert 'Ada Editor' in home
+    assert 'Letters Project' in home
+    assert 'Version 2.1' in home
 
 
 _LIST_REF_ARTIFACT = '''<?xml version="1.0" encoding="UTF-8"?>
