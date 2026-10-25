@@ -1095,6 +1095,13 @@ def test_global_fragments_receive_a_per_document_doc_parameter(tmp_path: Path) -
     assert proc.entry_href() == 'fixture.xml/001.html'
     assert proc._expand_document_params({})['doc'] == 'fixture.xml/001.html'
 
+    # Once chunks are selected, the entry is the first chunk's own file name.
+    named = _processor(ChunkingConfig(
+        xpath="//body/div[@type='chunk']", link_doc='fixture.xml', file_pattern='index.html',
+    ))
+    named.select_chunks()
+    assert named.entry_href() == 'fixture.xml/index.html'
+
     # Single document: no prefix.
     single = _processor(ChunkingConfig(xpath="//body/div[@type='chunk']"))
     assert single.entry_href() == '001.html'

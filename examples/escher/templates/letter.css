@@ -1,0 +1,377 @@
+/* SPDX-FileCopyrightText: 2026 e-editiones
+   SPDX-License-Identifier: CC0-1.0 */
+
+/* Briefedition Alfred Escher: additions to chapbook.css for a letter.
+   Colours, fonts and spacing come from the custom properties there.
+
+   The transcription is on the page once. body.escher--edited and
+   body.escher--diplomatic (set by escher.js) decide what of it is shown:
+
+     edited       running text; additions without marks, deletions,
+                  hyphens and metamarks hidden; names open popovers;
+                  the register ("Kontexte") beside the text.
+     diplomatic   line by line as in the manuscript, with the alignment of
+                  each paragraph; additions in ⌜ ⌝, deletions struck
+                  through; the facsimile beside the text.
+
+   Without the script (or before it runs) the page shows the edited text. */
+
+/* ── Toolbar: view switch ─────────────────────────────────── */
+
+.view-switch {
+  display: inline-flex;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.view-switch button {
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.view-switch button + button {
+  border-left: 1px solid var(--rule-strong);
+}
+
+.view-switch button:hover {
+  color: var(--rubric);
+}
+
+.view-switch button[aria-pressed="true"] {
+  background: var(--rubric-soft);
+  color: var(--ink);
+}
+
+/* ── Letter navigation ────────────────────────────────────── */
+
+.letter-nav {
+  max-width: var(--measure-text);
+  margin: 0 0 var(--space-6);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--ink-muted);
+}
+
+.letter-nav__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+}
+
+.letter-nav__row + .letter-nav__row {
+  border-top: 1px solid var(--rule);
+}
+
+.letter-nav__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+a.letter-nav__link:hover {
+  color: var(--rubric);
+}
+
+.letter-nav__link--disabled {
+  color: var(--ink-faint);
+}
+
+.letter-nav__icon {
+  width: 1.1em;
+  height: 1.1em;
+  flex: none;
+}
+
+.letter-nav__mark {
+  text-align: center;
+}
+
+/* ── Letter head ──────────────────────────────────────────── */
+
+.letter-head {
+  max-width: var(--measure-text);
+  margin: 0 0 var(--space-6);
+}
+
+.letter-head .letter-title {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-serif);
+  font-size: 1.9rem;
+  font-weight: 400;
+  line-height: 1.25;
+}
+
+.letter-head :is(.letter-meta, .letter-keywords) {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--ink-muted);
+}
+
+/* ── The text, in both readings ───────────────────────────── */
+
+.letter-text {
+  position: relative;
+}
+
+.letter-text .para {
+  margin: 0 0 0.8em;
+}
+
+/* Page images for pb-facsimile: markup, not text. */
+.letter-text pb-facs-link {
+  display: none;
+}
+
+.letter-text .page-break {
+  color: var(--ink-faint);
+}
+
+/* Names and abbreviations with a popover. */
+.letter-text .popover {
+  text-decoration-line: underline;
+  text-decoration-color: var(--entity);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+/* Mentions picked in the register. */
+.letter-text .highlight {
+  background: var(--highlight);
+}
+
+/* Line ends: the ODD writes <br class="lb">, escher.js wraps each line in
+   .line. Both readings hide the break itself: the diplomatic reading sets
+   the lines as blocks instead. */
+.letter-text br.lb {
+  display: none;
+}
+
+/* Additions are part of the text in both readings, not the interlinear
+   gloss the base stylesheet makes of them (tei-add: small, raised, green). */
+.letter-text .tei-add.addition {
+  color: inherit;
+  font-size: inherit;
+  vertical-align: baseline;
+}
+
+/* Edited */
+
+body:not(.escher--diplomatic) .letter-text :is(.hyphen, .deletion, .metamark) {
+  display: none;
+}
+
+body:not(.escher--diplomatic) .letter-text .underline {
+  text-decoration: none;
+  font-style: italic;
+}
+
+/* Diplomatic */
+
+/* A manuscript line, not a reading measure, sets the width: the longest
+   lines of the sample letters run to about 42rem at the text size. Lines
+   carrying a marginal addition are longer still and wrap. Set on body, where
+   chapbook.css derives the layout's content column from it. */
+body.escher--diplomatic {
+  --measure-text: 44rem;
+}
+
+.escher--diplomatic .letter-text .line {
+  display: block;
+}
+
+.escher--diplomatic .letter-text .indent > .line:first-child {
+  text-indent: 1.6em;
+}
+
+.escher--diplomatic .letter-text .para.right {
+  text-align: right;
+}
+
+.escher--diplomatic .letter-text .para.center {
+  text-align: center;
+}
+
+/* The diplomatic reading keeps its line ends, so no hyphenation of its own. */
+.escher--diplomatic .letter-text {
+  hyphens: manual;
+  -webkit-hyphens: manual;
+}
+
+.escher--diplomatic .letter-text .addition::before {
+  content: "⌜";
+}
+
+.escher--diplomatic .letter-text .addition::after {
+  content: "⌝";
+}
+
+/* Popovers are inert here: hovering over a line shows its facsimile. */
+.escher--diplomatic .letter-text pb-popover {
+  pointer-events: none;
+}
+
+.escher--diplomatic .letter-text .popover {
+  text-decoration-line: none;
+}
+
+.escher--diplomatic .letter-text .line[data-region] {
+  cursor: pointer;
+}
+
+.escher--diplomatic .letter-text .line--active {
+  background: var(--highlight);
+}
+
+/* The region of the page, above the line under the pointer. */
+.line-region {
+  position: absolute;
+  z-index: 5;
+  max-width: none;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper-raised);
+  box-shadow: var(--shadow-popover);
+  pointer-events: none;
+}
+
+.line-region--wide {
+  width: 100%;
+  height: auto;
+}
+
+/* ── Register ("Kontexte") ────────────────────────────────── */
+
+.letter-register {
+  padding: var(--space-6) 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.letter-register__title,
+.letter-register h3 {
+  margin: var(--space-5) 0 var(--space-2);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.letter-register__title {
+  margin-top: 0;
+  color: var(--ink);
+}
+
+.letter-register ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.letter-register li {
+  margin: 0 0 var(--space-1);
+}
+
+.letter-register label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.letter-register input {
+  accent-color: var(--rubric);
+}
+
+.register__date {
+  margin: 0;
+}
+
+/* ── Facsimile ────────────────────────────────────────────── */
+
+.letter-facs {
+  height: 30rem;
+  border: 1px solid var(--rule);
+  background: var(--paper-sunken);
+}
+
+.letter-facs pb-facsimile {
+  height: 100%;
+  --pb-facsimile-border: 2px solid var(--rubric);
+}
+
+/* Each reading keeps only the column it uses: the register beside the
+   edited text, the facsimile beside the diplomatic one. */
+body:not(.escher--diplomatic) .opm-layout.has-after {
+  --opm-layout-after-track: 0px;
+}
+
+body:not(.escher--diplomatic) .opm-layout > .after {
+  display: none;
+}
+
+.escher--diplomatic .opm-layout.has-before {
+  --opm-layout-before-track: 0px;
+}
+
+.escher--diplomatic .opm-layout > .before,
+.escher--diplomatic .opm-drawer__open--before {
+  display: none;
+}
+
+@media (min-width: 64.001em) {
+  .escher .opm-layout > .after {
+    padding-top: var(--space-6);
+  }
+
+  .letter-facs {
+    position: sticky;
+    top: calc(var(--bar-height) + var(--space-5));
+    height: min(78vh, 44rem);
+  }
+}
+
+@media (max-width: 64em) {
+  .letter-register {
+    padding: var(--space-4);
+  }
+
+  .escher .opm-layout > .after {
+    padding: 0 0 var(--space-6);
+  }
+}
+
+/* ── Letter list (index.html) ─────────────────────────────── */
+
+.letter-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chap-page .content .letter-list__item {
+  margin: 0 0 var(--space-5);
+}
+
+.chap-page .content .letter-list__title {
+  font-size: 1.2rem;
+}
+
+.letter-list__id {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--ink-muted);
+}

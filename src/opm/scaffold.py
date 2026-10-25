@@ -113,6 +113,13 @@ EXAMPLES: tuple[ExampleProject, ...] = (
         sample='data/letters/serafin01.xml',
     ),
     ExampleProject(
+        name='escher',
+        title='Correspondence with facsimile (TEI)',
+        summary='Switch between diplomatic transcription and edited text',
+        vocabulary='tei',
+        sample='data/letters/K_0096.xml',
+    ),
+    ExampleProject(
         name='monograph',
         title='Monograph (TEI)',
         summary='Critical edition of a book chapter: original pagination in the margin, two note series, breadcrumbs',

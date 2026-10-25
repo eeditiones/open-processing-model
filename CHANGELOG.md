@@ -13,37 +13,26 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- `[transform] footnote_order` / `--footnote-order` — reorder (or drop) footnotes
-  for `web` and `markdown`. Ships `labelled_first` and `by_place`; see the
-  [Footnotes](docs/guide/footnotes.md) guide.
-- `opm odd document` — static HTML documentation site from an ODD (reference
-  pages, catalogs, optional Guidelines chapters).
-- `SpecIndex` / `compile_schema` — Python API for the ODD spec graph and a
-  small odd2odd merge.
-- `tp:highlight($source, $language)` — Pygments HTML for code listings from
-  ODD `content` params.
+- `[transform] footnote_order` / `--footnote-order` for `web` and `markdown`
+- `opm odd document` — generate static documentation from an ODD
 - `chunking.file_pattern` — name chunk files from `{xml_id}` / `{ident}`
-  instead of `001.html`.
-- Spec XPath helpers (`tp:contained_by`, `tp:may_contain`, …) for
-  `tagdocs.odd` documentation pages.
+- `chunking.document_name` — XPath for each document's output directory
+- `escher` example — diplomatic/edited letters with facsimile hover
 
 ### Fixed
 
-- Empty stand-off notes no longer emit a footnote labelled `[]`.
+- Empty stand-off notes no longer emit a footnote labelled `[]`
 - `tp:serialize_egxml` keeps intentional line breaks in mixed content
-  (e.g. `<lb/>` verse lines) indented with the element nest, instead of
-  flushing them to column 0.
+- A `file_pattern` with no `{…}` fields is used as the literal file name
+- Stripping XML comments outside `egXML` no longer drops following text
+- Global-fragment `doc` links use the first page's real file under `file_pattern`
 
 ### Changed
 
-- `opm init --vocabulary docbook` now sets up the `handbook` template instead
-  of `chapbook`, matching the DocBook example.
-- Notes with their own TEI `@n` no longer consume the running counter, so
-  lettered and numbered series count independently. HTML notes also expose
-  `data-n` for styling, as `print` already did.
-- `opm coverage` is now `opm odd coverage` (old name kept as a hidden alias).
-- DocBook `programlisting` / `synopsis` (and tagdocs `egXML`) use
-  `tp:highlight` on `opm-web` / `opm-print`.
+- `opm init --vocabulary docbook` scaffolds `handbook` instead of `chapbook`
+- Notes with their own `@n` no longer advance the running counter; HTML exposes `data-n`
+- `opm coverage` is now `opm odd coverage` (old name kept as a hidden alias)
+- DocBook `programlisting` / `synopsis` and tagdocs `egXML` use `tp:highlight`
 
 ## [0.9.0] - 2026-09-14
 

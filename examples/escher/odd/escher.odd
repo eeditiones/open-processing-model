@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:pb="http://teipublisher.com/1.0" xml:lang="en">
+    <teiHeader>
+        <fileDesc>
+            <titleStmt>
+                <title>Alfred Escher-Briefedition <desc>Letters with a diplomatic and an edited reading, line by line against the facsimile</desc></title>
+            </titleStmt>
+            <publicationStmt>
+                <publisher>e-editiones</publisher>
+                <availability>
+                    <licence target="https://creativecommons.org/licenses/by-sa/4.0/">Distributed under a
+                        Creative Commons Attribution-ShareAlike 4.0 International License</licence>
+                    <p>Copyright 2021–2026 <ref target="https://existsolutions.com">eXistSolutions GmbH</ref>
+                        and <ref target="https://e-editiones.org">e-editiones</ref>.</p>
+                    <p>Adapted for opm from the ODD of the
+                        <ref target="https://www.briefedition.alfred-escher.ch/">Digitale Briefedition Alfred Escher</ref>,
+                        relicensed by eXistSolutions under the licence of the letters.</p>
+                </availability>
+            </publicationStmt>
+            <sourceDesc>
+                <p>Ported from the edition's <ref target="http://tei-publisher.com">TEI Publisher</ref> app.</p>
+            </sourceDesc>
+        </fileDesc>
+        <encodingDesc>
+            <tagsDecl>
+                <rendition source="escher.css"/>
+            </tagsDecl>
+        </encodingDesc>
+        <revisionDesc>
+            <change when="2026-10-23">Ported to opm: reading view only.</change>
+            <change when="2021-01-20+01:00">Initial version</change>
+        </revisionDesc>
+    </teiHeader>
+    <text>
+        <body>
+            <schemaSpec start="TEI" ident="escher" source="teipublisher.odd">
+
+                <!-- ==============================================================
+                     One page holds both readings of a letter. The models only
+                     classify what the transcription records (additions,
+                     deletions, line ends, alignment); templates/escher.css
+                     decides per view what is shown, and templates/escher.js
+                     switches the view. Nothing here depends on the view.
+                     ============================================================== -->
+
+                <elementSpec ident="TEI" mode="change">
+                    <model predicate="$parameters?mode='letter-head'" behaviour="pass-through">
+                        <desc>Title, signature and keywords above the letter</desc>
+                        <param name="title" value="string(teiHeader/fileDesc/titleStmt/title[1])"/>
+                        <param name="id" value="'B' || substring-after(@xml:id, 'K_')"/>
+                        <param name="shelfmark" value="let $ms := teiHeader//msIdentifier return string-join(($ms/institution, ($ms/idno[@type='identifier'], $ms/idno[not(@type)])[1]), ' ')"/>
+                        <param name="keywords" value="string-join(teiHeader//keywords[@scheme='http://briefedition.alfred-escher.ch/keywords']/term, ', ')"/>
+                        <pb:template xmlns="" xml:space="preserve"><h1 class="letter-title">[[title]]</h1>
+<p class="letter-meta">AES [[id]] | [[shelfmark]]</p>
+<p class="letter-keywords">Schlagwörter: [[keywords]]</p></pb:template>
+                    </model>
+                    <model predicate="$parameters?mode='breadcrumb'" behaviour="inline">
+                        <param name="content" value="string(teiHeader/fileDesc/titleStmt/title[1])"/>
+                    </model>
+                    <model predicate="$parameters?mode='edition-navigation'" behaviour="pass-through">
+                        <param name="content" value="descendant::correspContext"/>
+                    </model>
+                    <model predicate="$parameters?mode='register'" behaviour="pass-through">
+                        <desc>The edition's "Kontexte" column: correspondents, date, and every person
+                            and place the letter names, once each, in key order. The names carry
+                            their @key only; this example ships no register files.</desc>
+                        <param name="correspondents" value="teiHeader//correspAction[@type='sent']/persName"/>
+                        <param name="date" value="string((teiHeader//correspAction[@type='sent']/date)[1])"/>
+                        <param name="persons" value="let $names := text//persName[@key] return for $key in sort(distinct-values($names/@key)) return $names[@key = $key][1]"/>
+                        <param name="places" value="let $names := text//placeName[@key] return for $key in sort(distinct-values($names/@key)) return $names[@key = $key][1]"/>
+                        <pb:template xmlns="" xml:space="preserve"><div class="register">
+<h3>Korrespondenten</h3>
+<ul>[[correspondents]]</ul>
+<h3>Briefdatum</h3>
+<p class="register__date">[[date]]</p>
+<h3>Personen</h3>
+<ul>[[persons]]</ul>
+<h3>Orte</h3>
+<ul>[[places]]</ul>
+</div></pb:template>
+                    </model>
+                    <model behaviour="document"/>
+                </elementSpec>
+
+                <elementSpec ident="text" mode="change">
+                    <desc>A chunk page is one letter's text, set inside the template's article,
+                        so it must not open a document body of its own</desc>
+                    <model output="web" behaviour="block" cssClass="letter"/>
+                    <model behaviour="body"/>
+                </elementSpec>
+
+                <elementSpec ident="teiHeader" mode="change">
+                    <model predicate="$parameters?display='browse'" behaviour="pass-through">
+                        <desc>Entry in the letter list of a directory run</desc>
+                        <param name="title" value="string(fileDesc/titleStmt/title[1])"/>
+                        <param name="uri" value="$parameters?doc"/>
+                        <param name="id" value="'B' || substring-after(ancestor::TEI/@xml:id, 'K_')"/>
+                        <pb:template xmlns="" xml:space="preserve"><a class="letter-list__title" href="[[uri]]">[[title]]</a>
+<p class="letter-list__id">AES [[id]]</p></pb:template>
+                    </model>
+                    <model output="latex" behaviour="metadata"/>
+                    <model output="fo" behaviour="omit"/>
+                    <model behaviour="metadata"/>
+                </elementSpec>
+
+                <elementSpec ident="correspContext" mode="change">
+                    <desc>Neighbouring letters for the toolbar, as data-* attributes on a hidden
+                        nav (the contract of the serafin example's letter template). The targets
+                        are the edition's letter numbers (B0097), which [chunking] document_name
+                        also makes the name of each letter's directory.</desc>
+                    <model predicate="$parameters?mode='edition-navigation'" behaviour="pass-through">
+                        <param name="previous" value="string((ref[@type = 'previous']/@target)[1])"/>
+                        <param name="next" value="string((ref[@type = 'next']/@target)[1])"/>
+                        <param name="previous-in-correspondence" value="string((ref[@type = 'previous-in-corresp']/@target)[1])"/>
+                        <param name="next-in-correspondence" value="string((ref[@type = 'next-in-corresp']/@target)[1])"/>
+                        <param name="correspondence" value="let $sent := ../correspAction[@type = 'sent'] return string-join(($sent/persName[@type = 'sender'][1], $sent/persName[@type = 'addressee'][1]), ' – ')"/>
+                        <pb:template xmlns="" xml:space="preserve"><nav class="corresp-nav" hidden="hidden" data-previous="[[previous]]" data-next="[[next]]" data-previous-in-correspondence="[[previous-in-correspondence]]" data-next-in-correspondence="[[next-in-correspondence]]" data-correspondence="[[correspondence]]"></nav></pb:template>
+                    </model>
+                    <model behaviour="omit"/>
+                </elementSpec>
+
+                <!-- ==============================================================
+                     Line ends and the facsimile. Each lb looks up its own region
+                     in the edition's mapping table for the letter
+                     (data/regions/<id>_mapping.xml): tp:region_image and
+                     tp:region_coords (extensions/escher_functions.py) read the
+                     page from the p<n>- prefix of @xml:id and the rectangle
+                     from the area that targets it, and give '' for a letter or
+                     line the edition has no region for. The first line of a
+                     page also announces that page's image to <pb-facsimile>,
+                     when there is one.
+                     ============================================================== -->
+                <elementSpec ident="lb" mode="change">
+                    <modelSequence output="web">
+                        <model predicate="matches(@xml:id, '^p\d+-l1$') and tp:region_image(string(ancestor::TEI/@xml:id), string(@xml:id))" behaviour="pass-through">
+                            <desc>Register the page image with pb-facsimile, in page order</desc>
+                            <param name="page" value="replace(@xml:id, '^p(\d+)-.*$', '$1')"/>
+                            <param name="image" value="tp:region_image(string(ancestor::TEI/@xml:id), string(@xml:id))"/>
+                            <pb:template xmlns="" xml:space="preserve"><pb-facs-link class="facs-page" facs="[[image]]" order="[[page]]" emit="transcription"></pb-facs-link></pb:template>
+                        </model>
+                        <model predicate="@break='no'" behaviour="inline" cssClass="hyphen">
+                            <param name="content" value="'-'"/>
+                        </model>
+                        <model behaviour="pass-through">
+                            <param name="image" value="tp:region_image(string(ancestor::TEI/@xml:id), string(@xml:id))"/>
+                            <param name="coords" value="tp:region_coords(string(ancestor::TEI/@xml:id), string(@xml:id))"/>
+                            <pb:template xmlns="" xml:space="preserve"><br class="lb" data-image="[[image]]" data-coords="[[coords]]"/></pb:template>
+                        </model>
+                        <model predicate="not(@break='no')" behaviour="text">
+                            <param name="content" value="' '"/>
+                        </model>
+                    </modelSequence>
+                    <model output="typst" predicate="@break='no'" behaviour="omit"/>
+                    <model output="typst" behaviour="text">
+                        <param name="content" value="' '"/>
+                    </model>
+                    <model predicate="@break='no'" behaviour="omit"/>
+                    <model behaviour="text">
+                        <param name="content" value="' '"/>
+                    </model>
+                </elementSpec>
+
+                <elementSpec ident="pb" mode="change">
+                    <desc>A bar where the page turns, as in the edition. Not the class "pb", which
+                        the base stylesheet floats into the margin as a page label.</desc>
+                    <model behaviour="inline" cssClass="page-break">
+                        <param name="content" value="' | '"/>
+                    </model>
+                </elementSpec>
+
+                <!-- ==============================================================
+                     Layout of the manuscript, kept as classes: the diplomatic
+                     view sets lines and paragraphs as written, the edited view
+                     runs them on.
+                     ============================================================== -->
+                <elementSpec ident="p" mode="change">
+                    <desc>@rend (indent, left, center, right) reaches the output as a class of its own</desc>
+                    <model behaviour="paragraph" cssClass="para"/>
+                </elementSpec>
+
+                <elementSpec ident="div" mode="change">
+                    <model predicate="@type='signature'" behaviour="block" cssClass="signature"/>
+                    <model predicate="@type='closer'" behaviour="block" cssClass="closer"/>
+                    <model predicate="@type='dateline'" behaviour="block" cssClass="dateline"/>
+                    <model predicate="@type='opener'" behaviour="block" cssClass="opener"/>
+                    <model behaviour="block"/>
+                </elementSpec>
+
+                <elementSpec ident="add" mode="change">
+                    <model predicate="@type='?'" behaviour="inline" cssClass="addition unclear-addition"/>
+                    <model behaviour="inline" cssClass="addition"/>
+                </elementSpec>
+
+                <elementSpec ident="del" mode="change">
+                    <model behaviour="inline" cssClass="deletion"/>
+                </elementSpec>
+
+                <elementSpec ident="metamark" mode="add">
+                    <model behaviour="inline" cssClass="metamark"/>
+                </elementSpec>
+
+                <elementSpec ident="hi" mode="change">
+                    <desc>Plain inline: @rend (underline, sup) becomes the class odd/escher.css styles</desc>
+                    <model behaviour="inline"/>
+                </elementSpec>
+
+                <elementSpec ident="date" mode="change">
+                    <desc>The edition normalises dates in @when; the text shows them as written</desc>
+                    <model behaviour="inline"/>
+                </elementSpec>
+
+                <elementSpec ident="choice" mode="change">
+                    <model output="plain" predicate="sic and corr" behaviour="inline">
+                        <param name="content" value="corr[1]"/>
+                    </model>
+                    <model output="plain" predicate="abbr and expan" behaviour="inline">
+                        <param name="content" value="expan[1]"/>
+                    </model>
+                    <model output="plain" predicate="orig and reg" behaviour="inline">
+                        <param name="content" value="reg[1]"/>
+                    </model>
+                    <model predicate="sic and corr" behaviour="alternate" cssClass="popover">
+                        <param name="default" value="sic[1]"/>
+                        <param name="alternate" value="corr[1]"/>
+                    </model>
+                    <model predicate="abbr and expan" behaviour="alternate" cssClass="popover">
+                        <param name="default" value="abbr[1]"/>
+                        <param name="alternate" value="expan[1]"/>
+                    </model>
+                    <model predicate="orig and reg" behaviour="alternate" cssClass="popover">
+                        <param name="default" value="orig[1]"/>
+                        <param name="alternate" value="reg[1]"/>
+                    </model>
+                </elementSpec>
+
+                <elementSpec ident="note" mode="change">
+                    <model predicate="@type='transcript'" behaviour="omit">
+                        <desc>Transcriber's remarks ("am linken Seitenrand:") are not part of the text</desc>
+                    </model>
+                    <model predicate="@type='annotation'" behaviour="inline" cssClass="annotation"/>
+                    <model behaviour="note">
+                        <param name="place" value="@place"/>
+                        <param name="label" value="@n"/>
+                    </model>
+                </elementSpec>
+
+                <!-- ==============================================================
+                     Names: a popover with the register key in the text, a
+                     checkbox in the register column that highlights every
+                     mention with the same key (data-ref).
+                     ============================================================== -->
+                <elementSpec ident="persName" mode="change">
+                    <model predicate="$parameters?mode='register' and ancestor::correspDesc" behaviour="pass-through">
+                        <param name="label" value="string(.)"/>
+                        <pb:template xmlns="" xml:space="preserve"><li class="register__entry">[[label]]</li></pb:template>
+                    </model>
+                    <model predicate="$parameters?mode='register'" behaviour="pass-through">
+                        <param name="ref" value="string(@key)"/>
+                        <pb:template xmlns="" xml:space="preserve"><li class="register__entry"><label><input type="checkbox" data-ref="[[ref]]"/> [[ref]]</label></li></pb:template>
+                    </model>
+                    <model output="web" predicate="@key" behaviour="pass-through">
+                        <param name="content" value="."/>
+                        <param name="ref" value="string(@key)"/>
+                        <pb:template xmlns="" xml:space="preserve"><pb-popover class="popover" data-ref="[[ref]]"><span slot="default">[[content]]</span><template slot="alternate">[[ref]]</template></pb-popover></pb:template>
+                    </model>
+                    <model behaviour="inline"/>
+                </elementSpec>
+
+                <elementSpec ident="placeName" mode="change">
+                    <model predicate="$parameters?mode='register'" behaviour="pass-through">
+                        <param name="ref" value="string(@key)"/>
+                        <pb:template xmlns="" xml:space="preserve"><li class="register__entry"><label><input type="checkbox" data-ref="[[ref]]"/> [[ref]]</label></li></pb:template>
+                    </model>
+                    <model output="web" predicate="@key" behaviour="pass-through">
+                        <param name="content" value="."/>
+                        <param name="ref" value="string(@key)"/>
+                        <pb:template xmlns="" xml:space="preserve"><pb-popover class="popover" data-ref="[[ref]]"><span slot="default">[[content]]</span><template slot="alternate">[[ref]]</template></pb-popover></pb:template>
+                    </model>
+                    <model behaviour="inline"/>
+                </elementSpec>
+
+            </schemaSpec>
+        </body>
+    </text>
+</TEI>

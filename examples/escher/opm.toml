@@ -1,0 +1,75 @@
+# SPDX-FileCopyrightText: 2026 e-editiones
+# SPDX-License-Identifier: CC0-1.0
+
+[project]
+pythonpath = ["."]
+
+[transform]
+odd = "odd/escher.odd"
+xpath_extensions = [
+    "opm.runtime.common_xpath_functions",
+    # tp:region_image / tp:region_coords: where each line sits in the
+    # facsimile, from data/regions/<letter>_mapping.xml. Importable because of
+    # [project] pythonpath above.
+    "extensions.escher_functions",
+]
+
+[transform.web]
+template = "templates/letter.html.j2"
+# <pb-popover> for names and abbreviations, <pb-facs-link>/<pb-facsimile> for
+# the facsimile. The page itself is static: both readings are in it, and
+# templates/escher.js switches between them.
+webcomponents = true
+assets = ["templates/chapbook.css", "templates/letter.css", "templates/escher.js"]
+
+[transform.web.context]
+# <pb-page> loads a component theme stylesheet; point it at the packaged one
+# rather than a components.css beside the page.
+webcomponents_theme = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.8/css/components.css"
+# The edition's IIIF image server. pb-facsimile appends the image name from
+# each page's <pb-facs-link facs>; the hover snippet asks it for one region.
+iiif_base = "https://media.sources-online.org/iiif/2/escher!"
+
+[context]
+site_name = "Briefedition Alfred Escher"
+lang = "de"
+
+# One page per letter, addressed as the edition addresses it: B0096/, not
+# by its file name. The source files and their xml:id say K_0096.
+[chunking]
+xpath = "//text"
+document_name = "'B' || substring-after(/TEI/@xml:id, 'K_')"
+file_pattern = "index.html"
+output_dir = "chunks"
+index_template = "templates/index.html.j2"
+index_title = "Briefe"
+doc_path = "letters"
+
+[[chunking.fragments]]
+name = "browse"
+scope = "global"
+xpath = "//teiHeader"
+parameters = { display = "browse" }
+
+[[chunking.fragments]]
+name = "breadcrumbs"
+xpath = "./ancestor::TEI"
+parameters = { mode = "breadcrumb" }
+
+[[chunking.fragments]]
+name = "letter_head"
+xpath = "./ancestor::TEI"
+parameters = { mode = "letter-head" }
+
+# Neighbouring letters, from correspContext: the ODD emits their file stems as
+# data-* attributes on a hidden <nav>; templates/escher.html.j2 turns them into
+# links.
+[[chunking.fragments]]
+name = "edition_navigation"
+xpath = "./ancestor::TEI"
+parameters = { mode = "edition-navigation" }
+
+[[chunking.fragments]]
+name = "register"
+xpath = "./ancestor::TEI"
+parameters = { mode = "register" }

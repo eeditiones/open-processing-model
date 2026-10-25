@@ -243,6 +243,66 @@ def test_chunk_a_directory(tmp_path: Path) -> None:
     assert run.index_file.is_file()
 
 
+def _named_doc(path: Path, n: str) -> Path:
+    """`_DOC` with an identifier of its own on the root."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_DOC.replace('<doc>', f'<doc n="{n}">', 1), encoding='utf-8')
+    return path
+
+
+def test_document_name_names_each_documents_directory(tmp_path: Path) -> None:
+    project = _project(tmp_path, 'document_name = "\'L\' || /doc/@n"\nfile_pattern = "{xml_id}.html"\n')
+    _named_doc(tmp_path / 'docs' / 'k_0001.xml', '0001')
+    _named_doc(tmp_path / 'docs' / 'k_0002.xml', '0002')
+
+    run = project.chunk(tmp_path / 'docs', output_dir='out')
+
+    out = tmp_path / 'out'
+    assert (out / 'L0001' / 'a.html').is_file()
+    assert (out / 'L0002' / 'b.html').is_file()
+    assert not (out / 'k_0001.xml').exists()
+    manifest = json.loads((out / 'L0001' / 'manifest.json').read_text(encoding='utf-8'))
+    assert manifest['chunks']
+    # The index links each directory by its name and its first page.
+    assert 'href="L0001/a.html"' in run.index_file.read_text(encoding='utf-8')
+
+
+def test_document_name_reaches_the_templates(tmp_path: Path) -> None:
+    (tmp_path / 'page.html.j2').write_text(
+        '<html><body>{{ document }}|{{ documents | sort | join(",") }}</body></html>',
+        encoding='utf-8',
+    )
+    project = _project(tmp_path, 'document_name = "/doc/@n"\ntemplate = "page.html.j2"\n')
+    _named_doc(tmp_path / 'docs' / 'one.xml', 'x1')
+    _named_doc(tmp_path / 'docs' / 'two.xml', 'x2')
+
+    project.chunk(tmp_path / 'docs', output_dir='out')
+
+    page = (tmp_path / 'out' / 'x2' / '001.html').read_text(encoding='utf-8')
+    assert 'x2|x1,x2' in page
+
+
+def test_document_name_must_be_unique_and_not_empty(tmp_path: Path) -> None:
+    project = _project(tmp_path, 'document_name = "/doc/@n"\n')
+    _named_doc(tmp_path / 'same' / 'one.xml', 'x')
+    _named_doc(tmp_path / 'same' / 'two.xml', 'x')
+    with pytest.raises(ValueError, match="same name, 'x'"):
+        project.chunk(tmp_path / 'same', output_dir='out')
+
+    _doc(tmp_path / 'unnamed' / 'one.xml')
+    with pytest.raises(ValueError, match='no usable name for one.xml'):
+        project.chunk(tmp_path / 'unnamed', output_dir='out', overwrite=True)
+
+
+def test_document_name_leaves_pb_view_data_by_file(tmp_path: Path) -> None:
+    project = _project(tmp_path, 'document_name = "/doc/@n"\n')
+    _named_doc(tmp_path / 'docs' / 'one.xml', 'x1')
+
+    project.chunk(tmp_path / 'docs', format='pb-view', doc_path='letters')
+
+    assert (tmp_path / 'site' / 'letters' / 'one.xml' / 'index.json').is_file()
+
+
 def test_chunk_json_and_pb_view_formats(tmp_path: Path) -> None:
     project = _project(tmp_path)
     xml = _doc(tmp_path / 'doc.xml')

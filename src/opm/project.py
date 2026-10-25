@@ -80,25 +80,84 @@ class ChunkRun:
     """The ``index.html`` an HTML run writes at the output root."""
 
 
-def _document_config(run: ChunkingConfig, xml_file: Path, format: str) -> ChunkingConfig:
-    """*run* as it applies to one document: where its pages go, and ``{doc}``."""
+def _document_config(
+    run: ChunkingConfig, xml_file: Path, format: str, name: str | None = None,
+) -> ChunkingConfig:
+    """*run* as it applies to one document: where its pages go, and ``{doc}``.
+
+    *name* is the document's directory name (see
+    [`document_names`][opm.project.document_names]); it defaults to the
+    file name.
+    """
     if format == 'pb-view':
         # pb-view keeps its own layout: the data is fetched by path rather than
         # served as pages, and `doc_path` places it.
         return run
-    if Path(run.output_dir).name == xml_file.name:
+    name = name or xml_file.name
+    if Path(run.output_dir).name in (name, xml_file.name):
         # The output directory already names the document (-o site/doc.xml), so
         # take it as the per-document directory instead of nesting twice.
-        return replace(run, link_doc=xml_file.name)
-    # One document or many, pages go to <output>/<name>.xml/ with the
+        return replace(run, link_doc=Path(run.output_dir).name)
+    # One document or many, pages go to <output>/<name>/ with the
     # stylesheets, assets and index shared at the root. Chunking a single file
     # therefore publishes the same URLs it will still publish once a second
     # document joins it.
     return replace(
         run,
-        output_dir=f'{run.output_dir.rstrip("/")}/{xml_file.name}',
-        link_doc=xml_file.name,
+        output_dir=f'{run.output_dir.rstrip("/")}/{name}',
+        link_doc=name,
     )
+
+
+def document_names(
+    files: Sequence[Path],
+    expr: str | None,
+    config: ProjectConfig,
+    *,
+    extensions: Sequence[str] | None = None,
+) -> dict[Path, str]:
+    """The output directory name of each of *files*: ``[chunking] document_name``.
+
+    *expr* is evaluated with each document's root as context, in the project's
+    XPath environment; its string value, with path separators replaced, is
+    the name. Without *expr* every document keeps its file name.
+
+    Raises:
+        ValueError: A document's name is empty or not a usable directory
+            name, or two documents get the same name.
+    """
+    if not expr:
+        return {path: path.name for path in files}
+    from opm.chunking import _safe_file_stem
+    from opm.transform import project_xpath_env
+
+    # The registers are parsed once for the run, not once per document.
+    documents = load_project_documents(config)
+    names: dict[Path, str] = {}
+    taken: dict[str, Path] = {}
+    for path in files:
+        root = parse_xml(str(path)).getroot()
+        env = project_xpath_env(config, path, extensions=extensions, documents=documents)
+        value = env.select(root, expr)
+        if isinstance(value, list):
+            value = ''.join(
+                item.xpath('string()') if isinstance(item, etree._Element) else str(item)
+                for item in value
+            )
+        name = _safe_file_stem(str(value))
+        if name in ('', '.', '..'):
+            raise ValueError(
+                f'[chunking] document_name gives no usable name for {path.name}: '
+                f'{expr} evaluated to {str(value)!r}.',
+            )
+        if name in taken:
+            raise ValueError(
+                f'[chunking] document_name gives {taken[name].name} and {path.name} '
+                f'the same name, {name!r}.',
+            )
+        taken[name] = path
+        names[path] = name
+    return names
 
 
 def chunk_input_files(source: Path) -> list[Path]:
@@ -495,8 +554,16 @@ class Project:
         )
         extensions = tuple(xpath_extensions) if xpath_extensions else None
         base_doc_path = doc_path or chunking.doc_path
+        # What each document's directory is called: its file name, or the
+        # first run's document_name. pb-view data stays addressed by file.
+        doc_names = document_names(
+            files,
+            None if format == 'pb-view' else chunking.document_name,
+            self.config,
+            extensions=extensions,
+        )
         # Built once and shared: templates test links against it.
-        names = frozenset(path.name for path in files)
+        names = frozenset(doc_names.values())
 
         for position, xml_file in enumerate(files):
             if on_document is not None:
@@ -522,7 +589,7 @@ class Project:
                 anchors = chunk_document(
                     module_path=run.module,
                     xml_path=xml_file,
-                    config=_document_config(run, xml_file, format),
+                    config=_document_config(run, xml_file, format, doc_names[xml_file]),
                     project_root=self.root,
                     template_path=run.template,
                     on_progress=progress,

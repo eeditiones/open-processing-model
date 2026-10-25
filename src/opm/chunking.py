@@ -376,8 +376,14 @@ class ChunkProcessor:
             shutil.copy2(source, target)
 
     def entry_file(self) -> str:
-        """Return the filename of this document's first chunk (its entry point)."""
-        return f'{1:03d}.html'
+        """Return the filename of this document's first chunk (its entry point).
+
+        That is the name ``file_pattern`` gives the first chunk once chunks are
+        selected, and ``001.html`` before then.
+        """
+        if self.chunks:
+            return self._chunk_file(self.chunks[0], 0)
+        return self._numbered_chunk_file(0)
 
     def entry_href(self) -> str:
         """Return the link to this document's entry point, relative to the output root.
@@ -1438,10 +1444,11 @@ def chunk_document(
 ) -> dict[str, str]:
     """Chunk a document using the specified configuration.
 
-    The page template gets *xml_path*'s name as ``document``. *documents*
-    names every document of the run (``serafin01.xml``, …) and reaches the
-    template as ``documents``; pass the same set for each document of a
-    directory run. It defaults to just *xml_path*.
+    The page template receives ``document`` (``config.link_doc``, or
+    *xml_path*'s name if that is unset) and ``documents``, the names of every
+    document in the run — file names such as ``serafin01.xml``, or whatever
+    ``[chunking] document_name`` assigned. For a directory run, pass the same
+    ``documents`` set for each file; by default it is just that one name.
 
     ODDs in *config* (the main one and the fragments') that have no compiled
     module yet are compiled here. [`opm.project.Project.chunk`][opm.project.Project.chunk] handles
@@ -1490,6 +1497,7 @@ def chunk_document(
     cfg = project_config or ProjectConfig()
 
     xpath_env = project_xpath_env(cfg, xml_path, extensions=xpath_extensions)
+    document = config.link_doc or xml_path.name
 
     processor = ChunkProcessor(
         resolved_module, root, config, project_root,
@@ -1497,8 +1505,8 @@ def chunk_document(
         webcomponents=webcomponents,
         xpath_env=xpath_env,
         source_dir=xml_path.parent,
-        documents=documents if documents is not None else (xml_path.name,),
-        document=xml_path.name,
+        documents=documents if documents is not None else (document,),
+        document=document,
         anchors=anchors,
         merge_manifest=merge_manifest,
         footnote_order=footnote_order,

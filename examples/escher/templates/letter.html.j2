@@ -1,0 +1,146 @@
+{#
+  SPDX-FileCopyrightText: 2026 e-editiones
+  SPDX-License-Identifier: CC0-1.0
+
+  A letter in two readings. The page carries the transcription once; the
+  toolbar switch (escher.js) sets body.escher--edited or
+  body.escher--diplomatic and letter.css shows the reading that goes with it:
+
+  - edited: running text, popovers for names and abbreviations, and the
+    register ("Kontexte") in the `before` column;
+  - diplomatic: line by line as in the manuscript, with additions,
+    deletions and hyphens, and the facsimile in the `after` column. Hovering
+    over a line shows its crop of the page above it and moves the viewer to
+    the line.
+
+  The shell comes from escher.html.j2.
+-#}
+---toml
+[layout.before]
+width = "16rem"
+label = "Kontexte"
+
+[layout.after]
+width = "26rem"
+---
+{% extends "escher.html.j2" %}
+{% set work_title = fragments.breadcrumbs | striptags | trim if fragments is defined and fragments.breadcrumbs else '' %}
+{% set is_chunk = chunk is defined and chunk %}
+{# The edition_navigation fragment is a hidden <nav> whose data-* attributes
+   carry the neighbouring letters' numbers (see correspContext in the ODD). #}
+{% macro nav_target(nav, name) -%}
+  {%- set marker = 'data-' ~ name ~ '="' -%}
+  {%- if marker in nav %}{{ nav.split(marker, 1)[1].split('"', 1)[0] }}{% endif -%}
+{%- endmacro %}
+{# Every letter is chunked into a directory of its own, named by its number
+   ([chunking] document_name), with the page as its index.html: link the
+   directory, as the edition's own URLs (/briefe/B0097) do. #}
+{% macro letter_href(id) %}../{{ id }}/{% if chunk.file != 'index.html' %}{{ chunk.file }}{% endif %}{% endmacro %}
+{% macro nav_icon(path) -%}
+<svg class="letter-nav__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="{{ path }}"></path></svg>
+{%- endmacro %}
+{% if is_chunk %}
+  {% set nav = fragments.edition_navigation if fragments is defined and fragments.edition_navigation else '' %}
+  {# Only letters chunked in this run have a page to link to; the example
+     holds five letters of a far larger correspondence. #}
+  {% set run = documents if documents is defined else [] %}
+  {% set links = {} %}
+  {% for name in ['previous', 'next', 'previous-in-correspondence', 'next-in-correspondence'] %}
+    {% set id = nav_target(nav, name) | trim %}
+    {% if id and id in run %}{% set _ = links.update({name: id}) %}{% endif %}
+  {% endfor %}
+  {% set correspondence = nav_target(nav, 'correspondence') | trim %}
+{% endif %}
+
+{% block title %}<title>{{ work_title or context.site_name }}</title>{% endblock %}
+
+{# As in the edition: the letter list, then the letter's signature. The title
+   itself heads the letter. #}
+{% block breadcrumb %}
+  <a href="{{ index_url or '../index.html' }}">Briefe</a>
+  {%- if document is defined and document %} · AES {{ document }}{% endif %}
+{% endblock %}
+
+{# pb-components resolve relative URLs against the endpoint of an ancestor
+   <pb-page>; api-version is pinned so pb-page does not probe ./api/version. #}
+{% block body %}
+  <pb-page endpoint="." api-version="1.0.0" theme="{{ context.webcomponents_theme }}">
+  {{ super() }}
+  </pb-page>
+{% endblock %}
+
+{% block toggle %}
+  <li class="view-switch" role="group" aria-label="Ansicht">
+    <button type="button" data-view="edited" aria-pressed="true">Edierter Text</button>
+    <button type="button" data-view="diplomatic" aria-pressed="false">Diplomatischer Text</button>
+  </li>
+{% endblock %}
+
+{% macro nav_link(name, label, icon, end=false) -%}
+  {%- if links[name] -%}
+  <a class="letter-nav__link" href="{{ letter_href(links[name]) }}" title="{{ links[name] }}">
+    {%- if not end %}{{ nav_icon(icon) }}{% endif %}<span class="letter-nav__dir">{{ label }}</span>{% if end %}{{ nav_icon(icon) }}{% endif -%}
+  </a>
+  {%- else -%}
+  <span class="letter-nav__link letter-nav__link--disabled" aria-hidden="true">
+    {%- if not end %}{{ nav_icon(icon) }}{% endif %}<span class="letter-nav__dir">{{ label }}</span>{% if end %}{{ nav_icon(icon) }}{% endif -%}
+  </span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+  <div class="chap-page chap-page--chunk">
+    <div class="chap-body">
+      {% if is_chunk %}
+      {# Two rows, as in the edition: the edition's own order, then the
+         letters exchanged between the same correspondents. #}
+      <nav class="letter-nav" aria-label="Briefnavigation">
+        <div class="letter-nav__row">
+          {{ nav_link('previous', 'Vorheriger Brief in Edition', 'M15 6 9 12l6 6') }}
+          {{ nav_link('next', 'Nächster Brief in Edition', 'm9 6 6 6-6 6', end=true) }}
+        </div>
+        <div class="letter-nav__row letter-nav__row--thread">
+          {{ nav_link('previous-in-correspondence', 'Vorheriger Brief', 'M13 6 7 12l6 6M18 6l-6 6 6 6') }}
+          {% if correspondence %}<span class="letter-nav__mark">Korrespondenz: {{ correspondence }}</span>{% endif %}
+          {{ nav_link('next-in-correspondence', 'Nächster Brief', 'm6 6 6 6-6 6M11 6l6 6-6 6', end=true) }}
+        </div>
+      </nav>
+      {% endif %}
+
+      {% if fragments is defined and fragments.letter_head %}
+      <header class="letter-head">
+        {{ fragments.letter_head | safe }}
+      </header>
+      {% endif %}
+
+      <article class="content letter-text" id="letter-content" lang="{{ context.lang or 'de' }}" data-iiif-base="{{ context.iiif_base }}">
+        {{ content_html | safe }}
+      </article>
+    </div>
+  </div>
+{% endblock %}
+
+{% block before %}
+  {% if fragments is defined and fragments.register %}
+  <section class="letter-register" aria-label="Kontexte">
+    <h2 class="letter-register__title">Kontexte</h2>
+    {{ fragments.register | safe }}
+  </section>
+  {% endif %}
+{% endblock %}
+
+{# pb-facsimile collects the page images the first <lb/> of each page
+   announces (<pb-facs-link facs>) and prefixes them with base-uri. The tiles
+   come from another origin: without cors="Anonymous" OpenSeadragon's WebGL
+   drawer may not upload them and the viewer stays empty. The sequence mode
+   shows one page at a time instead of stacking them. #}
+{% block after %}
+  <aside class="letter-facs" aria-label="Faksimile">
+    <pb-facsimile base-uri="{{ context.iiif_base }}" cors="Anonymous" default-zoom-level="0"
+      show-sequence-control show-navigator show-navigation-control subscribe="transcription"></pb-facsimile>
+  </aside>
+{% endblock %}
+
+{% block body_end %}
+  <script src="{{ assets }}/escher.js"></script>
+{% endblock %}

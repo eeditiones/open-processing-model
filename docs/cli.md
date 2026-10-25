@@ -55,7 +55,7 @@ opm init [OPTIONS] [DIRECTORY]
 | --- | --- |
 | `--force` | Overwrite existing generated files. |
 | `--vocabulary TEXT` | Empty project for this vocabulary: tei, docbook, jats (default: tei). |
-| `--example, -e TEXT` | Start from a bundled example project instead of an empty one: jats, docbook, serafin, monograph, shakespeare, odd. |
+| `--example, -e TEXT` | Start from a bundled example project instead of an empty one: jats, docbook, serafin, escher, monograph, shakespeare, odd. |
 | `--list-examples` | List the bundled example projects and exit. |
 | `--copy-base-odd` | TEI only: also copy packaged teipublisher.odd and tp.css into odd/. |
 | `--templates` | Also copy the alternative HTML templates (chapbook, journal, handbook, tufte, bootstrap) beside the one the project uses, and opm's plain default Typst template as `templates/document.typ.j2`. |
@@ -217,8 +217,8 @@ opm odd [OPTIONS] COMMAND [ARGS]...
 
 Write the tree `opm odd document` chunks, for `opm chunk` to take over.
 
-The schema merged onto TEI, ids stamped, and the pages the site adds — the
-home page and the A–Z catalogs — injected. Run inside a documentation
+The schema merged onto TEI, ids stamped, and the pages the site adds — a
+title page if there is none, and the A–Z catalogs — injected. Run inside a documentation
 project (`opm init --example odd`), `opm chunk` over the result then
 writes that project's runs in any of its formats, e.g. `--format json` for
 a static site generator; SOURCE and --lang default to the

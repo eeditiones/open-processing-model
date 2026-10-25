@@ -97,6 +97,18 @@ SPDX-FileCopyrightText = [
 ]
 SPDX-License-Identifier = "CC-BY-SA-4.0"
 
+# The processing model of the Digitale Briefedition Alfred Escher, ported for
+# `examples/escher`. eXistSolutions relicensed it from GPL-3.0 to the licence of the
+# edition's letters (stated in the ODD's teiHeader). templates/escher.js, ported from the
+# same app, says so in its own header.
+[[annotations]]
+path = ["examples/escher/odd/escher.odd", "examples/escher/odd/escher.css"]
+SPDX-FileCopyrightText = [
+  "2021-2026 eXistSolutions GmbH",
+  "2026 e-editiones",
+]
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+
 # ---------------------------------------------------------------------------
 # Scholarly source documents. Not covered by the CC0 dedication: each carries its own
 # provenance and rights, described in LICENSES/LicenseRef-SourceDocuments.txt and in the

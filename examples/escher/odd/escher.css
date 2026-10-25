@@ -1,0 +1,42 @@
+/* Alfred Escher-Briefedition: renditions that hold in every output.
+   Which of them the reading view shows, and how, is decided per view by
+   templates/escher.css. */
+
+.underline {
+    text-decoration: underline;
+}
+
+.sup {
+    vertical-align: super;
+    font-size: 0.8em;
+}
+
+.deletion {
+    text-decoration: line-through;
+}
+
+.metamark {
+    vertical-align: super;
+    font-size: 0.8em;
+}
+
+.annotation {
+    font-style: italic;
+}
+
+.unclear-addition::before {
+    content: '[';
+}
+
+.unclear-addition::after {
+    content: '?]';
+}
+
+.closer {
+    text-align: center;
+}
+
+.signature,
+.dateline {
+    text-align: right;
+}

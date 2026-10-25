@@ -77,6 +77,25 @@ page-chunked project (`opm chunk data/F-ado.xml --force`): a First Folio play sp
 a counterpart in which chunks are done by semantic divisions instead of pages: a real journal article where `front` and `back` become chunks
 alongside the body sections.
 
+## Naming documents
+
+Each document gets a directory of its own below the output directory, named
+after its file: `data/letters/K_0096.xml` is published as `K_0096.xml/001.html`.
+To use an identifier from the document instead, give an XPath. It is evaluated
+on each document's root and its string value becomes the directory name:
+
+```toml
+[chunking]
+document_name = "'B' || substring-after(/TEI/@xml:id, 'K_')"   # B0096/
+file_pattern = "index.html"                                     # B0096/index.html
+```
+
+The name is also what templates get as `document`, and what `documents` lists,
+so links between documents can be built from identifiers found in the TEI
+(see the `escher` example). Two documents with the same name, or a document
+whose expression gives an empty string, stop the run with an error.
+`--format pb-view` ignores the setting: pb-view fetches its data by file path.
+
 ## Fragments
 
 Alongside the main chunk content, you can extract **fragments** — secondary

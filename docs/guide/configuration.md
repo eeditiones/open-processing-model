@@ -76,6 +76,8 @@ depth = 2
 # Filename pattern for chunk pages ({xml_id}, {ident}, {index}, {stem}).
 # Omit for the default 001.html, 002.html, …
 # file_pattern = "{xml_id}.html"
+# XPath naming each document's directory (default: its file name, doc.xml/)
+# document_name = "/TEI/@xml:id"
 # Output directory for chunk files
 output_dir = "chunks"
 # Jinja2 template for chunk pages (default: the [transform.web] template)

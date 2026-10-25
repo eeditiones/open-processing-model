@@ -178,6 +178,25 @@ class ChunkingConfig:
     file_pattern = "{index:03d}.html"    # same as the default numbering
     ```
     """
+    document_name: str | None = None
+    """XPath that names the per-document output directory.
+
+    By default that directory is the source file name (``K_0096.xml/``). Set
+    this to derive a different name from the document instead, so URLs and the
+    template variables ``document`` / ``documents`` use an identifier from the
+    XML rather than the file name:
+
+    ```toml
+    document_name = "/TEI/@xml:id"                               # → K_0096/
+    document_name = "'B' || substring-after(/TEI/@xml:id, 'K_')"  # → B0096/
+    ```
+
+    The expression is evaluated on the document root, in the project's XPath
+    environment. An empty result, or a name already used by another document
+    in the run, is an error. With several ``[[chunking]]`` runs, only the
+    first may set this; later runs share that directory. Ignored for
+    ``--format pb-view``, which addresses documents by file path.
+    """
     link_pattern: str | None = None
     """Optional URL template for cross-chunk links.
 
@@ -398,6 +417,7 @@ def _parse_chunking(data: dict[str, Any], config_path: Path) -> ChunkingConfig:
         ),
         fragments=fragments if fragments else None,
         file_pattern=data.get('file_pattern'),
+        document_name=data.get('document_name'),
         link_pattern=data.get('link_pattern'),
         odd=config_path.parent / str(raw_odd) if raw_odd else None,
         view=data.get('view', 'div'),
