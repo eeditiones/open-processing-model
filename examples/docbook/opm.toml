@@ -4,13 +4,6 @@
 [project]
 pythonpath = ["."]
 
-# Autocompletion in opm studio's source editor, for every XML file here that
-# names no RNG of its own with <?xml-model?>. Generated from the DocBook 5.2
-# RelaxNG with opm studio's src/runtime/completion_schema.py:
-#   uv run --with lxml completion_schema.py docbook.rng -o schema/docbook.json
-[editor]
-schema = "schema/docbook.json"
-
 [transform]
 odd = "odd/docbook.odd"
 xpath_extensions = [

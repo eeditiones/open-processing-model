@@ -63,8 +63,6 @@ opm chunk data/doc --force --preview
 - `templates/print.html.j2` — paged-media template for `-t print`
 - `opm.toml` — `dbk_section_chunks`, depth 2, title/toc/breadcrumb fragments
 - `data/doc/` — sample DocBook articles
-- `schema/docbook.json` — editor autocompletion, generated from the DocBook 5.2 RelaxNG
-  with opm studio's `completion_schema.py`; `[editor] schema` in `opm.toml` points opm studio at it
 
 ## Licence
 
@@ -81,6 +79,3 @@ only that you keep that statement in the file and credit those it names.
 
 The documents under `data/` are not covered by that dedication. They are source texts with
 their own provenance and rights, noted above.
-
-`schema/docbook.json` is derived from OASIS's DocBook 5.2 schema, under the permission
-notice in that schema's header (`LICENSES/DocBook-Schema.txt`).
