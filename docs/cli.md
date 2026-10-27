@@ -209,9 +209,43 @@ opm odd [OPTIONS] COMMAND [ARGS]...
 
 **Commands:**
 
+- [`compile`](#opm-odd-compile): Follow the ODD inheritance chain and write...
 - [`prepare`](#opm-odd-prepare): Write the tree `opm odd document` chunks,...
 - [`document`](#opm-odd-document): Generate a static HTML documentation site...
 - [`coverage`](#opm-odd-coverage): Diagnose an ODD against a corpus: what...
+
+#### `opm odd compile`
+
+Follow the ODD inheritance chain and write one self-contained ODD.
+
+`opm` walks each `schemaSpec/@source`, merges the layers (a TEI customization
+onto the cached TEI schema when needed), and emits a single `schemaSpec` that
+holds every selected spec and no longer uses `moduleRef`. The result is what
+schema tools such as the TEI Stylesheets' `odd2relax` expect.
+
+Unlike `opm odd prepare`, this does not rearrange specs into documentation
+pages; content models stay on the specs themselves.
+
+**Usage:**
+
+```text
+opm odd compile [OPTIONS] SOURCE
+```
+
+**Arguments:**
+
+| Argument | Description |
+| --- | --- |
+| `SOURCE` | The ODD to compile, with its schemaSpec/@source chain. |
+
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--output, -o PATH` | Where to write the compiled ODD (default: SOURCE-STEM.compiled.odd). |
+| `--force` | Overwrite the output file if it exists. |
+| `--help` | Show this message and exit. |
 
 #### `opm odd prepare`
 

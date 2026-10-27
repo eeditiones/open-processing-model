@@ -1742,6 +1742,48 @@ def _render_coverage(report, *, limit: int | None = 20) -> None:
 
 
 
+@odd_app.command('compile')
+def compile_cmd(
+    source: Annotated[
+        Path,
+        typer.Argument(help='The ODD to compile, with its schemaSpec/@source chain.'),
+    ],
+    output: Annotated[
+        Optional[Path],
+        typer.Option('--output', '-o', help='Where to write the compiled ODD (default: SOURCE-STEM.compiled.odd).'),
+    ] = None,
+    force: Annotated[
+        bool,
+        typer.Option('--force', help='Overwrite the output file if it exists.'),
+    ] = False,
+) -> None:
+    """Follow the ODD inheritance chain and write one self-contained ODD.
+
+    Walks each ``schemaSpec/@source``, merges the layers (a TEI customization
+    onto the cached TEI schema when needed), and emits a single ``schemaSpec``
+    with every selected spec and no ``moduleRef``. Schema tools such as the
+    TEI Stylesheets' ``odd2relax`` take that file. Unlike ``opm odd prepare``,
+    content models stay on the specs rather than in documentation pages.
+    """
+    from lxml import etree
+
+    from opm.odd_schema import SchemaError, compile_schema, compiled_odd
+
+    output = output or Path(f'{source.stem}.compiled.odd')
+    if output.exists() and not force:
+        _die(f'{output} already exists; pass --force to overwrite it.')
+    try:
+        compiled = compile_schema(source)
+    except SchemaError as exc:
+        _die(str(exc), cause=exc)
+    for warning in compiled.warnings:
+        _note(warning)
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_bytes(etree.tostring(compiled_odd(compiled), xml_declaration=True, encoding='utf-8'))
+    typer.echo(f'Wrote {output}')
+
+
 @odd_app.command('prepare')
 def prepare_cmd(
     source: Annotated[

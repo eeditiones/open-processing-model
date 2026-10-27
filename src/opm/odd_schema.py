@@ -477,6 +477,30 @@ def _keep_header(tree: etree._Element, source: etree._Element | None) -> None:
         tree.insert(0, copy)
 
 
+def compiled_odd(compiled: CompiledSchema) -> etree._Element:
+    """*compiled* as a standalone ODD, for tools such as the TEI Stylesheets' odd2relax.
+
+    The merge leaves one ``schemaSpec`` with every spec in it and no ``moduleRef``
+    to resolve, but only its ``@ident``. This gives it back the other attributes of
+    the customization's ``schemaSpec``: ``@start``, ``@ns``, ``@prefix`` and the like,
+    from the input ODD first and its parents after. ``@source`` is dropped, since
+    nothing is left to inherit from.
+    """
+    tree = deepcopy(compiled.tree)
+    target = _main_schema_spec(tree)
+    path = compiled.source_path
+    if target is None or path is None or not path.is_file():
+        return tree
+    for odd in reversed(_inheritance_chain(path)):
+        schema = _main_schema_spec(load_xml(odd))
+        if schema is None:
+            continue
+        for name, value in schema.attrib.items():
+            if name not in ('source', 'ident') and name not in target.attrib:
+                target.set(name, value)
+    return tree
+
+
 def _prose_document(
     root: etree._Element | None,
     schema_base: etree._Element | None,

@@ -114,6 +114,9 @@ opm transform schema.xml -t typst --xpath 'id("HD")' -o teiHeader.pdf
 chapters. `--xpath 'id("HD")'` selects a single chapter by its `xml:id`, here
 the chapter with the identifier `HD`. The same works with `-t markdown`.
 
+The prepared file is for documentation only. For a self-contained ODD that
+schema tools can use (for example `oddtorng`), run `opm odd compile` instead.
+
 ## Changing the look of the documentation
 
 Everything `opm` uses to build the documentation can be copied into a project

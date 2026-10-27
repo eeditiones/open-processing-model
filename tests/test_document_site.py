@@ -1796,3 +1796,19 @@ def test_guidelines_figures_are_fetched_when_a_page_shows_one(
     assert calls == [1]
     assert (site.output_dir / 'Images' / 'fig.png').read_bytes() == b'png'
     assert site.warnings == []
+
+
+def test_odd_compile_writes_the_merged_odd_as_an_odd(tmp_path: Path, monkeypatch) -> None:
+    """`opm odd compile`: content models stay in their specs, unlike `opm odd prepare`."""
+    monkeypatch.chdir(tmp_path)
+    assert main(['odd', 'compile', str(MINI)]) == 0
+    root = etree.parse(str(tmp_path / 'mini_schema.compiled.odd')).getroot()
+    tei = '{http://www.tei-c.org/ns/1.0}'
+    schemas = list(root.iter(f'{tei}schemaSpec'))
+    assert [(s.get('ident'), s.get('start'), s.get('source')) for s in schemas] == [('mini', 'div', None)]
+    specs = list(root.iter(f'{tei}elementSpec'))
+    assert specs and all(s.find(f'{tei}content') is not None for s in specs)
+    assert root.find(f'.//{tei}div[@type="spec-section"]') is None
+    # A second compile refuses to overwrite without --force.
+    assert main(['odd', 'compile', str(MINI)]) != 0
+    assert main(['odd', 'compile', str(MINI), '--force']) == 0
