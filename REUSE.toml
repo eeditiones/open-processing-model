@@ -120,6 +120,20 @@ path = "examples/*/data/**"
 SPDX-FileCopyrightText = "The respective authors and editors"
 SPDX-License-Identifier = "LicenseRef-SourceDocuments"
 
+# Editor autocompletion for the DocBook and JATS examples, generated with
+# opm studio's completion_schema.py from the standards' own RelaxNG schemas and so under their
+# terms: DocBook 5.2 is OASIS's, under the permission notice in its header; the JATS
+# 1.3 Archiving suite is NLM's and in the public domain, as its modules state.
+[[annotations]]
+path = "examples/docbook/schema/**"
+SPDX-FileCopyrightText = "1992-2015 HaL Computer Systems, Inc., O'Reilly & Associates, Inc., ArborText, Inc., Fujitsu Software Corporation, Norman Walsh, Sun Microsystems, Inc., and the Organization for the Advancement of Structured Information Standards (OASIS)"
+SPDX-License-Identifier = "DocBook-Schema"
+
+[[annotations]]
+path = "examples/jats/schema/**"
+SPDX-FileCopyrightText = "National Library of Medicine (NLM)"
+SPDX-License-Identifier = "LicenseRef-PublicDomain-NLM"
+
 # ---------------------------------------------------------------------------
 # Repo-only paths. None of these are conveyed to users separately, so they carry no
 # in-file header and are declared here instead.

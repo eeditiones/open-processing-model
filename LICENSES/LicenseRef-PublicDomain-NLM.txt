@@ -1,0 +1,12 @@
+The JATS (ANSI/NISO Z39.96) DTD Suite and the RelaxNG schemas generated from it
+are in the public domain, as stated by the National Library of Medicine (NLM)
+in each module of the suite:
+
+  This DTD is in the public domain. An organization that wishes to create its
+  own DTD from the suite may do so without permission from NLM.
+
+  Do not modify the suite directly or redistribute modified versions of the
+  suite.
+
+examples/jats/schema/jats.json is generated from the RelaxNG schemas at
+https://jats.nlm.nih.gov/archiving/1.3/

@@ -4,6 +4,14 @@
 [project]
 pythonpath = ["."]
 
+# Autocompletion in opm studio's source editor, for every XML file here that
+# names no RNG of its own with <?xml-model?>. Generated from the JATS 1.3
+# Archiving RelaxNG (the loosest JATS tag set, a superset of Publishing) with
+# opm studio's src/runtime/completion_schema.py:
+#   uv run --with lxml completion_schema.py JATS-archivearticle1-3.rng -o schema/jats.json
+[editor]
+schema = "schema/jats.json"
+
 [transform]
 odd = "odd/jats.odd"
 xpath_extensions = [

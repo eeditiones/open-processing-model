@@ -127,6 +127,9 @@ author dict. `authors` stays a plain name so the book templates keep working.
 - `templates/article.typ.j2` — arkheion journal template for `-t typst`
 - `opm.toml` — `jats_sec_chunks`, title/journal/toc fragments
 - `data/article/` — the source article
+- `schema/jats.json` — editor autocompletion, generated from the JATS 1.3 Archiving
+  RelaxNG (`JATS-archivearticle1-3.rng`) with opm studio's `completion_schema.py`; `[editor] schema`
+  in `opm.toml` points opm studio at it
 
 ## Licence
 
@@ -143,3 +146,6 @@ only that you keep that statement in the file and credit those it names.
 
 The documents under `data/` are not covered by that dedication. They are source texts with
 their own provenance and rights, noted above.
+
+`schema/jats.json` is derived from NLM's JATS 1.3 Archiving suite, which is in the public
+domain as its modules state (`LICENSES/LicenseRef-PublicDomain-NLM.txt`).

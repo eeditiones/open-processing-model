@@ -15,9 +15,10 @@ All notable changes to this project are documented here. The format follows
 
 - `[transform] footnote_order` / `--footnote-order` for `web` and `markdown`
 - `opm odd document` — generate static documentation from an ODD
-- `chunking.file_pattern` — name chunk files from `{xml_id}` / `{ident}`
-- `chunking.document_name` — XPath for each document's output directory
+- `chunking.file_pattern` — name chunk files using `{xml_id}` / `{ident}`
+- `chunking.document_name` — change each document's output directory via XPath expression
 - `escher` example — diplomatic/edited letters with facsimile hover
+- `monograph` example – using a chapter of Karl Barth's "Der Römerbrief"
 
 ### Fixed
 
@@ -30,7 +31,7 @@ All notable changes to this project are documented here. The format follows
 ### Changed
 
 - `opm init --vocabulary docbook` scaffolds `handbook` instead of `chapbook`
-- Notes with their own `@n` no longer advance the running counter; HTML exposes `data-n`
+- preserve `@n` on notes; HTML exposes `data-n`
 - `opm coverage` is now `opm odd coverage` (old name kept as a hidden alias)
 - DocBook `programlisting` / `synopsis` and tagdocs `egXML` use `tp:highlight`
 
