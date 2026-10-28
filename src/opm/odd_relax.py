@@ -345,8 +345,12 @@ class _Translator:
                 _sub(data, 'param', name='pattern').text = restriction
             return [data]
         spec = self.index.get(el.get('key') or '')
-        if spec is None or spec.content is None:
+        if spec is None:
             return []
+        if spec.content is None:
+            # A dataSpec may hold its valList directly rather than inside content.
+            val_list = _tei_child(spec.node, 'valList')
+            return [self.values(val_list)] if val_list is not None and _tei_children(val_list, 'valItem') else []
         return [p for child in spec.content for p in self.particles(child, restriction)]
 
     def values(self, val_list: etree._Element) -> etree._Element:

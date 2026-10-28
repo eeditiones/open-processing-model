@@ -175,6 +175,24 @@ def test_datatypes_are_written_in_place() -> None:
     assert not _valid(g, _doc(''))
 
 
+def test_a_datatype_holding_its_val_list_directly() -> None:
+    # From ATOP's in-vitro transpile.plodd: dataSpec allows valList in place of content.
+    specs = BASE + """
+      <dataSpec ident="data.three" module="tei">
+        <valList type="closed"><valItem ident="three"/></valList>
+      </dataSpec>
+      <elementSpec ident="doc" module="core">
+        <content><empty/></content>
+        <attList>
+          <attDef ident="n"><datatype><dataRef key="data.three"/></datatype></attDef>
+        </attList>
+      </elementSpec>
+    """
+    g = _grammar(specs)
+    assert _valid(g, _doc('').replace('<doc ', '<doc n="three" '))
+    assert not _valid(g, _doc('').replace('<doc ', '<doc n="four" '))
+
+
 def test_any_element_and_embedded_rng() -> None:
     specs = BASE + """
       <elementSpec ident="doc" module="core" xmlns:mei="http://www.music-encoding.org/ns/mei">
