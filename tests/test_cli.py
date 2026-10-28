@@ -1084,6 +1084,8 @@ def test_init_tei_creates_project(tmp_path: Path) -> None:
     assert rc == 0
     assert (dest / 'opm.toml').is_file()
     assert (dest / 'odd' / 'custom.odd').is_file()
+    assert (dest / 'odd' / 'custom.css').is_file()
+    assert 'source="custom.css"' in (dest / 'odd' / 'custom.odd').read_text(encoding='utf-8')
     assert not (dest / 'odd' / 'teipublisher.odd').exists()
     assert (dest / 'templates' / 'chapbook.html.j2').is_file()
     assert (dest / 'templates' / 'chapbook.css').is_file()
@@ -1203,6 +1205,7 @@ def test_init_docbook_copies_stock_odd(tmp_path: Path) -> None:
     assert rc == 0
     assert (dest / 'odd' / 'docbook.odd').is_file()
     assert (dest / 'odd' / 'docbook.css').is_file()
+    assert 'source="docbook.css"' in (dest / 'odd' / 'docbook.odd').read_text(encoding='utf-8')
     assert not (dest / 'odd' / 'custom.odd').exists()
     sample = (dest / 'data' / 'sample.xml').read_text(encoding='utf-8')
     assert 'docbook.org/ns/docbook' in sample
@@ -1222,6 +1225,7 @@ def test_init_jats_copies_stock_odd(tmp_path: Path) -> None:
     assert rc == 0
     assert (dest / 'odd' / 'jats.odd').is_file()
     assert (dest / 'odd' / 'jats.css').is_file()
+    assert 'source="jats.css"' in (dest / 'odd' / 'jats.odd').read_text(encoding='utf-8')
     assert not (dest / 'odd' / 'custom.odd').exists()
     sample = (dest / 'data' / 'sample.xml').read_text(encoding='utf-8')
     assert '<article-title>' in sample

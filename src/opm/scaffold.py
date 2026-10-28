@@ -584,6 +584,7 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
 
     if is_tei:
         copies.append(('scaffold/odd/custom.odd', dest_dir / 'odd' / 'custom.odd'))
+        copies.append(('scaffold/odd/custom.css', dest_dir / 'odd' / 'custom.css'))
         if options.copy_base_odd:
             copies.append(('odd/teipublisher.odd', dest_dir / 'odd' / 'teipublisher.odd'))
             copies.append(('odd/tp.css', dest_dir / 'odd' / 'tp.css'))

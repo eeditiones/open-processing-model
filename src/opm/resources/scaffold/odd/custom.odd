@@ -26,6 +26,11 @@
                     <gi>elementSpec</gi> overrides below.</p>
             </sourceDesc>
         </fileDesc>
+        <encodingDesc>
+            <tagsDecl>
+                <rendition source="custom.css"/>
+            </tagsDecl>
+        </encodingDesc>
     </teiHeader>
     <text>
         <body>
