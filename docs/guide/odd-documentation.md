@@ -116,6 +116,8 @@ the chapter with the identifier `HD`. The same works with `-t markdown`.
 
 The prepared file is for documentation only. For a self-contained ODD that
 schema tools can use (for example `oddtorng`), run `opm odd compile` instead.
+`opm odd compile my.odd --format rng` writes the RELAX NG schema directly, as
+`oddtorng` would, but without the embedded Schematron.
 
 ## Changing the look of the documentation
 

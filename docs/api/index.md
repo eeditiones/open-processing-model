@@ -28,6 +28,7 @@ The modules below are the layer underneath, for finer control:
 | Build a static schema / Guidelines site from an ODD | [`opm.document_site`](document-site.md) |
 | Index ODD specs (contained by, may contain, members) | [`opm.spec_index`](spec-index.md) |
 | Compile a schema customization against TEI | [`opm.odd_schema`](odd-schema.md) |
+| Turn a compiled ODD into a RELAX NG schema | [`opm.odd_relax`](odd-relax.md) |
 | Read `opm.toml` settings programmatically | [`opm.config`](config.md) |
 | Compile an ODD into a transform module | [`opm.odd_compiler`](odd-compiler.md) |
 | Implement a new output format | [`opm.runtime.output_functions`](output-functions.md) |

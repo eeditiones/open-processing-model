@@ -216,15 +216,17 @@ opm odd [OPTIONS] COMMAND [ARGS]...
 
 #### `opm odd compile`
 
-Follow the ODD inheritance chain and write one self-contained ODD.
+Follow the ODD inheritance chain and write one self-contained ODD, or its RELAX NG schema.
 
-`opm` walks each `schemaSpec/@source`, merges the layers (a TEI customization
-onto the cached TEI schema when needed), and emits a single `schemaSpec` that
-holds every selected spec and no longer uses `moduleRef`. The result is what
-schema tools such as the TEI Stylesheets' `odd2relax` expect.
+Walks each ``schemaSpec/@source``, merges the layers (a TEI customization
+onto the cached TEI schema when needed), and emits a single ``schemaSpec``
+with every selected spec and no ``moduleRef``. Schema tools such as the
+TEI Stylesheets' ``odd2relax`` take that file. Unlike ``opm odd prepare``,
+content models stay on the specs rather than in documentation pages.
 
-Unlike `opm odd prepare`, this does not rearrange specs into documentation
-pages; content models stay on the specs themselves.
+``--format rng`` goes one step further and writes the RELAX NG schema
+itself, as odd2relax would: the same definitions, without the embedded
+Schematron.
 
 **Usage:**
 
@@ -243,7 +245,8 @@ opm odd compile [OPTIONS] SOURCE
 
 | Option | Description |
 | --- | --- |
-| `--output, -o PATH` | Where to write the compiled ODD (default: SOURCE-STEM.compiled.odd). |
+| `--output, -o PATH` | Where to write the result (default: SOURCE-STEM.compiled.odd, or SOURCE-STEM.rng with --format rng). |
+| `--format TEXT` | "odd" (default) for the compiled ODD, or "rng" for the RELAX NG schema made from it. |
 | `--force` | Overwrite the output file if it exists. |
 | `--help` | Show this message and exit. |
 

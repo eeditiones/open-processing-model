@@ -110,6 +110,7 @@ nav:
       - coverage: api/coverage.md
       - spec_index: api/spec-index.md
       - odd_schema: api/odd-schema.md
+      - odd_relax: api/odd-relax.md
       - document_site: api/document-site.md
       - config: api/config.md
       - odd_compiler: api/odd-compiler.md
