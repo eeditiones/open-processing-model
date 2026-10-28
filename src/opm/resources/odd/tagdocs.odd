@@ -599,8 +599,8 @@
                         <pb:template xmlns=""><a class="spec__chip" href="[[uri]]" rel="external">[[label]]</a></pb:template>
                     </model>
                     <model predicate="parent::listRef" behaviour="omit"/>
-                    <desc>Resolve @target against the Guidelines tree: chapter file,
-                        fragment id, and heading text for empty pointers.</desc>
+                    <!-- Resolve @target against the Guidelines tree: chapter file,
+                         fragment id, and heading text for empty pointers. -->
                     <model output="plain" predicate="@target" behaviour="link">
                         <param name="uri" value="@target"/>
                         <param name="content" value="if (normalize-space(.)) then node() else let $id := replace(@target, '^#', ''), $hit := id($id) return ($hit/head[1]/node()[not(self::seg[@type='headingNumber'])], $id)[1]"/>
