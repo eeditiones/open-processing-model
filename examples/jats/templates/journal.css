@@ -46,7 +46,7 @@ body.jr {
   --opm-layout-gutter: var(--jr-pad);
   /* Below the sticky masthead. */
   --opm-layout-sticky-top: 2rem;
-  --opm-layout-drawer-bg: var(--jr-paper);
+  --opm-background-color-drawer: var(--jr-paper);
   margin: 0;
   background: var(--jr-paper);
   color: var(--jr-ink);

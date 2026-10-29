@@ -51,11 +51,11 @@
   --pb-popover-theme: "light-border";
 
   /* Menubar, toolbar and body chrome (opm/opm-layout.css). */
-  --opm-surface: var(--chap-warm);
-  --opm-ink: var(--chap-ink);
-  --opm-muted: var(--chap-muted);
-  --opm-rule: var(--chap-rule);
-  --opm-accent: var(--chap-primary);
+  --opm-background-color: var(--chap-warm);
+  --opm-color: var(--chap-ink);
+  --opm-color-muted: var(--chap-muted);
+  --opm-color-rule: var(--chap-rule);
+  --opm-color-accent: var(--chap-primary);
   --opm-font-body: var(--chap-body);
   --opm-font-ui: var(--chap-meta);
 
@@ -74,7 +74,7 @@ body.chapbook {
   --opm-layout-before-width: var(--chap-sidebar-w);
   --opm-layout-content-max: calc(var(--chap-shell) - var(--chap-sidebar-offset));
   --opm-layout-sticky-top: var(--chap-bar-h);
-  --opm-layout-drawer-bg: var(--chap-cream);
+  --opm-background-color-drawer: var(--chap-cream);
   margin: 0;
   background: var(--chap-warm);
   color: var(--chap-ink);
@@ -119,10 +119,6 @@ body.chapbook--with-toc {
   border-radius: 0.2rem;
   /* A dark mark on the taupe bar needs an edge of its own to read as one. */
   box-shadow: 0 0 0 1px rgb(255 255 255 / 0.45);
-}
-
-.chapbook .logo__author {
-  color: rgb(255 255 255 / 0.75);
 }
 
 .chapbook .logo__title {

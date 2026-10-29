@@ -160,11 +160,10 @@ def test_layout_menubar_takes_menu_items_and_slots(tmp_path: Path) -> None:
                   '{% block before %}<nav>toc</nav>{% endblock %}')
     out = render_document_template(
         serialized_html=_DOC, template_path=page, odd_css='', parameters={},
-        context={'author': 'A. Author', 'menu': {'items': [{'label': 'About', 'url': 'about.html'}]}},
+        context={'menu': {'items': [{'label': 'About', 'url': 'about.html'}]}},
     )
     menubar = out[out.index('<nav class="menubar"'):out.index('</nav>', out.index('<nav class="menubar"'))]
     left, right = menubar.split('</ul>')[:2]
-    assert '<span class="logo__author">A. Author</span>' in left
     assert '<span class="logo__title">The Work</span>' in left
     assert left.index('logo__title') < left.index('<a href="about.html">About</a>') < left.index('class="left"')
     # The drawer trigger follows the template's own controls.

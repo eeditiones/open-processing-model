@@ -31,9 +31,9 @@
 
   --opm-body-font: var(--font-serif);
   --opm-heading-font: var(--font-serif);
-  --opm-rule: var(--rule);
-  --opm-muted: var(--ink-muted);
-  --opm-accent: var(--rubric);
+  --opm-color-rule: var(--rule);
+  --opm-color-muted: var(--ink-muted);
+  --opm-color-accent: var(--rubric);
 }
 
 body {

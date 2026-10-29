@@ -19,10 +19,10 @@
       content-top  toolbar: breadcrumb | toggle, prev/next, toolbar;
                    then the content_top block
 
-  logo defaults to context.logo, context.author and the title (a child's
+  logo defaults to context.logo and the title (a child's
   `work_title`, context.site_name, context.title or the index `title`);
   breadcrumb to the `breadcrumbs` fragment. menu_left, menu_toggles, toggle
-  and toolbar take <li> items. Theme via --opm-surface / --opm-ink and
+  and toolbar take <li> items. Theme via --opm-background-color / --opm-color and
   related variables in opm-layout.css.
 
   Settings, under `layout` in the context (defaults in opm/defaults.toml,
@@ -203,10 +203,9 @@
 {%- import "opm/brand.html.j2" as brand -%}
 {%- set logo_src = brand.logo_src(context.logo, assets) | trim -%}
 {%- set logo_title = work_title or context.site_name or context.title or title -%}
-{%- if logo_src or context.author or logo_title %}
+{%- if logo_src or logo_title %}
 <a href="{{ context.home_url or index_url or 'index.html' }}">
   {%- if logo_src %}<img class="logo__image" src="{{ logo_src }}" alt="">{% endif %}
-  {%- if context.author %}<span class="logo__author">{{ context.author }}</span>{% endif %}
   {%- if logo_title %}<span class="logo__title">{{ logo_title }}</span>{% endif %}
 </a>
 {%- endif %}

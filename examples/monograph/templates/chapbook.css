@@ -73,11 +73,11 @@
   --chap-rail-gap: var(--space-5);
 
   /* Menubar, toolbar and body chrome (opm/opm-layout.css). */
-  --opm-surface: var(--paper);
-  --opm-ink: var(--ink);
-  --opm-muted: var(--ink-muted);
-  --opm-rule: var(--rule);
-  --opm-accent: var(--rubric);
+  --opm-background-color: var(--paper);
+  --opm-color: var(--ink);
+  --opm-color-muted: var(--ink-muted);
+  --opm-color-rule: var(--rule);
+  --opm-color-accent: var(--rubric);
   --opm-font-body: var(--font-serif);
   --opm-font-ui: var(--font-sans);
 
@@ -134,7 +134,7 @@ body.chapbook {
   --opm-layout-before-width: var(--rail-contents);
   --opm-layout-content-max: calc(var(--measure-text) + var(--rail-margin));
   --opm-layout-sticky-top: var(--bar-height);
-  --opm-layout-drawer-bg: var(--paper-raised);
+  --opm-background-color-drawer: var(--paper-raised);
   margin: 0;
   background: var(--paper);
   color: var(--ink);
@@ -177,12 +177,6 @@ body.chapbook {
 .chapbook .menubar .logo a {
   gap: var(--space-3);
   color: var(--ink);
-}
-
-.chapbook .logo__author {
-  font-family: var(--font-sans);
-  font-size: 12px;
-  color: var(--ink-muted);
 }
 
 .chapbook .logo__title {
@@ -748,10 +742,6 @@ body.chapbook {
   .chapbook .menubar > ul {
     flex: 1 1 100%;
     flex-wrap: wrap;
-  }
-
-  .chapbook .logo__author {
-    display: none;
   }
 
   .chapbook .logo__title {

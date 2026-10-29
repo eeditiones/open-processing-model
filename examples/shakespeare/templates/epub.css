@@ -21,11 +21,11 @@
     --opm-body-font: "Iowan Old Style", Palatino, "Palatino Linotype",
         "Book Antiqua", Georgia, serif;
     --opm-heading-font: var(--opm-body-font);
-    --opm-muted: #6b6257;
-    --opm-rule: #cfc7ba;
+    --opm-color-muted: #6b6257;
+    --opm-color-rule: #cfc7ba;
     /* Links are footnote and variant markers, not navigation: a printed-book
        ink colour rather than web blue. */
-    --opm-accent: #6b4a2f;
+    --opm-color-accent: #6b4a2f;
     /* How far the speech text stands in from the page, leaving the speaker's
        name to hang in the margin beside it. */
     --folio-hang: 3.2em;
@@ -65,7 +65,7 @@ h1:not(.doc-title) {
        glyphs left of centre; half of it back puts them straight. */
     text-indent: 0.12em;
     text-transform: uppercase;
-    color: var(--opm-muted);
+    color: var(--opm-color-muted);
 }
 
 /* "Scene 1" — the chapter title. */
@@ -84,7 +84,7 @@ h1 + h2 {
     margin: 0 0 0.4em;
     font-size: 0.95em;
     font-style: italic;
-    color: var(--opm-muted);
+    color: var(--opm-color-muted);
 }
 
 /* An ornament closing the title block, on whichever line ends it. */
@@ -154,7 +154,7 @@ h2:last-of-type,
 .tei-stage {
     margin: 0.7em 0;
     font-style: italic;
-    color: var(--opm-muted);
+    color: var(--opm-color-muted);
     page-break-inside: avoid;
     break-inside: avoid;
 }
@@ -191,7 +191,7 @@ h2:last-of-type,
     font-style: normal;
     vertical-align: 0.35em;
     letter-spacing: 0.02em;
-    color: var(--opm-muted);
+    color: var(--opm-color-muted);
 }
 
 .pb::before {
@@ -204,7 +204,7 @@ h2:last-of-type,
 
 /* Text the Folio prints that this copy does not carry. */
 .notPresent {
-    color: var(--opm-muted);
+    color: var(--opm-color-muted);
 }
 
 /*********************** Editorial apparatus ***********************/
@@ -221,16 +221,16 @@ h2:last-of-type,
 /* An illegible or lost passage is marked by the ODD with a bracketed ellipsis;
    set it back from the text so it reads as the editor speaking. */
 .tei-gap {
-    color: var(--opm-muted);
+    color: var(--opm-color-muted);
 }
 
 /* Notes and variant readings are the only links in the book, and both lead to
    a footnote at the end of the chapter. Underlined web blue would read as
    navigation; a marker in the text's own colour does not. */
 a {
-    color: var(--opm-accent);
+    color: var(--opm-color-accent);
     text-decoration: none;
-    border-bottom: 1px dotted var(--opm-rule);
+    border-bottom: 1px dotted var(--opm-color-rule);
 }
 
 .noteref {
@@ -240,9 +240,9 @@ a {
 section[epub|type="footnotes"] {
     margin-top: 2.5em;
     padding-top: 0.8em;
-    border-top: 1px solid var(--opm-rule);
+    border-top: 1px solid var(--opm-color-rule);
     font-size: 0.85em;
-    color: var(--opm-muted);
+    color: var(--opm-color-muted);
     text-indent: 0;
 }
 
@@ -278,8 +278,8 @@ section[epub|type="footnotes"] aside {
     max-width: 14em;
     margin: 1.8em auto 0;
     padding-top: 1.2em;
-    border-top: 1px solid var(--opm-rule);
+    border-top: 1px solid var(--opm-color-rule);
     font-size: 0.95em;
     font-style: italic;
-    color: var(--opm-muted);
+    color: var(--opm-color-muted);
 }

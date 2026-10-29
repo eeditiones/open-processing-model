@@ -69,7 +69,7 @@ body.letter {
   --opm-layout-after-width: calc(var(--letter-register-width) + var(--letter-rail-gap));
   /* Sidebars stop clear of the sticky menubar + breadcrumb band. */
   --opm-layout-sticky-top: calc(var(--letter-menubar-height) + 1rem);
-  --opm-layout-drawer-bg: var(--letter-paper);
+  --opm-background-color-drawer: var(--letter-paper);
   margin: 0;
   background: var(--letter-paper);
   color: var(--letter-ink);

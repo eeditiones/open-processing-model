@@ -398,8 +398,8 @@ page layout.
     ```
 
     This alone already gives you a complete page. If `[context]` in
-    `opm.toml` contains a `site_name`, `author` or `logo`, the page also has a
-    menu bar.
+    `opm.toml` contains a `site_name` or `logo`, the page also has a menu bar,
+    which shows the logo and the name.
 
 2. Add a block for each area you want to fill. For example, add a link to
    the menu bar, and show the title of the work above the text:
@@ -536,8 +536,8 @@ column a bit smaller:
 
 ```css
 :root {
-  --opm-surface: #fbf7ee;
-  --opm-accent: #8a3b12;
+  --opm-background-color: #fbf7ee;
+  --opm-color-accent: #8a3b12;
   --opm-font-body: "Albert Sans", sans-serif;
   --opm-layout-content-max: 42rem;
   --opm-layout-after-width: 16rem;
@@ -549,11 +549,12 @@ standard colours and fonts of the reader's system.
 
 | Variable | What it controls |
 | --- | --- |
-| `--opm-surface` | Background of the page and the header |
-| `--opm-ink` | Colour of the text |
-| `--opm-muted` | Colour of less important text, e.g. the author's name in the logo |
-| `--opm-rule` | Colour of thin dividing lines |
-| `--opm-accent` | Colour of links, and of buttons when the mouse is over them |
+| `--opm-background-color` | Background of the page and the header |
+| `--opm-color` | Colour of the text |
+| `--opm-color-muted` | Colour of less important text |
+| `--opm-color-rule` | Colour of thin dividing lines |
+| `--opm-color-accent` | Colour of links, and of buttons when the mouse is over them |
+| `--opm-background-color-drawer` | Background of a side column which slides in on a phone (see below) |
 | `--opm-font-body` | Font of the text |
 | `--opm-font-ui` | Font of menus and buttons |
 
@@ -566,7 +567,6 @@ These variables set the measurements of the layout:
 | `--opm-layout-gap` | Space between a side column and the text |
 | `--opm-layout-gutter` | Minimum space at the left and right edge of the page |
 | `--opm-layout-sticky-top` | The side columns stay in place while the reader scrolls. This sets how far below the top of the window they stop, e.g. the height of your header |
-| `--opm-layout-drawer-bg` | Background of a side column which slides in on a phone (see below) |
 | `--opm-menubar-max` | Maximum width of the menu bar's content |
 
 ## Adding custom CSS

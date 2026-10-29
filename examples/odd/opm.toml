@@ -19,7 +19,7 @@ lang = "en"
 # The logo in the menubar and the browser tab: templates/logo.svg, or another
 # image you put beside it.
 [context]
-logo = "logo.svg"
+logo = "dhlab.svg"
 
 [transform]
 odd = "odd/tagdocs.odd"

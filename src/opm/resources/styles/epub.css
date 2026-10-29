@@ -12,10 +12,10 @@
     --opm-body-font: Georgia, "Iowan Old Style", "Times New Roman", serif;
     --opm-heading-font: "Helvetica Neue", Helvetica, Arial, sans-serif;
     --opm-mono-font: "SF Mono", Menlo, Consolas, "Courier New", monospace;
-    --opm-rule: #d5dde8;
-    --opm-muted: #5b6b7c;
-    --opm-accent: #0b6bcb;
-    --opm-surface: #f2f5f9;
+    --opm-color-rule: #d5dde8;
+    --opm-color-muted: #5b6b7c;
+    --opm-color-accent: #0b6bcb;
+    --opm-background-color: #f2f5f9;
     --opm-radius: 0.3em;
 
     /* Fallbacks for variables that web-oriented ODD stylesheets reference, so
@@ -25,9 +25,9 @@
     --jinks-heading-font-weight: 600;
     --jinks-font-size-smaller: 0.85em;
     --jinks-form-border-radius: var(--opm-radius);
-    --jinks-colors-accent: var(--opm-accent);
-    --pb-color-lighter: var(--opm-rule);
-    --pb-color-focus: var(--opm-accent);
+    --jinks-colors-accent: var(--opm-color-accent);
+    --pb-color-lighter: var(--opm-color-rule);
+    --pb-color-focus: var(--opm-color-accent);
     --pb-heading-font-family: var(--opm-heading-font);
     --pb-footnote-font-size: 0.85em;
 }
@@ -54,7 +54,7 @@ p {
 }
 
 a {
-    color: var(--opm-accent);
+    color: var(--opm-color-accent);
     text-decoration: underline;
 }
 
@@ -77,7 +77,7 @@ h1, h2, h3, h4, h5, h6 {
 h1 {
     margin: 0 0 0.8em;
     padding-bottom: 0.3em;
-    border-bottom: 1px solid var(--opm-rule);
+    border-bottom: 1px solid var(--opm-color-rule);
     font-size: 1.7em;
 }
 
@@ -124,7 +124,7 @@ body > :first-child h2:first-child {
     margin-top: 1.5em;
     font-family: var(--opm-heading-font);
     font-size: 1.1em;
-    color: var(--opm-muted);
+    color: var(--opm-color-muted);
 }
 
 /*********************** Lists ***********************/
@@ -163,15 +163,15 @@ code, kbd, samp, .code {
 :not(pre) > code, span.code {
     padding: 0.05em 0.3em;
     border-radius: var(--opm-radius);
-    background-color: var(--opm-surface);
+    background-color: var(--opm-background-color);
 }
 
 pre, .programlisting, div.tei-programlisting, div.tei-synopsis {
     margin: 1em 0;
     padding: 0.7em 0.8em;
-    border: 1px solid var(--opm-rule);
+    border: 1px solid var(--opm-color-rule);
     border-radius: var(--opm-radius);
-    background-color: var(--opm-surface);
+    background-color: var(--opm-background-color);
     font-family: var(--opm-mono-font);
     font-size: 0.8em;
     line-height: 1.45;
@@ -194,8 +194,8 @@ pre code {
 blockquote {
     margin: 1.2em 0;
     padding: 0.1em 0 0.1em 1em;
-    border-left: 3px solid var(--opm-rule);
-    color: var(--opm-muted);
+    border-left: 3px solid var(--opm-color-rule);
+    color: var(--opm-color-muted);
 }
 
 blockquote cite {
@@ -226,7 +226,7 @@ figcaption, .tei-figDesc {
     margin-top: 0.5em;
     font-family: var(--opm-heading-font);
     font-size: 0.8em;
-    color: var(--opm-muted);
+    color: var(--opm-color-muted);
     text-align: center;
 }
 
@@ -242,7 +242,7 @@ table, .table {
 
 th, td, .table td {
     padding: 0.4em 0.5em;
-    border-bottom: 1px solid var(--opm-rule);
+    border-bottom: 1px solid var(--opm-color-rule);
     text-align: left;
     vertical-align: top;
     line-height: 1.4;
@@ -256,7 +256,7 @@ th, .table-head {
 }
 
 .table-bordered, .table-bordered td {
-    border: 1px solid var(--opm-rule);
+    border: 1px solid var(--opm-color-rule);
 }
 
 /*********************** Notes and footnotes ***********************/
@@ -342,7 +342,7 @@ aside.altcontent {
 section[epub|type="footnotes"] {
     margin-top: 2em;
     padding-top: 0.6em;
-    border-top: 1px solid var(--opm-rule);
+    border-top: 1px solid var(--opm-color-rule);
     font-size: 0.85em;
 }
 

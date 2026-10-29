@@ -57,7 +57,7 @@ body.handbook {
   --opm-layout-gap: 0px;
   --opm-layout-before-width: var(--hb-sidebar-w);
   --opm-layout-sticky-top: var(--hb-header-h);
-  --opm-layout-drawer-bg: var(--hb-sidebar);
+  --opm-background-color-drawer: var(--hb-sidebar);
   margin: 0;
   color: var(--hb-ink);
   background: var(--hb-canvas);

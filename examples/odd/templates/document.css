@@ -111,7 +111,7 @@ body.doc {
   --opm-layout-before-width: var(--doc-sidebar-w);
   --opm-layout-after-width: var(--doc-aside-w);
   --opm-layout-sticky-top: var(--doc-header-h);
-  --opm-layout-drawer-bg: var(--doc-surface);
+  --opm-background-color-drawer: var(--doc-surface);
   margin: 0;
   color: var(--doc-ink);
   background: var(--doc-paper);
@@ -144,12 +144,12 @@ a:hover { color: var(--doc-link-hover); text-decoration: underline; text-underli
   --opm-menubar-max: 100%;
   gap: 1.5rem;
   min-height: var(--doc-header-h);
-  padding: 0.75rem 1.75rem;
+  padding: 0 1.75rem;
   font-family: var(--doc-body);
   color: var(--doc-ink);
 }
 .doc .menubar ul { gap: 1.5rem; }
-.doc .menubar > ul:last-child { flex: 0 1 auto; gap: 1.5rem; }
+.doc .menubar > ul:last-child { flex: 0 1 auto; gap: 1.5rem; padding-block: 0.75rem; }
 .doc .menubar .logo a {
   align-items: center;
   gap: 0.75rem;
@@ -160,14 +160,27 @@ a:hover { color: var(--doc-link-hover); text-decoration: underline; text-underli
 }
 .doc .menubar .logo a:hover { text-decoration: none; }
 .doc .menubar .logo a:hover .logo__title { color: var(--doc-ink); }
+/* Only the controls on the right are padded, so the logo may take the
+   menubar's full height (--doc-header-h); set --doc-logo-height to resize it,
+   keeping its aspect ratio. */
 .doc .logo__image {
-  width: 1.875rem;
-  height: 1.875rem;
+  width: auto;
+  max-width: 100%;
+  height: var(--doc-logo-height, 2.75rem);
 }
 .doc .logo__title {
   font-family: inherit;
   font-size: inherit;
   letter-spacing: inherit;
+}
+/* Beside a logo, a rule sets the title apart. */
+.doc .logo__image + .logo__title {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  margin-left: 0.5rem;
+  padding-left: 1.25rem;
+  border-left: 1px solid var(--doc-rule);
 }
 .doc-edition {
   font-size: 0.75rem;

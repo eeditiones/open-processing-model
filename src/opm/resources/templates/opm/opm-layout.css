@@ -12,20 +12,21 @@
      --opm-layout-gutter        least space at the page edges
      --opm-layout-sticky-top    how far below the viewport top sticky sidebars
                                 stop, e.g. the height of a sticky header
-     --opm-layout-drawer-bg     background of a sidebar opened as a drawer
 
    Page chrome (the menubar and toolbar layout.html.j2 writes):
-     --opm-surface, --opm-ink, --opm-muted, --opm-rule, --opm-accent
+     --opm-background-color, --opm-color, --opm-color-muted,
+     --opm-color-rule, --opm-color-accent
+     --opm-background-color-drawer  background of a sidebar opened as a drawer
      --opm-font-body, --opm-font-ui
      --opm-menubar-max          widest the menubar's content grows
 */
 
 :root {
-  --opm-surface: Canvas;
-  --opm-ink: CanvasText;
-  --opm-muted: color-mix(in srgb, CanvasText 65%, Canvas);
-  --opm-rule: color-mix(in srgb, CanvasText 18%, Canvas);
-  --opm-accent: LinkText;
+  --opm-background-color: Canvas;
+  --opm-color: CanvasText;
+  --opm-color-muted: color-mix(in srgb, CanvasText 65%, Canvas);
+  --opm-color-rule: color-mix(in srgb, CanvasText 18%, Canvas);
+  --opm-color-accent: LinkText;
   --opm-font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
   --opm-font-ui: var(--opm-font-body);
 }
@@ -38,8 +39,8 @@
 
 :where(body) {
   margin: 0;
-  background: var(--opm-surface);
-  color: var(--opm-ink);
+  background: var(--opm-background-color);
+  color: var(--opm-color);
   font-family: var(--opm-font-body);
   line-height: 1.5;
 }
@@ -47,8 +48,8 @@
 /* Menubar: the logo and menu links on the left, the template's controls and
    the drawer triggers on the right. Each side is a list, as in jinks. */
 .page-header {
-  background: var(--opm-surface);
-  border-bottom: 1px solid var(--opm-rule);
+  background: var(--opm-background-color);
+  border-bottom: 1px solid var(--opm-color-rule);
 }
 
 .menubar {
@@ -84,7 +85,7 @@
 }
 
 .menubar a:hover {
-  color: var(--opm-accent);
+  color: var(--opm-color-accent);
 }
 
 .menubar .logo {
@@ -96,7 +97,7 @@
   align-items: baseline;
   gap: 0.75rem;
   min-width: 0;
-  color: var(--opm-ink);
+  color: var(--opm-color);
 }
 
 .logo__image {
@@ -104,15 +105,6 @@
   align-self: center;
   height: 2rem;
   width: auto;
-}
-
-.logo__author {
-  flex: none;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--opm-muted);
 }
 
 .logo__title {
@@ -126,7 +118,7 @@
 }
 
 .menubar .logo a:hover .logo__title {
-  color: var(--opm-accent);
+  color: var(--opm-color-accent);
 }
 
 /* Toolbar: breadcrumbs on the left, controls and page links on the right. */
@@ -156,7 +148,7 @@
 .toolbar .breadcrumb li:not(:last-child)::after {
   content: "›";
   margin: 0 0.5rem;
-  color: var(--opm-muted);
+  color: var(--opm-color-muted);
 }
 
 .toolbar a {
@@ -339,7 +331,7 @@
     max-height: none;
     padding: 1rem;
     overflow-y: auto;
-    background: var(--opm-layout-drawer-bg, Canvas);
+    background: var(--opm-background-color-drawer, Canvas);
     box-shadow: 0 0 1.5rem rgba(0, 0, 0, 0.25);
     visibility: hidden;
     transition: transform 0.25s ease, visibility 0.25s;
