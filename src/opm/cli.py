@@ -1772,7 +1772,7 @@ def compile_cmd(
     Walks each ``schemaSpec/@source``, merges the layers (a TEI customization
     onto the cached TEI schema when needed), and emits a single ``schemaSpec``
     with every selected spec and no ``moduleRef``. Schema tools such as the
-    TEI Stylesheets' ``odd2relax`` take that file. Unlike ``opm odd prepare``,
+    TEI Stylesheets' ``odd2relax`` take that file. Unlike ``opm odd document --prepare``,
     content models stay on the specs rather than in documentation pages.
 
     ``--format rng`` goes one step further and writes the RELAX NG schema
@@ -1805,61 +1805,21 @@ def compile_cmd(
     typer.echo(f'Wrote {output}')
 
 
-@odd_app.command('prepare')
-def prepare_cmd(
-    source: Annotated[
-        Optional[Path],
-        typer.Argument(
-            help=(
-                'ODD, compiled spec document or directory of Specs. Omit to '
-                'document the TEI Guidelines.'
-            ),
-        ),
-    ] = None,
-    output: Annotated[
-        Path,
-        typer.Option('--output', '-o', help='Where to write the prepared tree.'),
-    ] = Path('schema.xml'),
-    lang: Annotated[
-        Optional[str],
-        typer.Option('--lang', help='xml:lang to prefer in headings (default: en).'),
-    ] = None,
-    force: Annotated[
-        bool,
-        typer.Option('--force', help='Overwrite the output file if it exists.'),
-    ] = False,
-) -> None:
-    """Write the tree `opm odd document` chunks, for `opm chunk` to take over.
-
-    The schema merged onto TEI, ids stamped, and the pages the site adds — a
-    title page if there is none, and the A–Z catalogs — injected. Run inside a documentation
-    project (`opm init --example odd`), `opm chunk` over the result then
-    writes that project's runs in any of its formats, e.g. `--format json` for
-    a static site generator; SOURCE and --lang default to the
-    project's [document] settings.
-    """
+def _document_prepared(compiled, output: Path | None, *, lang: str, force: bool, project, project_file) -> None:
+    """``opm odd document --prepare``: write the tree the site is chunked
+    from, for `opm chunk` or `opm transform` to take over."""
     from lxml import etree
 
     from opm.document_site import prepare_document_tree, site_assets_dir
-    from opm.odd_schema import SchemaError, compile_schema
 
-    project_file, project = _documentation_project()
-    nav = None
-    if project is not None and project.document is not None:
-        source = source or project.document.source
-        lang = lang or project.document.lang
-        nav = site_assets_dir(project, project_file) / 'nav.xml'
+    if output is None:
+        output = Path(_document_output_dir(compiled, None).name + '.xml').resolve()
     if output.exists() and not force:
         _die(f'{output} already exists; pass --force to overwrite it.')
-
-    try:
-        compiled = compile_schema(source, use_guidelines=source is None)
-    except SchemaError as exc:
-        _die(str(exc), cause=exc)
-    for warning in compiled.warnings:
-        _note(warning)
-
-    tree = prepare_document_tree(compiled, lang=lang or 'en', nav=nav)
+    nav = None
+    if project is not None:
+        nav = site_assets_dir(project, project_file) / 'nav.xml'
+    tree = prepare_document_tree(compiled, lang=lang, nav=nav)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(etree.tostring(tree, xml_declaration=True, encoding='utf-8'))
     typer.echo(f'Wrote {output}')
@@ -1881,8 +1841,8 @@ def _document_single(
     preview: bool,
     project_file: Path | None,
 ) -> None:
-    """``opm odd document -t``: prepare the tree as ``opm odd prepare`` does
-    and transform it as ``opm transform`` does, without the file in between."""
+    """``opm odd document -t``: prepare the tree as ``--prepare`` does and
+    transform it as ``opm transform`` does, without the file in between."""
     from opm.document_site import (
         copy_figures,
         figure_files,
@@ -1969,8 +1929,8 @@ def document_cmd(
             '--output-dir',
             '-o',
             help=(
-                'Output directory (default: odd/<schemaSpec ident>). With -t, the '
-                'output file (default: <schemaSpec ident>.pdf, .md or .epub); '
+                'Output directory (default: odd/<schemaSpec ident>). With -t or --prepare, the '
+                'output file (default: <schemaSpec ident>.pdf, .md, .epub or .xml); '
                 'with -t typst, a .typ file name writes the Typst source instead of a PDF.'
             ),
         ),
@@ -1987,6 +1947,16 @@ def document_cmd(
             ),
         ),
     ] = None,
+    prepare: Annotated[
+        bool,
+        typer.Option(
+            '--prepare',
+            help=(
+                'Write only the prepared TEI tree the documentation is made from, '
+                'for `opm chunk` or `opm transform` to take over.'
+            ),
+        ),
+    ] = False,
     lang: Annotated[
         Optional[str],
         typer.Option('--lang', help='xml:lang to prefer on gloss/desc/remarks (default: en).'),
@@ -2042,7 +2012,15 @@ def document_cmd(
 
     With `-t typst`, `-t markdown` or `-t epub`, the same documentation is
     written as one PDF, Markdown or EPUB file instead, through the project's
-    [transform] settings: `opm odd prepare` and `opm transform` in one step.
+    [transform] settings: `opm odd document --prepare` and `opm transform` in
+    one step.
+
+    With `--prepare`, only the tree the site or document is made from is
+    written: the schema merged onto TEI, all references resolved, and the
+    pages the site adds — a title page if there is none, and the A–Z catalogs
+    — injected. Inside a documentation project, `opm chunk` over the result
+    writes that project's runs in any of its formats, e.g. `--format json`
+    for a static site generator.
     """
     from opm.document_site import build_document_site
     from opm.odd_schema import SchemaError, compile_schema
@@ -2051,12 +2029,14 @@ def document_cmd(
     if project is not None and project.document is not None:
         source = source or project.document.source
         lang = lang or project.document.lang
-        if output_dir is None and transform_type is None and project.chunking is not None:
+        if output_dir is None and transform_type is None and not prepare and project.chunking is not None:
             output_dir = project_file.parent / project.chunking.output_dir
     lang = lang or 'en'
 
     if transform_type is not None and transform_type not in _DOCUMENT_TYPES:
         _die(f'-t must be one of {", ".join(_DOCUMENT_TYPES)}, not {transform_type!r}.')
+    if prepare and (transform_type is not None or preview):
+        _die('--prepare cannot be combined with -t or --preview.')
 
     try:
         compiled = compile_schema(source, use_guidelines=source is None)
@@ -2065,6 +2045,12 @@ def document_cmd(
 
     for warning in compiled.warnings:
         _note(warning)
+
+    if prepare:
+        _document_prepared(
+            compiled, output_dir, lang=lang, force=force, project=project, project_file=project_file,
+        )
+        return
 
     if transform_type is not None:
         _document_single(

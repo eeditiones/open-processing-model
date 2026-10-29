@@ -307,7 +307,7 @@ def test_cli_document_without_input_documents_tei(tmp_path: Path, monkeypatch) -
     monkeypatch.setattr(odd_schema, 'compile_schema', fake_compile)
     monkeypatch.chdir(tmp_path)
     assert main(['odd', 'document']) == 1
-    assert main(['odd', 'prepare']) == 1
+    assert main(['odd', 'document', '--prepare']) == 1
     assert calls == [(None, True), (None, True)]
 
 
@@ -1538,7 +1538,7 @@ def test_odd_document_takes_the_logo_from_context(
 def test_prepare_then_chunk_gives_a_static_site_builder_both_runs(
     tmp_path: Path, monkeypatch,
 ) -> None:
-    """`opm odd prepare` + `opm chunk --format json` in a documentation project."""
+    """`opm odd document --prepare` + `opm chunk --format json` in a documentation project."""
     import json
     import sys
 
@@ -1554,7 +1554,7 @@ def test_prepare_then_chunk_gives_a_static_site_builder_both_runs(
     monkeypatch.setattr(sys, 'path', list(sys.path))
     monkeypatch.chdir(root)
 
-    assert main(['odd', 'prepare', '-o', 'schema.xml']) == 0
+    assert main(['odd', 'document', '--prepare', '-o', 'schema.xml']) == 0
     assert main(['chunk', 'schema.xml', '--format', 'json', '--force']) == 0
 
     out = root / 'site' / 'schema.xml'
@@ -1564,13 +1564,13 @@ def test_prepare_then_chunk_gives_a_static_site_builder_both_runs(
     ref = json.loads((out / 'ref-p.json').read_text(encoding='utf-8'))
     assert 'paragraph' in ref['content']
     # A second prepare refuses to overwrite without --force.
-    assert main(['odd', 'prepare', '-o', 'schema.xml']) != 0
+    assert main(['odd', 'document', '--prepare', '-o', 'schema.xml']) != 0
 
 
 def test_a_documentation_project_turns_the_prepared_tree_into_typst(
     tmp_path: Path, monkeypatch,
 ) -> None:
-    """`opm odd prepare` + `opm transform -t typst`: the PDF is one pass over the same tree."""
+    """`opm odd document --prepare` + `opm transform -t typst`: the PDF is one pass over the same tree."""
     from opm.scaffold import InitOptions, scaffold
     from opm.typst_compile import compile_pdf
 
@@ -1581,7 +1581,7 @@ def test_a_documentation_project_turns_the_prepared_tree_into_typst(
         encoding='utf-8',
     )
     monkeypatch.chdir(root)
-    assert main(['odd', 'prepare', '-o', 'schema.xml']) == 0
+    assert main(['odd', 'document', '--prepare', '-o', 'schema.xml']) == 0
     assert main(['transform', 'schema.xml', '-t', 'typst', '-o', 'docs.typ']) == 0
 
     # The document body follows the shell's last rule, the running footer.
@@ -1623,7 +1623,7 @@ def test_a_documentation_project_turns_the_prepared_tree_into_markdown(
         encoding='utf-8',
     )
     monkeypatch.chdir(root)
-    assert main(['odd', 'prepare', '-o', 'schema.xml']) == 0
+    assert main(['odd', 'document', '--prepare', '-o', 'schema.xml']) == 0
     assert main(['transform', 'schema.xml', '-t', 'markdown', '-o', 'docs.md']) == 0
 
     body = (root / 'docs.md').read_text(encoding='utf-8')
@@ -1799,7 +1799,7 @@ def test_guidelines_figures_are_fetched_when_a_page_shows_one(
 
 
 def test_odd_compile_writes_the_merged_odd_as_an_odd(tmp_path: Path, monkeypatch) -> None:
-    """`opm odd compile`: content models stay in their specs, unlike `opm odd prepare`."""
+    """`opm odd compile`: content models stay in their specs, unlike `opm odd document --prepare`."""
     monkeypatch.chdir(tmp_path)
     assert main(['odd', 'compile', str(MINI)]) == 0
     root = etree.parse(str(tmp_path / 'mini_schema.compiled.odd')).getroot()
