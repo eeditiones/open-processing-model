@@ -287,49 +287,14 @@ the defensive form used by the packaged template:
 {% elif odd_css %}<style>{{ odd_css }}</style>{% endif %}
 ```
 -->
-Anything else a page needs — the template's own stylesheet, an image, a font —
-is listed under `assets` in `[transform.web]`, next to the template that uses
-it<!--, because the output directory is wiped on every
-rebuild and nothing else puts files there-->:
-
-```toml
-[transform.web]
-template = "templates/letter.html.j2"
-assets = ["templates/letter.css", "templates/parchment.jpg", "templates/fonts"]
-```
-
-Chunking uses this template and these assets unless `[chunking]` names its own
-`template` or `assets`. `opm transform` uses them too: with `--output` it copies
-the assets into an `assets/` folder next to the output file, and `--preview`
-does the same in a temporary folder, so a single page looks like the chunked
-edition.
-
-Each entry is copied into `<output-root>/assets/`, keeping its own name. An
-entry may be a glob, which is how a project stops editing this list every time
-it gains a document:
-
-```toml
-assets = ["iiif/*"]     # every iiif/<document>.xml/ lands in assets/
-```
-
-Templates receive an `assets` URL prefix for referencing them by hand, and
-`asset_styles` — the stylesheets among them, as URLs, in the order declared —
-so a template links them without naming any file:
-
-```jinja
-{% for href in asset_styles %}<link rel="stylesheet" href="{{ href }}">{% endfor %}
-```
-
-A template that extends opm's page layout (see
-[Template inheritance](templates-and-css.md#template-inheritance))
-does this for you. The layout's own stylesheet is then also written to
+Anything else a page needs, such as the template's own stylesheet, images,
+fonts or scripts, is listed under `assets` in `[transform.web]`. Chunking
+copies these files into `<output-root>/assets/`, shared by all pages, unless
+`[chunking]` names its own `assets`. See [Assets](assets.md) for how to list
+them and refer to them from templates. A template that extends opm's page
+layout (see [Template inheritance](templates-and-css.md#template-inheritance))
+also gets the layout's own stylesheet, written to
 `<output-root>/css/opm-layout.css`.
-
-Declaration order is cascade order, with a glob's own matches sorted by name.
-Only entries — or glob matches — whose suffix is `.css` are linked; a directory
-copied as an asset is not scanned, so adding `fonts/` does not start injecting
-stylesheets from inside it. A listed path that does not exist, or a pattern
-matching nothing, fails the run rather than leaving the output a file short.
 
 <!--A stylesheet in `assets/` references a sibling by plain filename
 (`url("parchment.jpg")`), since CSS URLs resolve against the stylesheet's own

@@ -210,7 +210,6 @@ opm odd [OPTIONS] COMMAND [ARGS]...
 **Commands:**
 
 - [`compile`](#opm-odd-compile): Follow the ODD inheritance chain and write...
-- [`prepare`](#opm-odd-prepare): Write the tree `opm odd document` chunks,...
 - [`document`](#opm-odd-document): Generate a static HTML documentation site...
 - [`coverage`](#opm-odd-coverage): Diagnose an ODD against a corpus: what...
 
@@ -221,7 +220,7 @@ Follow the ODD inheritance chain and write one self-contained ODD, or its RELAX 
 Walks each ``schemaSpec/@source``, merges the layers (a TEI customization
 onto the cached TEI schema when needed), and emits a single ``schemaSpec``
 with every selected spec and no ``moduleRef``. Schema tools such as the
-TEI Stylesheets' ``odd2relax`` take that file. Unlike ``opm odd prepare``,
+TEI Stylesheets' ``odd2relax`` take that file. Unlike ``opm odd document --prepare``,
 content models stay on the specs rather than in documentation pages.
 
 ``--format rng`` goes one step further and writes the RELAX NG schema
@@ -250,39 +249,6 @@ opm odd compile [OPTIONS] SOURCE
 | `--force` | Overwrite the output file if it exists. |
 | `--help` | Show this message and exit. |
 
-#### `opm odd prepare`
-
-Write the tree `opm odd document` chunks, for `opm chunk` to take over.
-
-The schema merged onto TEI, ids stamped, and the pages the site adds — a
-title page if there is none, and the A–Z catalogs — injected. Run inside a documentation
-project (`opm init --example odd`), `opm chunk` over the result then
-writes that project's runs in any of its formats, e.g. `--format json` for
-a static site generator; SOURCE and --lang default to the
-project's [document] settings.
-
-**Usage:**
-
-```text
-opm odd prepare [OPTIONS] [SOURCE]
-```
-
-**Arguments:**
-
-| Argument | Description |
-| --- | --- |
-| `SOURCE` | ODD, compiled spec document or directory of Specs. Omit to document the TEI Guidelines. |
-
-
-**Options:**
-
-| Option | Description |
-| --- | --- |
-| `--output, -o PATH` | Where to write the prepared tree. |
-| `--lang TEXT` | xml:lang to prefer in headings (default: en). |
-| `--force` | Overwrite the output file if it exists. |
-| `--help` | Show this message and exit. |
-
 #### `opm odd document`
 
 Generate a static HTML documentation site from an ODD.
@@ -307,7 +273,15 @@ what to document, the language and the output directory default to its
 
 With `-t typst`, `-t markdown` or `-t epub`, the same documentation is
 written as one PDF, Markdown or EPUB file instead, through the project's
-[transform] settings: `opm odd prepare` and `opm transform` in one step.
+[transform] settings: `opm odd document --prepare` and `opm transform` in
+one step.
+
+With `--prepare`, only the tree the site or document is made from is
+written: the schema merged onto TEI, all references resolved, and the
+pages the site adds — a title page if there is none, and the A–Z catalogs
+— injected. Inside a documentation project, `opm chunk` over the result
+writes that project's runs in any of its formats, e.g. `--format json`
+for a static site generator.
 
 **Usage:**
 
@@ -326,8 +300,9 @@ opm odd document [OPTIONS] [SOURCE]
 
 | Option | Description |
 | --- | --- |
-| `--output-dir, -o PATH` | Output directory (default: odd/<schemaSpec ident>). With -t, the output file (default: <schemaSpec ident>.pdf, .md or .epub); with -t typst, a .typ file name writes the Typst source instead of a PDF. |
+| `--output-dir, -o PATH` | Output directory (default: odd/<schemaSpec ident>). With -t or --prepare, the output file (default: <schemaSpec ident>.pdf, .md, .epub or .xml); with -t typst, a .typ file name writes the Typst source instead of a PDF. |
 | `--type, -t TYPE` | Write one document instead of a site: typst, markdown, epub. Omit to build the HTML site. |
+| `--prepare` | Write only the prepared TEI tree the documentation is made from, for `opm chunk` or `opm transform` to take over. |
 | `--lang TEXT` | xml:lang to prefer on gloss/desc/remarks (default: en). |
 | `--odd, -d PATH` | Processing ODD used to render nested TEI (default: packaged tagdocs.odd). |
 | `--force` | Replace the output directory or file if it already exists. |

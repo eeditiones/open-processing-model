@@ -99,7 +99,7 @@ two steps. First, ask `opm` to prepare the documentation and save it in a
 file:
 
 ```bash
-opm odd prepare my.odd -o schema.xml
+opm odd document my.odd --prepare -o schema.xml
 ```
 
 Then transform the prepared file, choosing what to include:
@@ -156,7 +156,7 @@ contain and where it may appear, and writes all of this out in full. The
 result is an ordinary TEI document that can be displayed from beginning to
 end, like any other text.
 
-This prepared document is also what `opm odd prepare` saves. Looking at it is
+This prepared document is also what `opm odd document --prepare` saves. Looking at it is
 helpful if you want to change how the documentation is displayed, because it
 shows exactly what `odd/tagdocs.odd` receives.
 
@@ -165,7 +165,7 @@ documentation project, the following writes every page as a JSON file, which
 static site generators such as Eleventy can read:
 
 ```bash
-opm odd prepare -o schema.xml
+opm odd document --prepare -o schema.xml
 opm chunk schema.xml --format json
 ```
 

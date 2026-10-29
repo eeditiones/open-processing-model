@@ -10,7 +10,7 @@ document.
 Before rendering, everything a page shows that depends on the schema as a
 whole is written into the prepared tree as plain TEI: the relations of each
 spec, the A–Z catalogs, the table of contents, heading numbers, chapter
-navigation and link targets. `opm odd prepare` writes that tree out.
+navigation and link targets. `opm odd document --prepare` writes that tree out.
 
 ::: opm.odd_expand
 

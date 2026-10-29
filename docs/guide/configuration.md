@@ -97,8 +97,8 @@ index_title = "Correspondence"
 | Section | Purpose | Related guide |
 | --- | --- | --- |
 | `[project]` | `pythonpath` additions so local extension modules import | [XPath extensions](xpath-extensions.md) |
-| `[transform]` | Shared settings (`odd`, `xpath_extensions`, `documents`, `footnote_order`, `parameters`, base `css`) | [Output formats](output-formats.md), [ODD `$parameters`](odd-files.md#parameters), [Footnotes](footnotes.md), [Templates & CSS](templates-and-css.md#two-kinds-of-css) |
-| `[transform.web]` | Optional web-only `odd` override, HTML `template` and its `assets` | [Templates & CSS](templates-and-css.md) |
+| `[transform]` | Shared settings (`odd`, `xpath_extensions`, `documents`, `footnote_order`, `parameters`, base `css`) | [Output formats](output-formats.md), [ODD `$parameters`](odd-files.md#parameters), [Footnotes](footnotes.md), [Templates & CSS](templates-and-css.md#adding-custom-css) |
+| `[transform.web]` | Optional web-only `odd` override, HTML `template` and its `assets` | [Templates & CSS](templates-and-css.md), [Assets](assets.md) |
 | `[transform.print]` | Optional print `odd` and HTML `template` | [Output formats](output-formats.md#print-paged-media) |
 | `[transform.epub]` | Optional EPUB `odd`, `css` and `skip_title` | [Output formats](output-formats.md#epub) |
 | `[transform.docx]` | Optional DOCX `odd` override and Word style `template` | [Output formats](output-formats.md#docx) |

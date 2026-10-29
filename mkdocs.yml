@@ -91,13 +91,14 @@ nav:
   - Guide:
       - ODD files: guide/odd-files.md
       - Output formats: guide/output-formats.md
-      - XPath extensions: guide/xpath-extensions.md
-      - Templates & CSS: guide/templates-and-css.md
       - Chunking: guide/chunking.md
       - Search indexing: guide/search-indexing.md
+      - Integration with TEI Publisher: guide/tei-publisher.md
+      - Templates & CSS: guide/templates-and-css.md
+      - Assets: guide/assets.md
       - ODD coverage: guide/coverage.md
       - ODD documentation: guide/odd-documentation.md
-      - Integration with TEI Publisher: guide/tei-publisher.md
+      - XPath extensions: guide/xpath-extensions.md
       - Footnotes: guide/footnotes.md
       - Configuration (opm.toml): guide/configuration.md
   - CLI Reference: cli.md
