@@ -1776,8 +1776,8 @@ def compile_cmd(
     content models stay on the specs rather than in documentation pages.
 
     ``--format rng`` goes one step further and writes the RELAX NG schema
-    itself, as odd2relax would: the same definitions, without the embedded
-    Schematron.
+    itself. Main purpose is to enable simple validation in editors. Use with 
+    care: not extensively tested on complex ODDs, does not embed Schematron rules.
     """
     from lxml import etree
 
