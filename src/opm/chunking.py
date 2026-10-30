@@ -30,6 +30,7 @@ from opm.runtime.context import RunState
 from opm.runtime.xpath_env import XPathEnvironment
 from opm.transform import (
     load_transform_module,
+    pb_links_to_anchors,
     project_xpath_env,
     run_transform,
     xpath_select,
@@ -49,11 +50,6 @@ from opm.runtime.pm_runtime import serialize as _default_serialize, inject_cache
 from opm.runtime.output_functions import XML_ID
 from opm.xml_parser import parse as xml_parse
 
-# ``pb-link`` carries its cross-reference in a pb-view attribute rather than an
-# href; the first one set wins when resolving the target.
-PB_LINK_TARGET_ATTRS = ('xml-id', 'node-id', 'hash')
-# pb-view wiring that means nothing once the element is a plain anchor.
-PB_LINK_DROP_ATTRS = PB_LINK_TARGET_ATTRS + ('emit', 'subscribe', 'browse')
 _UNSAFE_FILE_RE = re.compile(r'[/\\]+')
 
 
@@ -634,30 +630,10 @@ class ChunkProcessor:
         A ``pb-link`` with no resolvable target (the ``path``-based browse form,
         which points at another document) is left untouched.
         """
-        changed = False
-        for element in wrapper.xpath('.//pb-link'):
-            if not isinstance(element, etree._Element):
-                continue
-            href = element.get('href')
-            if not href:
-                target = next(
-                    (element.get(attr) for attr in PB_LINK_TARGET_ATTRS if element.get(attr)),
-                    None,
-                )
-                if not target:
-                    continue
-                href = self._rewrite_same_document_target(
-                    target if target.startswith('#') else f'#{target}',
-                    current_file=current_file,
-                )
-            if not href:
-                continue
-            element.tag = 'a'
-            element.set('href', href)
-            for attr in PB_LINK_DROP_ATTRS:
-                element.attrib.pop(attr, None)
-            changed = True
-        return changed
+        return pb_links_to_anchors(
+            wrapper,
+            lambda href: self._rewrite_same_document_target(href, current_file=current_file),
+        )
 
     def _rewrite_fragments(
         self,

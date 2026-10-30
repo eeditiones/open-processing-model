@@ -97,6 +97,7 @@ from opm.runtime.xpath_env import XPathEnvironment
 from opm.template_rendering import (
     DEFAULT_TEMPLATE_NAME,
     DEFAULT_TYPST_TEMPLATE_NAME,
+    _inner_html,
     render_document_template,
     render_typst_document_template,
     resolve_template_path,
@@ -340,6 +341,60 @@ def _print_base_css() -> str:
     return base_path.read_text(encoding='utf-8').rstrip()
 
 
+# ``pb-link`` carries its cross-reference in a pb-view attribute rather than an
+# href; the first one set wins when resolving the target.
+PB_LINK_TARGET_ATTRS = ('xml-id', 'node-id', 'hash')
+# pb-view wiring that means nothing once the element is a plain anchor.
+PB_LINK_DROP_ATTRS = PB_LINK_TARGET_ATTRS + ('emit', 'subscribe', 'browse')
+
+
+def pb_links_to_anchors(
+    tree: etree._Element,
+    resolve: Callable[[str], str | None] = lambda href: href,
+) -> bool:
+    """Turn the ``pb-link`` elements below *tree* into plain anchors.
+
+    A standalone page has no ``pb-view`` listening on the channel a
+    ``pb-link`` emits on, so a link that only names its target in
+    ``xml-id``/``node-id``/``hash`` goes nowhere. Each such target becomes
+    ``#id``, passed through *resolve* (which may point it at another file,
+    or return ``None`` to leave the element alone). A ``pb-link`` with no
+    target (the ``path``-based browse form) is left untouched. Returns
+    whether anything changed.
+    """
+    changed = False
+    for element in list(tree.iter('pb-link')):
+        href = element.get('href')
+        if not href:
+            target = next(
+                (element.get(attr) for attr in PB_LINK_TARGET_ATTRS if element.get(attr)),
+                None,
+            )
+            if not target:
+                continue
+            href = resolve(target if target.startswith('#') else f'#{target}')
+        if not href:
+            continue
+        element.tag = 'a'
+        element.set('href', href)
+        for attr in PB_LINK_DROP_ATTRS:
+            element.attrib.pop(attr, None)
+        changed = True
+    return changed
+
+
+def _pb_links_to_anchors_html(html: str) -> str:
+    """[`pb_links_to_anchors`][opm.transform.pb_links_to_anchors] for an HTML fragment string."""
+    if 'pb-link' not in html:
+        return html
+    wrapped = etree.fromstring(f'<div>{html}</div>'.encode('utf-8'), parser=etree.HTMLParser(encoding='utf-8'))
+    body = wrapped.find('body')
+    wrapper = body.find('div') if body is not None else None
+    if wrapper is None or not pb_links_to_anchors(wrapper):
+        return html
+    return _inner_html(wrapper)
+
+
 def _append_nodes(parent: etree._Element, nodes: Sequence[Any]) -> None:
     """Append a transform result, elements and strings mixed, to *parent*."""
     for node in nodes:
@@ -505,6 +560,12 @@ def run_transform(
         body.text = None
         for section in _page_sections(mod, root, pages, transform_opts, env):
             body.append(section)
+    if apply_template and is_document and mode.template == 'html':
+        # A whole-document page stands alone: no pb-view for pb-links to talk to.
+        if body is not None:
+            pb_links_to_anchors(body)
+        if fragments:
+            fragments = {name: _pb_links_to_anchors_html(html) for name, html in fragments.items()}
     out = serialize(result)
 
     if apply_template and mode.template == 'typst':

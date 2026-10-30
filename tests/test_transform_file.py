@@ -151,3 +151,19 @@ def test_whole_document_placeholders_point_beside_the_output() -> None:
     assert expand_placeholders(params, Path('data/F-ado.xml')) == {
         'context-path': 'assets', 'src': 'F-ado/{stem}', 'n': 3,
     }
+
+
+def test_whole_document_page_turns_pb_links_into_anchors() -> None:
+    """A standalone page has no pb-view, so pb-link targets become #id hrefs."""
+    from opm.transform import _pb_links_to_anchors_html
+
+    html = (
+        '<li><pb-link xml-id="browsing" node-id="browsing" emit="transcription" '
+        'subscribe="transcription"><span>Browsing</span></pb-link></li>'
+        '<pb-link path="other.xml">Other</pb-link>'
+    )
+
+    assert _pb_links_to_anchors_html(html) == (
+        '<li><a href="#browsing"><span>Browsing</span></a></li>'
+        '<pb-link path="other.xml">Other</pb-link>'
+    )
