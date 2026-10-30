@@ -79,6 +79,14 @@ body.jr {
   color: var(--jr-accent);
 }
 
+a.jr-journal {
+  text-decoration: none;
+}
+
+a.jr-journal:hover {
+  text-decoration: underline;
+}
+
 /* journal-meta prints title, publisher and ISSN as inline spans */
 .jr-journal .journal-meta {
   font-size: inherit;

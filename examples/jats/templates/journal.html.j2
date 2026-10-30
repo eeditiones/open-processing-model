@@ -39,7 +39,10 @@ classes = ["jr"]
 {% endblock %}
 
 {% block logo %}
-  {% if has_journal %}<div class="jr-journal">{{ fragments.journal | safe }}</div>{% endif %}
+  {%- if has_journal %}
+    {%- if index_url %}<a class="jr-journal" href="{{ index_url }}">{{ fragments.journal | safe }}</a>
+    {%- else %}<div class="jr-journal">{{ fragments.journal | safe }}</div>{% endif %}
+  {%- endif %}
 {% endblock %}
 
 {% block menu_toggles %}
