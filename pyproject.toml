@@ -11,10 +11,11 @@ requires-python = ">=3.12"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE", "LICENSING.md"]
 authors = [{ name = "e-editiones", email = "info@e-editiones.org" }]
-keywords = ["tei", "tei-xml", "xml", "odd", "processing-model", "xslt", "tei-to-html", "tei-to-pdf", "epub", "typst", "static-site", "publishing", "digital-humanities", "digital-editions", "jats", "docbook", "markdown", "pandoc", "python", "command-line", "cli"]
+keywords = ["tei", "tei-xml", "xml", "odd", "processing-model", "xslt", "tei-to-html", "tei-to-pdf", "epub", "docx", "word", "typst", "static-site", "publishing", "digital-humanities", "digital-editions", "jats", "docbook", "markdown", "pandoc", "python", "command-line", "cli"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
+    "Operating System :: OS Independent",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
@@ -22,6 +23,11 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Text Processing :: Markup :: XML",
     "Topic :: Text Processing :: Markup :: HTML",
+    "Topic :: Text Processing :: Markup :: Markdown",
+    "Topic :: Printing",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Internet :: WWW/HTTP :: Site Management",
+    "Topic :: Sociology :: History",
     "Typing :: Typed",
 ]
 dependencies = [
