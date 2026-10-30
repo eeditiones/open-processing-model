@@ -79,6 +79,9 @@ pages = "opm.navigation.tei_pb_chunks"
 # Read by the chapbook template only, so they overlay [context] here rather
 # than sitting in it: a Typst or EPUB run has no use for either.
 [transform.web.context]
+
+site_name = "Shakespeare Plays"
+
 # Shown in the menu bar. The template looks it up in the copied assets, so the
 # same name works on chunk pages and on a whole-document page.
 logo = "icon.png"
