@@ -224,8 +224,8 @@ TEI Stylesheets' ``odd2relax`` take that file. Unlike ``opm odd document --prepa
 content models stay on the specs rather than in documentation pages.
 
 ``--format rng`` goes one step further and writes the RELAX NG schema
-itself, as odd2relax would: the same definitions, without the embedded
-Schematron.
+itself. Main purpose is to enable simple validation in editors. Use with 
+care: not extensively tested on complex ODDs, does not embed Schematron rules.
 
 **Usage:**
 

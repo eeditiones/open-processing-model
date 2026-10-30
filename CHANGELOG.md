@@ -11,6 +11,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-29
+
+Besides numerous bug fixes, this release supports generating documentation from existing ODDs, either as a static website, markdown, ePub or PDF. It also adds two more examples, showcasing a nicely designed monograph as well as another correspondence edition with a switch between diplomatic and edited text. HTML templates and styling have been refactored accordingly.
+
 ### Added
 
 - `[transform] footnote_order` / `--footnote-order` for `web` and `markdown`
@@ -55,5 +59,6 @@ signals that the CLI and `opm.toml` surface may still change before 1.0.
 - `opm.toml` project configuration for templates, CSS, XPath extensions,
   chunking rules, and Python path additions.
 
-[Unreleased]: https://github.com/eeditiones/open-processing-model/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/eeditiones/open-processing-model/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/eeditiones/open-processing-model/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/eeditiones/open-processing-model/releases/tag/v0.9.0
