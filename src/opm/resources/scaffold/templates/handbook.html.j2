@@ -20,7 +20,8 @@ styles = [
 classes = ["handbook"]
 ---
 {% extends "opm/layout.html.j2" %}
-{% set work_title = (fragments.title | striptags | trim if fragments is defined and fragments.title else '') or 'Handbook' %}
+{% set doc_title = (fragments.title | striptags | trim if fragments is defined and fragments.title else '') or 'Handbook' %}
+{% set work_title = context.site_name or doc_title %}
 {% set is_chunk = chunk is defined and chunk %}
 {% set has_toc = fragments is defined and fragments.toc %}
 
@@ -29,7 +30,7 @@ classes = ["handbook"]
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 {% endblock %}
 
-{% block title %}<title>{{ work_title }}</title>{% endblock %}
+{% block title %}<title>{{ doc_title }}</title>{% endblock %}
 
 {% block body_class %}{% if has_toc %}handbook--with-toc{% endif %}{% endblock %}
 

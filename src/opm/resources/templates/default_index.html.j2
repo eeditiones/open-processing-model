@@ -9,7 +9,7 @@ class = "opm-index"
 {% block meta %}{{ super() }}
   <!-- opm-default-index-template -->
 {% endblock %}
-{% block title %}<title>{{ title }}</title>{% endblock %}
+{% block title %}<title>{{ context.site_name or title }}</title>{% endblock %}
 {#- After the ODD's stylesheet, which may style headings and links too. -#}
 {% block odd_overrides %}
   <style type="text/css">

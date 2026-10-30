@@ -25,6 +25,9 @@ css = "templates/epub.css"
 [transform.typst]
 template = "templates/docbook.typ.j2"
 
+[context]
+site_name = "TEI Publisher Documentation"
+
 [chunking]
 selector = "opm.navigation.dbk_section_chunks"
 depth = 2
