@@ -214,7 +214,7 @@ def inject_cached_footnotes(nodes: list, config) -> list:
     a reference-definition string.
 
     This is the one place collected footnotes become output, so it is also
-    where [`RenderContext.footnote_order`][opm.runtime.context.RenderContext.footnote_order]
+    where [`RenderContext.footnote_order`][opm.runtime.context.RenderContext]
     gets its say. The contract for such a hook:
 
     * It is called **once per run** — once per generated ``transform()``, once

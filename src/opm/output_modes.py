@@ -71,7 +71,7 @@ class OutputMode:
     #: The ``note`` behaviour defers footnote bodies to
     #: [`RunState.footnotes`][opm.runtime.context.RunState] and opm places them
     #: itself at the end of each run, so
-    #: [`footnote_order`][opm.runtime.context.RenderContext.footnote_order]
+    #: [`footnote_order`][opm.runtime.context.RenderContext]
     #: applies. Where this is false the notes stay in the flow and the consumer
     #: — Typst, an EPUB reader, Word, paged-media CSS — places them.
     collects_footnotes: bool = False

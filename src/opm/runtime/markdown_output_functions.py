@@ -411,7 +411,7 @@ class MarkdownOutputFunctions(ProcessingModelFunctions):
         The marker a reader sees comes from the Markdown renderer, so ``label``
         is kept only on the
         [`Footnote`][opm.runtime.context.Footnote] record, for a
-        [`footnote_order`][opm.runtime.context.RenderContext.footnote_order]
+        [`footnote_order`][opm.runtime.context.RenderContext]
         hook to sort on. The hook decides the order of the definition block
         this writes out.
 

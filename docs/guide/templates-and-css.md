@@ -470,7 +470,7 @@ JSON (`---json`, or just `---`), like the frontmatter of jinks templates.
 
 The settings in the frontmatter end up in the variable `context`, together
 with those from `[context]` in `opm.toml` (see
-[How the settings are combined](#how-the-settings-are-combined) below). So
+[How the settings are combined](#context-merging) below). So
 your own templates can read any setting of the frontmatter as
 `context.<name>`. opm's templates understand the following settings:
 

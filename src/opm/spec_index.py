@@ -4,7 +4,7 @@
 """In-memory graph of TEI ODD specification elements.
 
 This is the documentation counterpart of
-[`opm.odd_compiler.parse_odd`][opm.odd_compiler.parse_odd]: that module merges
+[`opm.odd_compiler.parse_odd`][opm.odd_compiler.parse_odd.ParsedOdd]: that module merges
 ``elementSpec``s so they can be compiled, while this one indexes
 ``elementSpec`` / ``classSpec`` / ``macroSpec`` / ``dataSpec`` and inverts
 their class memberships and content-model references, from which

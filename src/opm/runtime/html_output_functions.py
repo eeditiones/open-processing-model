@@ -227,7 +227,7 @@ class HtmlOutputFunctions(ProcessingModelFunctions):
         and placed by
         [`inject_cached_footnotes`][opm.runtime.pm_runtime.inject_cached_footnotes]
         at the end of the run, which is where a
-        [`footnote_order`][opm.runtime.context.RenderContext.footnote_order]
+        [`footnote_order`][opm.runtime.context.RenderContext]
         hook may reorder it. The label is also kept as ``data-n`` — as
         [`PrintOutputFunctions.note`][opm.runtime.print_output_functions.PrintOutputFunctions.note]
         does — so CSS can tell a note carrying its own ``@n`` from one numbered

@@ -59,7 +59,7 @@ def tei_div_chunks(root: etree._Element, config: ChunkingConfig) -> list[etree._
       content before its first child div (a heading, an opening section).
       That content becomes a chunk of its own, placed before the children: a
       detached copy of the div holding only the intro, recorded in
-      [`source_map`][opm.runtime.source_map] so ``$get()`` still reaches the
+      ``opm.runtime.source_map`` so ``$get()`` still reaches the
       stored document.  Whitespace, comments and empty milestones such as
       ``pb`` alone do not count as intro.
 

@@ -609,10 +609,10 @@ class ProjectConfig:
     """Dotted path of the callable that orders a run's footnotes (``[transform] footnote_order``).
 
     Resolved by [`load_callable`][opm.output_modes.load_callable] and set on
-    [`RenderContext.footnote_order`][opm.runtime.context.RenderContext.footnote_order].
+    [`RenderContext.footnote_order`][opm.runtime.context.RenderContext].
     [`opm.runtime.footnote_order`][opm.runtime.footnote_order] ships the common
     orderings. Only the output modes with
-    [`collects_footnotes`][opm.output_modes.OutputMode.collects_footnotes] place
+    [`collects_footnotes`][opm.output_modes.OutputMode] place
     footnotes themselves, so it has no effect on the others.
     """
     xpath_documents: tuple[Path, ...] = ()

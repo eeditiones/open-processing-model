@@ -43,7 +43,7 @@ class Footnote:
 
     The backends that collect footnotes render the body eagerly but place it
     only when the run ends, so everything a
-    [`footnote_order`][opm.runtime.context.RenderContext.footnote_order] hook
+    [`footnote_order`][opm.runtime.context.RenderContext] hook
     might sort or filter on is kept here as data. A hook never has to read it
     back out of the markup.
     """
@@ -72,7 +72,7 @@ class Footnote:
 
 
 #: Reorder one run's footnotes before they are placed; see
-#: [`RenderContext.footnote_order`][opm.runtime.context.RenderContext.footnote_order].
+#: [`RenderContext.footnote_order`][opm.runtime.context.RenderContext].
 FootnoteOrder = Callable[[list[Footnote], 'RenderContext'], list[Footnote]]
 
 

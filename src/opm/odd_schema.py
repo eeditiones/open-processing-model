@@ -334,7 +334,7 @@ def compile_schema(
     """Load *path* and merge it along ``schemaSpec/@source``.
 
     * Parent ODDs are applied first, then the local file — the same order
-      [`parse_odd`][opm.odd_compiler.parse_odd] uses for processing models.
+      [`parse_odd`][opm.odd_compiler.parse_odd.ParsedOdd] uses for processing models.
     * A TEI-targeting ODD (``schemaSpec/@ns`` absent or the TEI namespace) is
       merged onto the cached TEI artifact so ``moduleRef`` and content models
       resolve. It tracks TEI's latest release; an ODD pinning an older
