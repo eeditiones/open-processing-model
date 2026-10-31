@@ -32,6 +32,8 @@
     layout.before.mobile  "drawer" (slides in, opened from content-top) or
                           "stack" (shown below the content)
     layout.before.label   label of the drawer's open button
+    layout.before.span_top  start the column level with content-top, not below
+                          it (ignored while before-top has content)
     layout.after.*        the same for the after column
     menu.items            links after the logo: [{ label, url }]
     features.menubar      false drops the menubar (the header block stays)
@@ -82,7 +84,9 @@
 <div class="opm-layout
   {%- if L.class %} {{ L.class }}{% endif %}
   {%- if blocks.before %} has-before opm-before--{{ 'drawer' if before_drawer else 'stack' }}{% endif %}
-  {%- if blocks.after %} has-after opm-after--{{ 'drawer' if after_drawer else 'stack' }}{% endif %}"
+  {%- if blocks.before and L.before.span_top and not blocks.before_top %} opm-before--span-top{% endif %}
+  {%- if blocks.after %} has-after opm-after--{{ 'drawer' if after_drawer else 'stack' }}{% endif %}
+  {%- if blocks.after and L.after.span_top and not blocks.after_top %} opm-after--span-top{% endif %}"
   {%- if widths %} style="{{ widths | join(' ') }}"{% endif %}>
   <a class="opm-skip" href="#opm-content">{{ L.skip_label }}</a>
   {%- if before_drawer %}

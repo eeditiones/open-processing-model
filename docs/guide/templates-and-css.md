@@ -486,6 +486,7 @@ your own templates can read any setting of the frontmatter as
 | `layout.before.width`, `layout.after.width` | Width of the left and right column |
 | `layout.before.mobile`, `layout.after.mobile` | What happens to the column on a phone: `"drawer"` (it slides in when the reader taps a button) or `"stack"` (it moves below the text) |
 | `layout.before.label`, `layout.after.label` | Text of the button which opens the sliding panel, also used as the panel's heading |
+| `layout.before.span_top`, `layout.after.span_top` | `true` starts the column level with the toolbar instead of below it |
 | `layout.close_label` | Text of the link which closes the sliding panel |
 | `layout.previous_label`, `layout.next_label` | Text of the toolbar's links to the previous and next page |
 | `menu.items` | Links in the menu bar, each with a `label` and a `url` |

@@ -26,6 +26,8 @@ close_label = "Close"
 mobile = "drawer"
 # Text of the button that opens the drawer.
 label = "Contents"
+# Start the column level with the toolbar instead of below it.
+# span_top = true
 
 [layout.after]
 # width = "18rem"

@@ -18,6 +18,9 @@ styles = [
 
 [body]
 classes = ["handbook"]
+
+[layout.before]
+span_top = true
 ---
 {% extends "opm/layout.html.j2" %}
 {% set doc_title = (fragments.title | striptags | trim if fragments is defined and fragments.title else '') or 'Handbook' %}
