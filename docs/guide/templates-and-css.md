@@ -15,6 +15,10 @@ The template is used in two situations:
   sections and transforms each of them separately. The output is then just a
   piece of HTML, and it is the template which turns it into a complete page.
 
+Templates can also be written in the template language of TEI Publisher,
+with XPath expressions. opm uses it for every template whose name ends in
+`.tpl`. See [jinks templates](jinks-templates.md).
+
 ## HTML templates
 
 opm looks for the HTML template in the following places and uses the first one

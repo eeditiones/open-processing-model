@@ -844,7 +844,7 @@ class ChunkProcessor:
             chunk_template = self._chunk_template_path(template_path)
             if chunk_template is None:
                 return None
-            self._jinja_env = template_environment(chunk_template)
+            self._jinja_env = template_environment(chunk_template, self.xpath_env)
             self._jinja_template = load_template(self._jinja_env, chunk_template)
             self._jinja_context = template_context(
                 self._jinja_env, chunk_template.name, self.template_context,
@@ -1612,6 +1612,10 @@ def build_index(
         context=(project_config or ProjectConfig()).context_for(
             'web', webcomponents=webcomponents,
         ),
+        xpath_env=XPathEnvironment(
+            namespaces=dict(project_config.xpath_namespaces),
+            extensions=project_config.xpath_extensions,
+        ) if project_config is not None else None,
     )
     index_file = output_dir / 'index.html'
     index_file.write_text(rendered, encoding='utf-8')

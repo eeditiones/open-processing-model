@@ -1,8 +1,10 @@
-/* Layout behind opm/layout.html.j2, modelled on the jinks base layout.
+/* Layout behind opm/layout.html.j2 and opm/layout.html.tpl, modelled on the
+   jinks base layout.
 
    Regions: header and hero across the page; before-top / content-top /
    after-top above before / content / after; footer across the page. A region
-   the template leaves empty is not rendered, and its column takes no room.
+   the template leaves empty takes no room: layout.html.j2 leaves it out,
+   layout.html.tpl writes it empty and the :has() rules below hide it.
 
    A theme adjusts it through custom properties rather than by overriding
    these rules:
@@ -13,7 +15,7 @@
      --opm-layout-sticky-top    how far below the viewport top sticky sidebars
                                 stop, e.g. the height of a sticky header
 
-   Page chrome (the menubar and toolbar layout.html.j2 writes):
+   Page chrome (the menubar and toolbar the layout writes):
      --opm-background-color, --opm-color, --opm-color-muted,
      --opm-color-rule, --opm-color-accent
      --opm-background-color-drawer  background of a sidebar opened as a drawer
@@ -188,6 +190,30 @@
   --opm-layout-after-track: var(--opm-layout-after-width, 18rem);
 }
 
+/* layout.html.tpl writes every region, as jinks does. A region counts as
+   empty when it holds no element besides a drawer's head; layout.html.j2
+   never writes such a region, so these rules change nothing there. */
+.opm-layout:has(> .before > :not(.opm-drawer__head)) {
+  --opm-layout-before-track: var(--opm-layout-before-width, 18rem);
+}
+
+.opm-layout:has(> .after > :not(.opm-drawer__head)) {
+  --opm-layout-after-track: var(--opm-layout-after-width, 18rem);
+}
+
+.opm-layout > :is(.hero, .before-top, .after-top, .page-footer):not(:has(*)),
+.opm-layout > :is(.before, .after):not(:has(> :not(.opm-drawer__head))),
+.opm-layout > .page-header:not(:has(> :not(.menubar), li:not(.logo, .trigger), .logo > *)),
+.opm-layout > .content-top:not(:has(> :not(.toolbar), li, .breadcrumb > *)),
+.menubar:not(:has(li:not(.logo, .trigger), .logo > *)),
+.menubar .logo:not(:has(*)),
+.toolbar:not(:has(li, .breadcrumb > *)),
+.toolbar > ul:not(:has(li)),
+.opm-layout:not(:has(> .before > :not(.opm-drawer__head))) .trigger:has(.opm-drawer__open--before),
+.opm-layout:not(:has(> .after > :not(.opm-drawer__head))) .trigger:has(.opm-drawer__open--after) {
+  display: none;
+}
+
 .opm-layout > .page-header {
   grid-area: header;
   position: sticky;
@@ -242,11 +268,11 @@
 
 /* layout.before.span_top / layout.after.span_top */
 @media (min-width: 64.001em) {
-  .opm-layout.opm-before--span-top > .before {
+  .opm-layout.opm-before--span-top:not(:has(> .before-top > *)) > .before {
     grid-row-start: before-top;
   }
 
-  .opm-layout.opm-after--span-top > .after {
+  .opm-layout.opm-after--span-top:not(:has(> .after-top > *)) > .after {
     grid-row-start: after-top;
   }
 }

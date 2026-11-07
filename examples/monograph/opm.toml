@@ -50,7 +50,7 @@ register-root = "urn:registers"
 # css = "styles/base.css"
 
 [transform.web]
-template = "templates/monograph.html.j2"
+template = "templates/monograph.html.tpl"
 # Emit TEI Publisher web components and let the template load the bundle.
 # Its URL is an ordinary template value, so serving it yourself is just
 # [transform.web.context] with webcomponents_url = "..." below.
@@ -60,9 +60,10 @@ webcomponents = false
 # Switching to another template? Change its stylesheet here too.
 assets = ["templates/chapbook.css", "templates/monograph.css"]
 
-# Anything here reaches every Jinja2 template as `context` — templates only,
-# never XPath — so TOML types survive: booleans, numbers, arrays, sub-tables.
-# Read it as {{ context.site_name }} or {% if context.show_downloads %}.
+# Anything here reaches every template as `context` — templates only, not the
+# ODD's XPath — so TOML types survive: booleans, numbers, arrays, sub-tables.
+# The templates of this example use the jinks syntax (.tpl): read a value as
+# [[ $context?site_name ]] or [% if $context?show_downloads %].
 # [context]
 # site_name = "My edition"
 # show_downloads = true
@@ -70,7 +71,7 @@ assets = ["templates/chapbook.css", "templates/monograph.css"]
 #                               # assets copies it to <output-root>/assets/,
 #                               # one directory above the chunk pages
 #
-# Templates extending opm/layout.html.j2 read their layout settings here too.
+# Templates extending opm/layout.html.tpl read their layout settings here too.
 # The defaults (opm/defaults.toml in the package) are:
 # [context.layout.before]
 # width = "18rem"      # column left of the text
@@ -92,13 +93,13 @@ lang = "de"
 
 [transform.print]
 # Paged media (Prince, Paged.js) in the design of the Typst output.
-template = "templates/print.html.j2"
+template = "templates/print.html.tpl"
 
 [transform.docx]
 template = "templates/default.docx"
 
 [transform.typst]
-template = "templates/book.typ.j2"
+template = "templates/book.typ.tpl"
 
 [transform.epub]
 # The "Der Römerbrief" design for reading systems; cascades after opm's

@@ -1,8 +1,8 @@
-{#
+[#
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
 
-  Print counterpart of monograph.html.j2: the "Der Römerbrief" design set as a
+  jinks version of book.typ.j2. Print counterpart of monograph.html.tpl: the "Der Römerbrief" design set as a
   book page. Paper, ink and one rubric red; EB Garamond for the text, Alegreya
   Sans for furniture (running head, folio, note numbers). Colours and type
   scale follow chapbook.css and monograph.css, so the two outputs read alike.
@@ -10,10 +10,10 @@
   Optional context values (opm.toml [context] or [transform.typst.context]):
   context.author (running head), context.lang (default "de", for hyphenation),
   context.paper (default "a5").
--#}
+#]
+[% let $title = string(($context?metadata?title?*)[1]) %]
 // Karl Barth-Gesamtausgabe — "Der Römerbrief" print design.
 
-{% set _title = (metadata.get('title') or [''])[0] -%}
 // ── Design tokens (chapbook.css, light theme) ──────────────────────────────
 #let ink = rgb("#211c16")
 #let ink-muted = rgb("#675d51")
@@ -27,13 +27,13 @@
 #let font-serif = ("EB Garamond", "Iowan Old Style", "Libertinus Serif")
 #let font-sans = ("Alegreya Sans", "Gill Sans", "Helvetica Neue")
 
-#set document(title: "{{ _title }}"{% if context.author %}, author: "{{ context.author }}"{% endif %})
-#set page(paper: "{{ context.paper or 'a5' }}")
+#set document(title: "[[ $title ]]"[% if $context?author %], author: "[[ $context?author ]]"[% endif %])
+#set page(paper: "[[ ($context?paper[. != ''], 'a5')[1] ]]")
 #set text(
   font: font-serif,
   size: 10pt,
   fill: ink,
-  lang: "{{ context.lang or 'de' }}",
+  lang: "[[ ($context?lang[. != ''], 'de')[1] ]]",
   hyphenate: true,
   number-type: "old-style",
 )
@@ -45,7 +45,7 @@
 // References are set in rubric; in print they are text, not links.
 #show link: it => text(fill: rubric, it.body)
 
-{% include "opm_css_fns_default.typ.j2" %}
+[% include "opm_css_fns_default.typ.j2" %]
 
 #show: marginalia.setup.with(
   inner: (far: 1.6cm),
@@ -59,10 +59,14 @@
 #set page(
   header: context if counter(page).get().first() > 1 {
     set text(font: font-sans, size: 7.5pt, fill: ink-muted, number-type: "lining")
-    align(center)[
-      {%- if context.author %}#text(tracking: 0.1em, upper[{{ context.author }}])#h(0.6em)·#h(0.6em){% endif -%}
-      #text(style: "italic")[{{ _title }}]
-    ]
+    [# Written in code mode: in markup a line break would add a space, and a
+       Typst [ right before [[ or [% would read as a template tag. #]
+    align(center, {
+      [% if $context?author %]
+      text(tracking: 0.1em, upper("[[ $context?author ]]")) + h(0.6em) + [·] + h(0.6em)
+      [% endif %]
+      text(style: "italic", "[[ $title ]]")
+    })
   },
   footer: context {
     set text(font: font-sans, size: 8pt, fill: ink-muted, number-type: "lining")
@@ -108,7 +112,7 @@
   note_range_start: (body) => super(text(font: font-serif, style: "normal", fill: entity, body)),
 )
 
-{{ odd_typst }}
+[[ $context?odd_typst ]]
 
 // ── Headings ───────────────────────────────────────────────────────────────
 #set heading(numbering: none)
@@ -222,6 +226,7 @@
   }
 }
 
-{% include "opm_css.typ.j2" %}
+[% include "opm_css.typ.j2" %]
 
-{{ content_typst }}
+[[ $context?content_typst ]]
+[% endlet %]

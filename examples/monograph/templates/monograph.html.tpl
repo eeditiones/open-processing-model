@@ -1,9 +1,9 @@
-{#
+[#
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
 
   monograph: multi-page, text-centric reading, on opm's packaged page layout
-  (opm/layout.html.j2). The layout writes the menubar and the breadcrumb
+  (opm/layout.html.tpl). The layout writes the menubar and the breadcrumb
   toolbar; the template adds text-size buttons, the contents as the `before`
   column and page-turn links. chapbook.css styles it all.
 
@@ -14,7 +14,10 @@
 
   Its stylesheet, chapbook.css, is listed under [transform.web] assets in
   opm.toml: copied next to the output and linked by the base template.
--#}
+
+  This is the jinks version of monograph.html.j2. To use it, set
+  template = "templates/monograph.html.tpl" under [transform.web].
+#]
 ---toml
 styles = [
   "https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap",
@@ -22,96 +25,104 @@ styles = [
 
 [body]
 classes = ["chapbook"]
----
-{% extends "opm/layout.html.j2" %}
-{% set work_title = (fragments.title | striptags | trim if fragments is defined and fragments.title else '') or 'Chapbook' %}
-{% set is_chunk = chunk is defined and chunk %}
-{% set has_toc = fragments is defined and fragments.toc %}
 
-{% block meta %}{{ super() }}
+[templating]
+extends = "opm/layout.html.tpl"
+---
+
+[% template meta %]
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-{% endblock %}
+[% endtemplate %]
 
-{% block title %}<title>{{ work_title }}</title>{% endblock %}
+[# The work's title, from the `title` fragment without its markup. #]
+[% template title %]
+<title>[[ (normalize-space(parse-xml-fragment($context?fragments?title)), 'Chapbook')[. != ''][1] ]]</title>
+[% endtemplate %]
 
-{% block body_class %}{% if has_toc %}chapbook--with-toc{% endif %}{% endblock %}
+[% template! logo %]
+<a href="[[ ($context?home_url, $context?index_url, 'index.html')[string(.) != ''][1] ]]">
+  <span class="logo__title">[[ (normalize-space(parse-xml-fragment($context?fragments?title)), 'Chapbook')[. != ''][1] ]]</span>
+</a>
+[% endtemplate %]
 
-{# Reader-set text size, remembered per browser. #}
-{% block menu_toggles %}
+[% template body_class %][% if $context?fragments?toc %]chapbook--with-toc[% endif %][% endtemplate %]
+
+[# Reader-set text size, remembered per browser. #]
+[% template menu_toggles %]
   <li class="chap-zoom">
     <button type="button" data-chap-zoom="-0.1" title="Smaller text" aria-label="Smaller text">A&minus;</button>
     <button type="button" data-chap-zoom="0.1" title="Larger text" aria-label="Larger text">A+</button>
   </li>
-{% endblock %}
+[% endtemplate %]
 
-{% block before %}
-  {% if has_toc %}
-  <nav class="chap-toc rb-toc{% if is_chunk %} rb-toc--chunk{% endif %}" aria-label="Contents">
+[% template before %]
+  [% if $context?fragments?toc %]
+  <nav class="chap-toc rb-toc[[ if (exists($context?chunk)) then ' rb-toc--chunk' else '' ]]" aria-label="Contents">
     <p class="chap-toc__title">Contents</p>
-    {# Links to the page being read come out as `#<its xml:id>`: mark them. #}
-    {% if is_chunk and chunk.xml_id %}
-    {{ fragments.toc | replace('href="#' ~ chunk.xml_id ~ '"', 'href="#' ~ chunk.xml_id ~ '" aria-current="page"') | safe }}
-    {% else %}
-    {{ fragments.toc | safe }}
-    {% endif %}
+    [# Links to the page being read come out as `#<its xml:id>`: mark them. #]
+    [% if $context?chunk?xml_id %]
+    [% let $link = 'href="#' || $context?chunk?xml_id || '"' %]
+    [[ parse-xml-fragment(replace($context?fragments?toc, $link, $link || ' aria-current="page"', 'q')) ]]
+    [% endlet %]
+    [% else %]
+    [[ $context?fragments?toc ]]
+    [% endif %]
   </nav>
-  {% endif %}
-{% endblock %}
+  [% endif %]
+[% endtemplate %]
 
-{% block content %}
-  <div class="chap-page{% if is_chunk %} chap-page--chunk{% endif %}{% if has_toc %} chap-page--with-toc{% endif %}">
-    <div class="chap-body">
-      <article class="content" id="chap-content" lang="{{ context.lang or 'de' }}">
-        {{ content_html | safe }}
-      </article>
+<div class="chap-page[[ if (exists($context?chunk)) then ' chap-page--chunk' else '' ]][[ if ($context?fragments?toc) then ' chap-page--with-toc' else '' ]]">
+  <div class="chap-body">
+    <article class="content" id="chap-content" lang="[[ ($context?lang[. != ''], 'de')[1] ]]">
+      [[ $context?content_html ]]
+    </article>
+  </div>
+
+  [% if $context?chunk?prev or $context?chunk?next %]
+  <nav class="chap-folio-nav__foot" aria-label="Page navigation">
+    <div>
+      [% if $context?chunk?prev %]<a href="[[ $context?chunk?prev ]].html" rel="prev">&#8592;&ensp;Previous</a>[% endif %]
     </div>
+    <div>
+      [% if $context?chunk?next %]<a href="[[ $context?chunk?next ]].html" rel="next">Next&ensp;&#8594;</a>[% endif %]
+    </div>
+  </nav>
+  [% endif %]
+</div>
 
-    {% if is_chunk and (chunk.prev or chunk.next) %}
-    <nav class="chap-folio-nav__foot" aria-label="Page navigation">
-      <div>
-        {% if chunk.prev %}<a href="{{ chunk.prev }}.html" rel="prev">&#8592;&ensp;Previous</a>{% endif %}
-      </div>
-      <div>
-        {% if chunk.next %}<a href="{{ chunk.next }}.html" rel="next">Next&ensp;&#8594;</a>{% endif %}
-      </div>
-    </nav>
-    {% endif %}
-  </div>
-{% endblock %}
-
-{% block footer %}
-  {% if context.footer %}
+[% template footer %]
+  [% if $context?footer %]
   <div class="chap-footer">
-    <div class="chap-footer__inner">{{ context.footer | safe }}</div>
+    <div class="chap-footer__inner">[[ parse-xml-fragment($context?footer) ]]</div>
   </div>
-  {% endif %}
-{% endblock %}
+  [% endif %]
+[% endtemplate %]
 
-{% block body_end %}
-  {% if is_chunk and chunk.prev %}
+[% template body_end %]
+  [% if $context?chunk?prev %]
   <div class="chap-folio-nav__rail chap-folio-nav__rail--prev">
-    <a href="{{ chunk.prev }}.html" rel="prev" title="Previous page (left arrow key)">
+    <a href="[[ $context?chunk?prev ]].html" rel="prev" title="Previous page (left arrow key)">
       <span class="chap-folio-nav__chevron" aria-hidden="true">&#8592;</span>
       <span class="chap-folio-nav__dir">Previous</span>
     </a>
   </div>
-  {% endif %}
-  {% if is_chunk and chunk.next %}
+  [% endif %]
+  [% if $context?chunk?next %]
   <div class="chap-folio-nav__rail chap-folio-nav__rail--next">
-    <a href="{{ chunk.next }}.html" rel="next" title="Next page (right arrow key)">
+    <a href="[[ $context?chunk?next ]].html" rel="next" title="Next page (right arrow key)">
       <span class="chap-folio-nav__chevron" aria-hidden="true">&#8594;</span>
       <span class="chap-folio-nav__dir">Next</span>
     </a>
   </div>
-  {% endif %}
+  [% endif %]
 
   <script>
   (function () {
     var content = document.getElementById('chap-content');
 
-    {# The notes arrive apparatus-first already: `[transform] footnote_order`
-       in opm.toml orders each page's footnotes before they are placed. #}
+    [# The notes arrive apparatus-first already: `[transform] footnote_order`
+       in opm.toml orders each page's footnotes before they are placed. #]
     if (content) {
       var KEY = 'opm-chapbook-font-size';
       try {
@@ -130,7 +141,7 @@ classes = ["chapbook"]
       });
     }
 
-    {# Arrow keys turn the page, as the rails do. #}
+    [# Arrow keys turn the page, as the rails do. #]
     var prev = document.querySelector('.chap-folio-nav__rail--prev a');
     var next = document.querySelector('.chap-folio-nav__rail--next a');
     if (!prev && !next) return;
@@ -143,4 +154,4 @@ classes = ["chapbook"]
     });
   })();
   </script>
-{% endblock %}
+[% endtemplate %]

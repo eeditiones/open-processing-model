@@ -95,6 +95,7 @@ nav:
       - Search indexing: guide/search-indexing.md
       - Integration with TEI Publisher: guide/tei-publisher.md
       - Templates & CSS: guide/templates-and-css.md
+      - jinks templates: guide/jinks-templates.md
       - Assets: guide/assets.md
       - ODD coverage: guide/coverage.md
       - ODD documentation: guide/odd-documentation.md

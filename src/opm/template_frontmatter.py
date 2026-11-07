@@ -18,7 +18,7 @@ the packaged defaults (``opm/defaults.toml``) and the project's ``[context]``
 along the template's ``{% extends %}`` chain: the root layout first, the
 rendered template last, so a child overrides its parent and frontmatter
 overrides ``opm.toml``. See
-[`merge_deep`][opm.template_frontmatter.merge_deep] for how values combine.
+[`merge_deep`][opm.jinks_templates.merge.merge_deep] for how values combine.
 """
 
 from __future__ import annotations
@@ -34,6 +34,11 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound, nodes
 
+from opm.jinks_templates.environment import Environment as JinksEnvironment
+from opm.jinks_templates.merge import merge_deep
+
+__all__ = ['merge_deep', 'split_frontmatter', 'FrontmatterLoader', 'template_context', 'context_defaults']
+
 # Leading whitespace and {# … #} comments, then ---[json|toml] … ---.
 _FRONTMATTER = re.compile(
     r'\A(?P<prefix>(?:\s*\{#.*?#\})*\s*)'
@@ -42,8 +47,6 @@ _FRONTMATTER = re.compile(
     r'---[ \t]*(?:\r?\n|\Z)',
     re.DOTALL,
 )
-
-_REPLACE = '$replace'
 
 #: Defaults for the template context, among the packaged templates.
 DEFAULTS_FILE = 'opm/defaults.toml'
@@ -83,69 +86,6 @@ def split_frontmatter(source: str, name: str = '<template>') -> tuple[dict[str, 
     lines = source[len(prefix):match.end()].count('\n')
     stripped = prefix + '{#' + '\n' * lines + '#}' + source[match.end():]
     return data, stripped
-
-
-def _array_key(value: Any) -> Any:
-    if isinstance(value, Mapping):
-        if 'id' in value:
-            return ('id', json.dumps(value['id'], sort_keys=True, default=str))
-        return ('json', json.dumps(value, sort_keys=True, default=str))
-    if isinstance(value, list):
-        return ('json', json.dumps(value, sort_keys=True, default=str))
-    return ('value', value)
-
-
-def _merge_arrays(arrays: list[list[Any]]) -> list[Any]:
-    merged: list[Any] = []
-    seen: set[Any] = set()
-    for array in arrays:
-        for value in array:
-            key = _array_key(value)
-            if key not in seen:
-                seen.add(key)
-                merged.append(value)
-    return merged
-
-
-def merge_deep(*maps: Mapping[str, Any] | None) -> dict[str, Any]:
-    """Merge *maps* left to right, the way jinks merges context maps.
-
-    - A scalar replaces an earlier value under the same key.
-    - Maps merge recursively. A map holding ``"$replace": true`` replaces the
-      earlier map instead; ``"$replace": ["a", "b"]`` replaces only those keys
-      and merges the rest.
-    - Arrays are concatenated with duplicates dropped: maps with an ``id``
-      compare by it, other values by their JSON form.
-
-    ``$replace`` itself never ends up in the result.
-    """
-    return _merge([m for m in maps if m])
-
-
-def _copy(value: Any) -> Any:
-    return _merge([value]) if isinstance(value, Mapping) else value
-
-
-def _merge(maps: list[Mapping[str, Any]]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    for incoming in maps:
-        replace = incoming.get(_REPLACE)
-        if replace is True:
-            result = {}
-        replaced = set(replace) if isinstance(replace, list) else set()
-        for key, value in incoming.items():
-            if key == _REPLACE:
-                continue
-            current = result.get(key)
-            if key in replaced or key not in result:
-                result[key] = _copy(value)
-            elif isinstance(current, dict) and isinstance(value, Mapping):
-                result[key] = _merge([current, value])
-            elif isinstance(current, list) and isinstance(value, list):
-                result[key] = _merge_arrays([current, value])
-            else:
-                result[key] = _copy(value)
-    return result
 
 
 class FrontmatterLoader(FileSystemLoader):
@@ -197,7 +137,7 @@ def _extended(environment: Environment, source: str) -> str | None:
 
 
 def template_context(
-    environment: Environment,
+    environment: Environment | JinksEnvironment,
     template: str,
     base: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -207,11 +147,15 @@ def template_context(
     ``[transform.<type>.context]``). It is merged over the packaged
     [`context_defaults`][opm.template_frontmatter.context_defaults], and the
     frontmatter along the extends chain over both, with
-    [`merge_deep`][opm.template_frontmatter.merge_deep].
-    An environment whose loader is not a
+    [`merge_deep`][opm.jinks_templates.merge.merge_deep].
+    For a jinks environment only the defaults are added: the engine merges
+    frontmatter when it renders. An environment whose loader is not a
     [`FrontmatterLoader`][opm.template_frontmatter.FrontmatterLoader] adds
     neither.
     """
+    if isinstance(environment, JinksEnvironment):
+        # The jinks engine merges the frontmatter itself while rendering.
+        return merge_deep(context_defaults(), base)
     loader = environment.loader
     if not isinstance(loader, FrontmatterLoader):
         return dict(base or {})

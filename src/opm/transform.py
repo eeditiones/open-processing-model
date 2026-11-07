@@ -580,6 +580,7 @@ def run_transform(
             parameters=parameters or {},
             metadata=metadata,
             context=template_context,
+            xpath_env=env,
         )
     elif apply_template and is_document and mode.template == 'html':
         tpl = resolve_template_path(
@@ -595,6 +596,7 @@ def run_transform(
             assets=ASSETS_DIR if assets else '',
             asset_styles=asset_styles(resolve_assets(Path.cwd(), assets)),
             fragments=fragments,
+            xpath_env=env,
         )
 
     return out

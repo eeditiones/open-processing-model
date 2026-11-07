@@ -688,7 +688,7 @@ class ProjectConfig:
         """Return the template ``context`` for *transform_type*.
 
         ``[context]`` supplies the base; ``[transform.<type>.context]`` is
-        merged over it with [`merge_deep`][opm.template_frontmatter.merge_deep]:
+        merged over it with [`merge_deep`][opm.jinks_templates.merge.merge_deep]:
         tables combine key by key, lists are joined. When *webcomponents* is on, ``webcomponents_url`` falls back to
         [`DEFAULT_WEBCOMPONENTS_URL`][opm.config.DEFAULT_WEBCOMPONENTS_URL] —
         unless the project set that key itself, which then wins.

@@ -54,6 +54,8 @@ _TYPST_DEFAULT = ('templates/default_document.typ.j2', Path('templates') / 'docu
 _BASE_COPIES = (
     ('templates/opm/base.html.j2', Path('templates') / 'opm' / 'base.html.j2'),
     ('templates/opm/layout.html.j2', Path('templates') / 'opm' / 'layout.html.j2'),
+    ('templates/opm/base.html.tpl', Path('templates') / 'opm' / 'base.html.tpl'),
+    ('templates/opm/layout.html.tpl', Path('templates') / 'opm' / 'layout.html.tpl'),
     ('templates/opm/opm-layout.css', Path('templates') / 'opm' / 'opm-layout.css'),
     ('styles/default-styles.css', Path('styles') / 'default-styles.css'),
 )

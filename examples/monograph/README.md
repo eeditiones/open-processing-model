@@ -45,7 +45,7 @@ opm transform data/47009.xml -t print -o print.html
 prince print.html -o print.pdf
 ```
 
-`templates/print.html.j2` and `templates/print.css` set the text as a book
+`templates/print.html.tpl` and `templates/print.css` set the text as a book
 page in the design of the Typst output: A5, running head and folio, the
 original page numbers in the right margin, footnotes at the foot of the page.
 Unlike Typst, CSS cannot move the apparatus behind the commentary, so each
@@ -83,15 +83,18 @@ page lists its notes in the order of their callouts.
 | Path | Role |
 | --- | --- |
 | `odd/monograph.odd` | Processing model |
-| `templates/monograph.html.j2` | Page shell (text-size buttons in the menu bar, contents, page turns) |
+| `templates/monograph.html.tpl` | Page shell (text-size buttons in the menu bar, contents, page turns) |
 | `templates/chapbook.css` | Edition design: paper, type, layout (`--opm-*` aliases) |
 | `templates/monograph.css` | TEI-specific styles: headings, notes, page breaks |
-| `templates/book.typ.j2` | Typst/PDF output in the same design |
-| `templates/print.html.j2`, `templates/print.css` | Print (paged media) output in the same design |
+| `templates/book.typ.tpl` | Typst/PDF output in the same design |
+| `templates/print.html.tpl`, `templates/print.css` | Print (paged media) output in the same design |
 | `templates/epub.css` | EPUB output in the same design |
 | `templates/default.docx` | DOCX output |
 | `opm.toml` | ODD, assets, chunking and fragments |
 | `data/47009.xml` | Sample TEI |
+
+The templates (`.tpl`) are written in the template language of TEI Publisher
+(jinks), with XPath expressions. See the guide's page on jinks templates.
 
 ## Licence
 
