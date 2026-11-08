@@ -36,7 +36,7 @@ opm transform data/doc/quickstart.xml -t print --preview
 opm transform data/doc/quickstart.xml -t typst -o /tmp/quickstart.typ
 ```
 
-`-t print` uses `templates/print.html.j2` (no handbook chrome / web components).
+`-t print` uses `templates/print.html.tpl` (no handbook chrome / web components).
 The ODD’s `docbook.css` supplies `@page` and `float: footnote` rules for Prince,
 Paged.js, or the browser print dialog. Screen-only layout in `print.css` stays
 under `@media screen` so those engines see the print rules.
@@ -59,8 +59,8 @@ opm chunk data/doc --force --preview
 ## Layout
 
 - `odd/docbook.odd` — DocBook processing model (plus `docbook.css`)
-- `templates/handbook.html.j2` — documentation template with sidebar TOC
-- `templates/print.html.j2` — paged-media template for `-t print`
+- `templates/handbook.html.tpl` — documentation template with sidebar TOC
+- `templates/print.html.tpl` — paged-media template for `-t print`
 - `opm.toml` — `dbk_section_chunks`, depth 2, title/toc/breadcrumb fragments
 - `data/doc/` — sample DocBook articles
 

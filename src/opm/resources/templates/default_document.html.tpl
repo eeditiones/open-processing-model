@@ -1,4 +1,4 @@
-[# jinks version of default_document.html.j2: the transformed document in the opm layout. #]
+[# The packaged web template: the transformed document in the opm layout. #]
 ---json
 {
   "templating": { "extends": "opm/layout.html.tpl" },

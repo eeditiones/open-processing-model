@@ -3,7 +3,7 @@
 
 /* Handbook — documentation reading surface (Starlight-inspired)
 
-   The page grid is opm's packaged layout (opm/layout.html.j2): the header bar
+   The page grid is opm's packaged layout (opm/layout.html.tpl): the header bar
    is its header, the site navigation its `before` column, which the layout
    turns into a drawer on narrow screens. This file sets the layout's
    measurements through the --opm-layout-* properties on body.handbook. */
@@ -498,7 +498,7 @@ body.handbook {
 }
 
 /* Under the breadcrumbs the page needs no space of its own above. */
-.handbook .content-top + .opm-main .hb-page {
+.handbook .content-top:has(> :not(.toolbar), li, .breadcrumb > *) + .opm-main .hb-page {
   padding-top: 1.25rem;
 }
 

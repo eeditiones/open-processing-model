@@ -45,7 +45,7 @@ Defaults (ODD path, templates, chunking) come from `opm.toml`; CLI flags overrid
 ## Customizing output
 
 1. Prefer editing `{{ odd_path }}` (element behaviours, CSS in the ODD `tagsDecl`).
-2. Adjust HTML/chunk chrome in `templates/{{ html_template }}.html.j2` — the template `opm.toml` sets — and its design in the stylesheet listed under `[transform.web] assets`.{% if extra_templates %} The other templates copied beside it (`chapbook`, `journal`, `handbook`, `tufte`, `bootstrap`) are alternatives to switch to, not partials to include.{% else %} `opm init --templates` copies the alternative templates (`chapbook`, `journal`, `handbook`, `tufte`, `bootstrap`) if you want to switch to one; they are whole page templates, not partials to include.{% endif %}
+2. Adjust HTML/chunk chrome in `templates/{{ html_template }}.html{{ tpl }}` — the template `opm.toml` sets — and its design in the stylesheet listed under `[transform.web] assets`.{% if extra_templates %} The other templates copied beside it (`chapbook`, `journal`, `handbook`, `tufte`, `bootstrap`) are alternatives to switch to, not partials to include.{% else %} `opm init --templates` copies the alternative templates (`chapbook`, `journal`, `handbook`, `tufte`, `bootstrap`) if you want to switch to one; they are whole page templates, not partials to include.{% endif %}
 3. Add XPath helpers under `extensions/` and list modules in `[transform] xpath_extensions`.
 4. Keep relative paths in `opm.toml` relative to that file's directory.
 
@@ -53,6 +53,9 @@ Defaults (ODD path, templates, chunking) come from `opm.toml`; CLI flags overrid
 
 - Unprefixed XPath names resolve against the document default namespace — no extra prefix bookkeeping.
 - Runtime parameters (`-p key=value`) are available in ODD XPath as `$parameters`.
+{%- if tpl == '.tpl' %}
+- Templates ending in `.tpl` use the jinks syntax of TEI Publisher, with XPath expressions: `[[ $context?title ]]`, `[% if … %]`, `[% for $x in … %]`, `[% template name %]` filling a `[% block name %]` of the layout named under `templating.extends` in the frontmatter. Templates with any other suffix (`.j2`) are Jinja2.
+{%- endif %}
 - Chunking uses `[chunking]` in `opm.toml` (selector, depth, fragments such as title/breadcrumbs).
 - Do not invent a separate compile or build pipeline; `opm transform` / `opm chunk` are enough.
 - Do not overwrite `CLAUDE.md` or `AGENTS.md` if the user already customized them.

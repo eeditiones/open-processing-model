@@ -1,4 +1,4 @@
-{#
+[#
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
 
@@ -8,7 +8,7 @@
   it into the parchment band). letter.css (from [transform.web] assets)
   supplies the theme. Templates extending this one fill the layout's blocks:
   `breadcrumb`, `menu_toggles`, content and sidebars.
--#}
+#]
 ---toml
 styles = [
   "https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@0,300..700;1,300..700&family=Belleza&display=swap",
@@ -16,15 +16,16 @@ styles = [
 
 [body]
 classes = ["letter"]
----
-{% extends "opm/layout.html.j2" %}
 
-{% block meta %}{{ super() }}
+[templating]
+extends = "opm/layout.html.tpl"
+---
+[% template meta %]
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-{% endblock %}
+[% endtemplate %]
 
-{# The collection index at the output root: one level up from a letter. #}
-{% block logo %}
-  <a href="{{ index_url or 'index.html' }}" aria-label="Home">{% include "logo-textmark.svg" %}</a>
-{% endblock %}
+[# The collection index at the output root: one level up from a letter. #]
+[% template logo %]
+  <a href="[[ ($context?index_url, 'index.html')[string(.) != ''][1] ]]" aria-label="Home">[% include "logo-textmark.svg" %]</a>
+[% endtemplate %]

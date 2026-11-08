@@ -27,16 +27,16 @@ from elementpath import XPathContext
 from elementpath.tree_builders import get_node_tree
 from elementpath.xpath31 import XPath31Parser
 from elementpath.xpath_nodes import (
-    AttributeNode,
     CommentNode,
     DocumentNode,
     ElementNode,
-    NamespaceNode,
     ProcessingInstructionNode,
     XPathNode,
 )
 from elementpath.xpath_tokens import XPathArray, XPathMap
 from lxml import etree
+
+from . import _elementpath_fixes  # noqa: F401  (patches elementpath on import)
 
 from .errors import TemplateNotFound, TemplateRuntimeError, TemplateSyntaxError
 from .frontmatter import Frontmatter, split_frontmatter
@@ -74,6 +74,17 @@ class Markup(str):
     Use it for HTML the application already rendered. It survives being passed
     through a variable or looked up in a map; a string computed from it by an
     XPath function is an ordinary string again and is escaped.
+    """
+
+
+class Fragment(Markup):
+    """Markup that expressions see as nodes, and that is written unchanged.
+
+    A fragment is parsed as ``parse-xml-fragment()`` would parse it, so
+    ``normalize-space($title)`` gives its text and ``$toc//a`` steps into it.
+    Writing the fragment itself in html mode gives back the original string,
+    exactly as it came in; text mode writes its text. An empty fragment is the
+    empty sequence, and one that is not well-formed stays a [`Markup`][opm.jinks_templates.Markup] string.
     """
 
 
@@ -289,10 +300,15 @@ class _Converter:
         self.parser = parser
         self.hook = hook
         self._trees: dict[int, DocumentNode] = {}
+        #: Fragments parsed in this render: id(node) -> (node, source string).
+        self.fragments: dict[int, tuple[XPathNode, str]] = {}
+        self._parsed: dict[str, Any] = {}
 
     def __call__(self, value: Any) -> Any:
         if value is None:
             return []
+        if isinstance(value, Fragment):
+            return self.fragment(value)
         if isinstance(value, (str, bool, int, float, Decimal, XPathNode, XPathMap, XPathArray)):
             return value
         if isinstance(value, Mapping):
@@ -312,6 +328,30 @@ class _Converter:
         if self.hook is not None:
             return self.hook(value)
         return str(value)
+
+    def fragment(self, value: Fragment) -> Any:
+        source = str(value)
+        if source in self._parsed:
+            return self._parsed[source]
+        node: Any
+        if not source.strip():
+            node = []
+        else:
+            try:
+                # A single root, the common case, parses with lxml.
+                node = self.document(etree.ElementTree(etree.fromstring(source)))
+            except etree.XMLSyntaxError:
+                try:
+                    node = _PARSE_FRAGMENT.evaluate(
+                        XPathContext(root=_DUMMY_ROOT, variables={'s': source}))
+                except elementpath.ElementPathError:
+                    node = None
+            if isinstance(node, XPathNode):
+                self.fragments[id(node)] = (node, source)
+            else:
+                node = Markup(source)
+        self._parsed[source] = node
+        return node
 
     def document(self, tree: etree._ElementTree) -> DocumentNode:
         key = id(tree.getroot())
@@ -352,6 +392,7 @@ def convert_results(fn: Callable[..., Any], parser: XPath31Parser,
 
 
 _DUMMY_ROOT = get_node_tree(etree.ElementTree(etree.Element('jinks')))
+_PARSE_FRAGMENT = XPath31Parser().parse('parse-xml-fragment($s)')
 
 
 def _escape(s: str) -> str:
@@ -461,12 +502,14 @@ class Template:
             incoming = passed + self._use_templates(files, Pos(level.name))
             ast = expand_blocks(level.nodes, incoming)
             if i + 1 < len(self._levels):
-                passed = ([t for t in incoming if t.name != 'content']
-                          + collect_templates(ast))
                 body = get_content(ast)
-                # Unlike jinks, a child holding nothing but templates and
-                # whitespace leaves the parent's default content in place.
-                if not all(isinstance(n, Text) and not n.text.strip() for n in body):
+                # Unlike jinks, a level holding nothing but templates and
+                # whitespace passes on the content it was given, and the
+                # top one leaves the parent's default content in place.
+                blank = all(isinstance(n, Text) and not n.text.strip() for n in body)
+                passed = ([t for t in incoming if blank or t.name != 'content']
+                          + collect_templates(ast))
+                if not blank:
                     passed.append(TemplateNode(
                         'content', body,
                         unwrap=bool(level.templating.get('strip-root')), pos=Pos(level.name)))
@@ -530,6 +573,7 @@ class _Renderer:
         parser = self.env.parser(nskey)
         self.helper = parser.parse('()')
         convert = _Converter(parser, self.env.convert)
+        self.fragments = convert.fragments
         variables: dict[str, Any] = {}
         for key, value in merged.items():
             if key != '$schema' and _NCNAME.match(key):
@@ -596,7 +640,10 @@ class _Renderer:
         prev_atomic = False
         for item in self.flatten(items):
             if isinstance(item, (XPathNode, etree._Element)):
-                if isinstance(item, etree._Element):
+                fragment = self.fragments.get(id(item))
+                if fragment is not None and fragment[0] is item and self.mode == HTML:
+                    text = fragment[1]
+                elif isinstance(item, etree._Element):
                     text = (etree.tostring(item, encoding='unicode', with_tail=False)
                             if self.mode == HTML else ''.join(item.itertext()))
                 elif self.mode == HTML:

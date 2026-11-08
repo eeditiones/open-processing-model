@@ -50,12 +50,12 @@ opm transform examples/tei-test.xml -t docx -o out.docx
 
 ## HTML (`web`)
 
-Full-document output is wrapped in a Jinja2 template and can include
+Full-document output is wrapped in a page template and can include
 ODD-generated CSS, a user stylesheet, and optional [tei-publisher web components](https://unpkg.com/@teipublisher/pb-components@latest/dist/api.html). See [Templates & CSS](templates-and-css.md).
 
 ```bash
 opm transform data/sample.xml \
-  --preview --template templates/tufte.html.j2
+  --preview --template templates/tufte.html.tpl
 ```
 
 ## Print (paged media)
@@ -172,10 +172,11 @@ opm transform examples/tei-test.xml -t docx -o report.docx
 
 ## Typst
 
-Typst output uses a `.typ.j2` Jinja2 template configured under `[transform.typst]`.
-Project templates include `templates/book.typ.j2` (TEI) and
-`templates/docbook.typ.j2` (DocBook UI classes)<!--; both use ilm-->. The packaged
-fallback is `default_document.typ.j2`.
+Typst output uses a `.typ.tpl` template configured under `[transform.typst]`
+(see [Typst and other text templates](jinks-templates.md#typst-and-other-text-templates)).
+Project templates include `templates/book.typ.tpl` (TEI) and
+`templates/docbook.typ.tpl` (DocBook UI classes)<!--; both use ilm-->. The packaged
+fallback is `default_document.typ.tpl`.
 
 ```bash
 opm transform examples/tei-test.xml -t typst -o out.typ
@@ -195,7 +196,7 @@ fail with a compilation error if the function does not exist. We therefore need 
 functions while gracefully ignoring unknown class names.
 
 Instead of calling the function directly, opm looks it up in a dictionary, which you can extend
-with additional functions in your typst `.typ.j2` template:
+with additional functions in your Typst `.typ.tpl` template:
 
 ```typst
 #let opm-css-fns = opm-css-fns + (
@@ -214,7 +215,7 @@ Using an attribute `@cssClass="doc-title"` on the model should then result in a 
 
 Mind these points:
 
-- Place the extension **before** `{% include "opm_css.typ.j2" %}`. That
+- Place the extension **before** `[% include "opm_css.typ.j2" %]`. That
   fragment reads `opm-css-fns` when it is included, so entries added after it
   never take effect and the content comes out unstyled.
 - Place it **after** the include of `opm_css_fns_default.typ.j2` (if your

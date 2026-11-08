@@ -209,3 +209,80 @@ def test_monograph_example_uses_jinks_templates(tmp_path: Path) -> None:
     assert page.count('aria-current="page"') == 1
     assert 'class="chap-folio-nav__rail chap-folio-nav__rail--prev"' in page
     assert '<body class="chapbook chapbook--with-toc">' in page
+
+
+def test_packaged_defaults_are_jinks_templates() -> None:
+    from opm.template_rendering import (
+        DEFAULT_INDEX_TEMPLATE_NAME, DEFAULT_PRINT_TEMPLATE_NAME, DEFAULT_TEMPLATE_NAME,
+        DEFAULT_TYPST_TEMPLATE_NAME, default_template_path,
+    )
+    for name in (DEFAULT_TEMPLATE_NAME, DEFAULT_PRINT_TEMPLATE_NAME,
+                 DEFAULT_TYPST_TEMPLATE_NAME, DEFAULT_INDEX_TEMPLATE_NAME):
+        assert name.endswith('.tpl'), name
+        assert default_template_path(name).is_file()
+
+
+def test_default_index_writes_entry_fragments_as_markup(tmp_path: Path) -> None:
+    """Index entries are dataclasses; their fragments reach the template as HTML."""
+    from opm.chunking import IndexEntry
+    from opm.template_rendering import (
+        DEFAULT_INDEX_TEMPLATE_NAME, default_template_path, render_index_template,
+    )
+
+    entries = [
+        IndexEntry(name='a.xml', stem='a', label='A', href='a.xml/001.html', chunks=1,
+                   fragments={'browse': '<h2 class="b">A &amp; B</h2>'}),
+        IndexEntry(name='b.xml', stem='b', label='B <x>', href='b.xml/001.html', chunks=3,
+                   fragments={}),
+    ]
+    out = render_index_template(
+        entries=entries, template_path=default_template_path(DEFAULT_INDEX_TEMPLATE_NAME),
+        title='Letters', context={'site_name': ''},
+    )
+    assert '<!-- opm-default-index-template -->' in out
+    assert '<title>Letters</title>' in out
+    assert '<h2 class="b">A &amp; B</h2>' in out
+    assert '<h2><a href="b.xml/001.html">B &lt;x&gt;</a></h2>' in out
+    assert '1 section\n' in out and '3 sections' in out
+
+
+def test_default_typst_template_takes_the_metadata_title(tmp_path: Path) -> None:
+    from opm.template_rendering import DEFAULT_TYPST_TEMPLATE_NAME, default_template_path
+
+    out = render_typst_document_template(
+        content_typst='Body', template_path=default_template_path(DEFAULT_TYPST_TEMPLATE_NAME),
+        odd_typst='#let x = 1', parameters={'title': 'Param'}, metadata={'title': ['Meta']},
+    )
+    assert 'title: "Meta",' in out
+    assert '#let x = 1' in out and out.rstrip().endswith('Body')
+    assert '#let opm-css(name, body)' in out
+
+
+def test_base_template_wraps_body_in_pb_page(tmp_path: Path) -> None:
+    page = tmp_path / 'page.html.tpl'
+    page.write_text(
+        '---toml\n[pb_page]\nendpoint = "."\napi-version = "1.0.0"\n\n'
+        '[templating]\nextends = "opm/base.html.tpl"\n---\n', encoding='utf-8')
+    out = render_document_template(serialized_html=_DOC, template_path=page, odd_css='',
+                                   parameters={})
+    squashed = ' '.join(out.split())
+    assert '<pb-page endpoint="." api-version="1.0.0"> <article class="content">' in squashed
+    assert '</article> </pb-page>' in squashed
+    plain = tmp_path / 'plain.html.tpl'
+    plain.write_text('---json\n{"templating": {"extends": "opm/base.html.tpl"}}\n---\n',
+                     encoding='utf-8')
+    assert '<pb-page' not in render_document_template(
+        serialized_html=_DOC, template_path=plain, odd_css='', parameters={})
+
+
+def test_scaffolded_shells_exist_in_both_syntaxes() -> None:
+    from opm.resources import packaged_document_dir  # noqa: F401  (package import check)
+    from opm.scaffold import _EXTRA_SHELLS, _resource_root
+
+    templates = _resource_root().joinpath('scaffold', 'templates')
+    for name in _EXTRA_SHELLS:
+        assert templates.joinpath(f'{name}.html.tpl').is_file(), name
+        assert templates.joinpath(f'{name}.html.j2').is_file(), name
+    for name in ('book', 'docbook'):
+        assert templates.joinpath(f'{name}.typ.tpl').is_file(), name
+        assert templates.joinpath(f'{name}.typ.j2').is_file(), name

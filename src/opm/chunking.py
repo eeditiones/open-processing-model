@@ -302,7 +302,7 @@ class ChunkProcessor:
 
         With *html*, the stylesheet of the packaged page layout is written to
         ``css/opm-layout.css`` too, and ``layout_css_url`` points at it —
-        whether or not the page template extends ``opm/layout.html.j2``. A
+        whether or not the page template extends ``opm/layout.html.tpl``. A
         project copy at ``opm/opm-layout.css`` under *templates_dir* (the page
         template's directory) replaces the packaged one.
 
@@ -315,7 +315,7 @@ class ChunkProcessor:
             'index_url': f'{prefix}index.html' if self.config.link_doc else '',
         }
 
-        # For pages extending opm/layout.html.j2; written for every HTML run
+        # For pages extending opm/layout.html.tpl; written for every HTML run
         # rather than working out which templates do.
         if html:
             css_dir = root / 'css'
@@ -924,7 +924,7 @@ class ChunkProcessor:
         """Process all chunks and save files.
 
         Args:
-            template_path: Optional Jinja2 template path (ignored for ``output_format='json'``).
+            template_path: Optional page template path (ignored for ``output_format='json'``).
             on_progress: Optional callback ``(current, total)`` called after each chunk is written.
             output_format: ``'html'`` (default) or ``'json'``.  JSON mode writes one
                 ``<stem>.json`` per chunk containing all fields as a JSON object, and

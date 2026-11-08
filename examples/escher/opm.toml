@@ -15,7 +15,7 @@ xpath_extensions = [
 ]
 
 [transform.web]
-template = "templates/letter.html.j2"
+template = "templates/letter.html.tpl"
 # <pb-popover> for names and abbreviations, <pb-facs-link>/<pb-facsimile> for
 # the facsimile. The page itself is static: both readings are in it, and
 # templates/escher.js switches between them.
@@ -23,9 +23,6 @@ webcomponents = true
 assets = ["templates/chapbook.css", "templates/letter.css", "templates/escher.js"]
 
 [transform.web.context]
-# <pb-page> loads a component theme stylesheet; point it at the packaged one
-# rather than a components.css beside the page.
-webcomponents_theme = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.8/css/components.css"
 # The edition's IIIF image server. pb-facsimile appends the image name from
 # each page's <pb-facs-link facs>; the hover snippet asks it for one region.
 iiif_base = "https://media.sources-online.org/iiif/2/escher!"
@@ -41,7 +38,7 @@ xpath = "//text"
 document_name = "'B' || substring-after(/TEI/@xml:id, 'K_')"
 file_pattern = "index.html"
 output_dir = "chunks"
-index_template = "templates/index.html.j2"
+index_template = "templates/index.html.tpl"
 index_title = "Briefe"
 doc_path = "letters"
 
@@ -62,7 +59,7 @@ xpath = "./ancestor::TEI"
 parameters = { mode = "letter-head" }
 
 # Neighbouring letters, from correspContext: the ODD emits their file stems as
-# data-* attributes on a hidden <nav>; templates/escher.html.j2 turns them into
+# data-* attributes on a hidden <nav>; templates/letter.html.tpl turns them into
 # links.
 [[chunking.fragments]]
 name = "edition_navigation"

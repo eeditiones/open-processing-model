@@ -159,14 +159,14 @@ parameters = { mode = "breadcrumb" }
 | `odd` / `mode` | Rare. Use a different ODD for this fragment only (`odd`), compiled for output channel `mode` (`web` by default — not the same as `$parameters?mode` above). Omit to reuse the chunking ODD. |
 
 <!-- TODO: A string result (as with a bare `string(…)` xpath) is used as-is — fine inside a
-Jinja template, but not valid as a standalone `.html` file. Prefer selecting an
+template, but not valid as a standalone `.html` file. Prefer selecting an
 element and transforming it (e.g. `parameters = { mode = "title" }`) when the
-fragment is also written to disk. In a Jinja template:
+fragment is also written to disk. In a template:
 
-```jinja
-<title>{{ fragments.title | striptags | trim }}</title>
+```html
+<title>[[ normalize-space($context?fragments?title) ]]</title>
 …
-{{ fragments.breadcrumbs | safe }}
+[[ $context?fragments?breadcrumbs ]]
 ```
 --> 
 ## Manifest and navigation
@@ -383,16 +383,16 @@ chunk pages do, so the `tei-*` classes of a browse record are styled the same
 way on the index as inside the edition.
 
 The `serafin` example goes one step further. Its letter pages and its index
-both extend one template of its own, `serafin.html.j2`, which holds the menu
+both extend one template of its own, `serafin.html.tpl`, which holds the menu
 bar and the breadcrumb band:
 
-```jinja
-{% extends "serafin.html.j2" %}
+```html
+---json
+{ "templating": { "extends": "serafin.html.tpl" } }
+---
+[% template breadcrumb %][[ $context?title ]][% endtemplate %]
 
-{% block breadcrumb %}{{ title }}{% endblock %}
-{% block content %}
-  <ul class="letter-list">…</ul>
-{% endblock %}
+<ul class="letter-list">…</ul>
 ```
 
 So the landing page cannot drift from the letters it links to. The list's own

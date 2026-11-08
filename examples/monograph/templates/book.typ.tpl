@@ -2,8 +2,8 @@
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
 
-  jinks version of book.typ.j2. Print counterpart of monograph.html.tpl: the "Der Römerbrief" design set as a
-  book page. Paper, ink and one rubric red; EB Garamond for the text, Alegreya
+  Print counterpart of monograph.html.tpl: the "Der Römerbrief" design set
+  as a book page. Paper, ink and one rubric red; EB Garamond for the text, Alegreya
   Sans for furniture (running head, folio, note numbers). Colours and type
   scale follow chapbook.css and monograph.css, so the two outputs read alike.
 

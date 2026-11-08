@@ -678,7 +678,7 @@
                     <model behaviour="inline"/>
                 </elementSpec>
                 <elementSpec ident="correspContext" mode="change">
-                    <desc>Emit machine-readable stems for the letter toolbar (letter.html.j2,
+                    <desc>Emit machine-readable stems for the letter toolbar (letter.html.tpl,
                         Astro FolioNav). Overwrites the base teipublisher.odd correspContext
                         models (pb-popover icon toolbar).</desc>
                     <model predicate="$parameters?mode='edition-navigation'" behaviour="pass-through">

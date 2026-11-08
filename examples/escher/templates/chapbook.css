@@ -11,7 +11,7 @@
    Type: EB Garamond for everything in the text (it carries the Greek),
    Alegreya Sans only for furniture — buttons, labels, note numbers.
 
-   The page grid is opm's packaged layout (opm/layout.html.j2): the running
+   The page grid is opm's packaged layout (opm/layout.html.tpl): the running
    head is its header, the contents its `before` column, which the layout
    turns into a drawer on narrow screens. This file sets the layout's
    measurements through the --opm-layout-* properties on body.chapbook.
@@ -397,7 +397,7 @@ body.chapbook {
 }
 
 /* Under the breadcrumbs the page needs no space of its own above. */
-.content-top + .opm-main .chap-page {
+.content-top:has(> :not(.toolbar), li, .breadcrumb > *) + .opm-main .chap-page {
   padding-top: 0;
 }
 

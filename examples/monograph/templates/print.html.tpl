@@ -2,7 +2,7 @@
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
 
-  jinks version of print.html.j2. Paged-media counterpart of book.typ.tpl,
+  Paged-media counterpart of book.typ.tpl,
   for `opm transform -t print` and a CSS paged-media processor (Prince,
   Paged.js): the "Der Römerbrief" design on an A5 book page. No menubar,
   contents or page turns — just the text, with a running head that print.css
@@ -29,7 +29,7 @@ extends = "opm/base.html.tpl"
    title as a <title> at the start of the content instead. #]
 [% template title %]
 [% let $title = string((
-    normalize-space(parse-xml-fragment($context?fragments?title)),
+    normalize-space($context?fragments?title),
     normalize-space(parse-xml-fragment(substring-before(substring-after($context?content_html, '<title>'), '</title>'))),
     $context?site_name
   )[string(.) != ''][1]) %]
@@ -52,7 +52,7 @@ extends = "opm/base.html.tpl"
   <div class="rb-running-head" aria-hidden="true">
     [% if $context?author %]<span class="rb-running-head__author">[[ $context?author ]]</span><span class="rb-running-head__sep">·</span>[% endif %]
     <span class="rb-running-head__title">[[ string((
-        normalize-space(parse-xml-fragment($context?fragments?title)),
+        normalize-space($context?fragments?title),
         normalize-space(parse-xml-fragment(substring-before(substring-after($context?content_html, '<title>'), '</title>'))),
         $context?site_name
       )[string(.) != ''][1]) ]]</span>

@@ -1,7 +1,7 @@
-{#
+[#
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
--#}
+#]
 // DocBook Typst document shell (ilm + DocBook UI/callout classes).
 // Selected via [transform.typst] template in teipublisher.toml.
 
@@ -12,11 +12,14 @@
 
 #set text(lang: "en")
 
-{% set _authors = metadata.get('authors', []) -%}
 #show: ilm.with(
-  title: [{{ (metadata.get('title') or ['Your Title'])[0] }}],
-  authors: {% if _authors | length > 1 %}({% for a in _authors %}"{{ a }}"{% if not loop.last %}, {% endif %}{% endfor %}){% elif _authors %}"{{ _authors[0] }}"{% else %}""{% endif %},
-  abstract: [{{ (metadata.get('abstract') or [''])[0] }}],
+  title: [[[ ($context?metadata?title?*, 'Your Title')[1] ]]],
+  authors: [[
+    let $authors := $context?metadata?authors?*
+    return if (count($authors) > 1) then '(' || string-join($authors ! ('"' || . || '"'), ', ') || ')'
+    else '"' || $authors[1] || '"'
+  ]],
+  abstract: [[[ ($context?metadata?abstract?*, '')[1] ]]],
   figure-index: (enabled: true),
   table-index: (enabled: true),
   listing-index: (enabled: true)
@@ -24,7 +27,7 @@
 #set text(font: ("New Computer Modern", "Times New Roman"))
 #show raw: set text(font: ("Iosevka", "DejaVu Sans Mono", "Courier New"))
 
-{% include "opm_css_fns_default.typ.j2" %}
+[% include "opm_css_fns_default.typ.j2" %]
 
 // marginalia sets the page margins, so these numbers decide the measure. The
 // packaged defaults reserve ~5cm on the outer edge for margin notes; this
@@ -61,11 +64,11 @@
   ),
 )
 
-{{ odd_typst }}
+[[ $context?odd_typst ]]
 
 #set heading(numbering: "1.")
 #set par(justify: true)
 
-{% include "opm_css.typ.j2" %}
+[% include "opm_css.typ.j2" %]
 
-{{ content_typst }}
+[[ $context?content_typst ]]

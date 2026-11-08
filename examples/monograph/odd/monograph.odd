@@ -275,7 +275,7 @@
                         <param name="content" value="replace(@xml:id, '^p0*', '')"/>
                     </model>
                     <model output="typst" behaviour="inline" cssClass="monograph-pb">
-                        <desc>The | in the text, the page number in the margin (book.typ.j2).</desc>
+                        <desc>The | in the text, the page number in the margin (book.typ.tpl).</desc>
                         <param name="content" value="replace(@xml:id, '^p0*', '')"/>
                     </model>
                     <model output="epub" predicate="@rend = 'noPipe' or (parent::div and not(preceding-sibling::*))" behaviour="break" cssClass="monograph-pb monograph-pb-nopipe">

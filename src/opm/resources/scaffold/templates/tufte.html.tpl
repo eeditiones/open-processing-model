@@ -1,0 +1,23 @@
+[#
+  SPDX-FileCopyrightText: 2026 e-editiones
+  SPDX-License-Identifier: CC0-1.0
+
+  tufte: the document styled by tufte-css. Tufte CSS lays out the page
+  itself, so this extends opm/base.html.tpl (the <head> handling) rather than
+  the page layout.
+#]
+---toml
+styles = ["https://cdn.jsdelivr.net/npm/tufte-css@1.8.0/tufte.min.css"]
+
+[templating]
+extends = "opm/base.html.tpl"
+---
+[% template odd_overrides %]
+  <style type="text/css">
+    /* Keep TEI speaker labels visually aligned with paragraph text in Tufte layout. */
+    .tei-speaker {
+      font-size: 1.4rem;
+      line-height: 1.6;
+    }
+  </style>
+[% endtemplate %]

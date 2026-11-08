@@ -1,13 +1,13 @@
-{#
+[#
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
--#}
+#]
 <!doctype html>
-<html lang="{{ lang or (context.lang if context is defined and context.lang else 'en') }}">
+<html lang="[[ ($context?lang[. != ''], 'en')[1] ]]">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ context.site_name if context is defined and context.site_name else 'Journal article' }}</title>
+  <title>[[ ($context?site_name[. != ''], 'Journal article')[1] ]]</title>
   <!-- journal print shell: no masthead, TOC rail or web components — the paged
        view keeps the reading view's typography by including journal.css. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,22 +16,22 @@
     href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..600&display=swap"
     rel="stylesheet"
   >
-  {{ head_html | safe }}
+  [[ $context?head_html ]]
   <style type="text/css">
-    {% include "journal.css" %}
+    [% include "journal.css" %]
   </style>
   <style type="text/css">
-    {% include "print.css" %}
+    [% include "print.css" %]
   </style>
-  {% if odd_css %}
+  [% if $context?odd_css %]
   <style type="text/css">
-{{ odd_css }}
+[[ $context?odd_css ]]
   </style>
-  {% endif %}
+  [% endif %]
 </head>
 <body class="print">
   <article class="content">
-    {{ content_html | safe }}
+    [[ $context?content_html ]]
   </article>
 </body>
 </html>

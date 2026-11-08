@@ -1,7 +1,7 @@
-{#
+[#
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
--#}
+#]
 // Parallel-text edition: the Latin transcription and the Polish translation set
 // side by side, aligned segment by segment through @corresp.
 //
@@ -11,12 +11,11 @@
 // Columns are also the stricter layout — they hold the alignment at every
 // segment, where facing pages drift apart as soon as one side runs longer.
 
-{% include "opm_css_fns_default.typ.j2" %}
+[% include "opm_css_fns_default.typ.j2" %]
 
-{% set _authors = metadata.get('authors', []) -%}
-#let doc-title = "{{ (metadata.get('title') or [''])[0] | replace('"', '\\"') }}"
-#let source-label = "{{ context.source_label | default('Transcription', true) | replace('"', '\\"') }}"
-#let translation-label = "{{ context.translation_label | default('Translation', true) | replace('"', '\\"') }}"
+#let doc-title = "[[ replace(string(($context?metadata?title?*)[1]), '"', '\"', 'q') ]]"
+#let source-label = "[[ replace(($context?source_label[. != ''], 'Transcription')[1], '"', '\"', 'q') ]]"
+#let translation-label = "[[ replace(($context?translation_label[. != ''], 'Translation')[1], '"', '\"', 'q') ]]"
 
 #set document(title: doc-title)
 
@@ -82,9 +81,9 @@
   bottom: 2.2cm,
 )
 
-{{ odd_typst }}
+[[ $context?odd_typst ]]
 
-{% include "opm_css.typ.j2" %}
+[% include "opm_css.typ.j2" %]
 
 #align(center)[
   #text(size: 1.35em)[#doc-title]
@@ -100,4 +99,4 @@
 #line(length: 100%, stroke: 0.5pt + luma(160))
 #v(0.6em)
 
-{{ content_typst }}
+[[ $context?content_typst ]]

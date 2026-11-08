@@ -1406,8 +1406,8 @@ def test_the_odd_example_matches_the_packaged_site() -> None:
         (example / 'odd' / 'tagdocs.css', odd_dir / 'tagdocs.css'),
         *(
             (example / 'templates' / name, packaged / name)
-            for name in ('page.html.j2', 'nav.xml', 'document.css', 'search.js',
-                         'theme.js', 'tagdocs.typ.j2', 'epub.css')
+            for name in ('page.html.tpl', 'nav.xml', 'document.css', 'search.js',
+                         'theme.js', 'tagdocs.typ.tpl', 'epub.css')
         ),
     ]
     for own, original in pairs:
@@ -1437,8 +1437,8 @@ def test_documentation_project_starts_with_the_packaged_runs(tmp_path: Path) -> 
     root = result.directory
     for rel in (
         'opm.toml', 'odd/tagdocs.odd', 'odd/tagdocs.css',
-        'templates/page.html.j2', 'templates/nav.xml', 'templates/document.css',
-        'templates/tagdocs.typ.j2',
+        'templates/page.html.tpl', 'templates/nav.xml', 'templates/document.css',
+        'templates/tagdocs.typ.tpl',
     ):
         assert (root / rel).is_file(), rel
 
@@ -1457,8 +1457,8 @@ def test_documentation_project_starts_with_the_packaged_runs(tmp_path: Path) -> 
 
     assert shape(project.chunking_runs) == shape(packaged.chunking_runs)
     assert {run.output_dir for run in project.chunking_runs} == {'site'}
-    assert project.chunking_runs[0].template == root / 'templates' / 'page.html.j2'
-    assert project.typst_template == root / 'templates' / 'tagdocs.typ.j2'
+    assert project.chunking_runs[0].template == root / 'templates' / 'page.html.tpl'
+    assert project.typst_template == root / 'templates' / 'tagdocs.typ.tpl'
     # A built checkout of examples/odd must not hand its output to a new project.
     assert not (root / 'schema.xml').exists()
     assert not (root / 'site').exists()

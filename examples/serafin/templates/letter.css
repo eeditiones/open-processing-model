@@ -11,7 +11,7 @@
    Copied into <output>/assets/ by [transform.web] assets and linked from each page,
    so parchment.jpg beside it is addressed by plain filename. The page grid
    (header, content column, register column) is opm's packaged layout
-   (opm/layout.html.j2); this file sets its widths through the --opm-layout-*
+   (opm/layout.html.tpl); this file sets its widths through the --opm-layout-*
    properties and styles what goes inside.
 
    Palette and type follow the dynamic Serafin app: Belleza headings, Albert

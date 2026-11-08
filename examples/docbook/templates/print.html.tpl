@@ -1,13 +1,13 @@
-{#
+[#
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
--#}
+#]
 <!doctype html>
-<html lang="{{ lang|default(context.lang if context is defined and context.lang else 'en') }}">
+<html lang="[[ ($context?lang[. != ''], 'en')[1] ]]">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ context.site_name if context is defined and context.site_name else 'Print' }}</title>
+  <title>[[ ($context?site_name[. != ''], 'Print')[1] ]]</title>
   <!-- DocBook print shell: no nav / web components; ODD CSS supplies @page rules (Paged.js / Prince) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,19 +15,19 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap"
     rel="stylesheet"
   >
-  {{ head_html | safe }}
+  [[ $context?head_html ]]
   <style type="text/css">
-    {% include "print.css" %}
+    [% include "print.css" %]
   </style>
-  {% if odd_css %}
+  [% if $context?odd_css %]
   <style type="text/css">
-{{ odd_css }}
+[[ $context?odd_css ]]
   </style>
-  {% endif %}
+  [% endif %]
 </head>
 <body class="content print">
   <article>
-    {{ content_html | safe }}
+    [[ $context?content_html ]]
   </article>
 </body>
 </html>

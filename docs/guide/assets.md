@@ -20,7 +20,7 @@ needs a stylesheet, a background image and a folder of fonts:
 
 ```toml
 [transform.web]
-template = "templates/letter.html.j2"
+template = "templates/letter.html.tpl"
 assets = ["templates/letter.css", "templates/parchment.jpg", "templates/fonts"]
 ```
 
@@ -115,21 +115,21 @@ body {
 Images, scripts and all other assets are not added to the page automatically.
 Your template has to refer to them. Since a chunk page lies in a subfolder of
 the output, the path to the `assets/` folder differs from page to page. The
-template therefore receives the path in the variable `assets`. Put it
+template therefore receives the path as `assets` in its context map. Put it
 in front of the filename:
 
-```jinja
-<img src="{{ assets }}/parchment.jpg" alt="">
+```html
+<img src="[[ $context?assets ]]/parchment.jpg" alt="">
 ```
 
 A script is added in the same way. Put it into the `body_end` block, so it
 runs once the content of the page is in place. This is how the Escher example
 loads the script which switches between its two readings of a letter:
 
-```jinja
-{% block body_end %}
-  <script src="{{ assets }}/escher.js"></script>
-{% endblock %}
+```html
+[% template body_end %]
+  <script src="[[ $context?assets ]]/escher.js"></script>
+[% endtemplate %]
 ```
 
 The logo in the menu bar is an exception: if `logo` in `[context]` is just a

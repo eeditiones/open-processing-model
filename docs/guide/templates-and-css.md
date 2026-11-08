@@ -3,9 +3,8 @@
 The transform turns your XML into HTML, but that alone is not yet a
 web page anyone would want to read: a page also needs a title, stylesheets,
 perhaps a menu bar or a table of contents. This is what templates are for. A
-template is a [Jinja2](https://jinja.palletsprojects.com) file describing the
-page around the transformed text. opm puts the output of the transform into
-it, and the result is the final page.
+template is a file describing the page around the transformed text. opm puts
+the output of the transform into it, and the result is the final page.
 
 The template is used in two situations:
 
@@ -15,9 +14,17 @@ The template is used in two situations:
   sections and transforms each of them separately. The output is then just a
   piece of HTML, and it is the template which turns it into a complete page.
 
-Templates can also be written in the template language of TEI Publisher,
-with XPath expressions. opm uses it for every template whose name ends in
-`.tpl`. See [jinks templates](jinks-templates.md).
+opm's templates are written in the template language of TEI Publisher,
+called jinks, with XPath expressions: `[[ $context?title ]]` inserts a value,
+`[% if … %]` tests a condition. This page explains how opm uses templates;
+[jinks templates](jinks-templates.md) describes the language itself.
+
+opm uses jinks for every template whose name ends in `.tpl`. Templates with
+any other name, e.g. `page.html.j2`, are read as
+[Jinja2](https://jinja.palletsprojects.com) templates, the language earlier
+versions of opm used. opm still ships its templates in both languages, and
+`opm init --jinja` sets up a new project with Jinja2 templates. The
+`shakespeare` example uses Jinja2 throughout.
 
 ## HTML templates
 
@@ -54,8 +61,8 @@ whether you want the other templates too. When you start from an example
 example, but does not overwrite any of them.
 
 `chapbook`, `journal` and `handbook` build on opm's page layout
-(`opm/layout.html.j2`), so each of them only contains what is particular to
-it. `tufte` and `bootstrap` build only on `opm/base.html.j2`, because Tufte CSS
+(`opm/layout.html.tpl`), so each of them only contains what is particular to
+it. `tufte` and `bootstrap` build only on `opm/base.html.tpl`, because Tufte CSS
 and Bootstrap come with a page layout of their own. See
 [Template inheritance](#template-inheritance).
 
@@ -67,14 +74,14 @@ change both lines:
 
 ```toml
 [transform.web]
-template = "templates/handbook.html.j2"
+template = "templates/handbook.html.tpl"
 assets = ["templates/handbook.css"]
 ```
 
 To try a template for a single run, pass it on the command line instead:
 
 ```bash
-opm transform data/sample.xml --template templates/tufte.html.j2 -o out.html
+opm transform data/sample.xml --template templates/tufte.html.tpl -o out.html
 ```
 
 ### Print templates
@@ -86,36 +93,37 @@ for the print template in different places:
 
 1. the template given with `--template` on the command line
 2. the `template` setting under `[transform.print]` in `opm.toml`
-3. opm's own `default_print.html.j2`
+3. opm's own `default_print.html.tpl`
 
 Note that the template configured for the web is never used for print.
 
 ```toml
 [transform.print]
-template = "templates/print.html.j2"
+template = "templates/print.html.tpl"
 ```
 
 You can find a complete print template in the DocBook example project:
-`examples/docbook/templates/print.html.j2`.
+`examples/docbook/templates/print.html.tpl`.
 
 ### Template variables
 
-Every page template receives the following variables:
+Every page template receives the following values in its context map,
+`$context` (see [The context map](jinks-templates.md#the-context-map)):
 
-| Variable | Contents |
+| Entry | Contents |
 | --- | --- |
 | `content_html` | The transformed text: the body of a whole document, or the transformed part (chunk or `--xpath` selection) |
-| `context` | Your project's own settings from `[context]` – see [Template context](#template-context) |
+| Your settings | Your project's own settings from `[context]`, e.g. `$context?site_name` – see [Template context](#template-context) |
 | `chunk` | Information about the current chunk (`id`, `file`, `prev`, `next`, …), only when the page is created by `opm chunk` |
 | `fragments` | Named pieces of HTML or text configured in `[chunking.fragments]`. A page for a whole document only gets those with `scope = "global"` |
 | `parameters` | The parameters from `[transform.parameters]`, which are also available in XPath as `$parameters` |
-| `lang` | The language of the document, taken from `<html lang>` in the transformed output. It is empty if unknown; set `context.lang` to provide it |
+| `lang` | The language of the document, taken from `<html lang>` in the transformed output. It is empty if unknown; set `lang` under `[context]` to provide it |
 | `head_html` | Additional content for `<head>` created by the transform. Empty for chunks and `--xpath` selections |
 | `odd_css` | The stylesheet generated from the ODD. When chunking, opm also writes it to a file, whose address is in `odd_css_url` |
 
 If your template extends one of opm's templates (see
-[Template inheritance](#template-inheritance)), you will mostly use
-`context`, `chunk` and `fragments`. opm's templates already take care of the
+[Template inheritance](#template-inheritance)), you will mostly use your own
+settings, `chunk` and `fragments`. opm's templates already take care of the
 rest: they put `content_html` into the page and add `head_html` and `odd_css`
 to `<head>`.
 
@@ -123,16 +131,16 @@ Only if you write a template from scratch, without extending opm's templates,
 do you have to output these yourself. Put the ODD stylesheet last, so its
 styles take precedence over other stylesheets in the page:
 
-```jinja
+```html
 <!DOCTYPE html>
-<html lang="{{ lang|default('en') }}">
+<html lang="[[ ($context?lang[. != ''], 'en')[1] ]]">
   <head>
     <meta charset="utf-8">
-    {{ head_html | safe }}
-    {% if odd_css %}<style type="text/css">{{ odd_css }}</style>{% endif %}
+    [[ $context?head_html ]]
+    [% if $context?odd_css %]<style type="text/css">[[ $context?odd_css ]]</style>[% endif %]
   </head>
   <body>
-    {{ content_html | safe }}
+    [[ $context?content_html ]]
   </body>
 </html>
 ```
@@ -142,7 +150,7 @@ styles take precedence over other stylesheets in the page:
 Templates often need information which is not part of the transformed text:
 the name of the edition, a logo, or whether to show a download link. You
 provide such settings in a `[context]` section in `opm.toml`, and the template
-finds them in the variable `context`:
+finds them in its context map, next to the values opm passes:
 
 ```toml
 [context]
@@ -150,9 +158,9 @@ site_name = "The Serafin Letters"
 show_downloads = true
 ```
 
-```jinja
-<h1>{{ context.site_name }}</h1>
-{% if context.show_downloads %}<a href="{{ chunk.file }}.pdf">PDF</a>{% endif %}
+```html
+<h1>[[ $context?site_name ]]</h1>
+[% if $context?show_downloads %]<a href="[[ $context?chunk?file ]].pdf">PDF</a>[% endif %]
 ```
 <!--This is how a project drives its own template without a code change. Two
 properties matter:
@@ -169,7 +177,7 @@ properties matter:
 <!--A missing key is falsy rather than an error, so `{% if context.foo %}` is safe
 for a value the project has not set.-->
 
-All templates receive the same `context`: templates for whole documents, for
+All templates receive the same settings: templates for whole documents, for
 chunks, for the collection index, and also Typst templates. If you need a
 different value for one output type, add a `[transform.<type>.context]`
 section. Its settings replace those in `[context]`, but only for that type:
@@ -191,53 +199,60 @@ only adds what is particular to it, and inherits everything else.
 
 opm ships two templates at the root of such chains:
 
-- `opm/base.html.j2` – defines the HTML document itself: the `<head>` with
+- `opm/base.html.tpl` – defines the HTML document itself: the `<head>` with
   stylesheets and scripts, and an empty `<body>`.
-- `opm/layout.html.j2` – extends `opm/base.html.j2` and defines the overall
+- `opm/layout.html.tpl` – extends `opm/base.html.tpl` and defines the overall
   page structure: header, side columns, content area and footer, and how they
   rearrange on a phone screen.
 
 For example, the inheritance chain for a letter page in the Serafin example is
 as follows:
 
-- `templates/letter.html.j2` – is loaded first. It fills the content area with
+- `templates/letter.html.tpl` – is loaded first. It fills the content area with
   the transcription and translation, and the right-hand column with the
   people and places mentioned. Everything else is inherited via the extended
-  `serafin.html.j2`.
-- `templates/serafin.html.j2` – puts the edition's logo into the menu bar at
-  the top of the page. The letter list (`index.html.j2`) extends it too, so
+  `serafin.html.tpl`.
+- `templates/serafin.html.tpl` – puts the edition's logo into the menu bar at
+  the top of the page. The letter list (`index.html.tpl`) extends it too, so
   both share the same look.
-- `opm/layout.html.j2` – contributes the page layout, including the menu bar
+- `opm/layout.html.tpl` – contributes the page layout, including the menu bar
   and the breadcrumb band, which the edition's stylesheet colours.
-- `opm/base.html.j2` – the root template.
+- `opm/base.html.tpl` – the root template.
 
-A template says which one it extends in its first line:
+A template names the one it extends in its frontmatter (see
+[Frontmatter](#frontmatter)):
 
-```jinja
-{% extends "serafin.html.j2" %}
+```html
+---json
+{ "templating": { "extends": "serafin.html.tpl" } }
+---
 ```
 
 ### Layout areas and blocks
 
 A template which extends another one needs a way to say where its content
-should go. Jinja2 provides **blocks** for this: named places, which the
-extended template defines and which a template further down the chain can
-fill. To fill a block, a template simply repeats it with new content. For
-example, to put a list of letters into the column left of the text:
+should go. The extended template marks named places for this, called
+**blocks**, and a template further down the chain fills one with
+`[% template name %] … [% endtemplate %]`. For example, to put a list of
+letters into the column left of the text:
 
-```jinja
-{% extends "opm/layout.html.j2" %}
-
-{% block before %}
+```html
+---json
+{ "templating": { "extends": "opm/layout.html.tpl" } }
+---
+[% template before %]
   <h2>Letters</h2>
   <ul>
     <li><a href="letter-1.html">Letter 1</a></li>
     <li><a href="letter-2.html">Letter 2</a></li>
   </ul>
-{% endblock %}
+[% endtemplate %]
 ```
 
-`opm/layout.html.j2` divides the page into areas, the same ones a
+Whatever a template contains outside `[% template %]` goes into the `content`
+block, the area of the text itself.
+
+`opm/layout.html.tpl` divides the page into areas, the same ones a
 [TEI Publisher](https://tei-publisher.org) (jinks) application has, and
 defines one block for each of them:
 
@@ -265,8 +280,8 @@ defines one block for each of them:
 | `footer` | Across the bottom of the page |
 
 You only fill the areas you need. An area left empty takes no room on the
-page: without a `before` block, for example, there is no left column, and the
-text moves to the left edge.
+page: without a `before` template, for example, there is no left column, and
+the text moves to the left edge.
 
 ### The menu bar and the toolbar
 
@@ -293,9 +308,8 @@ items = [
 The logo is made from three settings in `[context]`: an image (`logo`), the
 name of an author (`author`) and a title (`site_name`). Each of them is
 optional. If `logo` is just a filename, as above, opm looks for the image in
-the `assets/` folder of the output. Instead of `site_name`, a page template may
-also set its own title in the variable `work_title`, e.g. the title of the
-letter shown.
+the `assets/` folder of the output. To show something else, e.g. the title of
+the letter shown, fill the `logo` block (see below).
 
 The toolbar shows the breadcrumbs of the current page on the left, i.e. the
 path from the start of the document to the current section. They come from
@@ -308,7 +322,7 @@ previous and next page. Turn them on in `opm.toml`:
 navigation = true
 ```
 
-To add your own items to either bar, fill one of the following blocks. Each
+To add your own items to either bar, add a template for one of the following blocks. Each
 item must be a list entry (`<li>`):
 
 | Block | Where it appears |
@@ -319,10 +333,10 @@ item must be a list entry (`<li>`):
 
 For example, to add a link to download a PDF:
 
-```jinja
-{% block menu_toggles %}
+```html
+[% template menu_toggles %]
   <li><a href="https://example.org/edition.pdf">PDF</a></li>
-{% endblock %}
+[% endtemplate %]
 ```
 
 Two more blocks let you replace what the layout shows by default: `logo` for
@@ -330,16 +344,16 @@ the logo, and `breadcrumb` for the breadcrumbs. The Serafin example uses the
 first to show its own drawing of the edition's name instead of a plain
 image:
 
-```jinja
-{% block logo %}
-  <a href="{{ index_url or 'index.html' }}" aria-label="Home">{% include "logo-textmark.svg" %}</a>
-{% endblock %}
+```html
+[% template logo %]
+  <a href="[[ ($context?index_url, 'index.html')[string(.) != ''][1] ]]" aria-label="Home">[% include "logo-textmark.svg" %]</a>
+[% endtemplate %]
 ```
 
 ### Blocks for the head of the page
 
 Besides the layout areas, a few blocks control the `<head>` of the HTML page
-and the `<body>` element. They come from `opm/base.html.j2`:
+and the `<body>` element. They come from `opm/base.html.tpl`:
 
 | Block | What it holds |
 | --- | --- |
@@ -353,14 +367,21 @@ and the `<body>` element. They come from `opm/base.html.j2`:
 
 ### Adding to a block
 
-Filling a block replaces whatever the extended template put there. Often you
-want to keep that content and only add something. To do so, start your block
-with `{{ super() }}`, which inserts the content of the extended template:
+When several templates in the chain fill the same block, their content
+appears one after the other. A block may also hold default content of its
+own, such as the logo or the breadcrumbs, which appears only as long as no
+template fills the block. To replace everything other templates have put
+into a block, use `[% template! name %]` (see
+[Blocks and templates](jinks-templates.md#blocks-and-templates)).
 
-```jinja
-{% block meta %}{{ super() }}
+The base template places anything it must always write outside its blocks,
+e.g. the description of the page in `<head>`. So a template can add tags to
+the `meta` block without losing it:
+
+```html
+[% template meta %]
   <link rel="preconnect" href="https://fonts.googleapis.com">
-{% endblock %}
+[% endtemplate %]
 ```
 
 ### Changing opm's own templates
@@ -368,20 +389,20 @@ with `{{ super() }}`, which inserts the content of the extended template:
 Sometimes filling blocks is not enough, e.g. if you want a different page
 structure altogether. You then have two options:
 
-- Extend `opm/base.html.j2` instead of `opm/layout.html.j2`. You keep opm's
+- Extend `opm/base.html.tpl` instead of `opm/layout.html.tpl`. You keep opm's
   handling of `<head>` (stylesheets, scripts, title), but write the page
-  structure yourself in the `body` block.
+  structure yourself in a `body` template.
 - Replace one of opm's templates with your own version. opm always looks in
   your project's `templates/` folder first, so a file
-  `templates/opm/layout.html.j2` is used instead of opm's own layout.
+  `templates/opm/layout.html.tpl` is used instead of opm's own layout.
 
 `opm init --base` helps with the second option. It copies opm's templates
 into your project, so you can start from them:
 
 | Copied file | Contents |
 | --- | --- |
-| `templates/opm/base.html.j2` | The root template |
-| `templates/opm/layout.html.j2` | The page layout |
+| `templates/opm/base.html.tpl` | The root template |
+| `templates/opm/layout.html.tpl` | The page layout |
 | `templates/opm/opm-layout.css` | The stylesheet of the page layout |
 | `styles/default-styles.css` | opm's base styles (see [Adding custom CSS](#adding-custom-css)) |
 
@@ -394,40 +415,42 @@ example already provides.
 The following steps create a simple template of your own, building on opm's
 page layout.
 
-1. Create a file `templates/page.html.j2` in your project. Its first line
+1. Create a file `templates/page.html.tpl` in your project. Its frontmatter
    says that it extends the layout:
 
-    ```jinja
-    {% extends "opm/layout.html.j2" %}
+    ```html
+    ---json
+    { "templating": { "extends": "opm/layout.html.tpl" } }
+    ---
     ```
 
     This alone already gives you a complete page. If `[context]` in
     `opm.toml` contains a `site_name` or `logo`, the page also has a menu bar,
     which shows the logo and the name.
 
-2. Add a block for each area you want to fill. For example, add a link to
+2. Add a template for each area you want to fill. For example, add a link to
    the menu bar, and show the title of the work above the text:
 
-    ```jinja
-    {% block menu_toggles %}
+    ```html
+    [% template menu_toggles %]
       <li><a href="about.html">About</a></li>
-    {% endblock %}
+    [% endtemplate %]
 
-    {% block content_top %}
-      {% if fragments is defined and fragments.title %}{{ fragments.title | safe }}{% endif %}
-    {% endblock %}
+    [% template content_top %]
+      [[ $context?fragments?title ]]
+    [% endtemplate %]
     ```
 
     The title comes from a fragment named `title`, which you configure for
-    chunking (see [Chunking](chunking.md)). The `if` makes sure the template
-    still works for pages without it.
+    chunking (see [Chunking](chunking.md)). On a page without it,
+    `$context?fragments?title` is simply empty.
 
 3. Tell opm to use the template, and name a stylesheet for it, in
    `opm.toml`:
 
     ```toml
     [transform.web]
-    template = "templates/page.html.j2"
+    template = "templates/page.html.tpl"
     assets = ["templates/page.css"]
     ```
 
@@ -447,8 +470,8 @@ Such settings can go at the top of the template itself, in a block enclosed
 between two lines of three dashes. This block is called the
 **frontmatter**, as in TEI Publisher (jinks):
 
-```jinja
-{# Comments may come first. #}
+```html
+[# Comments may come first. #]
 ---toml
 title = "Letters of Mikołaj Serafin"
 styles = ["https://fonts.googleapis.com/css2?family=Belleza"]
@@ -460,8 +483,10 @@ classes = ["letter"]
 width = "16rem"
 label = "Letters"
 mobile = "stack"
+
+[templating]
+extends = "opm/layout.html.tpl"
 ---
-{% extends "opm/layout.html.j2" %}
 ```
 
 This frontmatter gives the page a title, loads a web font and adds the class
@@ -472,11 +497,11 @@ panel.
 You can write the frontmatter in TOML (`---toml`), like `opm.toml`, or in
 JSON (`---json`, or just `---`), like the frontmatter of jinks templates.
 
-The settings in the frontmatter end up in the variable `context`, together
+The settings in the frontmatter end up in the context map, together
 with those from `[context]` in `opm.toml` (see
 [How the settings are combined](#context-merging) below). So
 your own templates can read any setting of the frontmatter as
-`context.<name>`. opm's templates understand the following settings:
+`$context?<name>`. opm's templates understand the following settings:
 
 | Setting | Effect |
 | --- | --- |
@@ -497,6 +522,8 @@ your own templates can read any setting of the frontmatter as
 | `features.menubar` | `false` removes the menu bar |
 | `features.toolbar.enabled` | `false` removes the toolbar |
 | `features.toolbar.navigation` | `true` adds links to the previous and next page to the toolbar |
+| `pb_page` | Wraps the page in the `<pb-page>` element TEI Publisher's web components need, with the attributes given, e.g. `{ endpoint = ".", api-version = "1.0.0" }` |
+| `templating.extends` | The template this one extends |
 
 ## Context merging
 
@@ -586,7 +613,7 @@ purpose:
   `<outputRendition>` elements in your ODD, and adds any stylesheets the ODD
   links to (see [ODD files](odd-files.md)). opm's templates include it in
   every page. A template written from scratch finds it in the variable
-  `odd_css` (see [Template variables](#template-variables)).
+  `$context?odd_css` (see [Template variables](#template-variables)).
 - **Your own stylesheets** contain the design of your project: page colours,
   fonts, the look of the menu bar and so on. List them under `assets` in
   `[transform.web]`, together with any images and fonts they use. opm copies
@@ -615,12 +642,12 @@ webcomponents = true
 The transform then outputs `<pb-alternate>` elements for the `alternate`
 behaviour. opm's templates also load the library for you. In a template
 written from scratch, you find the address of the library in
-`context.webcomponents_url`, and load it like this:
+`$context?webcomponents_url`, and load it like this:
 
-```jinja
-{% if context.webcomponents_url %}
-<script type="module" src="{{ context.webcomponents_url }}"></script>
-{% endif %}
+```html
+[% if $context?webcomponents_url %]
+<script type="module" src="[[ $context?webcomponents_url ]]"></script>
+[% endif %]
 ```
 
 By default, the address points to a fixed version of the library on the web.
@@ -629,14 +656,15 @@ To load it from your own server, or to use a different version, set
 
 ## Typst and DOCX templates
 
-Typst (for PDF) uses Jinja2 templates as well, with the extension `.typ.j2`.
+Typst (for PDF) uses jinks templates as well, with the extension `.typ.tpl`
+(see [Typst and other text templates](jinks-templates.md#typst-and-other-text-templates)).
 You configure them under `[transform.typst]`. `opm init` copies
-`book.typ.j2` into TEI and JATS projects, and `docbook.typ.j2` into DocBook
+`book.typ.tpl` into TEI and JATS projects, and `docbook.typ.tpl` into DocBook
 projects. Without a template, opm uses its own plain
-`default_document.typ.j2`. `opm init --templates` copies this one into your
-project as `templates/document.typ.j2`, as a starting point for your own.
+`default_document.typ.tpl`. `opm init --templates` copies this one into your
+project as `templates/document.typ.tpl`, as a starting point for your own.
 
-DOCX does not use Jinja2. Here the template is an ordinary Word file
+DOCX does not use a template language. Here the template is an ordinary Word file
 (`.docx`), from which the output takes its styles: change a style in Word,
 and the output follows. Configure the template under `[transform.docx]`, or
 pass it with `--template`. `opm init` copies `templates/default.docx` into

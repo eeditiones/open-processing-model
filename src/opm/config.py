@@ -133,11 +133,11 @@ class ChunkingConfig:
     output_dir: str = "chunks"
     template: Path | None = None
     index_template: Path | None = None
-    """Optional Jinja2 template for the collection index written when chunking a directory.
+    """Optional page template for the collection index written when chunking a directory.
 
     Rendered to ``<output_dir>/index.html`` so ``opm serve`` shows a real
     landing page instead of the bare directory listing. When *None* the
-    packaged ``default_index.html.j2`` is used.
+    packaged ``default_index.html.tpl`` is used.
     """
     index_title: str | None = None
     """Heading for the generated collection index (default: the output directory name)."""
@@ -539,7 +539,7 @@ class ProjectConfig:
     ``[transform.web.context]``.
     """
     template_context: dict[str, Any] = field(default_factory=dict)
-    """Arbitrary values exposed to every Jinja2 template as ``context`` (``[context]``).
+    """Arbitrary values exposed to every page template as ``context`` (``[context]``).
 
     Unlike [`parameters`][opm.config.ProjectConfig.parameters], which is bound to XPath ``$parameters`` and so
     must be a flat map of strings, this keeps TOML types intact — booleans,
@@ -554,7 +554,7 @@ class ProjectConfig:
     web template needs never leaks into the Typst one.
     """
     document_template: Path | None = None
-    """Jinja2 HTML shell for web output from ``[transform.web] template``.
+    """Page template for web output from ``[transform.web] template``.
 
     Chunking runs without a ``template`` of their own use it too.
     """
@@ -582,11 +582,11 @@ class ProjectConfig:
     document_docx_template: Path | None = None
     typst_template: Path | None = None
     print_template: Path | None = None
-    """Jinja2 HTML shell for ``-t print`` from ``[transform.print] template``.
+    """Page template for ``-t print`` from ``[transform.print] template``.
 
     Print does not fall back to [`document_template`][opm.config.ProjectConfig.document_template] — web shells usually
     include nav and web components that do not belong on a paged-media page.
-    When unset, the packaged ``default_print.html.j2`` is used.
+    When unset, the packaged ``default_print.html.tpl`` is used.
     """
     epub_css: Path | None = None
     """Stylesheet appended to the EPUB package from ``[transform.epub] css``.
@@ -778,7 +778,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     raw_context = data.get('context', {})
     if not isinstance(raw_context, dict):
         raise ValueError('opm.toml: [context] must be a table')
-    # Values are handed to Jinja2 untouched: whatever TOML can express, a
+    # Values are handed to the templates untouched: whatever TOML can express, a
     # template can read. No coercion, no key whitelist.
     template_context = dict(raw_context)
     template_context_by_type = {

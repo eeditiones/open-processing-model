@@ -1,6 +1,6 @@
 [#
-  jinks version of opm/base.html.j2: the document skeleton every opm HTML
-  template can extend, <head> handling only. For a page with header,
+  The document skeleton every opm HTML template can extend, <head> handling
+  only (opm/base.html.j2 is the same for Jinja2 templates). For a page with header,
   sidebars and footer, extend opm/layout.html.tpl instead.
 
   Blocks: html_attributes (more attributes for <html>), meta, title, styles,
@@ -9,6 +9,10 @@
 
   A template adds to a block rather than replacing it, so the description
   meta tag is written outside the meta block and stays when a page adds to it.
+
+  context.pb_page wraps the body in the <pb-page> element TEI Publisher's web
+  components need, with its endpoint, api-version and theme attributes:
+  pb_page = { endpoint = ".", api-version = "1.0.0" }.
 
   Stylesheets are linked in cascade order: the layout's own (block
   layout_styles), context.styles, the assets' stylesheets (asset_styles),
@@ -54,11 +58,17 @@
   [% block scripts %][% endblock %]
 </head>
 <body class="[[ string-join($context?body?classes?*, ' ') ]] [% block body_class %][% endblock %]">
+[% if exists($context?pb_page) %]
+<pb-page endpoint="![[ $context?pb_page?endpoint ]]" api-version="![[ $context?pb_page?api-version ]]" theme="![[ $context?pb_page?theme ]]">
+[% endif %]
 [% block body %]
   <article class="content">
     [[ $context?content_html ]]
   </article>
 [% endblock %]
+[% if exists($context?pb_page) %]
+</pb-page>
+[% endif %]
 [% block body_end %][% endblock %]
 </body>
 </html>

@@ -43,14 +43,14 @@ front matter, body and references become three EPUB sections plus a nav TOC.
 Typst goes through [`arkheion`](https://typst.app/universe/package/arkheion), an
 arXiv-preprint layout: rules above and below the title, authors with ORCID
 badges, a centred abstract, and the body starting on page one. The book templates
-opm ships (`book.typ.j2`, `docbook.typ.j2`) open with a title page and a table of
+opm ships (`book.typ.tpl`, `docbook.typ.tpl`) open with a title page and a table of
 contents — right for a monograph, wrong for a fifteen-page article.
 
 ## Print
 
 `-t print` reads the same article, but the packaged print template is a bare
 `<body>` — no typography at all. `[transform.print]` points it at
-`templates/print.html.j2`, which includes `journal.css` before its own
+`templates/print.html.tpl`, which includes `journal.css` before its own
 `print.css`: the paged view keeps the reading view's tokens, title block,
 byline, abstract and reference list, and only drops what the web template added
 (sticky masthead, TOC rail, web components).
@@ -111,20 +111,20 @@ empty; the `pub-date` models now format `@iso-8601-date` with the standard
 `format-date()`, so “2022-12” becomes “December 2022”. And the Typst title-block metadata —
 `journal`, `volume`, `elocation`, `date`, `doi`, `license`, plus one
 `author_records` entry per contributor holding name, e-mail, affiliation and
-ORCID pipe-joined, which `templates/article.typ.j2` splits into arkheion’s
+ORCID pipe-joined, which `templates/article.typ.tpl` splits into arkheion’s
 author dict. `authors` stays a plain name so the book templates keep working.
 
 ## Layout
 
 - `odd/jats.odd` — JATS processing model (plus `jats.css`)
-- `templates/journal.html.j2` + `journal.css` — journal reading surface:
+- `templates/journal.html.tpl` + `journal.css` — journal reading surface:
   sticky masthead, sticky TOC rail, one measure, footnote apparatus. Both are
   byte-identical to what `opm init --vocabulary jats` now writes, which sets
   this template as the project's `[transform.web] template`; the masthead and rail
   appear here because this project declares the `journal` and `toc` fragments
-- `templates/print.html.j2` + `print.css` — paged template for `-t print`: the
+- `templates/print.html.tpl` + `print.css` — paged template for `-t print`: the
   same article surface, margin notes instead of a masthead and rail
-- `templates/article.typ.j2` — arkheion journal template for `-t typst`
+- `templates/article.typ.tpl` — arkheion journal template for `-t typst`
 - `opm.toml` — `jats_sec_chunks`, title/journal/toc fragments
 - `data/article/` — the source article
 

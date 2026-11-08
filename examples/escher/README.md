@@ -114,7 +114,7 @@ Two things the viewer needs, both in the templates:
 ## Letter navigation
 
 As in the serafin example, `correspContext` becomes a hidden `<nav>` whose
-`data-*` attributes name the neighbouring letters. `templates/letter.html.j2`
+`data-*` attributes name the neighbouring letters. `templates/letter.html.tpl`
 turns them into two rows of links: the edition's own order, and the letters
 between the same correspondents. The `correspContext` targets are the
 edition's letter numbers (`B0097`), so they name the neighbour's directory as
@@ -124,9 +124,9 @@ in the same run, so at the ends of this five-letter sample the links are greyed 
 ## Project layout
 
 - `odd/escher.odd` — processing model (plus `escher.css`)
-- `templates/escher.html.j2` — page shell: fonts, logo, chapbook design
-- `templates/letter.html.j2` — a letter: navigation, head, text, register, facsimile
-- `templates/index.html.j2` — the letter list
+- `templates/escher.html.tpl` — page shell: fonts, logo, chapbook design
+- `templates/letter.html.tpl` — a letter: navigation, head, text, register, facsimile
+- `templates/index.html.tpl` — the letter list
 - `templates/letter.css` — the two readings, navigation, register, facsimile column
 - `templates/chapbook.css` — the monograph example's "paper" design
 - `templates/escher.js` — view switch, lines, hover snippet, register highlighting

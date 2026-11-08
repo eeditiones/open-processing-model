@@ -7,6 +7,7 @@ from lxml import etree
 
 from opm.jinks_templates import (
     Environment,
+    Fragment,
     Markup,
     TemplateNotFound,
     TemplateRuntimeError,
@@ -265,6 +266,37 @@ def test_markup_is_never_escaped():
     assert render('[[ concat($m, "") ]]', ctx) == '&lt;b&gt;x&lt;/b&gt;'
 
 
+def test_fragment_is_nodes_but_written_unchanged():
+    source = '<nav class="toc"><a href="a.html" data-n="1">One &amp; <b>two</b></a><span></span></nav>'
+    ctx = {'f': Fragment(source), 'map': {'f': Fragment(source)}}
+    # Written as it came in, not re-serialized (<span></span> stays).
+    assert render('[[ $f ]]', ctx) == source
+    assert render('[[ $map?f ]]', ctx) == source
+    assert render('[% let $x = $f %][[ $x ]][% endlet %]', ctx) == source
+    # Expressions see nodes.
+    assert render('[[ normalize-space($f) ]]', ctx) == 'One &amp; two'
+    assert render('[[ string($f//@data-n) ]]', ctx) == '1'
+    assert render('[[ count(($map?f)//a) ]]', ctx) == '1'
+    # A path right after a lookup (elementpath needs a patch for this).
+    assert render('[[ count($map?f//a) ]]', ctx) == '1'
+    assert render('[[ string($map?f/nav/@class) ]]', ctx) == 'toc'
+    assert render('[[ count(map{"m": $map}?m?f//b) ]]', ctx) == '1'
+    assert html_equal(render('[[ $f//b ]]', ctx), '<b>two</b>')
+    # Text mode writes the text.
+    assert render('[[ $f ]]', ctx, name='t.typ') == 'One & two'
+
+
+def test_fragment_edge_cases():
+    # Empty is the empty sequence, so a condition on it is false.
+    assert render('[% if $f %]yes[% else %]no[% endif %]', {'f': Fragment('')}) == 'no'
+    # Several top-level nodes, as parse-xml-fragment() takes them.
+    ctx = {'f': Fragment('a <i>b</i> c')}
+    assert render('[[ $f ]]', ctx) == 'a <i>b</i> c'
+    assert render('[[ string($f/i) ]]', ctx) == 'b'
+    # Not well-formed: stays markup.
+    assert render('[[ $f ]]', {'f': Fragment('<br>x')}) == '<br>x'
+
+
 def test_conditional_attribute_escaping_and_values():
     assert render('<a title="![[ $t ]]"/>', {'t': 'a"b<c&d'}) == '<a title="a&quot;b&lt;c&amp;d"/>'
     assert render('<a title="![[ $t ]]"/>', {'t': ('x', 'y')}) == '<a title="x y"/>'
@@ -511,3 +543,21 @@ def test_child_with_only_templates_keeps_default_content(tmp_path):
     assert env.from_string(only_templates, 'c.html').render() == '<m>default</m>X'
     with_content = '---json\n{"templating": {"extends": "root.html"}}\n---\nmine'
     assert env.from_string(with_content, 'c.html').render() == '<m>\nmine</m>'
+
+
+def test_middle_level_with_only_templates_passes_content_on(tmp_path):
+    env = env_with(tmp_path, {
+        'root.html': '<m>[% block content %]default[% endblock %]</m>[% block x %][% endblock %]',
+        'middle.html': ('---json\n{"templating": {"extends": "root.html"}}\n---\n'
+                        '[% template x %]X[% endtemplate %]\n'),
+    })
+    page = '---json\n{"templating": {"extends": "middle.html"}}\n---\nmine'
+    assert env.from_string(page, 'c.html').render() == '<m>\nmine</m>X'
+
+
+def test_bracket_before_tag_is_text(tmp_path):
+    env = env_with(tmp_path, {})
+    out = env.from_string(
+        '#upper[[[ $name ]]] [[% if $name %]#x[% endif %]]', 'c.typ',
+    ).render({'name': 'a'})
+    assert out == '#upper[a] [#x]'

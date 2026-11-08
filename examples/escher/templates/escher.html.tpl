@@ -1,4 +1,4 @@
-{#
+[#
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
 
@@ -6,7 +6,7 @@
   monograph's "paper" design (chapbook.css, EB Garamond for the text, Alegreya
   Sans for the furniture) on opm's packaged layout. letter.css adds what a
   letter needs on top. Templates extending this one fill the layout's blocks.
--#}
+#]
 ---toml
 styles = [
   "https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap",
@@ -14,15 +14,16 @@ styles = [
 
 [body]
 classes = ["chapbook", "escher"]
----
-{% extends "opm/layout.html.j2" %}
 
-{% block meta %}{{ super() }}
+[templating]
+extends = "opm/layout.html.tpl"
+---
+[% template meta %]
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-{% endblock %}
+[% endtemplate %]
 
-{# The letter list at the output root: one level up from a letter. #}
-{% block logo %}
-  <a href="{{ index_url or 'index.html' }}"><span class="logo__title">{{ context.site_name }}</span></a>
-{% endblock %}
+[# The letter list at the output root: one level up from a letter. #]
+[% template logo %]
+  <a href="[[ ($context?index_url, 'index.html')[string(.) != ''][1] ]]"><span class="logo__title">[[ $context?site_name ]]</span></a>
+[% endtemplate %]

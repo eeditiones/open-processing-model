@@ -4,13 +4,14 @@
 """Helpers for wrapping transform output in page templates (HTML and Typst).
 
 A template whose name ends in ``.tpl`` (``page.html.tpl``, ``book.typ.tpl``)
-is a jinks template ([`opm.jinks_templates`][opm.jinks_templates.environment]);
-any other, e.g. ``page.html.j2``, is a Jinja2 template. Both get the same
-variables.
+is a jinks template ([`opm.jinks_templates`][opm.jinks_templates.environment]),
+as all packaged defaults are; any other, e.g. ``page.html.j2``, is a Jinja2
+template. Both get the same variables.
 """
 
 from __future__ import annotations
 
+import dataclasses
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -28,7 +29,7 @@ from opm.template_frontmatter import FrontmatterLoader, template_context
 DEFAULT_TEMPLATE_NAME: str = RENDER_MODES['web'].default_template  # type: ignore[assignment]
 DEFAULT_PRINT_TEMPLATE_NAME: str = RENDER_MODES['print'].default_template  # type: ignore[assignment]
 DEFAULT_TYPST_TEMPLATE_NAME: str = RENDER_MODES['typst'].default_template  # type: ignore[assignment]
-DEFAULT_INDEX_TEMPLATE_NAME = 'default_index.html.j2'
+DEFAULT_INDEX_TEMPLATE_NAME = 'default_index.html.tpl'
 
 
 def default_template_path(template_name: str = DEFAULT_TEMPLATE_NAME) -> Path:
@@ -54,13 +55,13 @@ def resolve_template_path(
     return path
 
 
-#: The stylesheet of the packaged page layout (``opm/layout.html.j2``), in
+#: The stylesheet of the packaged page layout (``opm/layout.html.tpl``), in
 #: ``resources/templates/opm/``.
 LAYOUT_CSS_NAME = 'opm-layout.css'
 
 
 def layout_css(templates_dir: Path | None = None) -> str:
-    """The stylesheet behind ``opm/layout.html.j2``.
+    """The stylesheet behind ``opm/layout.html.tpl`` (and its Jinja2 twin).
 
     Chunking writes it to ``css/opm-layout.css`` and passes ``layout_css_url``;
     a single transformed page has no such file, so the layout inlines it.
@@ -144,9 +145,10 @@ class JinksPageTemplate:
     and ``context`` form one jinks context map, with the frontmatter merged
     over it by the engine. Where a key exists in both, the project's
     ``context`` wins, as Jinja2 templates prefer ``context.lang`` over
-    ``lang``. HTML opm produced itself (``content_html``, ``head_html``, the
-    stylesheets and each fragment) is marked as markup, so html mode writes it
-    unescaped.
+    ``lang``. HTML opm produced itself (``content_html``, ``head_html`` and the
+    stylesheets) is marked as markup, so html mode writes it unescaped. Each
+    fragment is a [`Fragment`][opm.jinks_templates.Fragment]: expressions see
+    it as nodes, and writing it gives back the HTML unchanged.
     """
 
     def __init__(self, template: jinks.Template) -> None:
@@ -157,12 +159,24 @@ class JinksPageTemplate:
         for name in _MARKUP_VARIABLES:
             if isinstance(variables.get(name), str):
                 variables[name] = jinks.Markup(variables[name])
-        fragments = variables.get('fragments')
-        if isinstance(fragments, dict):
-            variables['fragments'] = {
-                k: jinks.Markup(v) if isinstance(v, str) else v for k, v in fragments.items()
-            }
+        if isinstance(variables.get('fragments'), dict):
+            variables['fragments'] = _markup_fragments(variables['fragments'])
+        if isinstance(variables.get('documents'), list):
+            # Index entries carry the fragments of each document.
+            variables['documents'] = [_index_entry_map(entry) for entry in variables['documents']]
         return self.template.render({**variables, **context})
+
+
+def _markup_fragments(fragments: dict) -> dict:
+    return {k: jinks.Fragment(v) if isinstance(v, str) else v for k, v in fragments.items()}
+
+
+def _index_entry_map(entry: Any) -> Any:
+    if dataclasses.is_dataclass(entry) and not isinstance(entry, type):
+        entry = {f.name: getattr(entry, f.name) for f in dataclasses.fields(entry)}
+    if isinstance(entry, dict) and isinstance(entry.get('fragments'), dict):
+        entry = {**entry, 'fragments': _markup_fragments(entry['fragments'])}
+    return entry
 
 
 def template_environment(
@@ -171,8 +185,8 @@ def template_environment(
     """The environment for rendering *template_path*: Jinja2 or jinks.
 
     Templates are looked up in *template_path*'s directory first, then among
-    the packaged ones, so a project template can ``{% extends
-    "opm/layout.html.j2" %}`` and can replace a packaged file by giving its
+    the packaged ones, so a project template can extend
+    ``opm/layout.html.tpl`` and can replace a packaged file by giving its
     own the same relative path. Frontmatter is removed from every source and
     feeds the template ``context`` (see
     [`template_context`][opm.template_frontmatter.template_context]). The

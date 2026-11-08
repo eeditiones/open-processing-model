@@ -14,9 +14,6 @@
 
   Its stylesheet, chapbook.css, is listed under [transform.web] assets in
   opm.toml: copied next to the output and linked by the base template.
-
-  This is the jinks version of monograph.html.j2. To use it, set
-  template = "templates/monograph.html.tpl" under [transform.web].
 #]
 ---toml
 styles = [
@@ -37,12 +34,12 @@ extends = "opm/layout.html.tpl"
 
 [# The work's title, from the `title` fragment without its markup. #]
 [% template title %]
-<title>[[ (normalize-space(parse-xml-fragment($context?fragments?title)), 'Chapbook')[. != ''][1] ]]</title>
+<title>[[ (normalize-space($context?fragments?title), 'Chapbook')[. != ''][1] ]]</title>
 [% endtemplate %]
 
 [% template! logo %]
 <a href="[[ ($context?home_url, $context?index_url, 'index.html')[string(.) != ''][1] ]]">
-  <span class="logo__title">[[ (normalize-space(parse-xml-fragment($context?fragments?title)), 'Chapbook')[. != ''][1] ]]</span>
+  <span class="logo__title">[[ (normalize-space($context?fragments?title), 'Chapbook')[. != ''][1] ]]</span>
 </a>
 [% endtemplate %]
 
@@ -63,7 +60,7 @@ extends = "opm/layout.html.tpl"
     [# Links to the page being read come out as `#<its xml:id>`: mark them. #]
     [% if $context?chunk?xml_id %]
     [% let $link = 'href="#' || $context?chunk?xml_id || '"' %]
-    [[ parse-xml-fragment(replace($context?fragments?toc, $link, $link || ' aria-current="page"', 'q')) ]]
+    [[ parse-xml-fragment(replace(serialize($context?fragments?toc), $link, $link || ' aria-current="page"', 'q')) ]]
     [% endlet %]
     [% else %]
     [[ $context?fragments?toc ]]
@@ -90,14 +87,6 @@ extends = "opm/layout.html.tpl"
   </nav>
   [% endif %]
 </div>
-
-[% template footer %]
-  [% if $context?footer %]
-  <div class="chap-footer">
-    <div class="chap-footer__inner">[[ parse-xml-fragment($context?footer) ]]</div>
-  </div>
-  [% endif %]
-[% endtemplate %]
 
 [% template body_end %]
   [% if $context?chunk?prev %]

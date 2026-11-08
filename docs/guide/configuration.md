@@ -30,8 +30,9 @@ footnote_order = "opm.runtime.footnote_order.labelled_first"
 css = "styles/default-styles.css"
 
 [transform.web]
-# Default Jinja2 template for full-document HTML output (overridable with --template)
-template = "templates/default.html.j2"
+# Page template for full-document HTML output (overridable with --template):
+# jinks for a .tpl file, Jinja2 otherwise
+template = "templates/default.html.tpl"
 # Emit tei-publisher web components (overridable with --webcomponents/--no-webcomponents).
 # The bundle URL is a template value: set webcomponents_url in [transform.web.context]
 # to serve it yourself or pin another version.
@@ -51,11 +52,11 @@ assets = ["templates/edition.css", "templates/parchment.jpg"]
 template = "templates/corporate.docx"
 
 [transform.typst]
-# Default Typst (.typ.j2) template for Typst output
-template = "templates/book.typ.j2"
+# Typst (.typ.tpl) template for Typst output
+template = "templates/book.typ.tpl"
 
 [context]
-# Free-form values handed to every Jinja2 template as `context`. TOML types are
+# Free-form values handed to every template's context map. TOML types are
 # preserved; a [transform.<type>.context] table overlays this per output type.
 site_name = "The Serafin Letters"
 show_downloads = true
@@ -80,12 +81,12 @@ depth = 2
 # document_name = "/TEI/@xml:id"
 # Output directory for chunk files
 output_dir = "chunks"
-# Jinja2 template for chunk pages (default: the [transform.web] template)
-template = "templates/chunk.html.j2"
+# Page template for chunk pages (default: the [transform.web] template)
+template = "templates/chunk.html.tpl"
 # URL pattern for cross-chunk links ({file}, {stem}, {anchor}, {doc}, {doc_stem})
 link_pattern = "/{doc}/{file}"
-# Jinja2 template for the collection index written when chunking a directory
-index_template = "templates/index.html.j2"
+# Page template for the collection index written when chunking a directory
+index_template = "templates/index.html.tpl"
 # Heading for that index (default: the input directory name)
 index_title = "Correspondence"
 # Files copied into <output-root>/assets/ instead of the [transform.web] assets

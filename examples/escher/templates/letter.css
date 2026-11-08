@@ -78,11 +78,15 @@
   text-decoration: none;
 }
 
-a.letter-nav__link:hover {
+.letter-nav__link--end {
+  flex-direction: row-reverse;
+}
+
+a.letter-nav__link[href]:hover {
   color: var(--rubric);
 }
 
-.letter-nav__link--disabled {
+a.letter-nav__link:not([href]) {
   color: var(--ink-faint);
 }
 
@@ -313,8 +317,9 @@ body.escher--diplomatic {
 }
 
 /* Each reading keeps only the column it uses: the register beside the
-   edited text, the facsimile beside the diplomatic one. */
-body:not(.escher--diplomatic) .opm-layout.has-after {
+   edited text, the facsimile beside the diplomatic one. The :has() selectors
+   outweigh the ones opm-layout.css gives a column with content. */
+body:not(.escher--diplomatic) .opm-layout:has(> .after) {
   --opm-layout-after-track: 0px;
 }
 
@@ -322,7 +327,7 @@ body:not(.escher--diplomatic) .opm-layout > .after {
   display: none;
 }
 
-.escher--diplomatic .opm-layout.has-before {
+body.escher--diplomatic .opm-layout:has(> .before) {
   --opm-layout-before-track: 0px;
 }
 

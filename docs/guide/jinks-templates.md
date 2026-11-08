@@ -1,13 +1,12 @@
 # jinks templates
 
 Templates define the page around your transformed text: the HTML head, the
-menu, the sidebars, the footer. opm supports two template languages. Besides
-Jinja2 (see [Templates & CSS](templates-and-css.md)), it understands the
-template language of [TEI Publisher](https://tei-publisher.org) 10, called
-_jinks_. If you already have templates for a TEI Publisher application, or
-you know their syntax, you can use the same style of template in opm.
-Expressions inside the templates are written in XPath, the language you
-already use in your ODD.
+menu, the sidebars, the footer (see [Templates & CSS](templates-and-css.md)).
+opm's templates are written in the template language of
+[TEI Publisher](https://tei-publisher.org) 10, called _jinks_. If you already
+have templates for a TEI Publisher application, or you know their syntax, you
+can use the same style of template in opm. Expressions inside the templates
+are written in XPath, the language you already use in your ODD.
 
 Like TEI Publisher, opm can process XML as well as plain text with jinks:
 next to HTML pages, a template may produce Typst, CSS or any other text
@@ -21,10 +20,12 @@ opm decides from the file name which language a template is written in:
 | ends in `.tpl`, e.g. `page.html.tpl` or `book.typ.tpl` | jinks |
 | anything else, e.g. `page.html.j2` | Jinja2 |
 
-Both kinds of template receive the same information from opm, so you can move
-a project from one language to the other one page at a time. The `monograph`
-example (`opm init --example monograph`) uses jinks templates for all its
-outputs: web, print and Typst.
+Jinja2 is the template language earlier versions of opm used, and opm still
+reads it. Both kinds of template receive the same information from opm, so
+you can move a project from one language to the other one page at a time.
+All packaged templates, the templates `opm init` writes and all examples but
+`shakespeare` use jinks; `opm init --jinja` writes Jinja2 templates
+instead.
 
 ## Templating syntax
 
@@ -120,19 +121,24 @@ In HTML templates, opm escapes characters with a special meaning, such as
 The HTML opm produces itself, that is `$content_html`, `$head_html`,
 `$odd_css` and the fragments, is inserted as it is.
 
-Once you change such HTML with an XPath function, though, the result is
-plain text again and will be escaped. To insert it as HTML, turn it back
-into elements with `parse-xml-fragment()`. The `monograph` example uses this
-to mark the current page in the table of contents:
+The fragments are also elements you can query. `normalize-space($context?fragments?title)`
+gives the plain text of the title, for example to use it as the page title,
+and `$context?fragments?toc//a` gives the links in the table of contents.
+Inserting a fragment unchanged with
+`[[ $context?fragments?toc ]]` gives exactly the HTML opm produced.
+
+Once you change HTML with an XPath function, though, the result is plain text
+again and will be escaped. To insert it as HTML, turn it back into elements
+with `parse-xml-fragment()`. The `monograph` example uses this to mark the
+current page in the table of contents: `serialize()` turns the fragment into
+text, `replace()` adds the attribute, and `parse-xml-fragment()` turns the
+result into elements again:
 
 ```html
 [% let $link = 'href="#' || $context?chunk?xml_id || '"' %]
-[[ parse-xml-fragment(replace($context?fragments?toc, $link, $link || ' aria-current="page"', 'q')) ]]
+[[ parse-xml-fragment(replace(serialize($context?fragments?toc), $link, $link || ' aria-current="page"', 'q')) ]]
 [% endlet %]
 ```
-
-The same function gives you the plain text of a fragment, e.g. to use it as
-the page title: `normalize-space(parse-xml-fragment($context?fragments?title))`.
 
 ## Conditions and loops
 
@@ -254,11 +260,11 @@ extends = "opm/layout.html.tpl"
 
 It adds a web font to the list of stylesheets, a class to the `body` element,
 and names the layout it builds upon. The regions of opm's layout and the
-settings it accepts are the same as in its Jinja2 version, described under
-[Template inheritance](templates-and-css.md#template-inheritance). There is
-one difference: the Jinja2 layout leaves out a region without content. The
-jinks layout writes every region, as TEI Publisher does, and its stylesheet
-(`opm-layout.css`) hides the empty ones.
+settings it accepts are described under
+[Template inheritance](templates-and-css.md#template-inheritance). As in TEI
+Publisher, the layout writes every region, and its stylesheet
+(`opm-layout.css`) hides the empty ones. (The Jinja2 version of the layout
+leaves them out instead.)
 
 Besides the layout, opm provides `default_document.html.tpl`, which shows the
 transformed document in the layout. It is a good starting point for your own
@@ -320,7 +326,8 @@ use:
 
 The footer is not mentioned, so it shows its default text. A page that
 contains nothing but templates, apart from blank lines, keeps the default
-content of the `content` block as well.
+content of the `content` block as well. If it extends a layout which in turn
+extends another, the content of the page it was given is passed on.
 
 If you know Jinja2, note that there is no equivalent of `super()`: as soon as
 a template adds to a block, the block's default content disappears.
@@ -376,10 +383,10 @@ under `templating` in the frontmatter.
 
 Typst uses square brackets as well, so a few things need care:
 
-- A Typst `[` directly before a template tag is read as part of the tag:
-  `upper[[[ $name ]]]` or `align(center)[[% if … %]` fail. Pass a string
-  instead, as in `upper("[[ $name ]]")`, or write the code in Typst's code
-  mode.
+- A Typst `[` directly before a template tag stays a Typst bracket:
+  `title: [[[ $title ]]]` gives `title: [The title]`, and
+  `align(center)[[% if … %]…[% endif %]]` works as well. TEI Publisher reads
+  `[[[` differently, so templates relying on this work in opm only.
 - `[#` starts a template comment, which ends at the next `#]`. Typst content
   like `[#emph[x]]` is safe as long as no `#]` follows. If text goes missing
   from your output, check for this.
@@ -387,8 +394,8 @@ Typst uses square brackets as well, so a few things need care:
   a line break counts as a space. Keep tags within a line of markup, or use
   code mode.
 
-For a complete example, see `templates/book.typ.tpl` in the `monograph`
-example.
+For complete examples, see `templates/book.typ.tpl` in the `monograph`
+example and `templates/article.typ.tpl` in the `jats` example.
 
 ## XPath functions and namespaces
 
@@ -411,3 +418,7 @@ XPath extension instead. Functions specific to eXist, such as
 
 When a page and the layout it extends both set the same value in their
 frontmatter, the page wins in opm.
+
+A `[` directly before `[[` or `[%` is plain text in opm (see
+[Typst and other text templates](#typst-and-other-text-templates)), while
+TEI Publisher reads it as part of the tag.

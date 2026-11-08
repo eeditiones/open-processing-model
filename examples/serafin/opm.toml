@@ -32,7 +32,7 @@ register-root = "/db/apps/serafin/data/registers"
 
 # Chunk pages use the same template and assets unless [chunking] sets its own.
 [transform.web]
-template = "templates/letter.html.j2"
+template = "templates/letter.html.tpl"
 webcomponents = true
 # The edition's own stylesheet and its texture, copied to an assets/ directory
 # beside the output (chunks/assets/ for `opm chunk`). letter.css references
@@ -49,7 +49,7 @@ assets = ["templates/letter.css", "templates/parchment.jpg"]
 xpath = "//text[@type]"
 
 [transform.typst]
-template = "templates/letter.typ.j2"
+template = "templates/letter.typ.tpl"
 
 [transform.typst.context]
 source_label = "Transcriptio (lat.)"
@@ -60,9 +60,9 @@ odd = "odd/serafin.odd"
 xpath = ".//text[@type='source']/div"
 xpath_dynamic = "//text[@type = 'source']"
 output_dir = "chunks"
-# Landing page for a directory run: it extends the same serafin.html.j2 as the
+# Landing page for a directory run: it extends the same serafin.html.tpl as the
 # letters and shares their CSS.
-index_template = "templates/index.html.j2"
+index_template = "templates/index.html.tpl"
 index_title = "Listy"
 doc_path = "letters"
 
@@ -93,7 +93,7 @@ parameters = { mode = "letter-head" }
 # Neighbouring letters for the toolbar above the letter, from correspContext:
 # previous/next in the edition and, where the TEI records them, in the same
 # correspondence. The ODD emits the stems as data-* attributes on a hidden
-# <nav>; templates/letter.html.j2 turns them into links.
+# <nav>; templates/letter.html.tpl turns them into links.
 [[chunking.fragments]]
 name = "edition_navigation"
 xpath = "./ancestor::TEI"

@@ -13,7 +13,7 @@
    furniture. Headings stay light rather than bold — an editorial voice, not a
    documentation one.
 
-   The page grid is opm's packaged layout (opm/layout.html.j2): it writes the
+   The page grid is opm's packaged layout (opm/layout.html.tpl): it writes the
    menubar and the breadcrumb toolbar, and turns the contents rail, its
    `before` column, into a drawer on narrow screens. This file sets the layout's
    measurements through the --opm-layout-* properties on body.chapbook.

@@ -96,8 +96,8 @@ in Typst output, the standard sigla for lacunae in a critical edition:
 ## Layout
 
 - `odd/serafin.odd` — processing model (plus `serafin.css`)
-- `templates/letter.html.j2` — parallel panes and tabbed register rail
-- `templates/letter.typ.j2` — parallel-text print edition (two aligned columns)
+- `templates/letter.html.tpl` — parallel panes and tabbed register rail
+- `templates/letter.typ.tpl` — parallel-text print edition (two aligned columns)
 - `opm.toml` — collections, `$global:register-root`, chunk fragments
 - `data/letters/` — sample TEI
 - `data/registers/` — persons, places, organizations, works

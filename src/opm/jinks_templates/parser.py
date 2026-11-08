@@ -140,7 +140,9 @@ TOKEN_REGEX = [
     r'\[%\s*(template!?)\s+(\S+?)(?:\s+(.*?))?%\]',
     r'\[%\s*(import)\s+["\'](.+?)["\']\s+as\s+["\']([\w\-_]+)["\'](?:\s+at\s+["\'](.+?)["\'])?\s*%\]',
     r'(\s*([\w:.-]+)\s*=\s*"(!)\[\[(.+?)\]\]")',
-    r'\[(\[)(.+?)\]\]',
+    # Not when another bracket or a directive follows: in ``[[[ $x ]]]`` or
+    # ``[[% if … %]`` the first ``[`` is text (Typst content), unlike jinks.
+    r'\[(\[)(?![\[%#])(.+?)\]\]',
 ]
 
 _TOKENS = re.compile('(?:' + '|'.join(TOKEN_REGEX) + ')', re.IGNORECASE | re.DOTALL)

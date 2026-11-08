@@ -1,21 +1,21 @@
-{#
+[#
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
--#}
+#]
 // Typst shell for ODD documentation: `opm odd document -t typst`.
 // odd/tagdocs.odd writes the body; this adds the cover, the table of contents
 // and the page layout, with the ilm template the DocBook example uses too.
 
 #import "@preview/ilm:2.1.0": *
 
-{% set _title = (metadata.get('title') or ['ODD documentation'])[0] -%}
-{% set _edition = (metadata.get('edition') or [''])[0] -%}
-{% set _subtitle = (metadata.get('subtitle') or [''])[0] -%}
-{% set _author = (metadata.get('author') or [''])[0] -%}
-#set text(lang: "{{ parameters.get('lng', 'en') }}")
+[% let $title = ($context?metadata?title?*, 'ODD documentation')[1] %]
+[% let $edition = string(($context?metadata?edition?*)[1]) %]
+[% let $subtitle = string(($context?metadata?subtitle?*)[1]) %]
+[% let $author = string(($context?metadata?author?*)[1]) %]
+#set text(lang: "[[ ($context?parameters?lng, 'en')[1] ]]")
 
 #show: ilm.with(
-  title: [{{ _title }}],
+  title: [[[ $title ]]],
   authors: "",
   date: none,
   cover-page: [
@@ -23,28 +23,28 @@
     #set text(font: ("Libertinus Serif",))
     #place(top + left, dx: -1.2cm, dy: 0cm, rect(width: 0.35cm, height: 100%, fill: rgb("#f7a823"), stroke: none))
     #v(1fr)
-    #text(size: 2.9em, weight: "bold", [{{ _title }}])
-{% if _subtitle %}
+    #text(size: 2.9em, weight: "bold", [[[ $title ]]])
+[% if $subtitle %]
     #v(0.6em)
-    #text(size: 1.35em, style: "italic", fill: rgb("#6e6860"), [{{ _subtitle }}])
-{% endif %}
+    #text(size: 1.35em, style: "italic", fill: rgb("#6e6860"), [[[ $subtitle ]]])
+[% endif %]
     #v(1.4em)
     #line(length: 4cm, stroke: (paint: rgb("#f7a823"), thickness: 2pt, cap: "round"))
-{% if _author %}
+[% if $author %]
     #v(1.4em)
-    #text(size: 1.15em, tracking: 0.04em, [{{ _author }}])
-{% endif %}
+    #text(size: 1.15em, tracking: 0.04em, [[[ $author ]]])
+[% endif %]
     #v(2fr)
-{% if _edition %}
-    #text(size: 0.9em, fill: rgb("#6e6860"), [{{ _edition }}])
-{% endif %}
+[% if $edition %]
+    #text(size: 0.9em, fill: rgb("#6e6860"), [[[ $edition ]]])
+[% endif %]
   ],
   abstract: none,
   table-of-contents: outline(depth: 2),
   raw-text: (font: ("DejaVu Sans Mono", "Menlo", "Courier New"), size: 0.82em),
 )
 
-{% include "opm_css_fns_default.typ.j2" %}
+[% include "opm_css_fns_default.typ.j2" %]
 
 // No margin notes in the documentation: keep the outer column narrow.
 #show: marginalia.setup.with(
@@ -54,9 +54,9 @@
   bottom: 2.4cm,
 )
 
-{% include "opm_css.typ.j2" %}
+[% include "opm_css.typ.j2" %]
 
-{{ odd_typst }}
+[[ $context?odd_typst ]]
 
 // Palette and type follow the HTML site (document.css): serif text, warm
 // paper tones, amber accents. Fonts fall back to what Typst ships with.
@@ -137,4 +137,5 @@
   }
 })
 
-{{ content_typst }}
+[[ $context?content_typst ]]
+[% endlet %][% endlet %][% endlet %][% endlet %]

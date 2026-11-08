@@ -12,18 +12,18 @@ xpath_extensions = [
 
 # Chunk pages use the same template and stylesheet; [chunking] sets neither.
 [transform.web]
-template = "templates/handbook.html.j2"
+template = "templates/handbook.html.tpl"
 assets = ["templates/handbook.css"]
 webcomponents = true
 
 [transform.print]
-template = "templates/print.html.j2"
+template = "templates/print.html.tpl"
 
 [transform.epub]
 css = "templates/epub.css"
 
 [transform.typst]
-template = "templates/docbook.typ.j2"
+template = "templates/docbook.typ.tpl"
 
 [context]
 site_name = "TEI Publisher Documentation"

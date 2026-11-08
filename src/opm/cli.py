@@ -165,7 +165,7 @@ def init_cmd(
                 'Also copy the alternative HTML templates (chapbook, journal, '
                 'handbook, tufte, bootstrap) beside the one the project uses, '
                 "and opm's plain default Typst template as "
-                '`templates/document.typ.j2`.'
+                '`templates/document.typ.tpl`.'
             ),
         ),
     ] = False,
@@ -187,6 +187,16 @@ def init_cmd(
             help='Skip README.md, AGENTS.md, CLAUDE.md and .gitignore.',
         ),
     ] = False,
+    jinja: Annotated[
+        bool,
+        typer.Option(
+            '--jinja',
+            help=(
+                'Empty projects only: write the templates in Jinja2 syntax '
+                '(`.j2`) instead of the jinks syntax of TEI Publisher (`.tpl`).'
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Create a local project: an empty one or a copy of a bundled example."""
     if list_examples:
@@ -205,6 +215,8 @@ def init_cmd(
 
     if example is not None and copy_base_odd:
         _note('--copy-base-odd does not apply to --example; ignoring it.')
+    if example is not None and jinja:
+        _note('--jinja does not apply to --example, which keeps its own templates; ignoring it.')
 
     vocab = (vocabulary or 'tei').strip().lower()
     if example is None and copy_base_odd and vocab != 'tei':
@@ -219,6 +231,7 @@ def init_cmd(
                 templates=templates,
                 base=base,
                 bare=bare,
+                jinja=jinja and example is None,
                 copy_base_odd=copy_base_odd and vocab == 'tei' and example is None,
             )
         )
@@ -965,7 +978,7 @@ def transform_cmd(
         Optional[Path],
         typer.Option(
             '--template',
-            help='Template path: Jinja2 for HTML/print/Typst output, or .docx for DOCX output.',
+            help='Template path: a page template (.tpl for jinks, else Jinja2) for HTML/print/Typst output, or .docx for DOCX output.',
         ),
     ] = None,
     xpath: Annotated[
@@ -1124,7 +1137,7 @@ def chunk(
             '-t',
             exists=True,
             dir_okay=False,
-            help='Jinja2 template for chunk pages (overrides chunking.template in config).',
+            help='Page template for chunk pages: .tpl for jinks, else Jinja2 (overrides chunking.template in config).',
         ),
     ] = None,
     force: Annotated[
@@ -1182,7 +1195,7 @@ def chunk(
         typer.Option(
             '--format',
             help=(
-                'Output format for chunk files: "html" (default, rendered via Jinja2 template), '
+                'Output format for chunk files: "html" (default, rendered via the page template), '
                 '"json" (one JSON file per chunk containing content, head, odd_css, and '
                 'fragments — suitable for static site generators such as Eleventy), or '
                 '"pb-view" (index.json lookup table plus one part file per chunk, consumable '

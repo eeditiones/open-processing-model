@@ -25,7 +25,7 @@ xpath_extensions = [
 
 # PDF: `opm odd document -t typst`.
 [transform.typst]
-template = "tagdocs.typ.j2"
+template = "tagdocs.typ.tpl"
 
 # EPUB: `opm odd document -t epub`. The site's stylesheet is written for
 # browsers; this one restyles the reference entries for e-readers.
@@ -41,7 +41,7 @@ css = "epub.css"
 name = "guidelines"
 xpath = "/TEI/text/(front|body|back)/div"
 file_pattern = "{xml_id}.html"
-template = "page.html.j2"
+template = "page.html.tpl"
 
 [[chunking.fragments]]
 name = "nav"
@@ -75,7 +75,7 @@ parameters = { mode = "chapnav-end" }
 name = "home"
 xpath = "/TEI/text/front/titlePage"
 file_pattern = "index.html"
-template = "page.html.j2"
+template = "page.html.tpl"
 parameters = { mode = "toc" }
 
 [[chunking.fragments]]
@@ -98,7 +98,7 @@ xpath = """
   | //dataSpec[starts-with(@xml:id,'ref-')]
 """
 file_pattern = "{xml_id}.html"
-template = "page.html.j2"
+template = "page.html.tpl"
 
 [[chunking.fragments]]
 name = "nav"
