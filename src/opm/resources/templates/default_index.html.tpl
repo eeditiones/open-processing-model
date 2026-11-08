@@ -4,7 +4,7 @@
   --opm-* variables.
 #]
 ---toml
-[layout]
+[theme.layout]
 class = "opm-index"
 
 [templating]

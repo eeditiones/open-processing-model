@@ -142,8 +142,8 @@ def test_layout_renders_only_filled_regions(tmp_path: Path) -> None:
 
 
 def test_layout_settings_from_frontmatter(tmp_path: Path) -> None:
-    page = _write(tmp_path / 'page.j2', '---toml\n[layout]\nclass = "wide"\n'
-                  '[layout.before]\nwidth = "12rem"\nlabel = "Inhalt"\n---\n'
+    page = _write(tmp_path / 'page.j2', '---toml\n[theme.layout]\nclass = "wide"\n'
+                  '[theme.layout.before]\nwidth = "12rem"\nlabel = "Inhalt"\n---\n'
                   '{% extends "opm/layout.html.j2" %}{% block before %}<nav>toc</nav>{% endblock %}')
     out = render_document_template(serialized_html=_DOC, template_path=page, odd_css='', parameters={})
     assert 'class="opm-layout wide has-before opm-before--drawer" style="--opm-layout-before-width: 12rem;"' in out
@@ -225,22 +225,22 @@ def test_missing_parent_is_reported(tmp_path: Path) -> None:
 
 def test_packaged_defaults_sit_beneath_project_context(tmp_path: Path) -> None:
     page = _write(tmp_path / 'page.j2', '{% extends "opm/layout.html.j2" %}')
-    context = template_context(template_environment(page), 'page.j2', {'layout': {'after': {'width': '20rem'}}})
-    assert context['layout']['after'] == {'width': '20rem', 'mobile': 'stack', 'label': 'More'}
-    assert context['layout']['before'] == {'mobile': 'drawer', 'label': 'Contents'}
+    context = template_context(template_environment(page), 'page.j2', {'theme': {'layout': {'after': {'width': '20rem'}}}})
+    assert context['theme']['layout']['after'] == {'width': '20rem', 'mobile': 'stack', 'label': 'More'}
+    assert context['theme']['layout']['before'] == {'mobile': 'drawer', 'label': 'Contents'}
 
 
 def test_layout_width_from_opm_toml(tmp_path: Path) -> None:
     from opm.config import load_project_config
 
     (tmp_path / 'opm.toml').write_text(
-        '[context.layout.after]\nwidth = "20rem"\n'
-        '[transform.web.context.layout.after]\nlabel = "Notes"\n',
+        '[context.theme.layout.after]\nwidth = "20rem"\n'
+        '[transform.web.context.theme.layout.after]\nlabel = "Notes"\n',
         encoding='utf-8',
     )
     context = load_project_config(tmp_path / 'opm.toml').context_for('web')
-    # The per-type table adds to [context.layout] rather than replacing it.
-    assert context == {'layout': {'after': {'width': '20rem', 'label': 'Notes'}}}
+    # The per-type table adds to [context.theme.layout] rather than replacing it.
+    assert context == {'theme': {'layout': {'after': {'width': '20rem', 'label': 'Notes'}}}}
 
     page = _write(tmp_path / 'page.j2', '{% extends "opm/layout.html.j2" %}{% block after %}x{% endblock %}')
     out = render_document_template(
@@ -250,10 +250,10 @@ def test_layout_width_from_opm_toml(tmp_path: Path) -> None:
 
 
 def test_frontmatter_still_wins_over_opm_toml(tmp_path: Path) -> None:
-    page = _write(tmp_path / 'page.j2', '---toml\n[layout.after]\nwidth = "9rem"\n---\n'
+    page = _write(tmp_path / 'page.j2', '---toml\n[theme.layout.after]\nwidth = "9rem"\n---\n'
                   '{% extends "opm/layout.html.j2" %}')
     out = render_document_template(
         serialized_html=_DOC, template_path=page, odd_css='', parameters={},
-        context={'layout': {'after': {'width': '20rem'}}},
+        context={'theme': {'layout': {'after': {'width': '20rem'}}}},
     )
     assert '--opm-layout-after-width: 9rem;' in out

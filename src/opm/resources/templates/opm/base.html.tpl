@@ -26,7 +26,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   [% if $context?description %]<meta name="description" content="[[ $context?description ]]">[% endif %]
   [% block meta %][% endblock %]
-  [% block title %][% if $context?title %]<title>[[ $context?title ]]</title>[% endif %][% endblock %]
+  [% block title %][% let $title = ($context?title, $context?label)[string(.) != ''][1] %][% if exists($title) %]<title>[[ $title ]]</title>[% endif %][% endlet %][% endblock %]
   [% if $context?base_css %]
   <style type="text/css">
 [[ $context?base_css ]]
@@ -57,7 +57,7 @@
   [% endfor %]
   [% block scripts %][% endblock %]
 </head>
-<body class="[[ string-join($context?body?classes?*, ' ') ]] [% block body_class %][% endblock %]">
+<body class="[[ string-join($context?theme?body?classes?*, ' ') ]] [% block body_class %][% endblock %]">
 [% if exists($context?pb_page) %]
 <pb-page endpoint="![[ $context?pb_page?endpoint ]]" api-version="![[ $context?pb_page?api-version ]]" theme="![[ $context?pb_page?theme ]]">
 [% endif %]

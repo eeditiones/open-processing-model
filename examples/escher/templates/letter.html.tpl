@@ -16,11 +16,11 @@
   The shell comes from escher.html.tpl.
 #]
 ---toml
-[layout.before]
+[theme.layout.before]
 width = "16rem"
 label = "Kontexte"
 
-[layout.after]
+[theme.layout.after]
 width = "26rem"
 
 # The <pb-page> the web components need around the page. They resolve

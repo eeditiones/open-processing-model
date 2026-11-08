@@ -185,7 +185,7 @@ between two lines of `---`. This frontmatter is added to the context map:
 ---json
 {
     "title": "Letters of Alfred Escher",
-    "layout": { "after": { "width": "22rem" } }
+    "theme": { "layout": { "after": { "width": "22rem" } } }
 }
 ---
 <html>…</html>
@@ -250,7 +250,7 @@ of `monograph.html.tpl`, written in TOML, starts like this:
 ---toml
 styles = ["https://fonts.googleapis.com/css2?family=EB+Garamond…"]
 
-[body]
+[theme.body]
 classes = ["chapbook"]
 
 [templating]
@@ -264,7 +264,11 @@ settings it accepts are described under
 [Template inheritance](templates-and-css.md#template-inheritance). As in TEI
 Publisher, the layout writes every region, and its stylesheet
 (`opm-layout.css`) hides the empty ones. (The Jinja2 version of the layout
-leaves them out instead.)
+leaves them out instead.) The layout's blocks and settings have the same names
+as in TEI Publisher's base layout, e.g. the `before-top` and `menu.toggles`
+blocks or the `theme.layout.before.width` setting. The Jinja2 version uses
+underscores in block names instead (`before_top`, `menu_toggles`), since
+Jinja2 does not allow `-` or `.` in them.
 
 Besides the layout, opm provides `default_document.html.tpl`, which shows the
 transformed document in the layout. It is a good starting point for your own

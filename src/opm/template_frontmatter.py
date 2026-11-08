@@ -8,7 +8,7 @@ as in jinks::
     {# SPDX header comments may come first #}
     ---toml
     styles = ["https://fonts.googleapis.com/css2?family=Belleza"]
-    [layout.after]
+    [theme.layout.after]
     width = "22rem"
     ---
     {% extends "opm/layout.html.j2" %}
@@ -176,7 +176,7 @@ def context_defaults() -> dict[str, Any]:
     """The packaged defaults beneath every template ``context``.
 
     Read from ``opm/defaults.toml`` among the packaged templates: the settings
-    the packaged layouts understand, such as ``layout.after.width``. A project
+    the packaged layouts understand, such as ``theme.layout.after.width``. A project
     overrides them in ``[context]`` and a template in its frontmatter.
     """
     return merge_deep(_context_defaults())

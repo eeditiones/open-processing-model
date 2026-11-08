@@ -23,7 +23,7 @@
   {%- if context.description %}<meta name="description" content="{{ context.description | e }}">{% endif -%}
   {% endblock %}
   {% block title %}
-  {%- if context.title %}<title>{{ context.title }}</title>{% endif -%}
+  {%- if context.title or context.label %}<title>{{ context.title or context.label }}</title>{% endif -%}
   {% endblock %}
   {% if base_css %}
   <style type="text/css">
@@ -55,10 +55,11 @@
   {% endfor %}
   {% block scripts %}{% endblock %}
 </head>
-{%- set body_classes = (context.body.classes if context.body is mapping and context.body.classes else []) | list -%}
+{%- set body = context.theme.body if context.theme is mapping and context.theme.body is mapping else {} %}
+{%- set body_classes = (body.classes or []) | list -%}
 {%- set body_classes = (body_classes + [self.body_class() | trim]) | select | join(' ') %}
 <body{% if body_classes %} class="{{ body_classes }}"{% endif %}>
-{#- Classes for <body> on top of context.body.classes. -#}
+{#- Classes for <body> on top of context.theme.body.classes. -#}
 {%- if false %}{% block body_class %}{% endblock %}{% endif %}
 {% block body %}
   <article class="content">

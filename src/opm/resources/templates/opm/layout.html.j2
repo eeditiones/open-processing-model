@@ -9,7 +9,8 @@
 
   Fill a region by overriding the block of the same name (with underscores:
   before_top, content_top, after_top). A region left empty takes no room.
-  The content block defaults to the transformed document.
+  The content block defaults to the transformed document; above_content and
+  below_content add to the main column around it.
 
   The header and the content-top region are written by the layout, as in
   jinks, so a template fills slots in them instead of replacing them:
@@ -25,17 +26,20 @@
   and toolbar take <li> items. Theme via --opm-background-color / --opm-color and
   related variables in opm-layout.css.
 
-  Settings, under `layout` in the context (defaults in opm/defaults.toml,
+  Settings in the context, as in jinks (defaults in opm/defaults.toml,
   overridden by opm.toml [context] and then by template frontmatter):
-    layout.class          extra classes on the layout container
-    layout.before.width   width of the before column (CSS length)
-    layout.before.mobile  "drawer" (slides in, opened from content-top) or
-                          "stack" (shown below the content)
-    layout.before.label   label of the drawer's open button
-    layout.before.span_top  start the column level with content-top, not below
-                          it (ignored while before-top has content)
-    layout.after.*        the same for the after column
-    menu.items            links after the logo: [{ label, url }]
+    theme.layout.class          extra classes on the layout container
+    theme.layout.before.width   width of the before column (CSS length)
+    theme.layout.before.mobile  "drawer" (slides in, opened from content-top)
+                                or "stack" (shown below the content)
+    theme.layout.before.label   label of the drawer's open button
+    theme.layout.before.span_top  start the column level with content-top,
+                                not below it (ignored while before-top has content)
+    theme.layout.after.*        the same for the after column
+    menu.items            links after the logo: [{ label, url }], or
+                          [{ label, subitems: [{ label, url }] }] for a
+                          drop-down; as in jinks, `id` stands in for a
+                          missing label
     features.menubar      false drops the menubar (the header block stays)
     features.toolbar.enabled     false drops the toolbar
     features.toolbar.navigation  previous/next links for chunk pages
@@ -53,7 +57,7 @@
 {% endblock %}
 
 {% block body %}
-{%- set L = context.layout %}
+{%- set L = context.theme.layout %}
 {#- Widths set in opm.toml or frontmatter go on the grid itself, so they win
     over a theme stylesheet's own default for the same property. #}
 {%- set widths = [] %}
@@ -105,7 +109,20 @@
         <li class="logo">{{ blocks.logo }}</li>
         {%- endif %}
         {%- for item in menu_items %}
-        <li><a href="{{ item.url }}">{{ item.label }}</a></li>
+        {%- if item.url is defined %}
+        <li><a href="{{ item.url }}">{{ item.label or item.id }}</a></li>
+        {%- elif item.subitems is defined %}
+        <li>
+          <details class="dropdown">
+            <summary>{{ item.label or item.id }}</summary>
+            <ul>
+              {%- for sub in item.subitems %}
+              <li><a href="{{ sub.url }}">{{ sub.label or sub.id }}</a></li>
+              {%- endfor %}
+            </ul>
+          </details>
+        </li>
+        {%- endif %}
         {%- endfor %}
         {{ blocks.menu_left }}
       </ul>
@@ -160,11 +177,13 @@
   {%- endif %}
 
   <main class="opm-main" id="opm-content">
+    {% block above_content %}{% endblock %}
     {% block content %}
     <article class="content">
       {{ content_html | default('', true) | safe }}
     </article>
     {% endblock %}
+    {% block below_content %}{% endblock %}
   </main>
 
   {%- if blocks.after_top %}

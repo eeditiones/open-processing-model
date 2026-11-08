@@ -12,7 +12,7 @@ styles = [
   "https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap",
 ]
 
-[body]
+[theme.body]
 classes = ["chapbook", "escher"]
 
 [templating]

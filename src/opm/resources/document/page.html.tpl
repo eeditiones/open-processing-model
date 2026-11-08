@@ -10,7 +10,7 @@
   logo.svg) into assets/; document.css styles it all.
 #]
 ---toml
-[body]
+[theme.body]
 classes = ["doc"]
 
 [templating]
@@ -38,11 +38,11 @@ extends = "opm/layout.html.tpl"
 
 [% template body_class %][% if $context?fragments?nav %]doc--with-nav[% endif %][% endtemplate %]
 
-[% template menu_left %]
+[% template menu.left %]
   [% if $context?edition %]<li class="doc-edition">[[ $context?edition ]]</li>[% endif %]
 [% endtemplate %]
 
-[% template menu_toggles %]
+[% template menu.toggles %]
   <li class="doc-search" data-idents="idents.json">
     <form role="search">
       <label class="visually-hidden" for="doc-q">Find an element, class or macro</label>

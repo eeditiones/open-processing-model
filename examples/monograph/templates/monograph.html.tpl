@@ -20,7 +20,7 @@ styles = [
   "https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap",
 ]
 
-[body]
+[theme.body]
 classes = ["chapbook"]
 
 [templating]
@@ -46,7 +46,7 @@ extends = "opm/layout.html.tpl"
 [% template body_class %][% if $context?fragments?toc %]chapbook--with-toc[% endif %][% endtemplate %]
 
 [# Reader-set text size, remembered per browser. #]
-[% template menu_toggles %]
+[% template menu.toggles %]
   <li class="chap-zoom">
     <button type="button" data-chap-zoom="-0.1" title="Smaller text" aria-label="Smaller text">A&minus;</button>
     <button type="button" data-chap-zoom="0.1" title="Larger text" aria-label="Larger text">A+</button>

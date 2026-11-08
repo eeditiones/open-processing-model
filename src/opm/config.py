@@ -699,8 +699,8 @@ class ProjectConfig:
         formats force it on.
         """
         key = _section_for(transform_type)
-        # Merged like template frontmatter, so [transform.web.context.layout]
-        # adds to [context.layout] instead of replacing it.
+        # Merged like template frontmatter, so [transform.web.context.theme.layout]
+        # adds to [context.theme.layout] instead of replacing it.
         merged = merge_deep(
             self.template_context,
             self.template_context_by_type.get(key, {}) if key else None,

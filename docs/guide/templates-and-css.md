@@ -262,7 +262,7 @@ defines one block for each of them:
 +-------------------------------------------------+
 |                      hero                       |
 +------------+----------------------+-------------+
-| before_top |     content_top      |  after_top  |
+| before-top |     content-top      |  after-top  |
 +------------+----------------------+-------------+
 |   before   |       content        |    after    |
 +------------+----------------------+-------------+
@@ -274,9 +274,10 @@ defines one block for each of them:
 | --- | --- |
 | `header` | Across the top of the page, below the menu bar. It stays in place while the reader scrolls |
 | `hero` | Across the page, below the header, e.g. for a large title image |
-| `before_top`, `before` | The column left of the text, e.g. for a table of contents |
-| `content_top`, `content` | The text itself. `content` shows the transformed document, unless a template fills it with something else |
-| `after_top`, `after` | The column right of the text, e.g. for a list of people and places |
+| `before-top`, `before` | The column left of the text, e.g. for a table of contents |
+| `content-top`, `content` | The text itself. `content` shows the transformed document, unless a template fills it with something else |
+| `above-content`, `below-content` | Above and below the text, in the same column |
+| `after-top`, `after` | The column right of the text, e.g. for a list of people and places |
 | `footer` | Across the bottom of the page |
 
 You only fill the areas you need. An area left empty takes no room on the
@@ -305,6 +306,20 @@ items = [
 ]
 ```
 
+To group several links in a drop-down menu, give an entry `subitems`
+instead of a `url`:
+
+```toml
+items = [
+    { label = "Letters", subitems = [
+        { label = "By date", url = "index.html" },
+        { label = "By person", url = "people.html" },
+    ] },
+]
+```
+
+As in TEI Publisher, an entry may have an `id` instead of a `label`.
+
 The logo is made from three settings in `[context]`: an image (`logo`), the
 name of an author (`author`) and a title (`site_name`). Each of them is
 optional. If `logo` is just a filename, as above, opm looks for the image in
@@ -327,14 +342,14 @@ item must be a list entry (`<li>`):
 
 | Block | Where it appears |
 | --- | --- |
-| `menu_left` | In the menu bar, after the menu links |
-| `menu_toggles` | At the right end of the menu bar |
+| `menu.left` | In the menu bar, after the menu links |
+| `menu.toggles` | At the right end of the menu bar |
 | `toggle`, `toolbar` | At the right end of the toolbar, before and after the links to the previous and next page |
 
 For example, to add a link to download a PDF:
 
 ```html
-[% template menu_toggles %]
+[% template menu.toggles %]
   <li><a href="https://example.org/edition.pdf">PDF</a></li>
 [% endtemplate %]
 ```
@@ -432,11 +447,11 @@ page layout.
    the menu bar, and show the title of the work above the text:
 
     ```html
-    [% template menu_toggles %]
+    [% template menu.toggles %]
       <li><a href="about.html">About</a></li>
     [% endtemplate %]
 
-    [% template content_top %]
+    [% template content-top %]
       [[ $context?fragments?title ]]
     [% endtemplate %]
     ```
@@ -476,10 +491,10 @@ between two lines of three dashes. This block is called the
 title = "Letters of Mikołaj Serafin"
 styles = ["https://fonts.googleapis.com/css2?family=Belleza"]
 
-[body]
+[theme.body]
 classes = ["letter"]
 
-[layout.before]
+[theme.layout.before]
 width = "16rem"
 label = "Letters"
 mobile = "stack"
@@ -505,20 +520,20 @@ your own templates can read any setting of the frontmatter as
 
 | Setting | Effect |
 | --- | --- |
-| `title` | The title of the page, unless a template fills the `title` block |
+| `title` | The title of the page, unless a template fills the `title` block. Without a title, opm uses `label`, as TEI Publisher does |
 | `description` | A short description of the page, for search engines (`<meta name="description">`) |
 | `lang` | The language of the page |
 | `styles` | A list of stylesheets to load, e.g. web fonts |
 | `scripts` | A list of scripts to load (as JavaScript modules) |
-| `body.classes` | A list of classes for `<body>` |
-| `layout.class` | Classes for the element which holds the layout areas |
-| `layout.before.width`, `layout.after.width` | Width of the left and right column |
-| `layout.before.mobile`, `layout.after.mobile` | What happens to the column on a phone: `"drawer"` (it slides in when the reader taps a button) or `"stack"` (it moves below the text) |
-| `layout.before.label`, `layout.after.label` | Text of the button which opens the sliding panel, also used as the panel's heading |
-| `layout.before.span_top`, `layout.after.span_top` | `true` starts the column level with the toolbar instead of below it |
-| `layout.close_label` | Text of the link which closes the sliding panel |
-| `layout.previous_label`, `layout.next_label` | Text of the toolbar's links to the previous and next page |
-| `menu.items` | Links in the menu bar, each with a `label` and a `url` |
+| `theme.body.classes` | A list of classes for `<body>` |
+| `theme.layout.class` | Classes for the element which holds the layout areas |
+| `theme.layout.before.width`, `theme.layout.after.width` | Width of the left and right column |
+| `theme.layout.before.mobile`, `theme.layout.after.mobile` | What happens to the column on a phone: `"drawer"` (it slides in when the reader taps a button) or `"stack"` (it moves below the text) |
+| `theme.layout.before.label`, `theme.layout.after.label` | Text of the button which opens the sliding panel, also used as the panel's heading |
+| `theme.layout.before.span_top`, `theme.layout.after.span_top` | `true` starts the column level with the toolbar instead of below it |
+| `theme.layout.close_label` | Text of the link which closes the sliding panel |
+| `theme.layout.previous_label`, `theme.layout.next_label` | Text of the toolbar's links to the previous and next page |
+| `menu.items` | Links in the menu bar, each with a `label` and a `url`, or with `subitems` for a drop-down menu |
 | `features.menubar` | `false` removes the menu bar |
 | `features.toolbar.enabled` | `false` removes the toolbar |
 | `features.toolbar.navigation` | `true` adds links to the previous and next page to the toolbar |
@@ -540,7 +555,7 @@ How a setting is combined depends on its kind, following the same rules as [TEI 
 
 - A single value, such as a text, a number or `true`/`false`, replaces the
   value from an earlier source.
-- A table, such as `[layout.before]`, is combined setting by setting: the
+- A table, such as `[theme.layout.before]`, is combined setting by setting: the
   settings it contains replace those of an earlier source, all others are
   kept.
 - A list, such as `styles`, is joined with the list from an earlier source.

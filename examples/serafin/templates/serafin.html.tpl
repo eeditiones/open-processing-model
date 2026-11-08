@@ -14,7 +14,7 @@ styles = [
   "https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@0,300..700;1,300..700&family=Belleza&display=swap",
 ]
 
-[body]
+[theme.body]
 classes = ["letter"]
 
 [templating]

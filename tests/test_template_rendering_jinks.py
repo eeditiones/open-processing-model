@@ -42,7 +42,7 @@ def test_document_template_variables(tmp_path: Path) -> None:
         '---toml\ntitle = "From frontmatter"\n---\n'
         '<html lang="[[ $lang ]]"><head>[[ $head_html ]]<style>[[ $odd_css ]]</style></head>'
         '<body><h1>[[ $title ]]</h1><nav>[[ $fragments?toc ]]</nav>[[ $content_html ]]'
-        '<footer>[[ $context?site ]] [[ $parameters?p ]] [[ $context?layout?after?mobile ]]</footer>'
+        '<footer>[[ $context?site ]] [[ $parameters?p ]] [[ $context?theme?layout?after?mobile ]]</footer>'
         '</body></html>',
         encoding='utf-8',
     )
@@ -63,7 +63,7 @@ def test_template_context_for_jinks_adds_defaults(tmp_path: Path) -> None:
     env = template_environment(tmp_path / 'p.html.tpl')
     ctx = template_context(env, 'p.html.tpl', {'site': 's'})
     assert ctx['site'] == 's'
-    assert 'layout' in ctx
+    assert 'layout' in ctx['theme']
 
 
 def test_extends_packaged_search_path(tmp_path: Path) -> None:
@@ -156,7 +156,7 @@ def test_packaged_default_document_template(tmp_path: Path) -> None:
         template_path=default_template_path('default_document.html.tpl'),
         odd_css='.x {}', parameters={},
         context={'site_name': 'Site', 'menu': {'items': [{'label': 'About', 'url': 'about.html'}]},
-                 'layout': {'before': {'width': '20rem'}}},
+                 'theme': {'layout': {'before': {'width': '20rem'}}}},
         fragments={'breadcrumbs': '<ol><li>A</li></ol>'},
     )
     assert out.lstrip().startswith('<!doctype html>\n<html lang="en">')
@@ -178,7 +178,7 @@ def test_layout_template_fills_regions(tmp_path: Path) -> None:
     page = tmp_path / 'page.html.tpl'
     page.write_text(
         '---json\n{"templating": {"extends": "opm/layout.html.tpl"}, '
-        '"features": {"menubar": false}, "layout": {"before": {"mobile": "stack"}}}\n---\n'
+        '"features": {"menubar": false}, "theme": {"layout": {"before": {"mobile": "stack"}}}}\n---\n'
         '[% template before %]<nav class="toc"/>[% endtemplate %]'
         '[% template footer %]<p>foot</p>[% endtemplate %]'
         '[% template body_class %]mine[% endtemplate %]'
@@ -286,3 +286,67 @@ def test_scaffolded_shells_exist_in_both_syntaxes() -> None:
     for name in ('book', 'docbook'):
         assert templates.joinpath(f'{name}.typ.tpl').is_file(), name
         assert templates.joinpath(f'{name}.typ.j2').is_file(), name
+
+
+_MENU = {'items': [
+    {'id': 'Start', 'url': 'index.html'},
+    {'label': 'Letters', 'subitems': [{'label': 'By date', 'url': 'date.html'}, {'id': 'People', 'url': 'people.html'}]},
+    {'id': 'Nothing'},
+]}
+
+
+def test_layout_uses_jinks_names(tmp_path: Path) -> None:
+    """Block names, settings and menu entries as in jinks' base layout."""
+    page = tmp_path / 'page.html.tpl'
+    page.write_text(
+        '---json\n{"templating": {"extends": "opm/layout.html.tpl"}, "label": "Fallback title",'
+        ' "theme": {"body": {"classes": ["b1"]}, "layout": {"class": "wide"}}}\n---\n'
+        '[% template before-top %]<p>BT</p>[% endtemplate %]'
+        '[% template content-top %]<p>CT</p>[% endtemplate %]'
+        '[% template after-top %]<p>AT</p>[% endtemplate %]'
+        '[% template menu.left %]<li>ML</li>[% endtemplate %]'
+        '[% template menu.toggles %]<li>MT</li>[% endtemplate %]'
+        '[% template above-content %]<p>above</p>[% endtemplate %]'
+        '[% template below-content %]<p>below</p>[% endtemplate %]',
+        encoding='utf-8')
+    out = render_document_template(serialized_html=_DOC, template_path=page, odd_css='',
+                                   parameters={}, context={'menu': _MENU})
+    squashed = ''.join(out.split())
+    assert '<title>Fallbacktitle</title>' in squashed
+    assert '<bodyclass="b1' in squashed
+    assert 'class="opm-layoutwideopm-before--drawer' in squashed
+    for region, text in (('before-top', 'BT'), ('after-top', 'AT')):
+        assert f'<navclass="{region}"><p>{text}</p></nav>' in squashed
+    assert '<p>CT</p></header>' in squashed
+    assert '<li>ML</li></ul>' in squashed and '<ul><li>MT</li>' in squashed
+    assert ('<mainclass="opm-main"id="opm-content"><p>above</p><articleclass="content">'
+            '<p>a&amp;b</p></article><p>below</p></main>') in squashed
+    # Menu: `id` stands in for the label, subitems become a drop-down, and an
+    # entry with neither url nor subitems is left out.
+    assert '<li><ahref="index.html">Start</a></li>' in squashed
+    assert ('<detailsclass="dropdown"><summary>Letters</summary><ul>'
+            '<li><ahref="date.html">Bydate</a></li><li><ahref="people.html">People</a></li>'
+            '</ul></details>') in squashed
+    assert 'Nothing' not in out
+
+
+def test_jinja_layout_menu_content_blocks_and_label(tmp_path: Path) -> None:
+    page = tmp_path / 'page.html.j2'
+    page.write_text(
+        '---json\n{"label": "Fallback title"}\n---\n'
+        '{% extends "opm/layout.html.j2" %}'
+        '{% block above_content %}<p>above</p>{% endblock %}'
+        '{% block below_content %}<p>below</p>{% endblock %}',
+        encoding='utf-8')
+    out = render_document_template(serialized_html=_DOC, template_path=page, odd_css='',
+                                   parameters={}, context={'menu': _MENU,
+                                                           'theme': {'body': {'classes': ['b1']}}})
+    squashed = ''.join(out.split())
+    assert '<title>Fallbacktitle</title>' in squashed
+    assert '<bodyclass="b1">' in squashed
+    assert '<p>above</p><articleclass="content"><p>a&amp;b</p></article><p>below</p></main>' in squashed
+    assert '<li><ahref="index.html">Start</a></li>' in squashed
+    assert ('<detailsclass="dropdown"><summary>Letters</summary><ul>'
+            '<li><ahref="date.html">Bydate</a></li><li><ahref="people.html">People</a></li>'
+            '</ul></details>') in squashed
+    assert 'Nothing' not in out

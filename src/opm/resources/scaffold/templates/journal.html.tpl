@@ -16,7 +16,7 @@ styles = [
   "https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..600&display=swap",
 ]
 
-[body]
+[theme.body]
 classes = ["jr"]
 
 [templating]
@@ -42,7 +42,7 @@ extends = "opm/layout.html.tpl"
   [% if $context?fragments?journal %]<div class="jr-journal">[[ $context?fragments?journal ]]</div>[% endif %]
 [% endtemplate %]
 
-[% template menu_toggles %]
+[% template menu.toggles %]
   [% if exists($context?chunk) and normalize-space($context?fragments?title) != '' %]<li class="jr-article">[[ normalize-space($context?fragments?title) ]]</li>[% endif %]
 [% endtemplate %]
 

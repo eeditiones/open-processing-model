@@ -1,13 +1,13 @@
 # Defaults for the template `context`, beneath a project's [context] in
 # opm.toml. Override any of them there, e.g.
 #
-#   [context.layout.after]
+#   [context.theme.layout.after]
 #   width = "20rem"
 #
-# or for web output only under [transform.web.context.layout.after]. A
+# or for web output only under [transform.web.context.theme.layout.after]. A
 # template's frontmatter wins over both.
 
-[layout]
+[theme.layout]
 # Extra classes on the layout grid.
 class = ""
 # Text of the link that lets keyboard users jump past the header.
@@ -18,7 +18,7 @@ next_label = "Next"
 # Text of the link that closes a drawer.
 close_label = "Close"
 
-[layout.before]
+[theme.layout.before]
 # Width of the column left of the text (any CSS length). Unset, the template's
 # stylesheet decides (opm-layout.css: 18rem).
 # width = "18rem"
@@ -29,7 +29,7 @@ label = "Contents"
 # Start the column level with the toolbar instead of below it.
 # span_top = true
 
-[layout.after]
+[theme.layout.after]
 # width = "18rem"
 mobile = "stack"
 label = "More"

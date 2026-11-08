@@ -8,34 +8,38 @@
       before      content      after
       footer      (full width)
 
-  Fill a region with a template of the same name (with underscores:
-  before_top, content_top, after_top). As in jinks, every region is written;
-  opm-layout.css gives an empty one no room. The content block defaults to
-  the transformed document.
+  Fill a region with a template of the same name. The names are those of
+  jinks' base layout: before-top, content-top, after-top, menu.left,
+  menu.toggles. As in jinks, every region is written; opm-layout.css gives an
+  empty one no room. The content block defaults to the transformed document;
+  above-content and below-content add to the main column around it.
 
   The header and the content-top region are written by the layout, so a
   template fills slots in them instead of replacing them:
 
-      header       menubar: logo, context.menu.items, menu_left |
-                   menu_toggles, drawer triggers; then the header block
+      header       menubar: logo, context.menu.items, menu.left |
+                   menu.toggles, drawer triggers; then the header block
       content-top  toolbar: breadcrumb | toggle, prev/next, toolbar;
-                   then the content_top block
+                   then the content-top block
 
   logo defaults to context.logo and the title (context.site_name or
-  context.title); breadcrumb to the `breadcrumbs` fragment. menu_left,
-  menu_toggles, toggle and toolbar take <li> items.
+  context.title); breadcrumb to the `breadcrumbs` fragment. menu.left,
+  menu.toggles, toggle and toolbar take <li> items.
 
-  Settings, under `layout` in the context (defaults in opm/defaults.toml,
+  Settings in the context, as in jinks (defaults in opm/defaults.toml,
   overridden by opm.toml [context] and then by template frontmatter):
-    layout.class          extra classes on the layout container
-    layout.before.width   width of the before column (CSS length)
-    layout.before.mobile  "drawer" (slides in, opened from the menubar) or
-                          "stack" (shown below the content)
-    layout.before.label   label of the drawer's open button
-    layout.before.span_top  start the column level with content-top, not below
-                          it (ignored while before-top has content)
-    layout.after.*        the same for the after column
-    menu.items            links after the logo: [{ label, url }]
+    theme.layout.class          extra classes on the layout container
+    theme.layout.before.width   width of the before column (CSS length)
+    theme.layout.before.mobile  "drawer" (slides in, opened from the menubar)
+                                or "stack" (shown below the content)
+    theme.layout.before.label   label of the drawer's open button
+    theme.layout.before.span_top  start the column level with content-top,
+                                not below it (ignored while before-top has content)
+    theme.layout.after.*        the same for the after column
+    menu.items            links after the logo: [{ label, url }], or
+                          [{ label, subitems: [{ label, url }] }] for a
+                          drop-down; as in jinks, `id` stands in for a
+                          missing label
     features.menubar      false drops the menubar (the header block stays)
     features.toolbar.enabled     false drops the toolbar
     features.toolbar.navigation  previous/next links for chunk pages
@@ -54,16 +58,16 @@
 [% endtemplate %]
 
 [% template body %]
-<div class="opm-layout [[ $layout?class ]] opm-before--[[ if ($layout?before?mobile = 'drawer') then 'drawer' else 'stack' ]] opm-after--[[ if ($layout?after?mobile = 'drawer') then 'drawer' else 'stack' ]][[ if ($layout?before?span_top) then ' opm-before--span-top' else '' ]][[ if ($layout?after?span_top) then ' opm-after--span-top' else '' ]]"
+<div class="opm-layout [[ $context?theme?layout?class ]] opm-before--[[ if ($context?theme?layout?before?mobile = 'drawer') then 'drawer' else 'stack' ]] opm-after--[[ if ($context?theme?layout?after?mobile = 'drawer') then 'drawer' else 'stack' ]][[ if ($context?theme?layout?before?span_top) then ' opm-before--span-top' else '' ]][[ if ($context?theme?layout?after?span_top) then ' opm-after--span-top' else '' ]]"
   style="![[ string-join((
-      if ($layout?before?width) then '--opm-layout-before-width: ' || $layout?before?width || ';' else (),
-      if ($layout?after?width) then '--opm-layout-after-width: ' || $layout?after?width || ';' else ()
+      if ($context?theme?layout?before?width) then '--opm-layout-before-width: ' || $context?theme?layout?before?width || ';' else (),
+      if ($context?theme?layout?after?width) then '--opm-layout-after-width: ' || $context?theme?layout?after?width || ';' else ()
     ), ' ') ]]">
-  <a class="opm-skip" href="#opm-content">[[ $layout?skip_label ]]</a>
-  [% if $layout?before?mobile = 'drawer' %]
+  <a class="opm-skip" href="#opm-content">[[ $context?theme?layout?skip_label ]]</a>
+  [% if $context?theme?layout?before?mobile = 'drawer' %]
   <input type="checkbox" id="opm-before-toggle" class="opm-drawer__toggle" autocomplete="off">
   [% endif %]
-  [% if $layout?after?mobile = 'drawer' %]
+  [% if $context?theme?layout?after?mobile = 'drawer' %]
   <input type="checkbox" id="opm-after-toggle" class="opm-drawer__toggle" autocomplete="off">
   [% endif %]
 
@@ -88,14 +92,27 @@
         [% endblock %]
         </li>
         [% for $item in $context?menu?items?* %]
-        <li><a href="[[ $item?url ]]">[[ $item?label ]]</a></li>
+        [% if exists($item?url) %]
+        <li><a href="[[ $item?url ]]">[[ ($item?label, $item?id)[1] ]]</a></li>
+        [% elif exists($item?subitems) %]
+        <li>
+          <details class="dropdown">
+            <summary>[[ ($item?label, $item?id)[1] ]]</summary>
+            <ul>
+              [% for $sub in $item?subitems?* %]
+              <li><a href="[[ $sub?url ]]">[[ ($sub?label, $sub?id)[1] ]]</a></li>
+              [% endfor %]
+            </ul>
+          </details>
+        </li>
+        [% endif %]
         [% endfor %]
-        [% block menu_left %][% endblock %]
+        [% block menu.left %][% endblock %]
       </ul>
       <ul>
-        [% block menu_toggles %][% endblock %]
-        [% if $layout?before?mobile = 'drawer' %]<li class="trigger"><label for="opm-before-toggle" class="opm-drawer__open opm-drawer__open--before">[[ $layout?before?label ]]</label></li>[% endif %]
-        [% if $layout?after?mobile = 'drawer' %]<li class="trigger"><label for="opm-after-toggle" class="opm-drawer__open opm-drawer__open--after">[[ $layout?after?label ]]</label></li>[% endif %]
+        [% block menu.toggles %][% endblock %]
+        [% if $context?theme?layout?before?mobile = 'drawer' %]<li class="trigger"><label for="opm-before-toggle" class="opm-drawer__open opm-drawer__open--before">[[ $context?theme?layout?before?label ]]</label></li>[% endif %]
+        [% if $context?theme?layout?after?mobile = 'drawer' %]<li class="trigger"><label for="opm-after-toggle" class="opm-drawer__open opm-drawer__open--after">[[ $context?theme?layout?after?label ]]</label></li>[% endif %]
       </ul>
     </nav>
     [% endif %]
@@ -104,13 +121,13 @@
 
   <div class="hero">[% block hero %][% endblock %]</div>
 
-  <nav class="before-top">[% block before_top %][% endblock %]</nav>
+  <nav class="before-top">[% block before-top %][% endblock %]</nav>
 
   <aside class="before" id="opm-before">
-    [% if $layout?before?mobile = 'drawer' %]
+    [% if $context?theme?layout?before?mobile = 'drawer' %]
     <div class="opm-drawer__head">
-      <span class="opm-drawer__title">[[ $layout?before?label ]]</span>
-      <label for="opm-before-toggle" class="opm-drawer__close">[[ $layout?close_label ]]</label>
+      <span class="opm-drawer__title">[[ $context?theme?layout?before?label ]]</span>
+      <label for="opm-before-toggle" class="opm-drawer__close">[[ $context?theme?layout?close_label ]]</label>
     </div>
     [% endif %]
     [% block before %][% endblock %]
@@ -124,36 +141,38 @@
         [% block toggle %][% endblock %]
         [% if $features?toolbar?navigation and ($context?chunk?prev or $context?chunk?next) %]
         <li class="toolbar__navigation">
-          [% if $context?chunk?prev %]<a href="[[ $context?chunk?prev ]].html" rel="prev">&#8592; [[ $layout?previous_label ]]</a>[% endif %]
-          [% if $context?chunk?next %]<a href="[[ $context?chunk?next ]].html" rel="next">[[ $layout?next_label ]] &#8594;</a>[% endif %]
+          [% if $context?chunk?prev %]<a href="[[ $context?chunk?prev ]].html" rel="prev">&#8592; [[ $context?theme?layout?previous_label ]]</a>[% endif %]
+          [% if $context?chunk?next %]<a href="[[ $context?chunk?next ]].html" rel="next">[[ $context?theme?layout?next_label ]] &#8594;</a>[% endif %]
         </li>
         [% endif %]
         [% block toolbar %][% endblock %]
         [% if not($features?menubar) %]
-        [% if $layout?before?mobile = 'drawer' %]<li class="trigger"><label for="opm-before-toggle" class="opm-drawer__open opm-drawer__open--before">[[ $layout?before?label ]]</label></li>[% endif %]
-        [% if $layout?after?mobile = 'drawer' %]<li class="trigger"><label for="opm-after-toggle" class="opm-drawer__open opm-drawer__open--after">[[ $layout?after?label ]]</label></li>[% endif %]
+        [% if $context?theme?layout?before?mobile = 'drawer' %]<li class="trigger"><label for="opm-before-toggle" class="opm-drawer__open opm-drawer__open--before">[[ $context?theme?layout?before?label ]]</label></li>[% endif %]
+        [% if $context?theme?layout?after?mobile = 'drawer' %]<li class="trigger"><label for="opm-after-toggle" class="opm-drawer__open opm-drawer__open--after">[[ $context?theme?layout?after?label ]]</label></li>[% endif %]
         [% endif %]
       </ul>
     </nav>
     [% endif %]
-    [% block content_top %][% endblock %]
+    [% block content-top %][% endblock %]
   </header>
 
   <main class="opm-main" id="opm-content">
+    [% block above-content %][% endblock %]
     [% block content %]
     <article class="content">
       [[ $context?content_html ]]
     </article>
     [% endblock %]
+    [% block below-content %][% endblock %]
   </main>
 
-  <nav class="after-top">[% block after_top %][% endblock %]</nav>
+  <nav class="after-top">[% block after-top %][% endblock %]</nav>
 
   <aside class="after" id="opm-after">
-    [% if $layout?after?mobile = 'drawer' %]
+    [% if $context?theme?layout?after?mobile = 'drawer' %]
     <div class="opm-drawer__head">
-      <span class="opm-drawer__title">[[ $layout?after?label ]]</span>
-      <label for="opm-after-toggle" class="opm-drawer__close">[[ $layout?close_label ]]</label>
+      <span class="opm-drawer__title">[[ $context?theme?layout?after?label ]]</span>
+      <label for="opm-after-toggle" class="opm-drawer__close">[[ $context?theme?layout?close_label ]]</label>
     </div>
     [% endif %]
     [% block after %][% endblock %]
@@ -161,10 +180,10 @@
 
   <footer class="page-footer">[% block footer %][% endblock %]</footer>
 
-  [% if $layout?before?mobile = 'drawer' or $layout?after?mobile = 'drawer' %]
+  [% if $context?theme?layout?before?mobile = 'drawer' or $context?theme?layout?after?mobile = 'drawer' %]
   <div class="opm-drawer__backdrop" aria-hidden="true">
-    [% if $layout?before?mobile = 'drawer' %]<label for="opm-before-toggle"></label>[% endif %]
-    [% if $layout?after?mobile = 'drawer' %]<label for="opm-after-toggle"></label>[% endif %]
+    [% if $context?theme?layout?before?mobile = 'drawer' %]<label for="opm-before-toggle"></label>[% endif %]
+    [% if $context?theme?layout?after?mobile = 'drawer' %]<label for="opm-after-toggle"></label>[% endif %]
   </div>
   [% endif %]
 </div>

@@ -10,7 +10,7 @@
 ---
 [% template title %]<title>[[ $context?title ]]</title>[% endtemplate %]
 
-[% template menu_toggles %]
+[% template menu.toggles %]
   <li class="letter-count">[[ array:size($context?documents) ]] letters</li>
 [% endtemplate %]
 

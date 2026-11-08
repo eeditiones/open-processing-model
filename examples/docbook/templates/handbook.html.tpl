@@ -16,10 +16,10 @@ styles = [
   "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Sora:wght@500;600;700&display=swap",
 ]
 
-[body]
+[theme.body]
 classes = ["handbook"]
 
-[layout.before]
+[theme.layout.before]
 span_top = true
 
 [templating]
