@@ -22,8 +22,10 @@
       content-top  toolbar: breadcrumb | toggle, prev/next, toolbar;
                    then the content-top block
 
-  logo defaults to context.logo and the title (context.site_name or
-  context.title); breadcrumb to the `breadcrumbs` fragment. menu.left,
+  logo defaults to context.logo and the title (context.site_name, else the
+  document's `title` fragment, else context.title); with
+  theme.layout.logo_title = false a context.logo alone, the title as its
+  alt text (a wordmark); breadcrumb to the `breadcrumbs` fragment. menu.left,
   menu.toggles, toggle and toolbar take <li> items.
 
   Settings in the context, as in jinks (defaults in opm/defaults.toml,
@@ -79,11 +81,17 @@
         [% block logo %]
         [% let $logo = string($context?logo) %]
         [% let $logo-src = if ($logo != '' and $context?assets and not(contains($logo, '/')) and not(contains($logo, ':'))) then $context?assets || '/' || $logo else $logo %]
-        [% let $logo-title = string(($context?site_name, $context?title)[string(.) != ''][1]) %]
+        [% let $logo-title = string(($context?site_name, normalize-space($context?fragments?title), $context?title)[string(.) != ''][1]) %]
         [% if $logo-src != '' or $logo-title != '' %]
         <a href="[[ ($context?home_url, $context?index_url, 'index.html')[string(.) != ''][1] ]]">
+          [# theme.layout.logo_title = false: the logo is a wordmark carrying the
+              name, so the name becomes its alt text instead of a second line. #]
+          [% if $logo-src != '' and $context?theme?layout?logo_title = false() %]
+          <img class="logo__image" src="[[ $logo-src ]]" alt="[[ $logo-title ]]">
+          [% else %]
           [% if $logo-src != '' %]<img class="logo__image" src="[[ $logo-src ]]" alt="">[% endif %]
           [% if $logo-title != '' %]<span class="logo__title">[[ $logo-title ]]</span>[% endif %]
+          [% endif %]
         </a>
         [% endif %]
         [% endlet %]

@@ -128,7 +128,7 @@ in the same run, so at the ends of this five-letter sample the links are greyed 
 - `templates/letter.html.tpl` — a letter: navigation, head, text, register, facsimile
 - `templates/index.html.tpl` — the letter list
 - `templates/letter.css` — the two readings, navigation, register, facsimile column
-- `templates/chapbook.css` — the monograph example's "paper" design
+- `templates/opm-theme-paper.css` — the "paper" theme, shared with the monograph example
 - `templates/escher.js` — view switch, lines, hover snippet, register highlighting
 - `extensions/escher_functions.py` — `tp:region_image`, `tp:region_coords`
 - `opm.toml` — extension module, IIIF base URL, letter URLs, chunk fragments

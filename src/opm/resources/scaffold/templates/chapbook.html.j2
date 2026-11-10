@@ -3,39 +3,30 @@
   SPDX-License-Identifier: CC0-1.0
 
   chapbook: multi-page, text-centric reading, on opm's packaged page layout
-  (opm/layout.html.j2). The layout writes the menubar and the breadcrumb
-  toolbar; chapbook adds its text-size buttons to the menubar, the contents
-  as the `before` column and page-turn links around the text. chapbook.css
-  styles it all.
+  (opm/layout.html.j2). The layout writes the menubar (logo and <title>
+  from site_name or the work's title) and the breadcrumb toolbar; chapbook
+  adds its text-size buttons to the menubar, the contents as the `before`
+  column and page-turn links around the text, as opm-reader-* classes.
+  Any reader theme styles them: opm-theme-chapbook.css by default, which
+  sets opm's design tokens and styles what is the reader's own.
 
-  Its stylesheet, chapbook.css, is listed under [transform.web] assets in
-  opm.toml: copied next to the output and linked by the base template.
+  Its stylesheet, opm-theme-chapbook.css, is listed under [transform.web]
+  assets in opm.toml: copied next to the output and linked by the base
+  template.
 -#}
 ---toml
-styles = [
-  "https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..700;1,400..600&family=Hanken+Grotesk:wght@400;500;600&display=swap",
-]
-
 [theme.body]
-classes = ["chapbook"]
+classes = ["opm-reader"]
 ---
 {% extends "opm/layout.html.j2" %}
-{% set work_title = (fragments.title | striptags | trim if fragments is defined and fragments.title else '') or 'Chapbook' %}
 {% set is_chunk = chunk is defined and chunk %}
 {% set has_toc = fragments is defined and fragments.toc %}
 
-{% block meta %}{{ super() }}
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-{% endblock %}
-
-{% block title %}<title>{{ work_title }}</title>{% endblock %}
-
-{% block body_class %}{% if has_toc %}chapbook--with-toc{% endif %}{% endblock %}
+{% block body_class %}{% if has_toc %}opm-reader--with-toc{% endif %}{% endblock %}
 
 {# Reader-set text size, remembered per browser. #}
 {% block menu_toggles %}
-  <li class="chap-zoom">
+  <li class="opm-reader-zoom">
     <button type="button" data-chap-zoom="-0.1" title="Smaller text" aria-label="Smaller text">A&minus;</button>
     <button type="button" data-chap-zoom="0.1" title="Larger text" aria-label="Larger text">A+</button>
   </li>
@@ -43,23 +34,23 @@ classes = ["chapbook"]
 
 {% block before %}
   {% if has_toc %}
-  <nav class="chap-toc" aria-label="Contents">
-    <p class="chap-toc__title">Contents</p>
+  <nav class="opm-reader-toc" aria-label="Contents">
+    <p class="opm-reader-toc__title">Contents</p>
     {{ fragments.toc | safe }}
   </nav>
   {% endif %}
 {% endblock %}
 
 {% block content %}
-  <div class="chap-page{% if is_chunk %} chap-page--chunk{% endif %}{% if has_toc %} chap-page--with-toc{% endif %}">
-    <div class="chap-body">
-      <article class="content" id="chap-content">
+  <div class="opm-reader-page{% if is_chunk %} opm-reader-page--chunk{% endif %}{% if has_toc %} opm-reader-page--with-toc{% endif %}">
+    <div class="opm-reader-body">
+      <article class="content" id="opm-reader-content">
         {{ content_html | safe }}
       </article>
     </div>
 
     {% if is_chunk and (chunk.prev or chunk.next) %}
-    <nav class="chap-folio-nav__foot" aria-label="Page navigation">
+    <nav class="opm-reader-folio-nav__foot" aria-label="Page navigation">
       <div>
         {% if chunk.prev %}<a href="{{ chunk.prev }}.html" rel="prev">&#8592; Previous</a>{% endif %}
       </div>
@@ -73,35 +64,35 @@ classes = ["chapbook"]
 
 {% block footer %}
   {% if context.footer %}
-  <div class="chap-footer">
-    <div class="chap-footer__inner">{{ context.footer | safe }}</div>
+  <div class="opm-reader-footer">
+    <div class="opm-reader-footer__inner">{{ context.footer | safe }}</div>
   </div>
   {% endif %}
 {% endblock %}
 
 {% block body_end %}
   {% if is_chunk and chunk.prev %}
-  <div class="chap-folio-nav__rail chap-folio-nav__rail--prev">
+  <div class="opm-reader-folio-nav__rail opm-reader-folio-nav__rail--prev">
     <a href="{{ chunk.prev }}.html" rel="prev" title="Previous page (left arrow key)">
-      <span class="chap-folio-nav__chevron" aria-hidden="true">&#8592;</span>
-      <span class="chap-folio-nav__dir">Previous</span>
+      <span class="opm-reader-folio-nav__chevron" aria-hidden="true">&#8592;</span>
+      <span class="opm-reader-folio-nav__dir">Previous</span>
     </a>
   </div>
   {% endif %}
   {% if is_chunk and chunk.next %}
-  <div class="chap-folio-nav__rail chap-folio-nav__rail--next">
+  <div class="opm-reader-folio-nav__rail opm-reader-folio-nav__rail--next">
     <a href="{{ chunk.next }}.html" rel="next" title="Next page (right arrow key)">
-      <span class="chap-folio-nav__chevron" aria-hidden="true">&#8594;</span>
-      <span class="chap-folio-nav__dir">Next</span>
+      <span class="opm-reader-folio-nav__chevron" aria-hidden="true">&#8594;</span>
+      <span class="opm-reader-folio-nav__dir">Next</span>
     </a>
   </div>
   {% endif %}
 
   <script>
   (function () {
-    var content = document.getElementById('chap-content');
+    var content = document.getElementById('opm-reader-content');
     if (content) {
-      var KEY = 'opm-chapbook-font-size';
+      var KEY = 'opm-reader-font-size';
       try {
         var saved = localStorage.getItem(KEY);
         if (saved) content.style.fontSize = saved + 'rem';
@@ -119,8 +110,8 @@ classes = ["chapbook"]
     }
 
     {# Arrow keys turn the page, as the rails do. #}
-    var prev = document.querySelector('.chap-folio-nav__rail--prev a');
-    var next = document.querySelector('.chap-folio-nav__rail--next a');
+    var prev = document.querySelector('.opm-reader-folio-nav__rail--prev a');
+    var next = document.querySelector('.opm-reader-folio-nav__rail--next a');
     if (!prev && !next) return;
     document.addEventListener('keydown', function (event) {
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;

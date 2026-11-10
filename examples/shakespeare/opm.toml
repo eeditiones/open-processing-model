@@ -65,7 +65,7 @@ template = "templates/chapbook.html.j2"
 # to; nothing serves the iiif/ directory itself. The glob copies every play's
 # manifest, so adding one needs no change here. [chunking] sets no assets of
 # its own, so it uses these.
-assets = ["templates/chapbook.css", "iiif/*", "icon.png"]
+assets = ["templates/opm-theme-chapbook.css", "templates/facsimile.css", "iiif/*", "icon.png"]
 # The <pb> model emits <pb-facs-link>, which stays inert markup showing the
 # folio number until the pb-components bundle is loaded. With it on, each folio
 # announces its manifest and page index on the "transcription" channel and the

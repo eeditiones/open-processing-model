@@ -20,7 +20,7 @@ template = "templates/letter.html.tpl"
 # the facsimile. The page itself is static: both readings are in it, and
 # templates/escher.js switches between them.
 webcomponents = true
-assets = ["templates/chapbook.css", "templates/letter.css", "templates/escher.js"]
+assets = ["templates/opm-theme-paper.css", "templates/letter.css", "templates/escher.js"]
 
 [transform.web.context]
 # The edition's IIIF image server. pb-facsimile appends the image name from
@@ -29,7 +29,30 @@ iiif_base = "https://media.sources-online.org/iiif/2/escher!"
 
 [context]
 site_name = "Briefedition Alfred Escher"
+description = "Briefe von und an Alfred Escher (1819–1882), mit diplomatischer und edierter Lesung und Faksimile."
 lang = "de"
+
+# opm-theme-paper.css has a dark palette ("Lamplight"): follow the reader's system.
+[context.theme]
+color_scheme = "auto"
+
+# The collection index's masthead: the calligraphic opening of Escher's letter
+# of 9 July 1831 (K_0097), cut from the edition's IIIF server.
+[context.theme.index]
+eyebrow = "Briefe"
+filter_label = "Briefe filtern"
+filter_placeholder = "Briefe filtern: Name, Ort, Datum …"
+document_one = "Brief"
+document_many = "Briefe"
+section_many = "Abschnitte"
+list_label = "Als Liste"
+grid_label = "Als Kacheln"
+empty_label = "Kein Brief passt zum Filter."
+open_label = "Öffnen"
+
+[context.theme.index.hero]
+image = "https://media.sources-online.org/iiif/2/escher!K_0097_1r_crop.jpg/15,40,1168,360/full/0/default.jpg"
+position = "center 40%"
 
 # One page per letter, addressed as the edition addresses it: B0096/, not
 # by its file name. The source files and their xml:id say K_0096.
@@ -38,7 +61,7 @@ xpath = "//text"
 document_name = "'B' || substring-after(/TEI/@xml:id, 'K_')"
 file_pattern = "index.html"
 output_dir = "chunks"
-index_template = "templates/index.html.tpl"
+# index_template = "templates/index.html.tpl"
 index_title = "Briefe"
 doc_path = "letters"
 

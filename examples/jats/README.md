@@ -50,7 +50,7 @@ contents — right for a monograph, wrong for a fifteen-page article.
 
 `-t print` reads the same article, but the packaged print template is a bare
 `<body>` — no typography at all. `[transform.print]` points it at
-`templates/print.html.tpl`, which includes `journal.css` before its own
+`templates/print.html.tpl`, which includes `opm-theme-journal.css` before its own
 `print.css`: the paged view keeps the reading view's tokens, title block,
 byline, abstract and reference list, and only drops what the web template added
 (sticky masthead, TOC rail, web components).
@@ -117,7 +117,7 @@ author dict. `authors` stays a plain name so the book templates keep working.
 ## Layout
 
 - `odd/jats.odd` — JATS processing model (plus `jats.css`)
-- `templates/journal.html.tpl` + `journal.css` — journal reading surface:
+- `templates/journal.html.tpl` + `opm-theme-journal.css` — journal reading surface:
   sticky masthead, sticky TOC rail, one measure, footnote apparatus. Both are
   byte-identical to what `opm init --vocabulary jats` now writes, which sets
   this template as the project's `[transform.web] template`; the masthead and rail

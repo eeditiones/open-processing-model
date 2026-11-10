@@ -3,50 +3,29 @@
   SPDX-License-Identifier: CC0-1.0
 
   chapbook: multi-page, text-centric reading, on opm's packaged page layout
-  (opm/layout.html.tpl). The layout writes the menubar and the breadcrumb
-  toolbar; chapbook adds its text-size buttons to the menubar, the contents
-  as the `before` column and page-turn links around the text. chapbook.css
-  styles it all.
+  (opm/layout.html.tpl). The layout writes the menubar (logo and <title>
+  from site_name or the work's title) and the breadcrumb toolbar; chapbook
+  adds its text-size buttons to the menubar, the contents as the `before`
+  column and page-turn links around the text, as opm-reader-* classes.
+  Any reader theme styles them: opm-theme-chapbook.css by default, which
+  sets opm's design tokens and styles what is the reader's own.
 
-  Its stylesheet, chapbook.css, is listed under [transform.web] assets in
-  opm.toml: copied next to the output and linked by the base template.
+  Its stylesheet, opm-theme-chapbook.css, is listed under [transform.web]
+  assets in opm.toml: copied next to the output and linked by the base
+  template.
 #]
 ---toml
-styles = [
-  "https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..700;1,400..600&family=Hanken+Grotesk:wght@400;500;600&display=swap",
-]
-
 [theme.body]
-classes = ["chapbook"]
+classes = ["opm-reader"]
 
 [templating]
 extends = "opm/layout.html.tpl"
 ---
-[% template meta %]
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-[% endtemplate %]
-
-[# The work's title: the `title` fragment without its markup. #]
-[% template title %]
-<title>[[ (normalize-space($context?fragments?title), 'Chapbook')[. != ''][1] ]]</title>
-[% endtemplate %]
-
-[# The menubar names the work, as the page title does. #]
-[% template logo %]
-<a href="[[ ($context?home_url, $context?index_url, 'index.html')[string(.) != ''][1] ]]">
-  [% let $logo = string($context?logo) %]
-  [% if $logo != '' %]<img class="logo__image" src="[[ if ($context?assets and not(contains($logo, '/')) and not(contains($logo, ':'))) then $context?assets || '/' || $logo else $logo ]]" alt="">[% endif %]
-  [% endlet %]
-  <span class="logo__title">[[ (normalize-space($context?fragments?title), 'Chapbook')[. != ''][1] ]]</span>
-</a>
-[% endtemplate %]
-
-[% template body_class %][% if $context?fragments?toc %]chapbook--with-toc[% endif %][% endtemplate %]
+[% template body_class %][% if $context?fragments?toc %]opm-reader--with-toc[% endif %][% endtemplate %]
 
 [# Reader-set text size, remembered per browser. #]
 [% template menu.toggles %]
-  <li class="chap-zoom">
+  <li class="opm-reader-zoom">
     <button type="button" data-chap-zoom="-0.1" title="Smaller text" aria-label="Smaller text">A&minus;</button>
     <button type="button" data-chap-zoom="0.1" title="Larger text" aria-label="Larger text">A+</button>
   </li>
@@ -54,22 +33,22 @@ extends = "opm/layout.html.tpl"
 
 [% template before %]
   [% if $context?fragments?toc %]
-  <nav class="chap-toc" aria-label="Contents">
-    <p class="chap-toc__title">Contents</p>
+  <nav class="opm-reader-toc" aria-label="Contents">
+    <p class="opm-reader-toc__title">Contents</p>
     [[ $context?fragments?toc ]]
   </nav>
   [% endif %]
 [% endtemplate %]
 
-<div class="chap-page[[ if (exists($context?chunk)) then ' chap-page--chunk' else '' ]][[ if ($context?fragments?toc) then ' chap-page--with-toc' else '' ]]">
-  <div class="chap-body">
-    <article class="content" id="chap-content">
+<div class="opm-reader-page[[ if (exists($context?chunk)) then ' opm-reader-page--chunk' else '' ]][[ if ($context?fragments?toc) then ' opm-reader-page--with-toc' else '' ]]">
+  <div class="opm-reader-body">
+    <article class="content" id="opm-reader-content">
       [[ $context?content_html ]]
     </article>
   </div>
 
   [% if $context?chunk?prev or $context?chunk?next %]
-  <nav class="chap-folio-nav__foot" aria-label="Page navigation">
+  <nav class="opm-reader-folio-nav__foot" aria-label="Page navigation">
     <div>
       [% if $context?chunk?prev %]<a href="[[ $context?chunk?prev ]].html" rel="prev">&#8592; Previous</a>[% endif %]
     </div>
@@ -81,34 +60,34 @@ extends = "opm/layout.html.tpl"
 </div>
 
 [# A footer across the bottom of every page. Fill it in, e.g.
-   <div class="chap-footer"><div class="chap-footer__inner">© My Edition</div></div>
-   (chapbook.css styles these classes), or delete it if you need none. #]
+   <div class="opm-reader-footer"><div class="opm-reader-footer__inner">© My Edition</div></div>
+   (opm-theme-chapbook.css styles these classes), or delete it if you need none. #]
 [% template footer %]
 [% endtemplate %]
 
 [% template body_end %]
   [% if $context?chunk?prev %]
-  <div class="chap-folio-nav__rail chap-folio-nav__rail--prev">
+  <div class="opm-reader-folio-nav__rail opm-reader-folio-nav__rail--prev">
     <a href="[[ $context?chunk?prev ]].html" rel="prev" title="Previous page (left arrow key)">
-      <span class="chap-folio-nav__chevron" aria-hidden="true">&#8592;</span>
-      <span class="chap-folio-nav__dir">Previous</span>
+      <span class="opm-reader-folio-nav__chevron" aria-hidden="true">&#8592;</span>
+      <span class="opm-reader-folio-nav__dir">Previous</span>
     </a>
   </div>
   [% endif %]
   [% if $context?chunk?next %]
-  <div class="chap-folio-nav__rail chap-folio-nav__rail--next">
+  <div class="opm-reader-folio-nav__rail opm-reader-folio-nav__rail--next">
     <a href="[[ $context?chunk?next ]].html" rel="next" title="Next page (right arrow key)">
-      <span class="chap-folio-nav__chevron" aria-hidden="true">&#8594;</span>
-      <span class="chap-folio-nav__dir">Next</span>
+      <span class="opm-reader-folio-nav__chevron" aria-hidden="true">&#8594;</span>
+      <span class="opm-reader-folio-nav__dir">Next</span>
     </a>
   </div>
   [% endif %]
 
   <script>
   (function () {
-    var content = document.getElementById('chap-content');
+    var content = document.getElementById('opm-reader-content');
     if (content) {
-      var KEY = 'opm-chapbook-font-size';
+      var KEY = 'opm-reader-font-size';
       try {
         var saved = localStorage.getItem(KEY);
         if (saved) content.style.fontSize = saved + 'rem';
@@ -126,8 +105,8 @@ extends = "opm/layout.html.tpl"
     }
 
     [# Arrow keys turn the page, as the rails do. #]
-    var prev = document.querySelector('.chap-folio-nav__rail--prev a');
-    var next = document.querySelector('.chap-folio-nav__rail--next a');
+    var prev = document.querySelector('.opm-reader-folio-nav__rail--prev a');
+    var next = document.querySelector('.opm-reader-folio-nav__rail--next a');
     if (!prev && !next) return;
     document.addEventListener('keydown', function (event) {
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;

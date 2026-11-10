@@ -68,15 +68,23 @@ and Bootstrap come with a page layout of their own. See
 
 ### Switching to another template
 
-`chapbook`, `journal` and `handbook` each come with a stylesheet of the same
-name, which `opm.toml` lists under `assets`. To switch to another template,
-change both lines:
+`chapbook`, `journal` and `handbook` each come with a theme: a stylesheet
+named `opm-theme-` followed by the template's name, which `opm.toml` lists
+under `assets`. To switch to another template, change both lines:
 
 ```toml
 [transform.web]
 template = "templates/handbook.html.tpl"
-assets = ["templates/handbook.css"]
+assets = ["templates/opm-theme-handbook.css"]
 ```
+
+A theme only sets opm's design tokens and styles what is particular to its
+template, so a template can wear more than one theme. The `chapbook`
+template, for instance, writes its page with `opm-reader-…` classes. Its own
+theme, `opm-theme-chapbook.css`, styles them in taupe and white. The monograph
+and Escher examples style the same classes with `opm-theme-paper.css`, the
+look of a printed scholarly edition. To try it, copy that file from one of the
+examples and list it instead of `opm-theme-chapbook.css`.
 
 To try a template for a single run, pass it on the command line instead:
 
@@ -320,11 +328,23 @@ items = [
 
 As in TEI Publisher, an entry may have an `id` instead of a `label`.
 
-The logo is made from three settings in `[context]`: an image (`logo`), the
-name of an author (`author`) and a title (`site_name`). Each of them is
+The logo is made from an image (`logo` in `[context]`) and a title: the
+`site_name`, or, if there is none, the title of the document shown. Both are
 optional. If `logo` is just a filename, as above, opm looks for the image in
-the `assets/` folder of the output. To show something else, e.g. the title of
-the letter shown, fill the `logo` block (see below).
+the `assets/` folder of the output, so list the image under
+`[transform.web] assets` to have it copied there.
+
+If your logo is a wordmark which already spells the name of the edition,
+show it alone. The name then becomes the image's description for screen
+readers:
+
+```toml
+[context.theme.layout]
+logo_title = false
+```
+
+To show something else, e.g. always the title of the document, fill the
+`logo` block (see below).
 
 The toolbar shows the breadcrumbs of the current page on the left, i.e. the
 path from the start of the document to the current section. They come from
@@ -355,13 +375,15 @@ For example, to add a link to download a PDF:
 ```
 
 Two more blocks let you replace what the layout shows by default: `logo` for
-the logo, and `breadcrumb` for the breadcrumbs. The Serafin example uses the
-first to show its own drawing of the edition's name instead of a plain
-image:
+the logo, and `breadcrumb` for the breadcrumbs. The monograph example uses the
+first to name the work in the menu bar, like the running head of a printed
+book, even though `site_name` names the whole edition:
 
 ```html
-[% template logo %]
-  <a href="[[ ($context?index_url, 'index.html')[string(.) != ''][1] ]]" aria-label="Home">[% include "logo-textmark.svg" %]</a>
+[% template! logo %]
+  <a href="[[ ($context?home_url, $context?index_url, 'index.html')[string(.) != ''][1] ]]">
+    <span class="logo__title">[[ normalize-space($context?fragments?title) ]]</span>
+  </a>
 [% endtemplate %]
 ```
 
@@ -591,19 +613,45 @@ column a bit smaller:
 }
 ```
 
-The following variables set colours and fonts. By default, opm uses the
-standard colours and fonts of the reader's system.
+The following variables set colours and fonts. By default, opm uses its own
+"rubric" palette: dark ink on warm paper, with one red for numbers, small
+headings and whatever the reader can click, as scribes used red for headings
+and initials. The fonts are those already installed on the reader's computer,
+so pages need nothing from the internet to look right.
 
 | Variable | What it controls |
 | --- | --- |
 | `--opm-background-color` | Background of the page and the header |
+| `--opm-surface` | Background of cards, the index's masthead and input fields |
 | `--opm-color` | Colour of the text |
 | `--opm-color-muted` | Colour of less important text |
 | `--opm-color-rule` | Colour of thin dividing lines |
-| `--opm-color-accent` | Colour of links, and of buttons when the mouse is over them |
+| `--opm-color-accent` | Colour of links, numbers and small headings, and of buttons when the mouse is over them |
+| `--opm-color-accent-soft` | A pale tint behind accent-coloured text, e.g. the selected view button |
 | `--opm-background-color-drawer` | Background of a side column which slides in on a phone (see below) |
 | `--opm-font-body` | Font of the text |
+| `--opm-font-display` | Font of large titles and numbers |
+| `--opm-display-weight` | Boldness of that font: `400` suits a serif, `600` a sans-serif |
+| `--opm-display-tracking` | Letter spacing of large titles |
 | `--opm-font-ui` | Font of menus and buttons |
+| `--opm-font-mono` | Font of code and file names |
+| `--opm-radius`, `--opm-radius-sm` | Rounding of cards and buttons |
+| `--opm-shadow` | Shadow under a card when the mouse is over it |
+
+A theme should set these variables rather than restyle opm's own rules. The
+packaged `handbook` design is an example: its stylesheet sets the variables
+for its colours and fonts, and the menu bar, breadcrumbs, drawers and the
+collection index follow without any further rules.
+
+opm's colours also come in a dark version. To use it, set
+`color_scheme` in `opm.toml`: `"auto"` follows the reader's system setting,
+`"dark"` always uses it. If your stylesheet sets its own colours, they stay as
+they are.
+
+```toml
+[context.theme]
+color_scheme = "auto"
+```
 
 These variables set the measurements of the layout:
 
@@ -613,8 +661,25 @@ These variables set the measurements of the layout:
 | `--opm-layout-before-width`, `--opm-layout-after-width` | Width of the left and right column (default: `18rem`) |
 | `--opm-layout-gap` | Space between a side column and the text |
 | `--opm-layout-gutter` | Minimum space at the left and right edge of the page |
-| `--opm-layout-sticky-top` | The side columns stay in place while the reader scrolls. This sets how far below the top of the window they stop, e.g. the height of your header |
-| `--opm-menubar-max` | Maximum width of the menu bar's content |
+| `--opm-layout-sticky-top` | The side columns stay in place while the reader scrolls. This sets how far below the top of the window they stop (default: just below the menu bar) |
+| `--opm-menubar-max` | Maximum width of the menu bar's content; `100%` puts the logo at the left edge of the window |
+| `--opm-menubar-background` | Background of the menu bar. A see-through colour such as `color-mix(in srgb, white 88%, transparent)` lets the page show blurred beneath it |
+| `--opm-breadcrumb-separator` | The character between breadcrumbs, e.g. `"/"` (default `"›"`) |
+| `--opm-drawer-padding` | Space inside a side column opened as a drawer on a phone |
+| `--opm-menubar-height` | Height of the menu bar, which stays at the top while the reader scrolls |
+| `--opm-index-width` | Width of the collection index (default: `60rem`) |
+| `--opm-masthead-image` | A picture behind the collection index's masthead, e.g. `url("../assets/cover.jpg")` |
+| `--opm-masthead-position` | Which part of that picture stays in view, e.g. `center 30%` |
+| `--opm-masthead-overlay` | A layer over the picture that keeps the text readable, e.g. a `linear-gradient(…)` |
+| `--opm-masthead-min-height` | Minimum height of the masthead |
+| `--opm-masthead-color`, `--opm-masthead-color-muted`, `--opm-masthead-color-accent` | Colours of the masthead's title, other text and small heading |
+
+Start the picture's address in `--opm-masthead-image` with `../assets/`, even
+though your stylesheet sits in `assets/` itself. Some browsers read the address
+from your stylesheet, others from opm's own in the `css/` folder; `../assets/`
+finds the picture from both.
+The simpler way is `[context.theme.index.hero]` in `opm.toml` (see
+[Chunking](chunking.md)), which also picks a matching text colour.
 
 ## Adding custom CSS
 

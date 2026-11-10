@@ -1,7 +1,7 @@
 /* SPDX-FileCopyrightText: 2026 e-editiones
    SPDX-License-Identifier: CC0-1.0 */
 
-/* Briefedition Alfred Escher: additions to chapbook.css for a letter.
+/* Briefedition Alfred Escher: additions to opm-theme-paper.css for a letter.
    Colours, fonts and spacing come from the custom properties there.
 
    The transcription is on the page once. body.escher--edited and
@@ -185,7 +185,7 @@ body:not(.escher--diplomatic) .letter-text .underline {
 /* A manuscript line, not a reading measure, sets the width: the longest
    lines of the sample letters run to about 42rem at the text size. Lines
    carrying a marginal addition are longer still and wrap. Set on body, where
-   chapbook.css derives the layout's content column from it. */
+   opm-theme-paper.css derives the layout's content column from it. */
 body.escher--diplomatic {
   --measure-text: 44rem;
 }
@@ -366,11 +366,11 @@ body.escher--diplomatic .opm-layout:has(> .before) {
   list-style: none;
 }
 
-.chap-page .content .letter-list__item {
+.opm-reader-page .content .letter-list__item {
   margin: 0 0 var(--space-5);
 }
 
-.chap-page .content .letter-list__title {
+.opm-reader-page .content .letter-list__title {
   font-size: 1.2rem;
 }
 

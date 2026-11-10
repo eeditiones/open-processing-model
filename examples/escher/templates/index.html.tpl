@@ -12,8 +12,8 @@
 
 [% template breadcrumb %][[ $context?title ]][% endtemplate %]
 
-<div class="chap-page">
-  <div class="chap-body">
+<div class="opm-reader-page">
+  <div class="opm-reader-body">
     <article class="content">
       <ul class="letter-list">
         [% for $doc in $context?documents?* %]

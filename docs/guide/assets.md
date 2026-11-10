@@ -37,7 +37,7 @@ extend the list each time you add a document. The Shakespeare example keeps
 the IIIF manifests of its facsimiles in one folder per play:
 
 ```toml
-assets = ["templates/chapbook.css", "iiif/*", "icon.png"]
+assets = ["templates/opm-theme-chapbook.css", "templates/facsimile.css", "iiif/*", "icon.png"]
 ```
 
 `iiif/*` matches everything directly inside `iiif/`, e.g. the folder `iiif/F-ado.xml`. A matching folder is always copied with all its contents.
@@ -87,7 +87,7 @@ over earlier ones, put the general ones first and the more specific ones
 after them:
 
 ```toml
-assets = ["templates/chapbook.css", "templates/letter.css"]
+assets = ["templates/opm-theme-paper.css", "templates/letter.css"]
 ```
 
 Stylesheets inside a listed folder are copied, but not linked. Listing a

@@ -5,7 +5,7 @@
   Print counterpart of monograph.html.tpl: the "Der Römerbrief" design set
   as a book page. Paper, ink and one rubric red; EB Garamond for the text, Alegreya
   Sans for furniture (running head, folio, note numbers). Colours and type
-  scale follow chapbook.css and monograph.css, so the two outputs read alike.
+  scale follow opm-theme-paper.css and monograph.css, so the two outputs read alike.
 
   Optional context values (opm.toml [context] or [transform.typst.context]):
   context.author (running head), context.lang (default "de", for hyphenation),
@@ -14,7 +14,7 @@
 [% let $title = string(($context?metadata?title?*)[1]) %]
 // Karl Barth-Gesamtausgabe — "Der Römerbrief" print design.
 
-// ── Design tokens (chapbook.css, light theme) ──────────────────────────────
+// ── Design tokens (opm-theme-paper.css, light theme) ──────────────────────────────
 #let ink = rgb("#211c16")
 #let ink-muted = rgb("#675d51")
 #let ink-faint = rgb("#8f8474")

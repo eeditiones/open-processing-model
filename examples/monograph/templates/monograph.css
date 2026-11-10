@@ -1,16 +1,16 @@
 /* SPDX-FileCopyrightText: 2026 e-editiones
    SPDX-License-Identifier: CC0-1.0 */
 
-/* Karl Barth-Gesamtausgabe: additions to chapbook.css
+/* Karl Barth-Gesamtausgabe: additions to opm-theme-paper.css
    "Der Römerbrief" web design — heads, paragraphs, the two note series and the
    original pagination. How the edition renders hi, q and verse in any output
    is in odd/monograph.css, which the ODD references.
-   Colours, fonts and spacing come from the custom properties in chapbook.css. */
+   Colours, fonts and spacing come from the custom properties in opm-theme-paper.css. */
 
 /* ── Headings ─────────────────────────────────────────────── */
 
 /* All heads arrive as h1/h2.tei-head; they are told apart by what they hold. */
-.chap-page .content .tei-head {
+.opm-reader-page .content .tei-head {
   margin: 0;
   font-weight: 400;
   line-height: 1.25;
@@ -20,7 +20,7 @@
 }
 
 /* The work title: the first head of the first div ("An die Römer"). */
-.chap-page .content .tei-body > .tei-div:first-child > .tei-head:first-child {
+.opm-reader-page .content .tei-body > .tei-div:first-child > .tei-head:first-child {
   margin: 1.2em 0 1.4em;
   font-size: 2.2em;
   letter-spacing: 0.02em;
@@ -28,7 +28,7 @@
 
 /* Chapter head: "1. Kapitel<lb/>EINGANG". The first line becomes the rubric
    chapter-number line, the second the letterspaced title, then a short rule. */
-.chap-page .content .tei-head:has(> .tei-lb) {
+.opm-reader-page .content .tei-head:has(> .tei-lb) {
   margin: 2.4em 0 1.2em;
   font-size: 1.5em;
   line-height: 1.6;
@@ -36,14 +36,14 @@
   text-transform: uppercase;
 }
 
-.chap-page .content .tei-head:has(> .tei-lb)::first-line {
+.opm-reader-page .content .tei-head:has(> .tei-lb)::first-line {
   font-size: 0.5em;
   font-weight: 500;
   letter-spacing: 0.14em;
   color: var(--rubric);
 }
 
-.chap-page .content .tei-head:has(> .tei-lb)::after {
+.opm-reader-page .content .tei-head:has(> .tei-lb)::after {
   content: "";
   display: block;
   width: 2.5rem;
@@ -53,8 +53,8 @@
 }
 
 /* Section titles: small-caps heads, and h2 heads that are not a pericope. */
-.chap-page .content .tei-head:has(> .smallCaps),
-.chap-page .content h2.tei-head:not(.monograph-subhead) {
+.opm-reader-page .content .tei-head:has(> .smallCaps),
+.opm-reader-page .content h2.tei-head:not(.monograph-subhead) {
   margin: 2em 0 0;
   font-size: 1.1em;
   letter-spacing: 0.05em;
@@ -63,7 +63,7 @@
 
 /* Part titles the source sets in capitals inside a chapter (DIE NACHT):
    add class "rb-part" in the ODD to give them the chapter-title voice. */
-.chap-page .content .tei-head.rb-part {
+.opm-reader-page .content .tei-head.rb-part {
   margin-top: 2.4em;
   font-size: 1.5em;
   letter-spacing: 0.18em;
@@ -71,7 +71,7 @@
 }
 
 /* Pericope: <head type="sub">, the reference in rubric italic. */
-.chap-page .content .tei-head.monograph-subhead {
+.opm-reader-page .content .tei-head.monograph-subhead {
   margin: 0.3em 0 1.6em;
   font-size: 0.85em;
   font-style: italic;
@@ -82,7 +82,7 @@
 /* ── Paragraphs ───────────────────────────────────────────── */
 
 /* Book setting: justified, hyphenated, indented, no gap between paragraphs. */
-.chap-page .content .tei-p {
+.opm-reader-page .content .tei-p {
   margin: 0;
   text-align: justify;
   text-indent: 1.4em;
@@ -93,29 +93,29 @@
   widows: 2;
 }
 
-.chap-page .content :is(.tei-head, .tei-lg, .tei-q.block) + .tei-p,
-.chap-page .content .tei-div > .tei-p:first-of-type {
+.opm-reader-page .content :is(.tei-head, .tei-lg, .tei-q.block) + .tei-p,
+.opm-reader-page .content .tei-div > .tei-p:first-of-type {
   text-indent: 0;
 }
 
 /* Register names: the ODD's stylesheet (odd/monograph.css) sets them in the
    text colour; they take the entity colour on hover. */
-.chap-page .content .context:not(.disable):hover { color: var(--entity); }
+.opm-reader-page .content .context:not(.disable):hover { color: var(--entity); }
 
 /* hi, q and verse: see odd/monograph.css. A quotation in a note keeps the
    note's size. */
-.chap-page .content .footnote .tei-q.block { margin: 0.3em 0 0.3em 1.4em; font-size: 1em; }
+.opm-reader-page .content .footnote .tei-q.block { margin: 0.3em 0 0.3em 1.4em; font-size: 1em; }
 
 /* ── Note callouts ────────────────────────────────────────── */
 
 /* Callouts and range starts are inline-blocks, so they would inherit the
    paragraph's text-indent as a gap in front of the marker. */
-.chap-page .content :is(.tei-note, .tei-anchor) {
+.opm-reader-page .content :is(.tei-note, .tei-anchor) {
   text-indent: 0;
 }
 
 /* Numbered: commentary of the Gesamtausgabe (sources, quotations). */
-.chap-page .content .tei-note > a.note {
+.opm-reader-page .content .tei-note > a.note {
   margin-left: 0.06em;
   padding: 0 0.1em;
   font-family: var(--font-sans);
@@ -132,7 +132,7 @@
 /* Lettered: text-critical apparatus. A note carrying its own @n is marked
    data-n by the note behaviour; the commentary is numbered by the running
    counter and has none. */
-.chap-page .content .tei-note[data-n] > a.note {
+.opm-reader-page .content .tei-note[data-n] > a.note {
   font-family: var(--font-serif);
   font-size: 0.65em;
   font-weight: 400;
@@ -140,11 +140,11 @@
   color: var(--entity);
 }
 
-.chap-page .content .tei-note > a.note:hover { text-decoration: underline; }
+.opm-reader-page .content .tei-note > a.note:hover { text-decoration: underline; }
 
 /* Lemma range: a- at the start (anchor), -a at the end (note). Same look as
    other lettered apparatus markers. */
-.chap-page .content .note-range-start > a.note {
+.opm-reader-page .content .note-range-start > a.note {
   margin-left: 0;
   padding: 0 0.1em;
   font-family: var(--font-serif);
@@ -161,7 +161,7 @@
 /* ── Page breaks ──────────────────────────────────────────── */
 
 /* The | stays in the text where the page of the 1922 edition turned; the page
-   number sits in the right margin at the height of the line. .chap-body is
+   number sits in the right margin at the height of the line. .opm-reader-body is
    the positioned box it is measured from. */
 .monograph-pb__pipe {
   color: var(--ink-faint);
@@ -197,26 +197,26 @@
 }
 
 /* A break that opens a chunk needs no | of its own. */
-.chap-page .content .tei-div > .monograph-pb:first-child .monograph-pb__pipe {
+.opm-reader-page .content .tei-div > .monograph-pb:first-child .monograph-pb__pipe {
   display: none;
 }
 
 /* In a heading the label keeps the text's size, not the heading's. */
-.chap-page .content .tei-head .monograph-pb__page {
+.opm-reader-page .content .tei-head .monograph-pb__page {
   font-size: 1.25rem;
   line-height: 1.6;
   letter-spacing: 0;
 }
 
 /* Narrow screens: the text column gives up a strip on the right for it. */
-.chap-body {
+.opm-reader-body {
   padding-right: 3.75rem;
 }
 
 /* Wide screens: the number moves into the page's own margin
    (--rail-margin) and the text gets its full width back. */
 @media (min-width: 64em) {
-  .chap-body {
+  .opm-reader-body {
     padding-right: 0;
   }
 
@@ -239,13 +239,13 @@
 
 /* The notes follow the text as dl.footnote siblings; the first one opens the
    block with a rule and a label. */
-.chap-page .content :not(.footnote) + .footnote {
+.opm-reader-page .content :not(.footnote) + .footnote {
   margin-top: var(--space-8);
   padding-top: var(--space-6);
   border-top: 1px solid var(--rule);
 }
 
-.chap-page .content :not(.footnote) + .footnote::before {
+.opm-reader-page .content :not(.footnote) + .footnote::before {
   content: "Anmerkungen";
   grid-column: 1 / -1;
   margin-bottom: var(--space-4);
@@ -257,7 +257,7 @@
   color: var(--ink-muted);
 }
 
-.chap-page .content .footnote {
+.opm-reader-page .content .footnote {
   display: grid;
   grid-template-columns: 2em 1fr;
   column-gap: var(--space-3);
@@ -269,11 +269,11 @@
   scroll-margin-top: calc(var(--bar-height) + var(--space-4));
 }
 
-.chap-page .content .footnote + .footnote {
+.opm-reader-page .content .footnote + .footnote {
   margin-top: 0.15em;
 }
 
-.chap-page .content .fn-number {
+.opm-reader-page .content .fn-number {
   padding-top: 0.25em;
   text-align: right;
   font-family: var(--font-sans);
@@ -282,7 +282,7 @@
   color: var(--rubric);
 }
 
-.chap-page .content .footnote[data-n] .fn-number {
+.opm-reader-page .content .footnote[data-n] .fn-number {
   padding-top: 0;
   font-family: var(--font-serif);
   font-size: 1em;
@@ -291,14 +291,14 @@
   color: var(--entity);
 }
 
-.chap-page .content .fn-content {
+.opm-reader-page .content .fn-content {
   margin: 0;
   text-align: left;
   hyphens: auto;
   -webkit-hyphens: auto;
 }
 
-.chap-page .content a.fn-back {
+.opm-reader-page .content a.fn-back {
   margin-left: 0.4em;
   font-family: var(--font-sans);
   font-size: 0.8em;
@@ -307,17 +307,17 @@
   text-decoration: none;
 }
 
-.chap-page .content a.fn-back:hover {
+.opm-reader-page .content a.fn-back:hover {
   color: var(--rubric);
 }
 
-.chap-page .content .footnote:target {
+.opm-reader-page .content .footnote:target {
   background: var(--highlight);
 }
 
 /* Phones: a narrow measure justifies badly; set ragged right. */
 @media (max-width: 30em) {
-  .chap-page .content .tei-p {
+  .opm-reader-page .content .tei-p {
     text-align: left;
   }
 }

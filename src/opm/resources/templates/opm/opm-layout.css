@@ -12,25 +12,108 @@
      --opm-layout-content-max   widest the content column grows (default: all)
      --opm-layout-gap           space between a sidebar and the content
      --opm-layout-gutter        least space at the page edges
+     --opm-drawer-padding       space inside a sidebar opened as a drawer
      --opm-layout-sticky-top    how far below the viewport top sticky sidebars
-                                stop, e.g. the height of a sticky header
+                                stop (default: below the menubar)
 
-   Page chrome (the menubar and toolbar the layout writes):
-     --opm-background-color, --opm-color, --opm-color-muted,
-     --opm-color-rule, --opm-color-accent
-     --opm-background-color-drawer  background of a sidebar opened as a drawer
-     --opm-font-body, --opm-font-ui
-     --opm-menubar-max          widest the menubar's content grows
+   Design tokens. The rules here and the packaged pages (the collection
+   index, the default document page) read nothing but these, so a theme
+   restyles everything by setting them on :root, and only them:
+
+     Colour  --opm-background-color   page ground
+             --opm-surface            cards, masthead, raised controls
+             --opm-color              text
+             --opm-color-muted        secondary text (4.5:1 on both grounds)
+             --opm-color-rule         hairlines and borders
+             --opm-color-accent       the rubric: links on hover, numbers,
+                                      eyebrows, focus (4.5:1 on both grounds)
+             --opm-color-accent-soft  tinted ground behind accent text
+             --opm-background-color-drawer  a sidebar opened as a drawer
+     Type    --opm-font-body          reading text
+             --opm-font-display       titles and large numbers
+             --opm-display-weight     weight of display text (400: a serif
+                                      carries itself; a sans wants 600)
+             --opm-display-tracking   letter-spacing of large display text
+             --opm-font-ui            menus, toolbars, metadata
+             --opm-font-mono          code and file names
+     Shape   --opm-radius, --opm-radius-sm, --opm-shadow
+     Chrome  --opm-menubar-height     height of the sticky menubar
+             --opm-menubar-max        widest the menubar's content grows
+                                      (100% puts the logo at the page edge)
+             --opm-menubar-background ground of the menubar; a translucent
+                                      colour lets the page blur through
+             --opm-menubar-color      text of the menubar: the logo, and
+                                      the base for focus rings in it
+             --opm-menubar-link-color, --opm-menubar-link-hover
+                                      menu links, at rest and under the mouse
+                                      (for a dark bar: white, and so on)
+             --opm-breadcrumb-separator  between breadcrumbs (default "›")
+
+   The palette is "rubric": black ink on warm paper, with one red for
+   everything the reader acts on, as scribes used red for headings and
+   initials. Dark is opt-in: theme.color_scheme = "auto" (follow the
+   reader's system) or "dark" in opm.toml [context]. A theme that sets its
+   own colours keeps them in both cases.
 */
 
-:root {
-  --opm-background-color: Canvas;
-  --opm-color: CanvasText;
-  --opm-color-muted: color-mix(in srgb, CanvasText 65%, Canvas);
-  --opm-color-rule: color-mix(in srgb, CanvasText 18%, Canvas);
-  --opm-color-accent: LinkText;
-  --opm-font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --opm-font-ui: var(--opm-font-body);
+:where(:root) {
+  --opm-background-color: #faf8f4;
+  --opm-surface: #ffffff;
+  --opm-color: #1f1c18;
+  --opm-color-muted: #5d574f;
+  --opm-color-rule: #e3ded5;
+  --opm-color-accent: #a3341f;
+  --opm-color-accent-soft: #f7ebe6;
+  --opm-font-body: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --opm-font-display: var(--opm-font-body);
+  --opm-display-weight: 400;
+  --opm-display-tracking: -0.015em;
+  --opm-font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --opm-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --opm-radius: 0.5rem;
+  --opm-radius-sm: 0.25rem;
+  --opm-shadow: 0 1px 2px rgb(31 28 24 / 0.05), 0 6px 20px rgb(31 28 24 / 0.07);
+  --opm-menubar-height: 3.5rem;
+  color-scheme: light;
+}
+
+/* theme.color_scheme = "dark", or "auto" while the system is dark. */
+:where(:root[data-opm-color-scheme="dark"]) {
+  --opm-background-color: #151412;
+  --opm-surface: #1d1b18;
+  --opm-color: #ece7df;
+  --opm-color-muted: #a39b8f;
+  --opm-color-rule: #34302a;
+  --opm-color-accent: #ec8a6f;
+  --opm-color-accent-soft: #3a231c;
+  --opm-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 20px rgb(0 0 0 / 0.35);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :where(:root[data-opm-color-scheme="auto"]) {
+    --opm-background-color: #151412;
+    --opm-surface: #1d1b18;
+    --opm-color: #ece7df;
+    --opm-color-muted: #a39b8f;
+    --opm-color-rule: #34302a;
+    --opm-color-accent: #ec8a6f;
+    --opm-color-accent-soft: #3a231c;
+    --opm-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 20px rgb(0 0 0 / 0.35);
+    color-scheme: dark;
+  }
+}
+
+:where(:focus-visible) {
+  outline: 2px solid var(--opm-color-accent);
+  outline-offset: 2px;
+}
+
+/* The menubar is sticky: anchors land below it. */
+:where(html) {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-padding-top: calc(var(--opm-menubar-height, 3.5rem) + 0.75rem);
 }
 
 *,
@@ -50,8 +133,11 @@
 /* Menubar: the logo and menu links on the left, the template's controls and
    the drawer triggers on the right. Each side is a list, as in jinks. */
 .page-header {
-  background: var(--opm-background-color);
+  background: var(--opm-menubar-background, var(--opm-background-color));
+  color: var(--opm-menubar-color, var(--opm-color));
   border-bottom: 1px solid var(--opm-color-rule);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 .menubar {
@@ -59,8 +145,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 1.25rem;
-  max-width: var(--opm-menubar-max, 76rem);
-  min-height: 3.5rem;
+  max-width: var(--opm-menubar-max, var(--_menubar-max, 76rem));
+  min-height: var(--opm-menubar-height, 3.5rem);
   margin: 0 auto;
   padding: 0 1.25rem;
   font-family: var(--opm-font-ui);
@@ -81,13 +167,20 @@
   flex: none;
 }
 
+/* Menu links are furniture: muted until hovered. The logo is ink. */
 .menubar a {
-  color: inherit;
+  color: var(--opm-menubar-link-color, var(--opm-color-muted));
   text-decoration: none;
 }
 
 .menubar a:hover {
-  color: var(--opm-color-accent);
+  color: var(--opm-menubar-link-hover, var(--opm-color-accent));
+}
+
+/* Focus rings in the menubar take its text colour, which reads on its ground
+   whatever that is. */
+.page-header :focus-visible {
+  outline-color: currentColor;
 }
 
 /* A menu entry with subitems: a drop-down list below its label. */
@@ -124,7 +217,7 @@
   align-items: baseline;
   gap: 0.75rem;
   min-width: 0;
-  color: var(--opm-color);
+  color: inherit;
 }
 
 .logo__image {
@@ -139,13 +232,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-family: var(--opm-font-body);
+  font-family: var(--opm-font-display);
   font-size: 1.15rem;
+  font-weight: var(--opm-display-weight, 400);
   letter-spacing: 0.02em;
 }
 
 .menubar .logo a:hover .logo__title {
-  color: var(--opm-color-accent);
+  color: var(--opm-menubar-link-hover, var(--opm-color-accent));
 }
 
 /* Toolbar: breadcrumbs on the left, controls and page links on the right. */
@@ -158,28 +252,48 @@
   padding-block: 0.75rem;
   font-family: var(--opm-font-ui);
   font-size: 0.85rem;
+  color: var(--opm-color-muted);
 }
 
-.toolbar .breadcrumb {
+/* An ODD stylesheet may set the breadcrumb trail to `white-space: nowrap`
+   (docbook.css does). On a narrow screen an unbreakable trail is wider than
+   the viewport and drags the page sideways, so the toolbar wraps it. */
+.toolbar .breadcrumb,
+.toolbar .breadcrumb [aria-label="breadcrumb" i] {
   min-width: 0;
+  white-space: normal;
 }
 
 .toolbar .breadcrumb :is(ul, ol) {
   display: flex;
   flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .toolbar .breadcrumb li:not(:last-child)::after {
-  content: "›";
+  content: var(--opm-breadcrumb-separator, "›");
   margin: 0 0.5rem;
   color: var(--opm-color-muted);
+  opacity: 0.6;
+}
+
+/* The page the reader is on. */
+.toolbar .breadcrumb li:last-child {
+  color: var(--opm-color);
+  font-weight: 500;
 }
 
 .toolbar a {
   color: inherit;
+  text-decoration: none;
+}
+
+.toolbar a:hover {
+  color: var(--opm-color-accent);
 }
 
 .toolbar__navigation {
@@ -239,6 +353,12 @@
   display: none;
 }
 
+/* Sticky sidebars stop below a sticky menubar, unless a theme says otherwise
+   with --opm-layout-sticky-top. */
+.opm-layout:has(> .page-header .menubar) {
+  --_header-height: var(--opm-menubar-height, 3.5rem);
+}
+
 .opm-layout > .page-header {
   grid-area: header;
   position: sticky;
@@ -274,8 +394,8 @@
 .opm-layout > .after {
   align-self: start;
   position: sticky;
-  top: var(--opm-layout-sticky-top, 0px);
-  max-height: calc(100vh - var(--opm-layout-sticky-top, 0px));
+  top: var(--opm-layout-sticky-top, var(--_header-height, 0px));
+  max-height: calc(100vh - var(--opm-layout-sticky-top, var(--_header-height, 0px)));
   overflow-y: auto;
   overscroll-behavior: contain;
   min-width: 0;
@@ -316,9 +436,12 @@
 .opm-skip:focus {
   left: 1rem;
   top: 1rem;
-  padding: 0.5rem 0.75rem;
-  background: Canvas;
-  color: CanvasText;
+  padding: 0.55rem 0.9rem;
+  background: var(--opm-color-accent, Highlight);
+  color: var(--opm-background-color, HighlightText);
+  border-radius: var(--opm-radius, 0);
+  font-family: var(--opm-font-ui);
+  text-decoration: none;
 }
 
 /* Drawers: only on narrow screens. The checkbox keeps them working without
@@ -391,9 +514,9 @@
     z-index: 30;
     width: min(85vw, 22rem);
     max-height: none;
-    padding: 1rem;
+    padding: 0 var(--opm-drawer-padding, 1rem) var(--opm-drawer-padding, 1rem);
     overflow-y: auto;
-    background: var(--opm-background-color-drawer, Canvas);
+    background: var(--opm-background-color-drawer, var(--opm-surface, Canvas));
     box-shadow: 0 0 1.5rem rgba(0, 0, 0, 0.25);
     visibility: hidden;
     transition: transform 0.25s ease, visibility 0.25s;
@@ -415,13 +538,38 @@
     visibility: visible;
   }
 
-  /* The drawer's own head: its label and the link that closes it. */
+  /* The drawer's own head: its label and the link that closes it, as a bar. */
   .opm-drawer__head {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0 calc(-1 * var(--opm-drawer-padding, 1rem)) var(--opm-drawer-padding, 1rem);
+    padding: 0.85rem 1rem;
+    background: inherit;
+    border-bottom: 1px solid var(--opm-color-rule);
+    font-family: var(--opm-font-ui);
+  }
+
+  .opm-drawer__title {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--opm-color-muted);
+  }
+
+  .opm-drawer__close {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--opm-color-muted);
+  }
+
+  .opm-drawer__close:hover {
+    color: var(--opm-color-accent);
   }
 
   .opm-drawer__backdrop {
@@ -470,5 +618,584 @@
     position: static;
     max-height: none;
     overflow: visible;
+  }
+}
+
+/* ===========================================================================
+   Collection index (default_index.html.tpl / .j2)
+
+   A masthead in the hero region, a sticky bar to filter the documents and
+   switch between a list and a grid, and one entry per document. Selectors
+   stay one or two classes deep, so a theme's stylesheet, linked after this
+   one, wins with a rule for the same class. Beyond the design tokens above,
+   a theme can set:
+     --opm-index-width          width of the masthead, bar and list
+     --opm-masthead-background  ground of the masthead (default: surface)
+     --opm-masthead-image       a picture behind it: url(…), or any image
+                                such as a gradient (default: none). A
+                                relative url() resolves against this file
+                                in css/, so write url("../assets/x.jpg"):
+                                that works from a theme in assets/ too
+     --opm-masthead-position    which part of the picture stays in view
+                                (default: center)
+     --opm-masthead-overlay     a scrim over the picture that keeps the
+                                text readable (an image, e.g. a gradient)
+     --opm-masthead-min-height  least height of the masthead
+     --opm-masthead-color, --opm-masthead-color-muted,
+     --opm-masthead-color-accent  its title, secondary text and eyebrow
+   theme.index.hero in opm.toml writes the picture as an <img> instead and
+   picks light or dark text with a matching scrim (classes
+   opm-masthead--image, opm-masthead--light, opm-masthead--dark).
+     --opm-index-card-min       narrowest a card gets in the grid view
+   =========================================================================== */
+
+.opm-index {
+  --opm-layout-content-max: var(--opm-index-width, 60rem);
+  /* The logo lines up with the masthead's left edge, unless the theme sets
+     --opm-menubar-max for every page. */
+  --_menubar-max: calc(var(--opm-index-width, 60rem) + 2.5rem);
+}
+
+.opm-index .opm-main {
+  padding-block: 0 4rem;
+}
+
+.opm-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Masthead: what the collection is, and how big. Its colours go through
+   private variables, so the hero classes below supply defaults that a
+   theme's --opm-masthead-* settings still override. */
+.opm-masthead {
+  --_masthead-ink: var(--opm-masthead-color, var(--opm-color));
+  --_masthead-muted: var(--opm-masthead-color-muted, var(--opm-color-muted));
+  --_masthead-accent: var(--opm-masthead-color-accent, var(--opm-color-accent));
+  --_masthead-overlay: var(--opm-masthead-overlay, none);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: flex-end;
+  min-height: var(--opm-masthead-min-height, 0px);
+  background-color: var(--opm-masthead-background, var(--opm-surface));
+  background-image: var(--opm-masthead-image, none);
+  background-position: var(--opm-masthead-position, center);
+  background-size: cover;
+  background-repeat: no-repeat;
+  border-bottom: 1px solid var(--opm-color-rule);
+}
+
+/* The picture from theme.index.hero.image, and the scrim over any picture. */
+.opm-masthead__image {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--opm-masthead-position, center);
+}
+
+.opm-masthead::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: var(--_masthead-overlay);
+  pointer-events: none;
+}
+
+/* A picture behind the masthead (theme.index.hero.image). */
+.opm-masthead--image {
+  min-height: var(--opm-masthead-min-height, clamp(18rem, 42vh, 28rem));
+  border-bottom: 0;
+}
+
+/* Light text on a dark scrim: for most photographs and scans. */
+.opm-masthead--light {
+  --_masthead-ink: var(--opm-masthead-color, #ffffff);
+  --_masthead-muted: var(--opm-masthead-color-muted, rgb(255 255 255 / 0.85));
+  --_masthead-accent: var(--opm-masthead-color-accent, #ffd2c4);
+  --_masthead-overlay: var(--opm-masthead-overlay,
+    linear-gradient(to top, rgb(20 17 14 / 0.82), rgb(20 17 14 / 0.55)),
+    linear-gradient(to right, rgb(20 17 14 / 0.45), rgb(20 17 14 / 0) 75%));
+  background-color: var(--opm-masthead-background, #2b2620);
+}
+
+.opm-masthead--light :is(.opm-masthead__title, .opm-masthead__description, .opm-masthead__stats) {
+  text-shadow: 0 1px 10px rgb(0 0 0 / 0.45);
+}
+
+/* Dark text on a light scrim: for pale paper, plaster, sky. */
+.opm-masthead--dark {
+  --_masthead-overlay: var(--opm-masthead-overlay,
+    linear-gradient(to top, rgb(250 248 244 / 0.92), rgb(250 248 244 / 0.7)),
+    linear-gradient(to right, rgb(250 248 244 / 0.5), rgb(250 248 244 / 0) 75%));
+  --_masthead-ink: var(--opm-masthead-color, #1f1c18);
+  --_masthead-muted: var(--opm-masthead-color-muted, #4a453e);
+  --_masthead-accent: var(--opm-masthead-color-accent, #a3341f);
+}
+
+.opm-masthead__inner {
+  width: min(100% - 2 * var(--opm-layout-gutter, 1rem), var(--opm-index-width, 60rem));
+  margin-inline: auto;
+  padding-block: clamp(2.5rem, 6vw, 4.5rem) clamp(2rem, 4vw, 3rem);
+}
+
+.opm-masthead__eyebrow {
+  margin: 0 0 0.75rem;
+  font-family: var(--opm-font-ui);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--_masthead-accent);
+}
+
+.opm-masthead__title {
+  margin: 0;
+  max-width: 22ch;
+  font-family: var(--opm-font-display);
+  font-size: clamp(2.25rem, 1.5rem + 3vw, 3.75rem);
+  font-weight: var(--opm-display-weight, 400);
+  line-height: 1.05;
+  letter-spacing: var(--opm-display-tracking, -0.015em);
+  text-wrap: balance;
+  color: var(--_masthead-ink);
+}
+
+.opm-masthead__description {
+  max-width: 40rem;
+  margin: 1.25rem 0 0;
+  font-size: 1.125rem;
+  line-height: 1.6;
+  color: var(--_masthead-muted);
+}
+
+.opm-masthead__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 2.5rem;
+  margin: 2rem 0 0;
+}
+
+.opm-masthead__stats div {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.opm-masthead__stats dt {
+  font-family: var(--opm-font-ui);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--_masthead-muted);
+}
+
+.opm-masthead__stats dd {
+  margin: 0;
+  font-family: var(--opm-font-display);
+  font-size: 2rem;
+  font-weight: var(--opm-display-weight, 400);
+  line-height: 1.1;
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--_masthead-ink);
+}
+
+/* The bar: filter, count, list/grid. Written hidden; the script shows it. */
+.opm-index__controls {
+  position: sticky;
+  top: var(--opm-menubar-height, 3.5rem);
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  padding-block: 1rem;
+  background: var(--opm-background-color);
+  border-bottom: 1px solid var(--opm-color-rule);
+  font-family: var(--opm-font-ui);
+  font-size: 0.875rem;
+}
+
+.opm-index__controls[hidden] {
+  display: none;
+}
+
+.opm-index__filter {
+  position: relative;
+  flex: 1 1 16rem;
+  display: flex;
+  align-items: center;
+}
+
+.opm-index__filter svg {
+  position: absolute;
+  left: 0.75rem;
+  width: 1rem;
+  height: 1rem;
+  color: var(--opm-color-muted);
+  pointer-events: none;
+}
+
+.opm-index__filter input {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.5rem 2.75rem 0.5rem 2.25rem;
+  font: inherit;
+  color: var(--opm-color);
+  background: var(--opm-surface);
+  border: 1px solid var(--opm-color-rule);
+  border-radius: var(--opm-radius);
+  appearance: none;
+}
+
+.opm-index__filter input::-webkit-search-cancel-button {
+  /* Escape clears the filter; the native button clashes with the palette. */
+  appearance: none;
+}
+
+.opm-index__filter input::placeholder {
+  color: var(--opm-color-muted);
+  opacity: 1;
+}
+
+.opm-index__filter input:focus {
+  border-color: var(--opm-color-accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--opm-color-accent-soft);
+}
+
+.opm-index__filter kbd {
+  position: absolute;
+  right: 0.625rem;
+  min-width: 1.5rem;
+  padding: 0.0625rem 0.375rem;
+  font: inherit;
+  font-size: 0.75rem;
+  text-align: center;
+  color: var(--opm-color-muted);
+  border: 1px solid var(--opm-color-rule);
+  border-radius: var(--opm-radius-sm);
+  pointer-events: none;
+}
+
+.opm-index__filter input:focus ~ kbd, .opm-index__filter input:not(:placeholder-shown) ~ kbd {
+  display: none;
+}
+
+.opm-index__count {
+  min-width: 4rem;
+  color: var(--opm-color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.opm-index__views {
+  display: inline-flex;
+  padding: 0.1875rem;
+  background: var(--opm-surface);
+  border: 1px solid var(--opm-color-rule);
+  border-radius: var(--opm-radius);
+}
+
+.opm-index__views button {
+  display: inline-grid;
+  place-items: center;
+  width: 2.125rem;
+  height: 2rem;
+  padding: 0;
+  color: var(--opm-color-muted);
+  background: none;
+  border: 0;
+  border-radius: var(--opm-radius-sm);
+  cursor: pointer;
+}
+
+.opm-index__views button:hover {
+  color: var(--opm-color);
+}
+
+.opm-index__views button[aria-pressed="true"] {
+  color: var(--opm-color-accent);
+  background: var(--opm-color-accent-soft);
+}
+
+.opm-index__views svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.opm-index__empty {
+  margin: 2rem 0;
+  font-style: italic;
+  color: var(--opm-color-muted);
+}
+
+/* The documents. One entry: number | text | arrow, all of it one link. */
+.opm-doclist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.opm-doc {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  gap: 0.375rem 1rem;
+  align-items: start;
+  padding: 1.375rem 1rem 1.375rem 0.75rem;
+  border-bottom: 1px solid var(--opm-color-rule);
+  border-radius: var(--opm-radius-sm);
+  transition: background-color 0.15s ease;
+}
+
+.opm-doc[hidden] {
+  display: none;
+}
+
+.opm-doc:hover {
+  background: var(--opm-surface);
+}
+
+.opm-doc:has(.opm-doc__link:focus-visible) {
+  outline: 2px solid var(--opm-color-accent);
+  outline-offset: -2px;
+}
+
+.opm-doc__num {
+  grid-row: 1 / span 2;
+  padding-top: 0.375rem;
+  font-family: var(--opm-font-ui);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--opm-color-accent);
+}
+
+.opm-doc__body {
+  min-width: 0;
+  color: var(--opm-color-muted);
+  font-size: 0.975rem;
+}
+
+.opm-doc__body a {
+  position: relative;
+  z-index: 1;
+  color: inherit;
+  text-decoration: none;
+}
+
+.opm-doc__body a:hover {
+  color: var(--opm-color-accent);
+}
+
+/* Headings inside an ODD's browse record are its lines, not titles. */
+.opm-doc__body :is(h1, h2, h3, h4, h5, h6):not(.opm-doc__title) {
+  margin: 0;
+  font: inherit;
+  color: inherit;
+}
+
+/* The title: the template's own, or the browse record's first link (up to
+   two levels down, where the packaged teipublisher.odd puts it). */
+
+  .opm-doc__title,
+  .opm-doc__body > a:first-child,
+  .opm-doc__body > :first-child > a:first-child,
+  .opm-doc__body > :first-child > :first-child > a:first-child
+ {
+  display: block;
+  margin: 0 0 0.25rem;
+  font-family: var(--opm-font-display);
+  font-size: 1.375rem;
+  font-weight: var(--opm-display-weight, 400);
+  line-height: 1.25;
+  text-wrap: pretty;
+  color: var(--opm-color);
+}
+
+.opm-doc__body :is(p, div) {
+  margin: 0;
+}
+
+/* The link that makes the whole entry clickable. */
+.opm-doc:hover .opm-doc__title,
+.opm-doc__body a:hover {
+  color: var(--opm-color-accent);
+}
+
+.opm-doc .opm-doc__link {
+  position: static;
+  color: inherit;
+  text-decoration: none;
+}
+
+.opm-doc .opm-doc__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+}
+
+.opm-doc .opm-doc__link:focus-visible {
+  outline: none;
+}
+
+.opm-doc__meta {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.875rem;
+  font-family: var(--opm-font-ui);
+  font-size: 0.8125rem;
+  color: var(--opm-color-muted);
+}
+
+.opm-doc__name {
+  font-family: var(--opm-font-mono);
+  font-size: 0.75rem;
+}
+
+/* Length at a glance: one tick per section, up to the template's cap. */
+.opm-doc__length {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.opm-doc__ticks {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.opm-doc__ticks i {
+  width: 3px;
+  height: 0.75rem;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--opm-color-accent) 55%, transparent);
+}
+
+.opm-doc__ticks i.more {
+  width: auto;
+  height: auto;
+  background: none;
+  font-style: normal;
+  line-height: 1;
+}
+
+.opm-doc__go {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: start;
+  padding-top: 0.125rem;
+  font-family: var(--opm-font-ui);
+  font-size: 1.25rem;
+  color: var(--opm-color-muted);
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.opm-doc:hover .opm-doc__go {
+  color: var(--opm-color-accent);
+  transform: translateX(0.25rem);
+}
+
+/* Grid view: the same entries as cards. */
+.opm-doclist[data-view="grid"] {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--opm-index-card-min, 16rem)), 1fr));
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.opm-doclist[data-view="grid"] .opm-doc {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.75rem;
+  min-height: 13rem;
+  padding: 1.25rem;
+  background: var(--opm-surface);
+  border: 1px solid var(--opm-color-rule);
+  border-radius: var(--opm-radius);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.opm-doclist[data-view="grid"] .opm-doc:hover {
+  border-color: color-mix(in srgb, var(--opm-color-accent) 45%, var(--opm-color-rule));
+  box-shadow: var(--opm-shadow);
+  transform: translateY(-2px);
+}
+
+.opm-doclist[data-view="grid"] .opm-doc__num {
+  grid-row: 1;
+  grid-column: 1;
+  padding: 0;
+}
+
+.opm-doclist[data-view="grid"] .opm-doc__go {
+  grid-row: 1;
+  grid-column: 2;
+  font-size: 1rem;
+}
+
+.opm-doclist[data-view="grid"] .opm-doc__body {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  /* A long browse record is cut, and fades out where the script finds it
+     cut, rather than stretching its row. */
+  max-height: 14rem;
+  overflow: hidden;
+}
+
+.opm-doclist[data-view="grid"] .opm-doc__body.is-clipped {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 3rem), transparent);
+}
+
+.opm-doclist[data-view="grid"] .opm-doc__meta {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--opm-color-rule);
+}
+
+@media (max-width: 40em) {
+  .opm-doc {
+    grid-template-columns: 2rem minmax(0, 1fr);
+    padding-inline: 0;
+  }
+
+  .opm-doclist:not([data-view="grid"]) .opm-doc__go {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opm-doc,
+  .opm-doc__go,
+  .opm-doclist[data-view="grid"] .opm-doc {
+    transition: none;
+  }
+
+  .opm-doc:hover,
+  .opm-doc:hover .opm-doc__go,
+  .opm-doclist[data-view="grid"] .opm-doc:hover {
+    transform: none;
+  }
+}
+
+@media print {
+  .opm-index__controls, .opm-doc__go, .opm-doc__ticks {
+    display: none;
   }
 }

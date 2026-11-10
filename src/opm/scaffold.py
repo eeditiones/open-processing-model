@@ -251,15 +251,25 @@ def _copy_file(src: Path, dest: Path, *, force: bool) -> bool:
     return True
 
 
+def shell_stylesheet(name: str) -> str:
+    """Return the file name of the theme stylesheet for the HTML shell *name*.
+
+    The packaged themes are named ``opm-theme-<shell>.css``, so in a project's
+    ``assets/`` they stand apart from its own stylesheets.
+    """
+    return f'opm-theme-{name}.css'
+
+
 def _shell_copies(
     names: tuple[str, ...], dest_dir: Path, suffix: str = JINKS_SUFFIX,
 ) -> list[tuple[str, Path]]:
     """Return ``(packaged resource, destination)`` pairs for the HTML shells *names*.
 
-    A shell is a ``.html.tpl`` (``.html.j2`` with *suffix* ``.j2``) plus the
-    ``.css`` beside it, when it has one — linked as an asset through
-    ``[transform.web] assets`` — while ``tufte`` and ``bootstrap`` load their
-    framework from a CDN and ship alone.
+    A shell is a ``.html.tpl`` (``.html.j2`` with *suffix* ``.j2``) plus its
+    theme stylesheet ([`shell_stylesheet`][opm.scaffold.shell_stylesheet]),
+    when it has one — linked as an asset through ``[transform.web] assets`` —
+    while ``tufte`` and ``bootstrap`` load their framework from a CDN and ship
+    alone.
     """
     copies: list[tuple[str, Path]] = []
     for name in names:
@@ -269,13 +279,9 @@ def _shell_copies(
                 dest_dir / 'templates' / f'{name}.html{suffix}',
             )
         )
-        if _resource_root().joinpath('scaffold', 'templates', f'{name}.css').is_file():
-            copies.append(
-                (
-                    f'scaffold/templates/{name}.css',
-                    dest_dir / 'templates' / f'{name}.css',
-                )
-            )
+        css = shell_stylesheet(name)
+        if _resource_root().joinpath('scaffold', 'templates', css).is_file():
+            copies.append((f'scaffold/templates/{css}', dest_dir / 'templates' / css))
     return copies
 
 
@@ -532,7 +538,11 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         html_template=html_template,
         tpl=suffix,
         # The shell's stylesheet, wired up as an asset when it has one.
-        html_css=_resource_root().joinpath('scaffold', 'templates', f'{html_template}.css').is_file(),
+        html_css=(
+            shell_stylesheet(html_template)
+            if _resource_root().joinpath('scaffold', 'templates', shell_stylesheet(html_template)).is_file()
+            else ''
+        ),
         index_note_element=_INDEX_FIELD_ELEMENTS[vocab][0],
         index_name_element=_INDEX_FIELD_ELEMENTS[vocab][1],
     )

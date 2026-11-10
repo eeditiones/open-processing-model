@@ -52,8 +52,8 @@ extends = "escher.html.tpl"
   </li>
 [% endtemplate %]
 
-<div class="chap-page chap-page--chunk">
-  <div class="chap-body">
+<div class="opm-reader-page opm-reader-page--chunk">
+  <div class="opm-reader-body">
     [% if exists($context?chunk) %]
     [#
       The edition_navigation fragment is a hidden <nav> whose data-* attributes

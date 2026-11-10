@@ -7,9 +7,18 @@
 # or for web output only under [transform.web.context.theme.layout.after]. A
 # template's frontmatter wins over both.
 
+[theme]
+# "light", "dark", or "auto" to follow the reader's system. Applies to the
+# colours of opm-layout.css; a theme stylesheet that sets its own colours
+# keeps them.
+color_scheme = "light"
+
 [theme.layout]
 # Extra classes on the layout grid.
 class = ""
+# false when context.logo is a wordmark that already spells the site's name:
+# the logo then stands alone, the name as its alt text.
+logo_title = true
 # Text of the link that lets keyboard users jump past the header.
 skip_label = "Skip to content"
 # Labels of the toolbar's links to the previous and next page.
@@ -48,3 +57,38 @@ menubar = true
 enabled = true
 # Links to the previous and next page of a chunked document.
 navigation = false
+
+# The collection index `opm chunk` writes for a directory
+# (default_index.html.tpl). Set the text above the list with [context]
+# site_name and description; these are its other words.
+[theme.index]
+# Small heading above the collection's name.
+eyebrow = "Collection"
+# Counted things. Sections are only counted from two on.
+document_one = "document"
+document_many = "documents"
+section_many = "sections"
+filter_label = "Filter documents"
+filter_placeholder = "Filter by title, author, date …"
+list_label = "Show as list"
+grid_label = "Show as grid"
+empty_label = "No document matches the filter."
+open_label = "Open"
+# How the documents are shown first: "list" or "grid". Readers can switch.
+view = "list"
+# Most section ticks drawn for one document; more are shown as "+".
+max_ticks = 24
+# The filter bar appears from this many documents on.
+filter_min = 2
+
+# A picture behind the masthead, e.g. a facsimile page or a portrait.
+[theme.index.hero]
+# A file name in the output's assets/ folder (list it under
+# [transform.web] assets to have it copied there), a path, or a URL.
+# Unset: no picture.
+# image = "cover.jpg"
+# Which part stays in view when the picture is cropped, as CSS
+# background-position: "center", "top", "center 30%", …
+position = "center"
+# "light" text on a darkened picture, or "dark" text on a lightened one.
+text = "light"

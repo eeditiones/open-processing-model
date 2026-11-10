@@ -1001,8 +1001,13 @@ def test_build_index_prefers_the_browse_fragment(tmp_path: Path) -> None:
     # not used as well.
     assert 'ignored' not in html
     # A second link outside the record keeps the entry reachable regardless.
-    assert '<a href="a.xml/001.html">a.xml</a>' in html
+    assert (
+        '<a class="opm-doc__go opm-doc__link" href="a.xml/001.html" aria-label="Open a.xml">'
+        in html
+    )
     assert '2 sections' in html
+    # The masthead counts documents and, when there are more, sections.
+    assert '<h1 class="opm-masthead__title">Letters</h1>' in html
 
 
 def test_build_index_falls_back_to_title_then_filename(tmp_path: Path) -> None:
@@ -1014,10 +1019,17 @@ def test_build_index_falls_back_to_title_then_filename(tmp_path: Path) -> None:
     html = build_index(out).read_text(encoding='utf-8')
 
     # Title fragment: wrapped in a link the ODD did not supply.
-    assert '<h2><a href="has-title.xml/001.html"><span>A Gentle Guide</span></a></h2>' in html
+    assert (
+        '<h2 class="opm-doc__title"><a class="opm-doc__link" href="has-title.xml/001.html">'
+        '<span>A Gentle Guide</span></a></h2>' in html
+    )
     # Nothing at all: a readable label derived from the filename stem.
-    assert '<h2><a href="no_fragments.xml/001.html">No fragments</a></h2>' in html
-    assert '1 section' in html
+    assert (
+        '<h2 class="opm-doc__title"><a class="opm-doc__link" href="no_fragments.xml/001.html">'
+        'No fragments</a></h2>' in html
+    )
+    # A single section is not worth counting.
+    assert '1 section' not in html
 
 
 def test_build_index_gets_the_webcomponents_url_in_web_component_mode(tmp_path: Path) -> None:

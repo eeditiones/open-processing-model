@@ -248,18 +248,15 @@ of `monograph.html.tpl`, written in TOML, starts like this:
 
 ```toml
 ---toml
-styles = ["https://fonts.googleapis.com/css2?family=EB+Garamond…"]
-
 [theme.body]
-classes = ["chapbook"]
+classes = ["opm-reader"]
 
 [templating]
 extends = "opm/layout.html.tpl"
 ---
 ```
 
-It adds a web font to the list of stylesheets, a class to the `body` element,
-and names the layout it builds upon. The regions of opm's layout and the
+It adds a class to the `body` element and names the layout it builds upon. The regions of opm's layout and the
 settings it accepts are described under
 [Template inheritance](templates-and-css.md#template-inheritance). As in TEI
 Publisher, the layout writes every region, and its stylesheet

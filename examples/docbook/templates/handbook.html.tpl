@@ -4,18 +4,15 @@
 
   handbook: documentation-oriented reading (Starlight-inspired), on opm's
   packaged page layout (opm/layout.html.tpl). The layout writes the menubar
-  and the breadcrumb toolbar; the site navigation is its `before` column, and
-  the "On this page" outline sits beside the text inside the content block.
-  handbook.css styles it all.
+  (logo and <title> from site_name or the document's title) and the
+  breadcrumb toolbar; the site navigation is its `before` column, and the
+  "On this page" outline sits beside the text inside the content block.
+  opm-theme-handbook.css sets opm's design tokens and styles what is handbook's own.
 
-  Its stylesheet, handbook.css, is listed under [transform.web] assets in
+  Its stylesheet, opm-theme-handbook.css, is listed under [transform.web] assets in
   opm.toml: copied next to the output and linked by the base template.
 #]
 ---toml
-styles = [
-  "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Sora:wght@500;600;700&display=swap",
-]
-
 [theme.body]
 classes = ["handbook"]
 
@@ -25,25 +22,6 @@ span_top = true
 [templating]
 extends = "opm/layout.html.tpl"
 ---
-[% template meta %]
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-[% endtemplate %]
-
-[% template title %]
-<title>[[ (normalize-space($context?fragments?title), 'Handbook')[. != ''][1] ]]</title>
-[% endtemplate %]
-
-[# The menubar names the site, else the document. #]
-[% template logo %]
-<a href="[[ ($context?home_url, $context?index_url, 'index.html')[string(.) != ''][1] ]]">
-  [% let $logo = string($context?logo) %]
-  [% if $logo != '' %]<img class="logo__image" src="[[ if ($context?assets and not(contains($logo, '/')) and not(contains($logo, ':'))) then $context?assets || '/' || $logo else $logo ]]" alt="">[% endif %]
-  [% endlet %]
-  <span class="logo__title">[[ (string($context?site_name), normalize-space($context?fragments?title), 'Handbook')[. != ''][1] ]]</span>
-</a>
-[% endtemplate %]
-
 [% template body_class %][% if $context?fragments?toc %]handbook--with-toc[% endif %][% endtemplate %]
 
 [% template before %]

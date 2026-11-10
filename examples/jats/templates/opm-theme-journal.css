@@ -1,6 +1,10 @@
 /* SPDX-FileCopyrightText: 2026 e-editiones
    SPDX-License-Identifier: CC0-1.0 */
 
+/* Here rather than in the template, so every page that links this file,
+   the collection index too, gets the same faces. */
+@import url("https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..600&display=swap");
+
 /* Journal — a scholarly article surface: masthead, TOC rail, single measure.
 
    Written around journal front matter — byline, affiliations, citation line,
@@ -8,33 +12,44 @@
    itself is vocabulary-neutral: anything the ODD renders lands in `.content`.
 
    The page grid is opm's packaged layout (opm/layout.html.tpl): the masthead is
-   its header, the contents rail its `before` column. This file sets the
-   layout's measurements through the --opm-layout-* properties on body.jr and
-   styles what goes inside. */
+   its header, the contents rail its `before` column. This file sets opm's
+   design tokens (--opm-*), which style the masthead, drawer and the
+   collection index alike; the article page's measurements and contents are
+   scoped to body.jr, which the index does not carry. */
 
 :root {
-  --jr-paper: #fbfaf7;
-  --jr-surface: #ffffff;
-  --jr-ink: #1c1b19;
-  --jr-muted: #6b6862;
-  --jr-rule: #dcd8d0;
-  --jr-accent: #7a2e2e;
-  --jr-accent-soft: rgba(122, 46, 46, 0.08);
+  --opm-background-color: #fbfaf7;
+  --opm-surface: #ffffff;
+  --opm-color: #1c1b19;
+  --opm-color-muted: #6b6862;
+  --opm-color-rule: #dcd8d0;
+  --opm-color-accent: #7a2e2e;
+  --opm-color-accent-soft: rgba(122, 46, 46, 0.08);
+  --opm-font-body: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --opm-font-display: var(--opm-font-body);
+  --opm-display-weight: 600;
+  --opm-font-ui: "Source Sans 3", -apple-system, "Segoe UI", sans-serif;
+
+  /* The masthead: white, compact, as wide as the article page. Its height
+     is what anchors scroll clear of when it wraps to two lines. */
+  --opm-menubar-background: var(--opm-surface);
+  --opm-menubar-max: calc(var(--jr-rail) + var(--jr-measure) + 8rem);
+  --opm-menubar-height: 4.25rem;
+
   --jr-measure: 36rem;
   --jr-rail: 15rem;
   --jr-pad: clamp(1.1rem, 4vw, 2.5rem);
-  --jr-sans: "Source Sans 3", -apple-system, "Segoe UI", sans-serif;
-  --jr-serif: "Source Serif 4", "Iowan Old Style", Georgia, serif;
 
   /* ODD stylesheets reach for TEI Publisher web-component tokens — jats.css
      draws the abstract's rule with var(--pb-color-focus). A static page has no
      <pb-page> to define them, so bind them here or those rules collapse. */
-  --pb-color-focus: var(--jr-accent);
+  --pb-color-focus: var(--opm-color-accent);
   --pb-footnote-font-size: 0.8125rem;
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
+body {
+  font-size: 1.0625rem;
+  line-height: 1.65;
 }
 
 body.jr {
@@ -44,42 +59,29 @@ body.jr {
   --opm-layout-before-width: calc(var(--jr-rail) + 2.5rem);
   --opm-layout-gap: 2.5rem;
   --opm-layout-gutter: var(--jr-pad);
-  /* Below the sticky masthead. */
+  /* The rail sticks under the masthead, its own top padding clearing it. */
   --opm-layout-sticky-top: 2rem;
-  --opm-background-color-drawer: var(--jr-paper);
-  margin: 0;
-  background: var(--jr-paper);
-  color: var(--jr-ink);
-  font-family: var(--jr-serif);
-  font-size: 1.0625rem;
-  line-height: 1.65;
 }
 
 /* --- masthead: the layout's menubar -------------------------------- */
 
-.jr .page-header {
-  background: var(--jr-surface);
-  border-bottom: 1px solid var(--jr-rule);
-}
-
-.jr .menubar {
-  --opm-menubar-max: calc(var(--jr-rail) + var(--jr-measure) + 8rem);
+.menubar {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.25rem 1rem;
   min-height: 0;
   padding: 0.6rem var(--jr-pad);
-  font-family: var(--jr-sans);
   font-size: 0.8125rem;
 }
 
 .jr-journal {
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--jr-accent);
+  color: var(--opm-color-accent);
 }
 
-a.jr-journal {
+.menubar a.jr-journal {
+  color: var(--opm-color-accent);
   text-decoration: none;
 }
 
@@ -92,7 +94,7 @@ a.jr-journal:hover {
   font-size: inherit;
 }
 
-.jr .menubar > ul:last-child {
+.menubar > ul:last-child {
   flex: 0 1 auto;
   min-width: 0;
 }
@@ -102,7 +104,7 @@ a.jr-journal:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--jr-muted);
+  color: var(--opm-color-muted);
 }
 
 /* --- page ----------------------------------------------------------- */
@@ -123,7 +125,7 @@ body.jr--with-toc {
 
 .jr-rail__nav {
   padding-top: 2.5rem;
-  font-family: var(--jr-sans);
+  font-family: var(--opm-font-ui);
   font-size: 0.875rem;
 }
 
@@ -132,7 +134,7 @@ body.jr--with-toc {
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--jr-muted);
+  color: var(--opm-color-muted);
 }
 
 .jr-rail__nav ul {
@@ -151,7 +153,7 @@ body.jr--with-toc {
 }
 
 .jr-rail__nav a {
-  color: var(--jr-ink);
+  color: var(--opm-color);
   text-decoration: none;
   border-left: 2px solid transparent;
   padding-left: 0.6rem;
@@ -159,9 +161,9 @@ body.jr--with-toc {
 }
 
 .jr-rail__nav a:hover {
-  color: var(--jr-accent);
-  border-left-color: var(--jr-accent);
-  background: var(--jr-accent-soft);
+  color: var(--opm-color-accent);
+  border-left-color: var(--opm-color-accent);
+  background: var(--opm-color-accent-soft);
 }
 
 /* --- article -------------------------------------------------------- */
@@ -196,7 +198,7 @@ body.jr--with-toc {
 }
 
 .content a {
-  color: var(--jr-accent);
+  color: var(--opm-color-accent);
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
 }
@@ -208,7 +210,7 @@ body.jr--with-toc {
   align-items: baseline;
   justify-content: space-between;
   gap: 0.5rem 1rem;
-  font-family: var(--jr-sans);
+  font-family: var(--opm-font-ui);
 }
 
 .content .flex .tei-contrib-group {
@@ -217,13 +219,13 @@ body.jr--with-toc {
 }
 
 .content .pub-date {
-  color: var(--jr-muted);
+  color: var(--opm-color-muted);
   font-size: 0.875rem;
 }
 
 .content .orcid,
 .content .email {
-  font-family: var(--jr-sans);
+  font-family: var(--opm-font-ui);
   font-size: 0.75rem;
   font-weight: 400;
   margin-left: 0.5rem;
@@ -233,31 +235,31 @@ body.jr--with-toc {
 
 .content .affiliations,
 .content .citation-line {
-  font-family: var(--jr-sans);
+  font-family: var(--opm-font-ui);
   font-size: 0.8125rem;
-  color: var(--jr-muted);
+  color: var(--opm-color-muted);
 }
 
 .content .citation-line {
   margin: 0.35rem 0 2rem;
   padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--jr-rule);
+  border-bottom: 1px solid var(--opm-color-rule);
 }
 
 .content .abstract {
-  background: var(--jr-surface);
-  border-left: 3px solid var(--jr-accent);
+  background: var(--opm-surface);
+  border-left: 3px solid var(--opm-color-accent);
   padding: 0.9rem 1.2rem 0.1rem;
   margin-bottom: 1.5rem;
   font-size: 0.95rem;
 }
 
 .content .abstract h2 {
-  font-family: var(--jr-sans);
+  font-family: var(--opm-font-ui);
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--jr-muted);
+  color: var(--opm-color-muted);
   margin: 0 0 0.4rem;
 }
 
@@ -273,17 +275,17 @@ body.jr--with-toc {
 }
 
 .content .permissions {
-  font-family: var(--jr-sans);
+  font-family: var(--opm-font-ui);
   font-size: 0.75rem;
-  color: var(--jr-muted);
+  color: var(--opm-color-muted);
 }
 
 .content blockquote,
 .content .tei-disp-quote {
   margin: 1.2rem 0 1.2rem 1.2rem;
   padding-left: 1rem;
-  border-left: 2px solid var(--jr-rule);
-  color: var(--jr-muted);
+  border-left: 2px solid var(--opm-color-rule);
+  color: var(--opm-color-muted);
 }
 
 .content figure {
@@ -291,9 +293,9 @@ body.jr--with-toc {
 }
 
 .content .figure-head {
-  font-family: var(--jr-sans);
+  font-family: var(--opm-font-ui);
   font-size: 0.8125rem;
-  color: var(--jr-muted);
+  color: var(--opm-color-muted);
 }
 
 .content table {
@@ -304,14 +306,14 @@ body.jr--with-toc {
 
 .content th,
 .content td {
-  border-bottom: 1px solid var(--jr-rule);
+  border-bottom: 1px solid var(--opm-color-rule);
   padding: 0.35rem 0.5rem;
   text-align: left;
 }
 
 /* footnote markers and the note apparatus the ODD emits */
 .content a.note {
-  font-family: var(--jr-sans);
+  font-family: var(--opm-font-ui);
   font-size: 0.7rem;
   font-weight: 600;
   vertical-align: super;
@@ -326,13 +328,13 @@ body.jr--with-toc {
   gap: 0 0.25rem;
   margin: 0 0 0.5rem;
   font-size: 0.85rem;
-  color: var(--jr-muted);
+  color: var(--opm-color-muted);
 }
 
 .content .footnote .fn-number {
-  font-family: var(--jr-sans);
+  font-family: var(--opm-font-ui);
   font-weight: 600;
-  color: var(--jr-accent);
+  color: var(--opm-color-accent);
 }
 
 .content .footnote .fn-content {
@@ -362,8 +364,8 @@ body.jr--with-toc {
   gap: 1rem;
   margin-top: 3rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--jr-rule);
-  font-family: var(--jr-sans);
+  border-top: 1px solid var(--opm-color-rule);
+  font-family: var(--opm-font-ui);
   font-size: 0.875rem;
 }
 
@@ -372,7 +374,7 @@ body.jr--with-toc {
 }
 
 .jr-pager a {
-  color: var(--jr-accent);
+  color: var(--opm-color-accent);
   text-decoration: none;
 }
 
@@ -384,24 +386,12 @@ body.jr--with-toc {
 
 /* The layout shows the menubar's Contents button on narrow screens only. */
 @media (max-width: 64em) {
-  .jr .menubar .trigger label {
+  .menubar .trigger label {
     display: inline-block;
     padding: 0.2rem 0.7rem;
-    border: 1px solid var(--jr-rule);
+    border: 1px solid var(--opm-color-rule);
     border-radius: 999px;
-    background: var(--jr-surface);
-  }
-
-  .jr .opm-drawer__head {
-    font-family: var(--jr-sans);
-    font-size: 0.8125rem;
-    color: var(--jr-muted);
-  }
-
-  .jr .opm-drawer__title {
-    font-size: 0.75rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    background: var(--opm-surface);
   }
 
   /* The drawer's head carries the title. */

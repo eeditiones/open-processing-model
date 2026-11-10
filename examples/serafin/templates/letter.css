@@ -1,6 +1,10 @@
 /* SPDX-FileCopyrightText: 2026 e-editiones
    SPDX-License-Identifier: CC0-1.0 */
 
+/* Here rather than in the template, so every page that links this file,
+   the collection index too, gets the same faces. */
+@import url("https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@0,300..700;1,300..700&family=Belleza&display=swap");
+
 /* ===========================================================================
    Serafin — a reading surface for correspondence.
 
@@ -11,8 +15,10 @@
    Copied into <output>/assets/ by [transform.web] assets and linked from each page,
    so parchment.jpg beside it is addressed by plain filename. The page grid
    (header, content column, register column) is opm's packaged layout
-   (opm/layout.html.tpl); this file sets its widths through the --opm-layout-*
-   properties and styles what goes inside.
+   (opm/layout.html.tpl). This file sets opm's design tokens (--opm-*), which
+   colour the menubar, drawers and the collection index alike; the letter
+   page's own measurements and parts are scoped to body.letter, which the
+   index does not carry.
 
    Palette and type follow the dynamic Serafin app: Belleza headings, Albert
    Sans text, warm paper, muted dark red for entities.
@@ -20,21 +26,27 @@
 
 :root {
   /* Palette */
-  --letter-paper: #fffef9;
-  --letter-ink: #24211d;
-  --letter-muted: #6f6b5d;
-  --letter-rule: #ddd5c0;
-  --letter-accent: #8a0000;
-  --letter-accent-soft: rgba(138, 0, 0, 0.1);
+  --opm-background-color: #fffef9;
+  --opm-surface: #fffcf8;
+  --opm-color: #24211d;
+  --opm-color-muted: #6f6b5d;
+  --opm-color-rule: #ddd5c0;
+  --opm-color-accent: #8a0000;
+  --opm-color-accent-soft: rgba(138, 0, 0, 0.1);
   --letter-parchment: #f3eddd;
   --letter-title: #2a2925;
-  --letter-menubar-bg: #62543a;
-  --letter-menubar-ink: #fcfcf8;
 
-  /* Type */
-  --letter-font-display: "Belleza", "Optima", "Gill Sans", sans-serif;
-  --letter-font-body: "Albert Sans", "Helvetica Neue", Arial, sans-serif;
-  --letter-font-meta: "Albert Sans", "Helvetica Neue", Arial, sans-serif;
+  /* The brown bar with the wordmark */
+  --opm-menubar-background: #62543a;
+  --opm-menubar-color: #fcfcf8;
+  --opm-menubar-link-color: rgb(252 252 248 / 0.85);
+  --opm-menubar-link-hover: #fcfcf8;
+  --opm-menubar-max: 100%;
+
+  /* Type: Belleza for headings and titles, Albert Sans for the rest */
+  --opm-font-display: "Belleza", "Optima", "Gill Sans", sans-serif;
+  --opm-font-body: "Albert Sans", "Helvetica Neue", Arial, sans-serif;
+  --opm-font-ui: var(--opm-font-body);
 
   /* Metrics */
   --letter-pad: clamp(1.25rem, 4vw, 2.5rem);
@@ -48,7 +60,7 @@
   --letter-page-top: clamp(1.75rem, 5vh, 3rem);
   /* Taller than the app's 44px bar: it carries the two-line wordmark rather
      than the monogram, and needs the vertical room to stay legible. */
-  --letter-menubar-height: 3.5rem;
+  --opm-menubar-height: 3.5rem;
   --letter-toolbar-height: 4rem;
 
   /* Entity popovers (pb-popover / tippy) */
@@ -56,8 +68,9 @@
   --pb-popover-line-height: 1.35;
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
+body {
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
 }
 
 body.letter {
@@ -68,60 +81,25 @@ body.letter {
   --opm-layout-gap: var(--letter-rail-gap);
   --opm-layout-after-width: calc(var(--letter-register-width) + var(--letter-rail-gap));
   /* Sidebars stop clear of the sticky menubar + breadcrumb band. */
-  --opm-layout-sticky-top: calc(var(--letter-menubar-height) + 1rem);
-  --opm-background-color-drawer: var(--letter-paper);
-  margin: 0;
-  background: var(--letter-paper);
-  color: var(--letter-ink);
-  font-family: var(--letter-font-body);
-  font-weight: 400;
-  line-height: 1.6;
-  text-rendering: optimizeLegibility;
+  --opm-layout-sticky-top: calc(var(--opm-menubar-height) + 1rem);
 }
 
 /* ── Menubar ──────────────────────────────────────────────── */
 
-.letter .page-header {
+/* Colours come from the tokens above; here only the bar's shape. Unscoped,
+   so the collection index wears the same bar. The logo is the wordmark
+   (context.logo, with theme.layout.logo_title = false). */
+.page-header {
   border-bottom: 0;
-  background: var(--letter-menubar-bg);
-  color: var(--letter-menubar-ink);
 }
 
-.letter .menubar {
-  --opm-menubar-max: 100%;
+.menubar {
   gap: 1rem;
-  height: var(--letter-menubar-height);
-  min-height: 0;
   padding: 0 var(--letter-pad);
 }
 
-.letter .menubar .logo a {
-  align-items: center;
-  color: inherit;
-}
-
-.letter .menubar .logo a:focus-visible {
-  outline: 2px solid var(--letter-menubar-ink);
-  outline-offset: 3px;
-}
-
-/* The wordmark's dark half is set to currentColor so it reads on the bar;
-   the gold half keeps its own fill. */
-.app-logo__mark {
-  display: block;
-  width: auto;
+.logo__image {
   height: 2.25rem;
-  color: var(--letter-menubar-ink);
-}
-
-.letter-count {
-  font-family: var(--letter-font-meta);
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--letter-menubar-ink) 80%, transparent);
-  font-variant-numeric: tabular-nums;
 }
 
 /* ── Breadcrumb toolbar: parchment band ───────────────────── */
@@ -134,8 +112,8 @@ body.letter {
 .letter .toolbar {
   min-height: var(--letter-toolbar-height);
   padding: 0.6rem var(--letter-pad);
-  border-bottom: 1px solid var(--letter-rule);
-  background-color: #fffcf8;
+  border-bottom: 1px solid var(--opm-color-rule);
+  background-color: var(--opm-surface);
   /* Readability wash over the manuscript texture — the gradient stops are the
      profile's own (resources/css/serafin.css). */
   background-image:
@@ -157,7 +135,7 @@ body.letter {
 }
 
 .letter .toolbar .breadcrumb {
-  font-family: var(--letter-font-display);
+  font-family: var(--opm-font-display);
   font-size: 1.05rem;
   font-weight: 400;
   line-height: 1.35;
@@ -215,8 +193,8 @@ body.letter--parallel {
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.45rem 0.15rem 0.7rem;
-  border-bottom: 1px solid var(--letter-rule);
-  font-family: var(--letter-font-meta);
+  border-bottom: 1px solid var(--opm-color-rule);
+  font-family: var(--opm-font-ui);
 }
 
 .letter-nav__side {
@@ -246,10 +224,10 @@ body.letter--parallel {
   gap: 0.4rem;
   max-width: 100%;
   padding: 0.35rem 0.55rem;
-  border: 1px solid color-mix(in srgb, var(--letter-rule) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--opm-color-rule) 85%, transparent);
   border-radius: 0.2rem;
-  background: color-mix(in srgb, var(--letter-parchment) 55%, var(--letter-paper));
-  color: var(--letter-ink);
+  background: color-mix(in srgb, var(--letter-parchment) 55%, var(--opm-background-color));
+  color: var(--opm-color);
   font-size: 0.72rem;
   font-weight: 500;
   letter-spacing: 0.1em;
@@ -264,18 +242,18 @@ body.letter--parallel {
 
 .letter-nav__link--thread {
   background: transparent;
-  color: var(--letter-muted);
+  color: var(--opm-color-muted);
   letter-spacing: 0.06em;
 }
 
 .letter-nav__link:hover {
-  color: var(--letter-accent);
-  border-color: color-mix(in srgb, var(--letter-accent) 35%, var(--letter-rule));
-  background: var(--letter-accent-soft);
+  color: var(--opm-color-accent);
+  border-color: color-mix(in srgb, var(--opm-color-accent) 35%, var(--opm-color-rule));
+  background: var(--opm-color-accent-soft);
 }
 
 .letter-nav__link:focus-visible {
-  outline: 2px solid var(--letter-accent);
+  outline: 2px solid var(--opm-color-accent);
   outline-offset: 2px;
 }
 
@@ -300,7 +278,7 @@ body.letter--parallel {
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--letter-muted);
+  color: var(--opm-color-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -313,7 +291,7 @@ body.letter--parallel {
 .letter-head h1,
 .letter-head .tei-title {
   margin: 0 0 0.75rem;
-  font-family: var(--letter-font-display);
+  font-family: var(--opm-font-display);
   font-size: 1.6rem;
   font-weight: 400;
   /* The ODD's default `.tei-title { font-style: italic }` would otherwise
@@ -329,7 +307,7 @@ body.letter--parallel {
   margin: 0 0 0.5rem;
   font-size: 0.8rem;
   line-height: 1.5;
-  color: var(--letter-muted);
+  color: var(--opm-color-muted);
 }
 
 /* The sent-date closes the head block, set right against the columns. */
@@ -338,7 +316,7 @@ body.letter--parallel {
   margin-top: 1rem;
   font-size: 1.05rem;
   text-align: right;
-  color: var(--letter-ink);
+  color: var(--opm-color);
 }
 
 /* ── Parallel panes ───────────────────────────────────────── */
@@ -362,13 +340,13 @@ body.letter--parallel {
 /* The translation is the secondary reading: same measure, slightly softened,
    and divided from the transcription by a hairline once they sit side by side. */
 .letter-pane--translation .content {
-  color: color-mix(in srgb, var(--letter-ink) 86%, var(--letter-muted));
+  color: color-mix(in srgb, var(--opm-color) 86%, var(--opm-color-muted));
 }
 
 @media (min-width: 60em) {
   .letter-parallel:not(.letter-parallel--single) .letter-pane--translation {
     padding-left: var(--letter-pane-gap);
-    border-left: 1px solid color-mix(in srgb, var(--letter-rule) 70%, transparent);
+    border-left: 1px solid color-mix(in srgb, var(--opm-color-rule) 70%, transparent);
   }
 }
 
@@ -379,7 +357,7 @@ body.letter--parallel {
 }
 
 .letter .content :is(h1, h2, h3, h4, h5, h6) {
-  font-family: var(--letter-font-display);
+  font-family: var(--opm-font-display);
   font-weight: 400;
   font-style: normal;
   line-height: 1.25;
@@ -422,28 +400,28 @@ body.letter--parallel {
 }
 
 .letter .content a {
-  color: var(--letter-accent);
+  color: var(--opm-color-accent);
   text-decoration-thickness: 1px;
   text-underline-offset: 0.18em;
-  text-decoration-color: color-mix(in srgb, var(--letter-accent) 45%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--opm-color-accent) 45%, transparent);
   transition: text-decoration-color 0.15s ease, background-color 0.15s ease;
 }
 
 .letter .content a:hover {
-  text-decoration-color: var(--letter-accent);
-  background-color: var(--letter-accent-soft);
+  text-decoration-color: var(--opm-color-accent);
+  background-color: var(--opm-color-accent-soft);
 }
 
 .letter .content a:focus-visible {
-  outline: 2px solid var(--letter-accent);
+  outline: 2px solid var(--opm-color-accent);
   outline-offset: 2px;
 }
 
 .letter .content blockquote {
   margin: 1.4em 0;
   padding: 0.15em 0 0.15em 1.15em;
-  border-left: 2px solid var(--letter-accent);
-  color: var(--letter-muted);
+  border-left: 2px solid var(--opm-color-accent);
+  color: var(--opm-color-muted);
   font-style: italic;
 }
 
@@ -459,7 +437,7 @@ body.letter--parallel {
   margin: 2.25em auto;
   width: 4rem;
   border: 0;
-  border-top: 1px solid var(--letter-rule);
+  border-top: 1px solid var(--opm-color-rule);
 }
 
 .letter .content :is(ul, ol) {
@@ -478,10 +456,10 @@ body.letter--parallel {
 .letter .content figcaption,
 .letter .content .tei-figDesc {
   margin-top: 0.5em;
-  font-family: var(--letter-font-meta);
+  font-family: var(--opm-font-ui);
   font-size: 0.82rem;
   line-height: 1.45;
-  color: var(--letter-muted);
+  color: var(--opm-color-muted);
 }
 
 .letter .content img {
@@ -498,23 +476,23 @@ body.letter--parallel {
 
 .letter .content :is(th, td) {
   padding: 0.4em 0.55em;
-  border-bottom: 1px solid var(--letter-rule);
+  border-bottom: 1px solid var(--opm-color-rule);
   text-align: left;
   vertical-align: top;
 }
 
 .letter .content th {
-  font-family: var(--letter-font-meta);
+  font-family: var(--opm-font-ui);
   font-size: 0.85em;
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--letter-muted);
+  color: var(--opm-color-muted);
 }
 
 .letter .content .tei-note {
   font-size: 0.9em;
-  color: var(--letter-muted);
+  color: var(--opm-color-muted);
 }
 
 /* ── Alternate readings ───────────────────────────────────── */
@@ -525,7 +503,7 @@ body.letter--parallel {
   position: relative;
   display: inline;
   cursor: help;
-  border-bottom: 1px dotted color-mix(in srgb, var(--letter-accent) 55%, transparent);
+  border-bottom: 1px dotted color-mix(in srgb, var(--opm-color-accent) 55%, transparent);
   text-decoration: none;
 }
 
@@ -539,12 +517,12 @@ body.letter--parallel {
   max-width: min(22rem, 70vw);
   padding: 0.45rem 0.65rem;
   transform: translateX(-50%);
-  border: 1px solid var(--letter-rule);
+  border: 1px solid var(--opm-color-rule);
   border-radius: 2px;
-  background: var(--letter-paper);
+  background: var(--opm-background-color);
   box-shadow: 0 6px 18px rgba(36, 33, 29, 0.14);
-  color: var(--letter-ink);
-  font-family: var(--letter-font-body);
+  color: var(--opm-color);
+  font-family: var(--opm-font-body);
   font-size: 0.88rem;
   font-style: normal;
   font-weight: 400;
@@ -561,7 +539,7 @@ body.letter--parallel {
   bottom: 100%;
   margin-left: -5px;
   border: 5px solid transparent;
-  border-bottom-color: var(--letter-rule);
+  border-bottom-color: var(--opm-color-rule);
 }
 
 .letter .content .alternate:hover .altcontent,
@@ -589,25 +567,25 @@ body.letter--parallel {
    popup is first shown rather than as it upgrades, so every popover carries the
    theme and the themed selector is all this page needs. */
 body .tippy-box[data-theme~="light-border"] {
-  border-color: var(--letter-rule);
-  background-color: var(--letter-paper);
-  color: var(--letter-ink);
-  font-family: var(--letter-font-body);
+  border-color: var(--opm-color-rule);
+  background-color: var(--opm-background-color);
+  color: var(--opm-color);
+  font-family: var(--opm-font-body);
   box-shadow: 0 6px 20px rgba(36, 33, 29, 0.14);
 }
 
 body .tippy-box[data-theme~="light-border"] > .tippy-backdrop {
-  background-color: var(--letter-paper);
+  background-color: var(--opm-background-color);
 }
 
 body .tippy-box[data-theme~="light-border"] > .tippy-arrow::after,
 body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:first-child {
-  border-color: var(--letter-rule);
-  fill: var(--letter-rule);
+  border-color: var(--opm-color-rule);
+  fill: var(--opm-color-rule);
 }
 
 body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child {
-  fill: var(--letter-paper);
+  fill: var(--opm-background-color);
 }
 
 .tippy-box .tippy-content {
@@ -618,7 +596,7 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
 /* Entry heading: name in Belleza, place/date qualifier beside it. */
 .tippy-box h1 {
   margin: 0 0 0.6rem;
-  font-family: var(--letter-font-display);
+  font-family: var(--opm-font-display);
   font-size: 1.3rem;
   font-weight: 400;
   font-style: normal;
@@ -629,10 +607,10 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
 .tippy-box h1 small,
 .tippy-box h1 .tei-placeName + small {
   margin-left: 0.4rem;
-  font-family: var(--letter-font-meta);
+  font-family: var(--opm-font-ui);
   font-size: 0.72rem;
   letter-spacing: 0.04em;
-  color: var(--letter-muted);
+  color: var(--opm-color-muted);
 }
 
 .tippy-box p {
@@ -641,7 +619,7 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
   line-height: 1.5;
   text-indent: 0;
   text-align: left;
-  color: color-mix(in srgb, var(--letter-ink) 90%, var(--letter-muted));
+  color: color-mix(in srgb, var(--opm-color) 90%, var(--opm-color-muted));
 }
 
 /* The register template nests <p> inside <p>; the parser leaves an empty one. */
@@ -656,9 +634,9 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
   gap: 0.75rem;
   margin: 0.7rem 0 0;
   padding: 0.55rem 0 0;
-  border-top: 1px solid color-mix(in srgb, var(--letter-rule) 70%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--opm-color-rule) 70%, transparent);
   list-style: none;
-  font-family: var(--letter-font-meta);
+  font-family: var(--opm-font-ui);
   font-size: 0.72rem;
   letter-spacing: 0.04em;
 }
@@ -668,9 +646,9 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
 }
 
 .tippy-box a {
-  color: var(--letter-accent);
+  color: var(--opm-color-accent);
   text-decoration: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--letter-accent) 35%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--opm-color-accent) 35%, transparent);
 }
 
 .tippy-box a:hover {
@@ -694,7 +672,7 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
     margin-top: 0.5rem;
     margin-bottom: 2rem;
     padding-top: 1.5rem;
-    border-top: 1px solid var(--letter-rule);
+    border-top: 1px solid var(--opm-color-rule);
   }
 }
 
@@ -716,23 +694,23 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
   display: flex;
   gap: 1.25rem;
   margin-bottom: 1.1rem;
-  border-bottom: 1px solid var(--letter-rule);
+  border-bottom: 1px solid var(--opm-color-rule);
 }
 
 .register-tabs__tab {
   padding: 0 0 0.55rem;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
-  font-family: var(--letter-font-meta);
+  font-family: var(--opm-font-ui);
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--letter-muted);
+  color: var(--opm-color-muted);
   cursor: pointer;
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .register-tabs__tab:hover {
-  color: var(--letter-ink);
+  color: var(--opm-color);
 }
 
 .register-tabs__panel {
@@ -741,8 +719,8 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
 
 #register-tab-people:checked ~ .register-tabs__strip .register-tabs__tab--people,
 #register-tab-places:checked ~ .register-tabs__strip .register-tabs__tab--places {
-  border-bottom-color: var(--letter-accent);
-  color: var(--letter-ink);
+  border-bottom-color: var(--opm-color-accent);
+  color: var(--opm-color);
 }
 
 #register-tab-people:checked ~ .register-tabs__panel--people,
@@ -753,7 +731,7 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
 /* Keyboard focus has to be visible on the label, not the hidden radio. */
 .register-tabs__radio:focus-visible ~ .register-tabs__strip .register-tabs__tab--people,
 .register-tabs__radio:focus-visible ~ .register-tabs__strip .register-tabs__tab--places {
-  outline: 2px solid var(--letter-accent);
+  outline: 2px solid var(--opm-color-accent);
   outline-offset: 2px;
 }
 
@@ -764,77 +742,6 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
 }
 
 /* ── Collection index ─────────────────────────────────────── */
-
-.letter-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.letter-list__item {
-  padding: 1.1rem 0;
-  border-bottom: 1px solid var(--letter-rule);
-}
-
-.letter-list__item:last-child {
-  border-bottom: 0;
-}
-
-/* The ODD's browse models emit the heading and its link; style them in place
-   rather than wrapping them in anything of our own. */
-.letter-list__entry h5 {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 400;
-}
-
-.letter-list__entry .tei-title {
-  font-family: var(--letter-font-display);
-  font-style: normal;
-  letter-spacing: 0.01em;
-  color: var(--letter-title);
-}
-
-.letter-list__entry a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.letter-list__entry a:hover .tei-title {
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--letter-accent) 55%, transparent);
-  text-underline-offset: 0.18em;
-}
-
-.letter-list__entry .tei-placeName,
-.letter-list__entry .tei-date {
-  color: var(--letter-muted);
-}
-
-/* Empty wrappers appear where a letter has no author or description. */
-.letter-list__entry div:empty {
-  display: none;
-}
-
-.letter-list__meta {
-  margin-top: 0.25rem;
-  font-family: var(--letter-font-meta);
-  font-size: 0.78rem;
-  color: var(--letter-muted);
-}
-
-.letter-list__meta a {
-  color: inherit;
-  text-decoration: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--letter-rule) 80%, transparent);
-}
-
-.letter-list__meta a:hover {
-  color: var(--letter-accent);
-  border-bottom-color: currentColor;
-}
-
-/* ── Print ────────────────────────────────────────────────── */
 
 @media print {
   .letter-nav {
@@ -863,12 +770,12 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
     display: block;
     margin-bottom: 0.7rem;
     padding-bottom: 0.35rem;
-    border-bottom: 1px solid var(--letter-rule);
+    border-bottom: 1px solid var(--opm-color-rule);
     font-size: 0.78rem;
     font-weight: 600;
     letter-spacing: 0.09em;
     text-transform: uppercase;
-    color: var(--letter-muted);
+    color: var(--opm-color-muted);
   }
 
   .register-tabs__panel--people::before {

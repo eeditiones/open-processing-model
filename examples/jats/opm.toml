@@ -13,7 +13,7 @@ xpath_extensions = [
 # Chunk pages use the same template and stylesheet; [chunking] sets neither.
 [transform.web]
 template = "templates/journal.html.tpl"
-assets = ["templates/journal.css"]
+assets = ["templates/opm-theme-journal.css"]
 webcomponents = true
 
 [transform.print]

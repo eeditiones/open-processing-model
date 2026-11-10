@@ -52,7 +52,7 @@ webcomponents = {{ 'true' if webcomponents else 'false' }}
 # directory beside the output. The template links the stylesheets for you.
 # Switching to another template? Change its stylesheet here too.
 {% if html_css -%}
-assets = ["templates/{{ html_template }}.css"]
+assets = ["templates/{{ html_css }}"]
 {%- else -%}
 # assets = ["templates/edition.css"]
 {%- endif %}

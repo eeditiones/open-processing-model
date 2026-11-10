@@ -11,6 +11,31 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Design tokens in `opm-layout.css` (`--opm-surface`, `--opm-font-display`, `--opm-color-accent-soft`, `--opm-radius`, `--opm-shadow`, …) with a default "rubric" palette and an opt-in dark scheme (`theme.color_scheme = "auto"` or `"dark"`)
+- Collection index redesigned: masthead with `site_name`, `description` and counts, a filter box, list/grid views and a length bar per document; its words are under `theme.index`
+- `theme.index.hero` (`image`, `position`, `text`) and `--opm-masthead-image` / `-position` / `-overlay` / `-min-height` / `-color*`: a picture behind the index masthead with a scrim for light or dark text
+- More design tokens: `--opm-display-weight`, `--opm-display-tracking`, `--opm-font-mono`, `--opm-menubar-background`, `--opm-menubar-color`, `--opm-menubar-link-color`, `--opm-menubar-link-hover`, `--opm-breadcrumb-separator`, `--opm-drawer-padding`
+- The menubar logo and `<title>` fall back to the document's `title` fragment, so themes need not override them
+- `theme.layout.logo_title = false` shows `context.logo` alone, for a wordmark that spells the name; the name becomes its alt text
+
+### Changed
+
+- Theme stylesheets are named `opm-theme-<name>.css`: `opm-theme-chapbook.css`, `opm-theme-handbook.css`, `opm-theme-journal.css`, which `opm init` copies beside the template of the same name. The monograph and Escher examples' design is the theme `opm-theme-paper.css` (formerly their `chapbook.css`)
+- The chapbook template writes `opm-reader-*` classes and `<body class="opm-reader">` instead of `chap-*` and `chapbook`, so any reader theme (chapbook, paper) can style it; chapbook's own custom properties are `--chapbook-*`
+- The packaged layout styles more of the page chrome itself: muted menu links, the current breadcrumb, the drawer's header bar, the skip link, a translucent menubar; sticky sidebars stop below the menubar by default
+- `handbook`, `chapbook` and `journal` designs rebuilt on the design tokens instead of their own `--hb-*`, `--chap-*` and `--jr-*` copies of them, so their colours, fonts and dark mode also apply to the collection index. Their web fonts load from the stylesheet instead of the template, and they no longer override the logo and `<title>` (journal keeps its journal line as logo, now linking to the index). The chapbook logo shows `site_name` when set, as the index does
+- The monograph and Escher design ("Der Römerbrief") hands its palette to the tokens and switches to dark through `theme.color_scheme` instead of its own `data-theme`; the docbook, monograph and Escher examples set `color_scheme = "auto"`
+- The Serafin example uses the packaged collection index (its parchment as the masthead picture) instead of its own, and its wordmark through `context.logo` instead of a logo override; `letter.css` is built on the design tokens
+- Shakespeare's facsimile column moved to its own `facsimile.css`, so its `chapbook.css` is the scaffold's again; the jats example's `journal.*` are the scaffold's
+
+### Fixed
+
+- Breadcrumbs no longer inherit the toolbar's wide gap between items, and wrap even where an ODD stylesheet sets them `nowrap`
+- Focus rings in a coloured menubar take its text colour
+- The journal line in the journal masthead shows in the accent colour again
+
 ## [0.10.0] - 2026-10-29
 
 Besides numerous bug fixes, this release supports generating documentation from existing ODDs, either as a static website, markdown, ePub or PDF. It also adds two more examples, showcasing a nicely designed monograph as well as another correspondence edition with a switch between diplomatic and edited text. HTML templates and styling have been refactored accordingly.

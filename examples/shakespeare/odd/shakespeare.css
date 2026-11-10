@@ -61,8 +61,8 @@
    default-styles) splits it into exactly the two columns the Folio had,
    filled in order: `columns: 2` is the initial column count, and the forced
    break opens the second.
-   `chap-page--chunk` is the class templates/chapbook.html.j2 sets on a chunk. */
-.chap-page--chunk .content,
+   `opm-reader-page--chunk` is the class templates/chapbook.html.j2 sets on a chunk. */
+.opm-reader-page--chunk .content,
 .opm-page {
     columns: 2;
     column-gap: 1.75rem;

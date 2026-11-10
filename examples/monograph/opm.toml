@@ -58,7 +58,7 @@ webcomponents = false
 # Stylesheets, images and fonts the template uses, copied into an assets/
 # directory beside the output. The template links the stylesheets for you.
 # Switching to another template? Change its stylesheet here too.
-assets = ["templates/chapbook.css", "templates/monograph.css"]
+assets = ["templates/opm-theme-paper.css", "templates/monograph.css"]
 
 # Anything here reaches every template as `context` — templates only, not the
 # ODD's XPath — so TOML types survive: booleans, numbers, arrays, sub-tables.
@@ -90,6 +90,10 @@ assets = ["templates/chapbook.css", "templates/monograph.css"]
 author = "Karl Barth"
 site_name = "Karl Barth Gesamtausgabe"
 lang = "de"
+
+# opm-theme-paper.css has a dark palette ("Lamplight"): follow the reader's system.
+[context.theme]
+color_scheme = "auto"
 
 [transform.print]
 # Paged media (Prince, Paged.js) in the design of the Typst output.

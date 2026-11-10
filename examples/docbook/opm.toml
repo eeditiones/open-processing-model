@@ -13,7 +13,7 @@ xpath_extensions = [
 # Chunk pages use the same template and stylesheet; [chunking] sets neither.
 [transform.web]
 template = "templates/handbook.html.tpl"
-assets = ["templates/handbook.css"]
+assets = ["templates/opm-theme-handbook.css"]
 webcomponents = true
 
 [transform.print]
@@ -27,6 +27,10 @@ template = "templates/docbook.typ.tpl"
 
 [context]
 site_name = "TEI Publisher Documentation"
+
+# opm-theme-handbook.css has a dark palette too: follow the reader's system.
+[context.theme]
+color_scheme = "auto"
 
 [chunking]
 selector = "opm.navigation.dbk_section_chunks"

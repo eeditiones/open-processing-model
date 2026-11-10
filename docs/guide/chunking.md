@@ -319,14 +319,9 @@ once and cached.-->
 ## Collection index
 
 Chunking writes one subdirectory per document, plus an `index.html` at the
-output root listing them all — one document or fifty. `http.server` serves
-`index.html` in preference to a directory listing, so `opm serve` shows a real
-landing page with no further configuration.
+output root listing them all. Each entry in the `index.html` links to its document first page.
 
-Each entry links to its document's first chunk. What the entry *shows* comes
-from the document's global fragments, so the index is built the same way TEI
-Publisher builds `browse.html` — through the ODD. This is thus done by declaring a fragment using the
-`display='browse'` models the stock ODDs already provide:
+How a document appears in the list is determined by the ODD and is taken from a fragment named `browse` in `opm.toml`. The default ODD renders a short title if parameter `display` is set to `browse`:
 
 ```toml
 [[chunking.fragments]]
@@ -336,31 +331,49 @@ xpath = "(/article/info, /book/info)[1]"   # TEI: "//teiHeader"
 parameters = { display = "browse" }
 ```
 
-Those models emit the whole browse record — heading, author, description — and
-build their own link from `$parameters?doc`. That parameter is supplied
-automatically, per document. To use a different
-URL scheme, set it explicitly; `{doc}`, `{doc_stem}`, `{file}` and `{stem}`
-expand exactly as in `link_pattern`:
+The corresponding ODD models build the link to the document from `$parameters?doc`. That parameter is supplied automatically, per document. To use a different URL scheme, set it explicitly; `{doc}`, `{doc_stem}`, `{file}` and `{stem}` expand exactly as in `link_pattern`:
 
 ```toml
 parameters = { display = "browse", doc = "/exist/apps/edition/{doc}/{stem}" }
 ```
 
-The same expansion applies to `[transform.parameters]`, with one placeholder
-more: `{prefix}` is the path from a chunk page back to the output root, where
-the shared `css/` and `assets/` live — `../` for the pages `opm chunk` writes,
-and empty for `opm transform`, which writes `assets/` right beside its output.
-A parameter holding a URL into `assets/` should use it rather than hard-coding
-that hop:
+The index page degrades gracefully when a project has no such models: it falls back to a `title` fragment if one is declared, and to a readable form of the filename otherwise. Every entry stays clickable in all three cases.
+
+The default template for the index page includes a hero section above the list of documents. This includes the name of your edition, a short description and how many documents it holds. Set the name and the description
+in `opm.toml`:
 
 ```toml
-[transform.parameters]
-context-path = "{prefix}assets"
+[context]
+site_name = "Briefedition Alfred Escher"
+description = "Letters to and from Alfred Escher, 1831–1882."
 ```
 
-The index degrades gracefully when a project has no such models: it falls back
-to a `title` fragment if one is declared, and to a readable form of the filename
-otherwise. Every entry stays clickable in all three cases.
+The hero may also have a background image. Add the image to your project, have opm copy it into the output's `assets/` folder, and name it under `[context.theme.index.hero]`:
+
+```toml
+[transform.web]
+assets = ["templates/cover.jpg"]
+
+[context.theme.index.hero]
+image = "cover.jpg"
+position = "center 30%"
+text = "light"            # or "dark" for a pale picture
+```
+
+`opm` darkens the picture behind light text, or lightens it behind dark text,
+so the words stay readable. `image` can also be a path or a full URL.
+
+Readers can narrow the list by typing into the filter box (press <kbd>/</kbd> to
+jump there), and switch between a list and a grid of cards. The words on the
+page, the view it opens with and when the filter box appears are set under
+`[context.theme.index]`; see `opm/defaults.toml` in the package for all of them:
+
+```toml
+[context.theme.index]
+eyebrow = "Briefe"
+filter_placeholder = "Briefe filtern …"
+view = "grid"
+```
 
 You can override the page itself with `chunking.index_template`. The template receives
 `documents` — each with `name`, `stem`, `label`, `href`, `chunks` and

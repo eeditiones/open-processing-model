@@ -159,7 +159,9 @@ def test_packaged_default_document_template(tmp_path: Path) -> None:
                  'theme': {'layout': {'before': {'width': '20rem'}}}},
         fragments={'breadcrumbs': '<ol><li>A</li></ol>'},
     )
-    assert out.lstrip().startswith('<!doctype html>\n<html lang="en">')
+    assert out.lstrip().startswith(
+        '<!doctype html>\n<html lang="en" data-opm-color-scheme="light">'
+    )
     assert '<!-- opm-default-template -->' in out
     assert '<style type="text/css">\n.x {}' in out
     assert '<span class="logo__title">Site</span>' in out
@@ -207,8 +209,8 @@ def test_monograph_example_uses_jinks_templates(tmp_path: Path) -> None:
     assert '<title>Der Römerbrief 1922</title>' in page
     assert '<span class="logo__title">Der Römerbrief 1922</span>' in page
     assert page.count('aria-current="page"') == 1
-    assert 'class="chap-folio-nav__rail chap-folio-nav__rail--prev"' in page
-    assert '<body class="chapbook chapbook--with-toc">' in page
+    assert 'class="opm-reader-folio-nav__rail opm-reader-folio-nav__rail--prev"' in page
+    assert '<body class="opm-reader opm-reader--with-toc">' in page
 
 
 def test_packaged_defaults_are_jinks_templates() -> None:
@@ -242,8 +244,11 @@ def test_default_index_writes_entry_fragments_as_markup(tmp_path: Path) -> None:
     assert '<!-- opm-default-index-template -->' in out
     assert '<title>Letters</title>' in out
     assert '<h2 class="b">A &amp; B</h2>' in out
-    assert '<h2><a href="b.xml/001.html">B &lt;x&gt;</a></h2>' in out
-    assert '1 section\n' in out and '3 sections' in out
+    assert (
+        '<h2 class="opm-doc__title"><a class="opm-doc__link" href="b.xml/001.html">'
+        'B &lt;x&gt;</a></h2>' in out
+    )
+    assert '1 section' not in out and '3 sections' in out
 
 
 def test_default_typst_template_takes_the_metadata_title(tmp_path: Path) -> None:
@@ -350,3 +355,88 @@ def test_jinja_layout_menu_content_blocks_and_label(tmp_path: Path) -> None:
             '<li><ahref="date.html">Bydate</a></li><li><ahref="people.html">People</a></li>'
             '</ul></details>') in squashed
     assert 'Nothing' not in out
+
+
+def test_default_index_jinja_twin_matches(tmp_path: Path) -> None:
+    """``default_index.html.j2`` writes the same entries and masthead as the jinks one."""
+    from opm.chunking import IndexEntry
+    from opm.template_rendering import default_template_path, render_index_template
+
+    entries = [
+        IndexEntry(name='a.xml', stem='a', label='A', href='a.xml/001.html', chunks=30,
+                   fragments={'title': '<span>A</span>'}),
+        IndexEntry(name='b.xml', stem='b', label='B', href='b.xml/001.html', chunks=1,
+                   fragments={}),
+    ]
+    for name in ('default_index.html.tpl', 'default_index.html.j2'):
+        out = render_index_template(
+            entries=entries, template_path=default_template_path(name), title='Letters',
+            context={'site_name': 'Edition', 'description': 'Two letters.',
+                     'theme': {'color_scheme': 'auto'}},
+        )
+        assert 'data-opm-color-scheme="auto"' in out, name
+        assert '<h1 class="opm-masthead__title">Edition</h1>' in out, name
+        assert '<p class="opm-masthead__description">Two letters.</p>' in out, name
+        assert '<dd>31</dd>' in out, name
+        # Ticks stop at theme.index.max_ticks; the rest is a "+".
+        assert out.count('<i></i>') == 24 and '<i class="more">+</i>' in out, name
+        assert '30 sections' in out, name
+        assert 'data-opm-index' in out and 'function markClipped' in out, name
+
+
+def test_default_index_hero_image() -> None:
+    """``theme.index.hero.image`` puts an ``<img>`` behind the masthead in both syntaxes."""
+    from opm.chunking import IndexEntry
+    from opm.template_rendering import default_template_path, render_index_template
+
+    entries = [IndexEntry(name='a.xml', stem='a', label='A', href='a.xml/001.html', chunks=2,
+                          fragments={})]
+    for name in ('default_index.html.tpl', 'default_index.html.j2'):
+        plain = render_index_template(entries=entries, template_path=default_template_path(name),
+                                      title='Letters', context={})
+        assert '<header class="opm-masthead">' in plain, name
+        assert '<img class="opm-masthead__image"' not in plain, name
+
+        out = render_index_template(
+            entries=entries, template_path=default_template_path(name), title='Letters',
+            assets='assets',
+            context={'theme': {'index': {'hero': {'image': 'cover.jpg', 'text': 'dark',
+                                                  'position': 'center 30%'}}}},
+        )
+        # A bare file name lives in assets/; a path or URL stays as given.
+        assert '<img class="opm-masthead__image" src="assets/cover.jpg"' in out, name
+        assert 'class="opm-masthead opm-masthead--image opm-masthead--dark"' in out, name
+        assert 'style="--opm-masthead-position: center 30%"' in out, name
+
+        url = render_index_template(
+            entries=entries, template_path=default_template_path(name), title='Letters',
+            assets='assets',
+            context={'theme': {'index': {'hero': {'image': 'https://example.org/p.jpg'}}}},
+        )
+        assert 'src="https://example.org/p.jpg"' in url, name
+        assert 'opm-masthead--light' in url, name
+
+
+def test_layout_wordmark_logo() -> None:
+    """``theme.layout.logo_title = false`` shows ``context.logo`` alone, the name as alt text."""
+    from opm.chunking import IndexEntry
+    from opm.template_rendering import default_template_path, render_index_template
+
+    entries = [IndexEntry(name='a.xml', stem='a', label='A', href='a.xml/001.html', chunks=1,
+                          fragments={})]
+    for name in ('default_index.html.tpl', 'default_index.html.j2'):
+        both = render_index_template(
+            entries=entries, template_path=default_template_path(name), title='Listy',
+            assets='assets', context={'site_name': 'Serafin', 'logo': 'mark.svg'},
+        )
+        assert '<img class="logo__image" src="assets/mark.svg" alt="">' in both, name
+        assert '<span class="logo__title">Serafin</span>' in both, name
+
+        mark = render_index_template(
+            entries=entries, template_path=default_template_path(name), title='Listy',
+            assets='assets',
+            context={'site_name': 'Serafin', 'logo': 'mark.svg',
+                     'theme': {'layout': {'logo_title': False}}},
+        )
+        assert '<img class="logo__image" src="assets/mark.svg" alt="Serafin">' in mark, name
+        assert '<span class="logo__title">' not in mark, name

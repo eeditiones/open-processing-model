@@ -84,7 +84,7 @@ page lists its notes in the order of their callouts.
 | --- | --- |
 | `odd/monograph.odd` | Processing model |
 | `templates/monograph.html.tpl` | Page shell (text-size buttons in the menu bar, contents, page turns) |
-| `templates/chapbook.css` | Edition design: paper, type, layout (`--opm-*` aliases) |
+| `templates/opm-theme-paper.css` | The "paper" theme: paper, type, layout, handed to opm's design tokens |
 | `templates/monograph.css` | TEI-specific styles: headings, notes, page breaks |
 | `templates/book.typ.tpl` | Typst/PDF output in the same design |
 | `templates/print.html.tpl`, `templates/print.css` | Print (paged media) output in the same design |

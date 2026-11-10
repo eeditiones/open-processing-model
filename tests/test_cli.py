@@ -1088,7 +1088,7 @@ def test_init_tei_creates_project(tmp_path: Path) -> None:
     assert 'source="custom.css"' in (dest / 'odd' / 'custom.odd').read_text(encoding='utf-8')
     assert not (dest / 'odd' / 'teipublisher.odd').exists()
     assert (dest / 'templates' / 'chapbook.html.tpl').is_file()
-    assert (dest / 'templates' / 'chapbook.css').is_file()
+    assert (dest / 'templates' / 'opm-theme-chapbook.css').is_file()
     # Only the shell opm.toml wires up: --templates asks for the alternatives.
     assert not (dest / 'templates' / 'journal.html.tpl').exists()
     assert not (dest / 'templates' / 'tufte.html.tpl').exists()
@@ -1124,11 +1124,11 @@ def test_init_templates_copies_alternative_shells(tmp_path: Path) -> None:
     assert main(['init', str(dest), '--templates']) == 0
     for name in ('chapbook', 'journal', 'handbook'):
         assert (dest / 'templates' / f'{name}.html.tpl').is_file()
-        assert (dest / 'templates' / f'{name}.css').is_file()
+        assert (dest / 'templates' / f'opm-theme-{name}.css').is_file()
     # Both demo shells carry their styling inline, so they ship without a .css.
     assert (dest / 'templates' / 'tufte.html.tpl').is_file()
     assert (dest / 'templates' / 'bootstrap.html.tpl').is_file()
-    assert not (dest / 'templates' / 'tufte.css').exists()
+    assert not (dest / 'templates' / 'opm-theme-tufte.css').exists()
     # The plain Typst shell opm falls back to, beside the book shell opm.toml names.
     assert (dest / 'templates' / 'document.typ.tpl').is_file()
     assert 'template = "templates/book.typ.tpl"' in (dest / 'opm.toml').read_text(encoding='utf-8')
@@ -1168,7 +1168,7 @@ def test_init_jinja_and_jinks_shells_render_the_same_text(tmp_path: Path, monkey
         article = re.search(r'<article class="content".*?</article>', page, re.S)
         assert article is not None
         pages[flag] = ' '.join(article.group(0).split())
-        assert 'chap-folio-nav__rail' in page
+        assert 'opm-reader-folio-nav__rail' in page
     assert pages[''] == pages['--jinja']
 
 
@@ -1179,7 +1179,7 @@ def test_init_example_templates_keep_the_examples_own_shell(tmp_path: Path) -> N
     # The example's chapbook is customised — it carries a facsimile column the
     # packaged shell knows nothing about — so it must survive untouched.
     shell = (dest / 'templates' / 'chapbook.html.j2').read_text(encoding='utf-8')
-    assert 'chap-facs' in shell
+    assert 'opm-reader-facs' in shell
     assert (dest / 'templates' / 'journal.html.j2').is_file()
     assert (dest / 'templates' / 'handbook.html.j2').is_file()
     assert (dest / 'templates' / 'document.typ.j2').is_file()
@@ -1290,10 +1290,10 @@ def test_init_jats_wires_journal_shell(tmp_path: Path) -> None:
     assert cfg.chunking.template.name == 'journal.html.tpl'
     # The wired shell travels with its stylesheet; the alternatives are only
     # copied on --templates.
-    assert (dest / 'templates' / 'journal.css').is_file()
+    assert (dest / 'templates' / 'opm-theme-journal.css').is_file()
     assert not (dest / 'templates' / 'chapbook.html.tpl').exists()
     # ...and is linked as an asset, for single pages and chunks alike.
-    assert cfg.web_assets == (dest / 'templates' / 'journal.css',)
+    assert cfg.web_assets == (dest / 'templates' / 'opm-theme-journal.css',)
     assert cfg.chunking.assets == cfg.web_assets
 
 
@@ -1325,8 +1325,8 @@ def test_init_jats_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
     # A pb:template inside a no-namespace ODD must keep the markup it builds.
     assert '<li id="ref1">' in text
     # The shell's stylesheet is copied beside the page and linked, not inlined.
-    assert '<link rel="stylesheet" href="assets/journal.css">' in text
-    assert (dest / 'assets' / 'journal.css').is_file()
+    assert '<link rel="stylesheet" href="assets/opm-theme-journal.css">' in text
+    assert (dest / 'assets' / 'opm-theme-journal.css').is_file()
     assert main(['transform', 'data/sample.xml', '-t', 'markdown', '-o', str(dest / 'out.md')]) == 0
     typ = dest / 'out.typ'
     assert main(['transform', 'data/sample.xml', '-t', 'typst', '-o', str(typ)]) == 0
@@ -1341,8 +1341,8 @@ def test_init_jats_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
     assert len(chunks) == 4
     # @id anchors resolve across chunks even though JATS has no xml:id.
     assert 'href="004.html#ref1"' in chunks[2].read_text(encoding='utf-8')
-    assert (dest / 'chunks' / 'assets' / 'journal.css').is_file()
-    assert 'href="../assets/journal.css"' in chunks[0].read_text(encoding='utf-8')
+    assert (dest / 'chunks' / 'assets' / 'opm-theme-journal.css').is_file()
+    assert 'href="../assets/opm-theme-journal.css"' in chunks[0].read_text(encoding='utf-8')
 
 
 def test_init_from_example_copies_project(tmp_path: Path) -> None:

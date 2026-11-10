@@ -2,28 +2,16 @@
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
 
-  The Escher page shell shared by the letters and the letter list: the
-  monograph's "paper" design (chapbook.css, EB Garamond for the text, Alegreya
-  Sans for the furniture) on opm's packaged layout. letter.css adds what a
-  letter needs on top. Templates extending this one fill the layout's blocks.
+  The Escher page shell for the letters: the "paper" theme
+  (opm-theme-paper.css, EB Garamond for the text, Alegreya Sans for the
+  furniture) on opm's packaged layout. letter.css adds what a letter needs
+  on top. Templates extending this one fill the layout's blocks.
 #]
 ---toml
-styles = [
-  "https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap",
-]
-
 [theme.body]
-classes = ["chapbook", "escher"]
+classes = ["opm-reader", "escher"]
 
 [templating]
 extends = "opm/layout.html.tpl"
 ---
-[% template meta %]
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-[% endtemplate %]
 
-[# The letter list at the output root: one level up from a letter. #]
-[% template logo %]
-  <a href="[[ ($context?index_url, 'index.html')[string(.) != ''][1] ]]"><span class="logo__title">[[ $context?site_name ]]</span></a>
-[% endtemplate %]

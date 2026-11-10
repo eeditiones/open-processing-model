@@ -3,7 +3,7 @@
 
 /* Print shell for the journal view.
 
-   journal.css is included ahead of this file, so the paged view inherits the
+   opm-theme-journal.css is included ahead of this file, so the paged view inherits the
    reading view's tokens and every `.content …` rule — title block, byline,
    abstract, reference list. What is replaced here is only what the web shell
    contributed: `body.jr`, the sticky masthead and the TOC rail, none of which
@@ -46,7 +46,7 @@ body.print .journal-meta {
   color: var(--jr-accent);
 }
 
-/* journal.css lays `.footnote` out as the web view's numbered grid — that is
+/* opm-theme-journal.css lays `.footnote` out as the web view's numbered grid — that is
    the collected `dl.footnote` the HTML output builds. Print notes are inline
    spans instead (a grid item cannot float), so undo the grid first. */
 body.print .footnote {

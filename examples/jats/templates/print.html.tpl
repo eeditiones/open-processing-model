@@ -9,7 +9,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>[[ ($context?site_name[. != ''], 'Journal article')[1] ]]</title>
   <!-- journal print shell: no masthead, TOC rail or web components — the paged
-       view keeps the reading view's typography by including journal.css. -->
+       view keeps the reading view's typography by including opm-theme-journal.css. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -18,7 +18,7 @@
   >
   [[ $context?head_html ]]
   <style type="text/css">
-    [% include "journal.css" %]
+    [% include "opm-theme-journal.css" %]
   </style>
   <style type="text/css">
     [% include "print.css" %]

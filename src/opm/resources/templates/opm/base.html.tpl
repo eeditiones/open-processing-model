@@ -20,13 +20,13 @@
   that must win over the ODD's renditions.
 #]
 <!doctype html>
-<html lang="![[ $context?lang ]]"[% block html_attributes %][% endblock %]>
+<html lang="![[ $context?lang ]]" data-opm-color-scheme="![[ $context?theme?color_scheme ]]"[% block html_attributes %][% endblock %]>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   [% if $context?description %]<meta name="description" content="[[ $context?description ]]">[% endif %]
   [% block meta %][% endblock %]
-  [% block title %][% let $title = ($context?title, $context?label)[string(.) != ''][1] %][% if exists($title) %]<title>[[ $title ]]</title>[% endif %][% endlet %][% endblock %]
+  [% block title %][% let $title = ($context?title, normalize-space($context?fragments?title), $context?label)[string(.) != ''][1] %][% if exists($title) %]<title>[[ $title ]]</title>[% endif %][% endlet %][% endblock %]
   [% if $context?base_css %]
   <style type="text/css">
 [[ $context?base_css ]]

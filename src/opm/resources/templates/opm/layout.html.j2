@@ -21,7 +21,10 @@
                    then the content_top block
 
   logo defaults to context.logo and the title (a child's
-  `work_title`, context.site_name, context.title or the index `title`);
+  `work_title`, context.site_name, the document's `title` fragment,
+  context.title or the index `title`);
+  with theme.layout.logo_title = false a context.logo alone, the title as
+  its alt text (a wordmark);
   breadcrumb to the `breadcrumbs` fragment. menu_left, menu_toggles, toggle
   and toolbar take <li> items. Theme via --opm-background-color / --opm-color and
   related variables in opm-layout.css.
@@ -225,11 +228,17 @@
     after extends is visible when this block runs. -#}
 {%- import "opm/brand.html.j2" as brand -%}
 {%- set logo_src = brand.logo_src(context.logo, assets) | trim -%}
-{%- set logo_title = work_title or context.site_name or context.title or title -%}
+{%- set doc_title = (fragments.title | striptags | trim) if fragments is defined and fragments.title else '' -%}
+{%- set logo_title = work_title or context.site_name or doc_title or context.title or title -%}
 {%- if logo_src or logo_title %}
 <a href="{{ context.home_url or index_url or 'index.html' }}">
+  {#- theme.layout.logo_title = false: the logo is a wordmark carrying the
+      name, so the name becomes its alt text instead of a second line. #}
+  {%- if logo_src and context.theme.layout.logo_title == false %}<img class="logo__image" src="{{ logo_src }}" alt="{{ logo_title }}">
+  {%- else %}
   {%- if logo_src %}<img class="logo__image" src="{{ logo_src }}" alt="">{% endif %}
   {%- if logo_title %}<span class="logo__title">{{ logo_title }}</span>{% endif %}
+  {%- endif %}
 </a>
 {%- endif %}
 {% endblock %}

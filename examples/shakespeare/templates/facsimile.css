@@ -1,0 +1,88 @@
+/* SPDX-FileCopyrightText: 2026 e-editiones
+   SPDX-License-Identifier: CC0-1.0 */
+
+/* Facsimile — a IIIF viewer beside the transcription, driven by the
+   <pb-facs-link> each folio emits. It is the layout's `after` column, which
+   the chapbook shell does not use. Listed after opm-theme-chapbook.css under
+   [transform.web] assets, it reads chapbook's measurements (--chapbook-*). */
+
+:root {
+  --chapbook-facs-width: 24rem;
+  --chapbook-facs-gap: 2rem;
+}
+
+.opm-reader-facs {
+  min-width: 0;
+  /* Stacked fallback below 64em, where a viewer in a narrow strip is unusable. */
+  height: 28rem;
+  border: 1px solid var(--opm-color-rule);
+  background: var(--opm-surface);
+}
+
+.opm-reader-facs pb-tify {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Until pb-tify.js has upgraded the element it is an unknown inline tag; keep
+   the reserved column from collapsing so the layout does not jump. */
+.opm-reader-facs pb-tify:not(:defined) {
+  visibility: hidden;
+}
+
+.opm-reader--with-facs .opm-layout > .after {
+  background: var(--opm-surface);
+}
+
+@media (max-width: 64em) {
+  /* Below the text, inside the page's own padding. */
+  .opm-reader--with-facs .opm-layout > .after {
+    padding: 0 var(--chapbook-pad) 2rem;
+  }
+}
+
+@media (min-width: 64.001em) {
+  /* Text and facsimile share the shell: the facsimile column takes its width
+     from the text column rather than adding to it, so the block stays centred
+     and --chapbook-shell wide, and the page-turn rails at its edges stay put. The
+     column keeps a rail's breadth free on its outer side, as the text column
+     does on the other. */
+  body.opm-reader--with-facs {
+    --opm-layout-after-width: calc(var(--chapbook-facs-gap) + var(--chapbook-facs-width) + var(--chapbook-rail-gap));
+    --opm-layout-content-max: calc(
+      var(--chapbook-shell) - var(--chapbook-sidebar-offset) - var(--opm-layout-after-width)
+    );
+  }
+
+  /* The column runs the full height of the page, like the page itself; the
+     viewer sticks below the bar inside it. */
+  .opm-reader--with-facs .opm-layout > .after {
+    align-self: stretch;
+    position: static;
+    max-height: none;
+    overflow: visible;
+    padding: 2.5rem var(--chapbook-rail-gap) 3.5rem var(--chapbook-facs-gap);
+  }
+
+  .opm-reader--with-facs .opm-reader-facs {
+    position: sticky;
+    top: calc(var(--opm-menubar-height) + 1.5rem);
+    height: min(78vh, 44rem);
+  }
+}
+
+@media (min-width: 64em) {
+  /* The facsimile now closes the shell on the right. */
+  .opm-reader--with-facs :is(.opm-reader-page, .toolbar) {
+    padding-right: 0;
+  }
+
+  .opm-reader--with-facs :is(.opm-main, .content-top) {
+    border-right: 0;
+  }
+
+  .opm-reader--with-facs .opm-layout > .after {
+    border-right: 1px solid var(--opm-color-rule);
+  }
+}

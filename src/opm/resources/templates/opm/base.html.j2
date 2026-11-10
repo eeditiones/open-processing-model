@@ -15,7 +15,7 @@
 {#- Only a known language: a wrong one sets the wrong hyphenation and voice. -#}
 {%- set page_lang = context.lang or lang -%}
 <!doctype html>
-<html{% if page_lang %} lang="{{ page_lang }}"{% endif %}{% block html_attributes %}{% endblock %}>
+<html{% if page_lang %} lang="{{ page_lang }}"{% endif %}{% if context.theme is mapping and context.theme.color_scheme %} data-opm-color-scheme="{{ context.theme.color_scheme }}"{% endif %}{% block html_attributes %}{% endblock %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -23,7 +23,8 @@
   {%- if context.description %}<meta name="description" content="{{ context.description | e }}">{% endif -%}
   {% endblock %}
   {% block title %}
-  {%- if context.title or context.label %}<title>{{ context.title or context.label }}</title>{% endif -%}
+  {%- set page_title = context.title or ((fragments.title | striptags | trim) if fragments is defined and fragments.title else '') or context.label %}
+  {%- if page_title %}<title>{{ page_title }}</title>{% endif -%}
   {% endblock %}
   {% if base_css %}
   <style type="text/css">

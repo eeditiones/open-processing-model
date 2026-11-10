@@ -4,32 +4,21 @@
 
   journal: a single-column scholarly article with a sticky masthead and a
   contents rail, on opm's packaged page layout (opm/layout.html.tpl). The
-  masthead is the layout's menubar: the journal line in place of the logo,
-  the article title on the right. The rail is the layout's `before` column;
-  journal.css styles it all.
+  masthead is the layout's menubar: the journal line in place of the logo
+  (linking to the collection index), the article title on the right. The
+  rail is the layout's `before` column. opm-theme-journal.css sets opm's design tokens
+  and styles what is journal's own.
 
-  Its stylesheet, journal.css, is listed under [transform.web] assets in
+  Its stylesheet, opm-theme-journal.css, is listed under [transform.web] assets in
   opm.toml: copied next to the output and linked by the base template.
 #]
 ---toml
-styles = [
-  "https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..600&display=swap",
-]
-
 [theme.body]
 classes = ["jr"]
 
 [templating]
 extends = "opm/layout.html.tpl"
 ---
-[% template meta %]
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-[% endtemplate %]
-
-[# The article title is the `title` fragment without its markup. #]
-[% template title %]<title>[[ (normalize-space($context?fragments?title), 'Journal article')[. != ''][1] ]]</title>[% endtemplate %]
-
 [% template body_class %][[
   string-join((
     if ($context?fragments?toc) then 'jr--with-toc' else (),
@@ -39,7 +28,10 @@ extends = "opm/layout.html.tpl"
 ]][% endtemplate %]
 
 [% template logo %]
-  [% if $context?fragments?journal %]<div class="jr-journal">[[ $context?fragments?journal ]]</div>[% endif %]
+  [% if $context?fragments?journal %]
+  [% if $context?index_url %]<a class="jr-journal" href="[[ $context?index_url ]]">[[ $context?fragments?journal ]]</a>
+  [% else %]<div class="jr-journal">[[ $context?fragments?journal ]]</div>[% endif %]
+  [% endif %]
 [% endtemplate %]
 
 [% template menu.toggles %]

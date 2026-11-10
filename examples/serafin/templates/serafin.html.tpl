@@ -2,30 +2,17 @@
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
 
-  The Serafin page shell shared by the letter pages and the letter list: the
-  edition's fonts and its wordmark as the menubar's logo, on top of opm's
-  packaged layout, which also writes the breadcrumb toolbar (letter.css turns
-  it into the parchment band). letter.css (from [transform.web] assets)
-  supplies the theme. Templates extending this one fill the layout's blocks:
-  `breadcrumb`, `menu_toggles`, content and sidebars.
+  The Serafin page shell for the letter pages, on opm's packaged layout,
+  which writes the menubar (the wordmark, context.logo) and the breadcrumb
+  toolbar (letter.css turns it into the parchment band). letter.css (from
+  [transform.web] assets) supplies the theme and its fonts. Templates
+  extending this one fill the layout's blocks: `breadcrumb`, `menu_toggles`,
+  content and sidebars.
 #]
 ---toml
-styles = [
-  "https://fonts.googleapis.com/css2?family=Albert+Sans:ital,wght@0,300..700;1,300..700&family=Belleza&display=swap",
-]
-
 [theme.body]
 classes = ["letter"]
 
 [templating]
 extends = "opm/layout.html.tpl"
 ---
-[% template meta %]
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-[% endtemplate %]
-
-[# The collection index at the output root: one level up from a letter. #]
-[% template logo %]
-  <a href="[[ ($context?index_url, 'index.html')[string(.) != ''][1] ]]" aria-label="Home">[% include "logo-textmark.svg" %]</a>
-[% endtemplate %]
