@@ -35,6 +35,7 @@ from lxml import etree
 from opm.chunking import chunk_document
 from opm.config import ProjectConfig, load_project_config
 from opm.odd_cache import ensure_compiled_module
+from opm.project import Project
 from opm.odd_expand import CATALOGS, expand_document_tree
 from opm.odd_schema import (
     CompiledSchema,
@@ -156,6 +157,10 @@ def build_document_site(
         # In order, each run handed the anchors of those before it: the text
         # first, so a spec page's pointers into the prose resolve
         # (`#SATSRN` → SA.html#SATSRN).
+        
+        # Create a Project instance for chunk_document
+        project = Project(cfg, root=output_dir)
+        
         anchors: dict[str, str] = {}
         for position, run in enumerate(runs):
             # The page assets go into assets/ like any project's, unless the
@@ -167,10 +172,10 @@ def build_document_site(
                 module_path=None,
                 xml_path=xml_path,
                 config=chunking,
-                project_root=output_dir,
+                project=project,
                 template_path=chunking.template,
                 on_progress=_on_chunk_progress,
-                project_config=cfg,
+                webcomponents=cfg.webcomponents_enabled,
                 xpath_extensions=extensions,
                 anchors=anchors,
                 merge_manifest=position > 0,

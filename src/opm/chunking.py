@@ -1412,11 +1412,9 @@ def chunk_document(
     module_path: Path | None,
     xml_path: Path,
     config: ChunkingConfig,
-    project: Any | None = None,
+    project: Any,
     template_path: Path | None = None,
     on_progress: Callable[[int, int], None] | None = None,
-    project_root: Path | None = None,
-    project_config: ProjectConfig | None = None,
     webcomponents: bool = False,
     xpath_extensions: tuple[str, ...] | None = None,
     output_format: str = 'html',
@@ -1452,22 +1450,10 @@ def chunk_document(
     from opm.config import resolve_base_css
     from opm.odd_cache import ensure_compiled_module
 
-    # Handle backward compatibility: project can be passed directly, or
-    # project_root and project_config can be passed separately
-    if project is not None:
-        effective_project_root = project.root
-        effective_project_config = project.config
-    elif project_root is not None and project_config is not None:
-        effective_project_root = project_root
-        effective_project_config = project_config
-    else:
-        raise ValueError(
-            'Either pass a Project instance, or both project_root and project_config'
-        )
-
+    # Use project directly - it's required
     # Same base override the CLI applies, so calling this directly as a
     # library gives the same stylesheet as `opm chunk`.
-    base_css = resolve_base_css(effective_project_config.document_css, effective_project_root)
+    base_css = resolve_base_css(project.config.document_css, project.root)
     resolved_module = module_path or config.module
     if resolved_module is None and config.odd is not None:
         resolved_module, _ = ensure_compiled_module(
@@ -1492,21 +1478,11 @@ def chunk_document(
     tree = xml_parse(str(xml_path))
     root = tree.getroot()
 
-    xpath_env = project_xpath_env(effective_project_config, xml_path, extensions=xpath_extensions)
+    xpath_env = project_xpath_env(project.config, xml_path, extensions=xpath_extensions)
     document = config.link_doc or xml_path.name
 
-    # Pass project to ChunkProcessor (either the real Project or a simple object)
-    if project is not None:
-        chunk_project = project
-    else:
-        # Create a simple object with .root and .config for backward compatibility
-        chunk_project = type('SimpleProject', (), {
-            'root': effective_project_root,
-            'config': effective_project_config
-        })()
-
     processor = ChunkProcessor(
-        resolved_module, root, config, chunk_project,
+        resolved_module, root, config, project,
         webcomponents=webcomponents,
         xpath_env=xpath_env,
         source_dir=xml_path.parent,
