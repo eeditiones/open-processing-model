@@ -165,6 +165,7 @@ opm index [OPTIONS] [INPUT_XML]
 | --- | --- |
 | `--odd, -d PATH` | ODD file to compile on demand (overrides transform.json.odd in config). |
 | `--output, -o PATH` | JSONL file to write (default: stdout). |
+| `--granularity TEXT` | 'split' writes one record per section, cut to --max-chars, for vector search; 'page' writes one record per published page, for site search. Falls back to index.granularity in opm.toml (default: split). |
 | `--max-chars INTEGER` | Split a section longer than this at record boundaries. Falls back to index.max_chars in opm.toml (default: 1500). |
 | `--min-chars INTEGER` | Drop units shorter than this — bare headings are retrieval noise. Falls back to index.min_chars in opm.toml (default: 40). |
 | `--overlap INTEGER` | Records of context carried into the next part when a unit splits. Falls back to index.overlap in opm.toml (default: 1). |

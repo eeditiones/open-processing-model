@@ -1497,6 +1497,18 @@ def index_cmd(
             help='JSONL file to write (default: stdout).',
         ),
     ] = None,
+    granularity: Annotated[
+        Optional[str],
+        typer.Option(
+            '--granularity',
+            help=(
+                "'split' writes one record per section, cut to --max-chars, for "
+                "vector search; 'page' writes one record per published page, for "
+                'site search. Falls back to index.granularity in opm.toml '
+                '(default: split).'
+            ),
+        ),
+    ] = None,
     max_chars: Annotated[
         Optional[int],
         typer.Option(
@@ -1562,6 +1574,7 @@ def index_cmd(
             overlap=overlap if overlap is not None else cfg.index_overlap,
             fields=cfg.index_fields,
             units=cfg.index_units,
+            granularity=granularity if granularity is not None else cfg.index_granularity,
         )
         with collect_xpath_errors() as xpath_log:
             records = project.index(input_files, odd=odd, options=options)

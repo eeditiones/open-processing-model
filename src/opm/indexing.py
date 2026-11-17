@@ -45,6 +45,9 @@ _HEADING_BEHAVIOURS = frozenset({'heading', 'title'})
 # Behaviours that make a reasonable split point inside an oversized unit.
 _SPLIT_BOUNDARIES = frozenset({'paragraph', 'block', 'list_item', 'cit', 'note'})
 
+#: The values [`IndexOptions.granularity`][opm.indexing.IndexOptions.granularity] accepts.
+GRANULARITIES = ('split', 'page')
+
 _TITLE_XPATH = {
     'tei': '(//teiHeader/fileDesc/titleStmt/title)[1]',
     'docbook': '(/article/info/title, /book/info/title)[1]',
@@ -147,6 +150,19 @@ class IndexOptions:
     """``[[index.fields]]`` — a JSON-record facet, a child record, or a chunking fragment."""
     units: tuple[UnitSpec, ...] = ()
     """``[[index.units]]`` — records that open a passage; empty keeps titled divisions."""
+    granularity: str = 'split'
+    """``'split'`` emits one record per unit, cut to *max_chars*, for vector
+    search and retrieval. ``'page'`` emits one record per published page (or per
+    document without chunking) for site search: units are merged in document
+    order and nothing is cut, so *max_chars* and *overlap* do not apply.
+    Extracted fields (``metadata=False``) still become records of their own."""
+
+    def __post_init__(self) -> None:
+        if self.granularity not in GRANULARITIES:
+            raise ValueError(
+                f'index granularity must be one of {", ".join(GRANULARITIES)}, '
+                f'not {self.granularity!r}',
+            )
 
 
 @dataclass
@@ -289,7 +305,9 @@ class _Walker:
         # act or a chapter gets `section` or plain `block`, but a division that
         # carries a heading is a retrievable unit in either.
         if record.get('behaviour') in _UNIT_BOUNDARIES or heading is not None:
+            enclosing = self.current
             self.open(record, heading)
+            self.resume(enclosing)
             return
 
         if self.current is None:
@@ -372,6 +390,28 @@ class _Walker:
             min_chars=min_chars,
         )
         self.descend(record)
+
+    def resume(self, enclosing: _Unit | None) -> None:
+        """Close a nested unit and carry on with the one it interrupted.
+
+        A titled block inside a division (a note, an admonition, a
+        subsection) is a unit of its own, but the text that follows it still
+        belongs to the division. Without this, that text was filed under the
+        nested block's heading. The continuation is a fresh unit, so it gets
+        its own id from its first record, and it links to the division.
+        """
+        if enclosing is None:
+            return
+        if self.current is not None and self.current.parts:
+            self.units.append(self.current)
+        self.current = _Unit(
+            xml_id=None,
+            xpath=None,
+            heading=enclosing.heading,
+            entry_anchor=enclosing.xml_id or enclosing.entry_anchor,
+            kind=enclosing.kind,
+            min_chars=enclosing.min_chars,
+        )
 
     def descend(self, record: dict) -> None:
         # `children` interleaves this record's own text runs with its child
@@ -497,6 +537,8 @@ def build_records(
     anchors = anchors or {}
 
     units, extracted = _iter_units(document, options)
+    if options.granularity == 'page':
+        units = _merge_units(units, extracted)
 
     records: list[dict] = []
     seen: dict[str, int] = {}
@@ -504,7 +546,11 @@ def build_records(
     # Extracted units come last so the passage they were taken from already has
     # an id to point at.
     for unit in units + extracted:
-        pieces = _split(unit, options)
+        if options.granularity == 'page' and not unit.kind:
+            anchor_id, anchor_path = unit.anchor()
+            pieces = [(unit.text, anchor_id, anchor_path)]
+        else:
+            pieces = _split(unit, options)
         floor = options.min_chars if unit.min_chars is None else unit.min_chars
         kept = [p for p in pieces if len(p[0]) >= floor]
         if not kept:
@@ -557,6 +603,34 @@ def build_records(
                 'metadata': metadata,
             })
     return records
+
+
+def _merge_units(units: list[_Unit], extracted: list[_Unit]) -> list[_Unit]:
+    """Fold one page's units into a single unit, for ``granularity = 'page'``.
+
+    The first unit names the page: its anchor gives the id and link, and the
+    first heading met is the page's heading. Extracted units are re-pointed at
+    the merged unit so ``parent`` still resolves.
+    """
+    if len(units) < 2:
+        return units
+    first = units[0]
+    merged = _Unit(
+        xml_id=first.xml_id,
+        xpath=first.xpath,
+        heading=next((u.heading for u in units if u.heading), None),
+        entry_anchor=first.entry_anchor,
+    )
+    for unit in units:
+        merged.parts.extend(unit.parts)
+        for name, values in unit.fields.items():
+            target = merged.fields.setdefault(name, [])
+            target.extend(v for v in values if v not in target)
+    members = {id(u) for u in units}
+    for unit in extracted:
+        if unit.parent is not None and id(unit.parent) in members:
+            unit.parent = merged
+    return [merged]
 
 
 def _href(
@@ -749,6 +823,7 @@ def index_document(
         overlap=cfg.index_overlap,
         fields=cfg.index_fields,
         units=cfg.index_units,
+        granularity=cfg.index_granularity,
     )
     resolved_odd = odd if odd is not None else cfg.odd_for_type('json')
     resolved = resolve_transform_module(

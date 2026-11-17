@@ -111,7 +111,7 @@ index_title = "Correspondence"
 | `[context]` | Free-form values exposed to every template as `context` | [Templates & CSS](templates-and-css.md#template-context) |
 | `[transform.<type>.context]` | Per-output-type overlay on `[context]` | [Templates & CSS](templates-and-css.md#template-context) |
 | `[chunking]` | Splitting rules, output, templates, fragments | [Chunking](chunking.md) |
-| `[index]` | `max_chars`, `min_chars`, `overlap`, `[[index.units]]` and `[[index.fields]]` for `opm index` | [Search indexing](search-indexing.md) |
+| `[index]` | `granularity`, `max_chars`, `min_chars`, `overlap`, `[[index.units]]` and `[[index.fields]]` for `opm index` | [Search indexing](search-indexing.md) |
 
 Loaded programmatically, these map to
 [`ProjectConfig`](../api/config.md) and

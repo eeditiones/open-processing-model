@@ -469,6 +469,19 @@ def _check_index_fragment_fields(
             )
 
 
+def _index_granularity(index_data: dict) -> str:
+    """Read ``[index] granularity``, rejecting a value ``opm index`` would not know."""
+    from opm.indexing import GRANULARITIES
+
+    value = str(index_data.get('granularity', 'split'))
+    if value not in GRANULARITIES:
+        raise ValueError(
+            f'[index] granularity must be one of {", ".join(GRANULARITIES)}, '
+            f'not {value!r}',
+        )
+    return value
+
+
 def _index_units(index_data: dict) -> tuple:
     """Parse ``[[index.units]]`` into [`opm.indexing.UnitSpec`][opm.indexing.UnitSpec]s.
 
@@ -657,6 +670,8 @@ class ProjectConfig:
     """``[[index.fields]]`` — [`opm.indexing.FieldSpec`][opm.indexing.FieldSpec]s from a passage or a chunking fragment."""
     index_units: tuple = ()
     """``[[index.units]]`` — [`opm.indexing.UnitSpec`][opm.indexing.UnitSpec]s that open a passage."""
+    index_granularity: str = 'split'
+    """``[index] granularity`` — ``split`` (one record per unit) or ``page`` (one per published page)."""
     pythonpath: tuple[Path, ...] = ()
     transform_odd: Path | None = None
     """Default transform ODD from ``[transform].odd`` or ``[transform.web].odd``."""
@@ -1010,6 +1025,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         index_overlap=int(index_data.get('overlap', 1)),
         index_fields=index_fields,
         index_units=_index_units(index_data),
+        index_granularity=_index_granularity(index_data),
         pythonpath=pythonpath,
         transform_odd=transform_odd,
         transform_odds=transform_odds,
