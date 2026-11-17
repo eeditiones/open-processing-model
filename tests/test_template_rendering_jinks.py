@@ -9,6 +9,7 @@ import jinja2
 from opm import jinks_templates as jinks
 from opm.chunking import chunk_document
 from opm.config import ChunkingConfig
+from opm.project import Project
 from opm.runtime.xpath_env import XPathEnvironment
 from opm.template_frontmatter import template_context
 from opm.template_rendering import (
@@ -125,7 +126,7 @@ def test_chunk_pages_with_jinks_template(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=ChunkingConfig(xpath="//body/div[@type='chunk']", output_dir='out'),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         template_path=template,
     )
     pages = sorted((tmp_path / 'out').glob('*.html'))

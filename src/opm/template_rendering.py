@@ -127,7 +127,8 @@ def _searchpaths(template_path: Path, project: Any = None) -> list[str]:
     Returns:
         List of directory paths to search for templates
     """
-    searchpaths = [str(template_path.parent)]
+    # Use absolute paths for consistency
+    searchpaths = [str(template_path.parent.resolve())]
     
     # Add profile template directories from project first
     # This allows profiles to override default templates
@@ -135,17 +136,17 @@ def _searchpaths(template_path: Path, project: Any = None) -> list[str]:
         for profile_config, profile_path in project._profiles:
             templates_dir = profile_path / "templates"
             if templates_dir.is_dir():
-                searchpaths.append(str(templates_dir))
+                searchpaths.append(str(templates_dir.resolve()))
     
     # Also check for a profiles/ directory in the project
-    project_dir = template_path.parent.parent  # templates/ -> project root
+    project_dir = template_path.parent.parent.resolve()  # templates/ -> project root
     profiles_dir = project_dir / "profiles"
     if profiles_dir.is_dir():
         for profile_dir in profiles_dir.iterdir():
             if profile_dir.is_dir():
                 templates_dir = profile_dir / "templates"
-                if templates_dir.is_dir() and str(templates_dir) not in searchpaths:
-                    searchpaths.append(str(templates_dir))
+                if templates_dir.is_dir() and str(templates_dir.resolve()) not in searchpaths:
+                    searchpaths.append(str(templates_dir.resolve()))
     
     # Add packaged templates last
     packaged = str(packaged_templates_dir())

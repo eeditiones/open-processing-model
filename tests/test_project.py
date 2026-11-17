@@ -361,7 +361,7 @@ def test_chunk_document_compiles_fragment_odds_itself(tmp_path: Path) -> None:
         ],
     )
 
-    chunk_document(None, _doc(tmp_path / 'doc.xml'), config, tmp_path)
+    chunk_document(None, _doc(tmp_path / 'doc.xml'), config, Project(root=tmp_path))
 
     manifest = json.loads((tmp_path / 'out' / 'manifest.json').read_text(encoding='utf-8'))
     assert 'from the fragment ODD' in manifest['fragments']['toc']

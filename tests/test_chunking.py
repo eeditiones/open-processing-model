@@ -19,6 +19,7 @@ from opm.chunking import (
     collect_index_entries,
 )
 from opm.config import ChunkingConfig, FragmentConfig, ProjectConfig
+from opm.project import Project
 from opm.resources import packaged_odd
 
 
@@ -196,7 +197,7 @@ def test_chunk_document_rewrites_same_document_links_in_json_output(tmp_path: Pa
         module_path=module_path,
         xml_path=xml_path,
         config=_chunking_config('json-chunks'),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='json',
     )
 
@@ -227,7 +228,7 @@ def test_chunk_document_rewrites_same_document_links_in_html_output(tmp_path: Pa
         module_path=module_path,
         xml_path=xml_path,
         config=_chunking_config('html-chunks'),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='html',
     )
 
@@ -253,7 +254,7 @@ def test_chunk_document_resolves_pb_links(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=_chunking_config('pb-link-chunks'),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='html',
     )
 
@@ -297,7 +298,7 @@ def test_chunk_html_template_includes_odd_css(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=config,
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='html',
     )
 
@@ -319,7 +320,7 @@ def test_link_pattern_includes_doc_subdirectory(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=config,
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='json',
     )
 
@@ -346,7 +347,7 @@ def test_anchor_map_carries_over_to_a_later_run(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=_chunking_config('anchor-chunks'),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='json',
         anchors={'elsewhere': 'other.html', 'a': 'stale.html'},
     )
@@ -366,7 +367,7 @@ def test_link_pattern_stem_anchor(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=_chunking_config('lp-stem-chunks', link_pattern='/{stem}#{anchor}'),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='json',
     )
 
@@ -394,7 +395,7 @@ def test_link_pattern_full_url(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=_chunking_config('lp-url-chunks', link_pattern='http://localhost:8080/{stem}#{anchor}'),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='json',
     )
 
@@ -421,7 +422,7 @@ def test_chunk_document_pb_view_export(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=config,
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='pb-view',
     )
 
@@ -471,7 +472,7 @@ def test_chunk_document_pb_view_doc_path_layout(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=config,
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='pb-view',
         doc_path='fixture.xml',
     )
@@ -524,7 +525,7 @@ def test_pb_view_export_per_chunk_fragments(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=config,
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='pb-view',
     )
 
@@ -583,7 +584,7 @@ def test_pb_view_export_global_fragments(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=config,
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='pb-view',
     )
 
@@ -637,7 +638,7 @@ def test_chunk_document_pb_view_synthesizes_id_for_idless_chunks(tmp_path: Path)
         module_path=module_path,
         xml_path=xml_path,
         config=config,
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='pb-view',
     )
 
@@ -744,7 +745,7 @@ def test_select_chunks_resolves_default_namespace(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=config,
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='json',
     )
 
@@ -811,7 +812,7 @@ def test_docbook_per_chunk_breadcrumbs(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=config,
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='json',
         xpath_extensions=('opm.runtime.common_xpath_functions',),
     )
@@ -902,7 +903,7 @@ def test_pb_view_export_per_chunk_breadcrumbs_xpath_dot(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=config,
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='pb-view',
         xpath_extensions=('opm.runtime.common_xpath_functions',),
     )
@@ -957,7 +958,7 @@ def test_chapbook_running_head_uses_title_fragment(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=config,
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='html',
     )
 
@@ -1099,7 +1100,7 @@ def test_global_fragments_receive_a_per_document_doc_parameter(tmp_path: Path) -
             module_path=module_path,
             xml_root=etree.parse(str(xml_path)).getroot(),
             config=config,
-            project_root=tmp_path,
+            project=Project(root=tmp_path),
         )
 
     # Directory run: link_doc names the per-document subdirectory.
@@ -1140,7 +1141,7 @@ def test_file_pattern_names_chunks_from_xml_id(tmp_path: Path) -> None:
             xpath="//body/div[@type='chunk']",
             file_pattern='{xml_id}.html',
         ),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
     )
     proc.select_chunks()
     names = [proc.generate_chunk_metadata(chunk, i).file for i, chunk in enumerate(proc.chunks)]
@@ -1171,7 +1172,7 @@ def test_file_pattern_falls_back_when_xml_id_is_missing(tmp_path: Path) -> None:
             xpath="//body/div[@type='chunk']",
             file_pattern='{xml_id}.html',
         ),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
     )
     proc.select_chunks()
     names = [proc.generate_chunk_metadata(chunk, i).file for i, chunk in enumerate(proc.chunks)]
@@ -1187,7 +1188,7 @@ def test_file_pattern_without_fields_is_the_file_name(tmp_path: Path) -> None:
         module_path=module_path,
         xml_root=etree.parse(str(xml_path)).getroot(),
         config=ChunkingConfig(xpath='//titlePage', file_pattern='index.html'),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
     )
     proc.select_chunks()
     assert proc.generate_chunk_metadata(proc.chunks[0], 0).file == 'index.html'
@@ -1205,8 +1206,7 @@ def test_prefix_placeholder_tracks_the_depth_chunks_are_written_at(tmp_path: Pat
             module_path=module_path,
             xml_root=etree.parse(str(xml_path)).getroot(),
             config=config,
-            project_root=tmp_path,
-            project_config=ProjectConfig(parameters={'context-path': '{prefix}assets'}),
+            project=Project(ProjectConfig(parameters={'context-path': '{prefix}assets'}), root=tmp_path),
         )
 
     # Directory run: pages sit one level down, assets stay at the output root.
@@ -1326,7 +1326,7 @@ def test_no_stylesheets_written_when_there_are_none(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=ChunkingConfig(xpath="//body/div[@type='chunk']", output_dir='inline'),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         template_path=template,
     )
 
@@ -1356,7 +1356,7 @@ def test_page_template_sees_the_documents_of_the_run(tmp_path: Path) -> None:
             module_path=module_path,
             xml_path=xml_path,
             config=ChunkingConfig(xpath="//body/div[@type='chunk']", output_dir=output_dir),
-            project_root=tmp_path,
+            project=Project(root=tmp_path),
             template_path=template,
             **kwargs,
         )
@@ -1390,7 +1390,7 @@ def test_chunking_always_writes_stylesheets_as_files(tmp_path: Path) -> None:
         config=ChunkingConfig(
             xpath="//body/div[@type='chunk']", output_dir='ext'
         ),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         template_path=template,
     )
 
@@ -1426,7 +1426,7 @@ def test_stylesheet_url_is_relative_to_the_shared_root(tmp_path: Path) -> None:
             output_dir='dir/fixture.xml',
             link_doc='fixture.xml',
         ),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         template_path=template,
     )
 
@@ -1460,7 +1460,7 @@ def test_assets_are_copied_to_the_shared_root(tmp_path: Path) -> None:
             output_dir='withassets',
             assets=(tmp_path / 'style.css', fonts),
         ),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         template_path=template,
     )
 
@@ -1492,7 +1492,7 @@ def test_missing_asset_is_reported(tmp_path: Path) -> None:
                 output_dir='broken',
                 assets=(tmp_path / 'nope.css',),
             ),
-            project_root=tmp_path,
+            project=Project(root=tmp_path),
         )
 
 
@@ -1591,8 +1591,7 @@ def test_chunk_document_applies_the_configured_base_override(tmp_path: Path) -> 
         config=ChunkingConfig(
             xpath='//text/body/div', output_dir='libbase', odd=packaged_odd('teipublisher')
         ),
-        project_root=tmp_path,
-        project_config=ProjectConfig(document_css=custom),
+        project=Project(ProjectConfig(document_css=custom), root=tmp_path),
     )
 
     odd_css = (tmp_path / 'libbase' / 'css' / 'teipublisher.css').read_text(encoding='utf-8')
@@ -1635,9 +1634,8 @@ def test_chunk_pages_and_index_receive_the_project_context(tmp_path: Path) -> No
         module_path=module_path,
         xml_path=xml_path,
         config=config,
-        project_root=tmp_path,
+        project=Project(project_config, root=tmp_path),
         template_path=template,
-        project_config=project_config,
         webcomponents=True,
         output_format='html',
     )
@@ -1668,7 +1666,7 @@ def test_link_pattern_doc_stem_drops_the_xml_suffix(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=config,
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='json',
     )
 
@@ -1688,7 +1686,7 @@ def test_expand_document_params_supports_doc_stem(tmp_path: Path) -> None:
         module_path=module_path,
         xml_root=etree.parse(str(xml_path)).getroot(),
         config=ChunkingConfig(xpath="//body/div[@type='chunk']", link_doc='fixture.xml'),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
     )
 
     expanded = proc._expand_document_params({'doc': '/letters/{doc_stem}/'})
@@ -1706,7 +1704,7 @@ def test_chunk_metadata_records_the_chunk_root_xml_id(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=_chunking_config('xml-id-chunks'),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='json',
     )
 
@@ -1730,7 +1728,7 @@ def test_chunk_metadata_xml_id_is_none_without_one(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=ChunkingConfig(xpath="//body/div[@type='chunk']", output_dir='no-id-chunks'),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         output_format='json',
     )
 
@@ -1836,7 +1834,7 @@ def test_chunk_document_copies_referenced_images(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=ChunkingConfig(xpath="//body/div[@type='chunk']", output_dir='out'),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
     )
 
     out = tmp_path / 'out'
@@ -1877,7 +1875,7 @@ def test_footnote_order_runs_once_per_chunk(tmp_path: Path) -> None:
         config=ChunkingConfig(
             xpath='//text/body/div', output_dir='pages', odd=packaged_odd('teipublisher'),
         ),
-        project_root=tmp_path,
+        project=Project(root=tmp_path),
         footnote_order=record,
     )
 
@@ -1904,10 +1902,9 @@ def test_footnote_order_falls_back_to_the_project_config(tmp_path: Path) -> None
         config=ChunkingConfig(
             xpath='//text/body/div', output_dir='pages', odd=packaged_odd('teipublisher'),
         ),
-        project_root=tmp_path,
-        project_config=ProjectConfig(
+        project=Project(ProjectConfig(
             footnote_order='opm.runtime.footnote_order.labelled_first',
-        ),
+        ), root=tmp_path),
     )
 
     page = (tmp_path / 'pages' / '001.html').read_text(encoding='utf-8')

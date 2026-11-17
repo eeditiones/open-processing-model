@@ -677,13 +677,13 @@ def _chunk_processor(
     if chunking is None or not (chunking.xpath or chunking.selector):
         return None
     from opm.chunking import ChunkProcessor
+    from opm.project import Project
 
     processor = ChunkProcessor(
         module_path,
         root,
         chunking,
-        project_root,
-        project_config=cfg,
+        Project(cfg, root=project_root),
         webcomponents=webcomponents,
         xpath_env=xpath_env,
         anchors=anchors,

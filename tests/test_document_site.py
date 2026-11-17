@@ -1355,6 +1355,7 @@ def test_a_plain_chunk_run_needs_no_spec_index(tmp_path: Path, monkeypatch) -> N
 
     from opm.chunking import chunk_document
     from opm.config import load_project_config
+    from opm.project import Project
     from opm.document_site import _TAGDOCS_XPATH_EXTENSIONS
     from opm.resources import packaged_document_dir
     from opm.spec_index import SpecIndex
@@ -1377,9 +1378,8 @@ def test_a_plain_chunk_run_needs_no_spec_index(tmp_path: Path, monkeypatch) -> N
         module_path=None,
         xml_path=xml,
         config=replace(reference, output_dir='.'),
-        project_root=out,
+        project=Project(cfg, root=out),
         template_path=reference.template,
-        project_config=cfg,
         xpath_extensions=_TAGDOCS_XPATH_EXTENSIONS,
     )
 
