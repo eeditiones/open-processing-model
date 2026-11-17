@@ -8,6 +8,7 @@
   breadcrumb toolbar; the site navigation is its `before` column, and the
   "On this page" outline sits beside the text inside the content block.
   opm-theme-handbook.css sets opm's design tokens and styles what is handbook's own.
+  Uses shared pagefind.html.tpl for Pagefind integration.
 
   Its stylesheet, opm-theme-handbook.css, is listed under [transform.web] assets in
   opm.toml: copied next to the output and linked by the base template.
@@ -21,7 +22,9 @@ span_top = true
 
 [templating]
 extends = "opm/layout.html.tpl"
+use = ["pagefind.html.tpl"]
 ---
+
 [% template body_class %][% if $context?fragments?toc %]handbook--with-toc[% endif %][% endtemplate %]
 
 [% template before %]

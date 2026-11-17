@@ -40,6 +40,8 @@ output_dir = "chunks"
 # Omit for local `opm serve` so prev/next stay relative.
 # link_pattern = "/{doc}/{file}"
 doc_path = "doc"
+assets = ["templates/opm-theme-handbook.css"]
+index_template = "templates/index.html.tpl"
 
 [[chunking.fragments]]
 name = "title"
@@ -68,6 +70,14 @@ scope = "per-chunk"
 xpath = "."
 parameters = { mode = "breadcrumb" }
 
+[index]
+# One record per published page, as site search (Pagefind) expects
+granularity = "page"
+
 [[index.fields]]
 name = "breadcrumb"
 fragment = "breadcrumbs"
+
+[[index.fields]]
+name = "title"
+fragment = "title"
