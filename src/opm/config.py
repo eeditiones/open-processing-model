@@ -680,6 +680,13 @@ class ProjectConfig:
 
     Per-type ``[transform.<type>].odd`` entries override ``[transform].odd``.
     """
+    profiles: tuple[str, ...] = ()
+    """Profile names to load, from ``[[profiles]]`` array.
+
+    Profiles are loaded from the project's ``profiles/`` directory or from
+    standard profile locations. They provide reusable templates, assets, and
+    configuration defaults.
+    """
 
     def extend_sys_path(self) -> None:
         """Put the ``[project] pythonpath`` directories on ``sys.path``.
@@ -769,6 +776,15 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
 
     with config_path.open('rb') as f:
         data = tomllib.load(f)
+
+    # Load profiles array
+    raw_profiles = data.get('profiles', [])
+    if isinstance(raw_profiles, str):
+        profiles = (raw_profiles,)
+    elif isinstance(raw_profiles, list):
+        profiles = tuple(str(p) for p in raw_profiles)
+    else:
+        profiles = ()
 
     transform = _section_table(data.get('transform'))
     chunking_tables = _chunking_tables(data.get('chunking'))
@@ -1029,4 +1045,5 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         pythonpath=pythonpath,
         transform_odd=transform_odd,
         transform_odds=transform_odds,
+        profiles=profiles,
     )

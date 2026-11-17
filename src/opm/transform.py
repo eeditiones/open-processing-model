@@ -462,6 +462,7 @@ def run_transform(
     fragments: dict[str, str] | None = None,
     footnote_order: str | Callable | None = None,
     xpath_env: XPathEnvironment | None = None,
+    project: Any = None,
 ) -> str | bytes:
     """Run *mod* against *root* and return the serialized output.
 
@@ -597,6 +598,7 @@ def run_transform(
             asset_styles=asset_styles(resolve_assets(Path.cwd(), assets)),
             fragments=fragments,
             xpath_env=env,
+            project=project,
         )
 
     return out
@@ -622,6 +624,7 @@ def transform_node(
     fragments: dict[str, str] | None = None,
     footnote_order: str | Callable | None = None,
     xpath_env: XPathEnvironment | None = None,
+    project: Any = None,
 ) -> str | bytes:
     """Load *script_path* as a transform module and apply it to *root*.
 
@@ -685,6 +688,7 @@ def transform_node(
         fragments=fragments,
         footnote_order=footnote_order,
         xpath_env=env,
+        project=project,
     )
 
 
@@ -755,6 +759,7 @@ def transform_with_config(
     webcomponents: bool | None = None,
     template: Path | None = None,
     documents: tuple[dict[str, Any], dict[str, list]] | None = None,
+    project: Any = None,
 ) -> str | bytes:
     """Transform the already parsed *root* with *config*'s settings.
 
@@ -798,6 +803,7 @@ def transform_with_config(
             )
             if is_web and xpath is None else None
         ),
+        project=project,
     )
 
 

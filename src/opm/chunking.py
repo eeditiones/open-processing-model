@@ -15,8 +15,11 @@ import shutil
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import unquote, urlsplit
+
+if TYPE_CHECKING:
+    from opm.project import Project
 
 from lxml import etree
 from lxml import html as lxml_html
@@ -100,8 +103,7 @@ class ChunkProcessor:
         module_path: The compiled transform module for chunk content.
         xml_root: Root element of the parsed document.
         config: The ``[chunking]`` settings, with fragment modules compiled.
-        project_root: The directory ``config.output_dir`` is relative to.
-        project_config: The project settings (parameters, template context).
+        project: The Project instance, providing root, config, and profile support.
         webcomponents: Enable web-component mode.
         xpath_env: The XPath environment to evaluate in; see
             [`opm.transform.project_xpath_env`][opm.transform.project_xpath_env].
@@ -115,8 +117,8 @@ class ChunkProcessor:
         module_path: Path,
         xml_root: etree._Element,
         config: ChunkingConfig,
-        project_root: Path,
-        project_config: ProjectConfig | None = None,
+        project: Any,
+        *,
         webcomponents: bool = False,
         xpath_env: XPathEnvironment | None = None,
         source_dir: Path | None = None,
@@ -153,10 +155,15 @@ class ChunkProcessor:
                         self._fragment_modules[key] = load_transform_module(frag.module)
         self.xml_root = xml_root
         self.config = config
-        self.project_root = project_root
-        self.output_dir = project_root / config.output_dir
+        self.project = project
+        # Extract project_root and project_config from project object
+        # (which can be a Project instance or any object with .root and .config)
+        self.project_root = project.root
+        self.output_dir = self.project_root / config.output_dir
         self.webcomponents = webcomponents
-        cfg = project_config or ProjectConfig()
+        # Use project.config for project-wide settings
+        # project can be a Project instance or any object with .config attribute
+        cfg = project.config
         # Chunk pages are HTML, which places its own footnotes, so each chunk
         # run orders them; an explicit argument beats [transform] footnote_order.
         self.footnote_order: str | Callable | None = (
@@ -844,7 +851,7 @@ class ChunkProcessor:
             chunk_template = self._chunk_template_path(template_path)
             if chunk_template is None:
                 return None
-            self._jinja_env = template_environment(chunk_template, self.xpath_env)
+            self._jinja_env = template_environment(chunk_template, self.xpath_env, self.project)
             self._jinja_template = load_template(self._jinja_env, chunk_template)
             self._jinja_context = template_context(
                 self._jinja_env, chunk_template.name, self.template_context,
@@ -1405,9 +1412,10 @@ def chunk_document(
     module_path: Path | None,
     xml_path: Path,
     config: ChunkingConfig,
-    project_root: Path,
+    project: Any | None = None,
     template_path: Path | None = None,
     on_progress: Callable[[int, int], None] | None = None,
+    project_root: Path | None = None,
     project_config: ProjectConfig | None = None,
     webcomponents: bool = False,
     xpath_extensions: tuple[str, ...] | None = None,
@@ -1444,9 +1452,22 @@ def chunk_document(
     from opm.config import resolve_base_css
     from opm.odd_cache import ensure_compiled_module
 
+    # Handle backward compatibility: project can be passed directly, or
+    # project_root and project_config can be passed separately
+    if project is not None:
+        effective_project_root = project.root
+        effective_project_config = project.config
+    elif project_root is not None and project_config is not None:
+        effective_project_root = project_root
+        effective_project_config = project_config
+    else:
+        raise ValueError(
+            'Either pass a Project instance, or both project_root and project_config'
+        )
+
     # Same base override the CLI applies, so calling this directly as a
     # library gives the same stylesheet as `opm chunk`.
-    base_css = resolve_base_css((project_config or ProjectConfig()).document_css, project_root)
+    base_css = resolve_base_css(effective_project_config.document_css, effective_project_root)
     resolved_module = module_path or config.module
     if resolved_module is None and config.odd is not None:
         resolved_module, _ = ensure_compiled_module(
@@ -1470,14 +1491,22 @@ def chunk_document(
 
     tree = xml_parse(str(xml_path))
     root = tree.getroot()
-    cfg = project_config or ProjectConfig()
 
-    xpath_env = project_xpath_env(cfg, xml_path, extensions=xpath_extensions)
+    xpath_env = project_xpath_env(effective_project_config, xml_path, extensions=xpath_extensions)
     document = config.link_doc or xml_path.name
 
+    # Pass project to ChunkProcessor (either the real Project or a simple object)
+    if project is not None:
+        chunk_project = project
+    else:
+        # Create a simple object with .root and .config for backward compatibility
+        chunk_project = type('SimpleProject', (), {
+            'root': effective_project_root,
+            'config': effective_project_config
+        })()
+
     processor = ChunkProcessor(
-        resolved_module, root, config, project_root,
-        project_config=project_config,
+        resolved_module, root, config, chunk_project,
         webcomponents=webcomponents,
         xpath_env=xpath_env,
         source_dir=xml_path.parent,
@@ -1560,6 +1589,7 @@ def build_index(
     project_root: Path | None = None,
     chunking_config: ChunkingConfig | None = None,
     webcomponents: bool = False,
+    project: Any = None,
 ) -> Path | None:
     """Render ``<output_dir>/index.html`` listing every chunked document.
 
@@ -1616,6 +1646,7 @@ def build_index(
             namespaces=dict(project_config.xpath_namespaces),
             extensions=project_config.xpath_extensions,
         ) if project_config is not None else None,
+        project=project,
     )
     index_file = output_dir / 'index.html'
     index_file.write_text(rendered, encoding='utf-8')

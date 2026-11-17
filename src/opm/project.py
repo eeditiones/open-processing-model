@@ -45,6 +45,7 @@ from opm.config import (
     load_project_config,
     resolve_base_css,
 )
+from opm.profile import load_profiles, merge_profile_configs, get_profile_paths, PROFILE_LOCATIONS
 from opm.odd_cache import ResolvedTransform, resolve_transform_module
 from opm.output_modes import output_mode
 from opm.transform import (
@@ -279,6 +280,25 @@ class Project:
         """The project directory."""
         # Project modules (XPath extensions, chunk selectors) import from here.
         self.config.extend_sys_path()
+        
+        # Load profiles
+        self._profiles: tuple[Any, ...] = self._load_profiles()
+        
+        # Merge profile context configs into project config
+        # Profiles can contribute context variables that will be available to all templates
+        if self._profiles:
+            from opm.template_frontmatter import merge_deep
+            merged_context = self.config.template_context.copy()
+            for profile_config, _ in self._profiles:
+                if profile_config.config:
+                    # Merge context from profile config
+                    profile_context = profile_config.config.get('context', {})
+                    if profile_context:
+                        merged_context = merge_deep(merged_context, profile_context)
+            # Only update if there were profile contributions
+            if merged_context != self.config.template_context:
+                self.config = replace(self.config, template_context=merged_context)
+        
         self._lock = threading.Lock()
         self._resolved: dict[tuple[str, Path | None, bool], ResolvedTransform] = {}
         self._modules: dict[Path, ModuleType] = {}
@@ -300,6 +320,48 @@ class Project:
         config_path = Path(path) if path is not None else Path(CONFIG_FILENAME)
         config = load_project_config(config_path)
         return cls(config, root=root if root is not None else config_path.absolute().parent)
+
+    def _load_profiles(self) -> tuple:
+        """Load and return the project's profiles.
+        
+        Profiles are loaded from:
+        1. The project's local profiles/ directory
+        2. ~/.opm/profiles/ (user profiles)
+        3. Bundled profiles in opm.resources.profiles
+        
+        Returns:
+            Tuple of (profile_config, profile_path) for each profile
+        """
+        if not self.config.profiles:
+            return ()
+        
+        # Build search paths: project-local, user, bundled
+        search_paths = [
+            self.root / "profiles",
+            Path.home() / ".opm" / "profiles",
+            Path(__file__).parent / "resources" / "profiles",
+        ]
+        
+        profiles = []
+        for profile_name in self.config.profiles:
+            # Find the actual profile path
+            profile_path = None
+            for sp in search_paths:
+                candidate = sp / profile_name
+                if candidate.is_dir():
+                    profile_path = candidate
+                    break
+            
+            if profile_path is None:
+                raise FileNotFoundError(
+                    f"Profile '{profile_name}' not found in any of: "
+                    f"{', '.join(str(p) for p in search_paths)}"
+                )
+            
+            profile_config = load_profiles([profile_name], search_paths)[0]
+            profiles.append((profile_config, profile_path))
+        
+        return tuple(profiles)
 
     def with_config(self, **changes: Any) -> Project:
         """A new project with some [`ProjectConfig`][opm.config.ProjectConfig] fields replaced.
@@ -412,6 +474,7 @@ class Project:
             webcomponents=webcomponents,
             template=template,
             documents=self._documents(),
+            project=self,
         )
 
     # ── chunking ─────────────────────────────────────────────────────────────
@@ -590,10 +653,9 @@ class Project:
                     module_path=run.module,
                     xml_path=xml_file,
                     config=_document_config(run, xml_file, format, doc_names[xml_file]),
-                    project_root=self.root,
+                    project=self,
                     template_path=run.template,
                     on_progress=progress,
-                    project_config=self.config,
                     webcomponents=enabled,
                     xpath_extensions=extensions,
                     output_format=format,
@@ -617,6 +679,7 @@ class Project:
                 project_root=self.root,
                 chunking_config=chunking,
                 webcomponents=enabled,
+                project=self,
             )
         return ChunkRun(
             output_dir=out_dir,

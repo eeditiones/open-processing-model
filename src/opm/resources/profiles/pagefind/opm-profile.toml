@@ -1,0 +1,14 @@
+name = "pagefind"
+version = "1.0.0"
+description = "Adds Pagefind static search functionality to the site"
+
+[templating]
+templates = ["pagefind.html.tpl", "default_index.html.tpl"]
+
+# Context variables contributed by this profile
+# These will be merged into the project's [context] section
+[context]
+# Flag indicating pagefind is enabled
+pagefind_enabled = true
+# Base URL for pagefind assets
+pagefind_base = "search"

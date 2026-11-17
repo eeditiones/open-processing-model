@@ -41,7 +41,9 @@ output_dir = "chunks"
 # link_pattern = "/{doc}/{file}"
 doc_path = "doc"
 assets = ["templates/opm-theme-handbook.css"]
-index_template = "templates/index.html.tpl"
+
+# Use profiles for additional functionality
+profiles = ["pagefind"]
 
 [[chunking.fragments]]
 name = "title"

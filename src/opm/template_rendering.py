@@ -14,7 +14,7 @@ from __future__ import annotations
 import dataclasses
 from importlib import resources
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from jinja2 import Environment, TemplateNotFound
 from lxml import etree
@@ -25,6 +25,9 @@ from opm.output_modes import RENDER_MODES
 from opm.runtime.xpath_env import XPathEnvironment
 from opm.runtime.xpath_extensions import build_extension_parser, load_extension_callables
 from opm.template_frontmatter import FrontmatterLoader, template_context
+
+if TYPE_CHECKING:
+    from opm.project import Project
 
 DEFAULT_TEMPLATE_NAME: str = RENDER_MODES['web'].default_template  # type: ignore[assignment]
 DEFAULT_PRINT_TEMPLATE_NAME: str = RENDER_MODES['print'].default_template  # type: ignore[assignment]
@@ -114,11 +117,41 @@ def is_jinks_template(template_path: Path) -> bool:
     return template_path.name.endswith(JINKS_SUFFIX)
 
 
-def _searchpaths(template_path: Path) -> list[str]:
+def _searchpaths(template_path: Path, project: Any = None) -> list[str]:
+    """Build search paths for template loading.
+    
+    Args:
+        template_path: The path to the template being loaded
+        project: Optional Project instance to get profile template paths from
+        
+    Returns:
+        List of directory paths to search for templates
+    """
     searchpaths = [str(template_path.parent)]
+    
+    # Add profile template directories from project first
+    # This allows profiles to override default templates
+    if project is not None:
+        for profile_config, profile_path in project._profiles:
+            templates_dir = profile_path / "templates"
+            if templates_dir.is_dir():
+                searchpaths.append(str(templates_dir))
+    
+    # Also check for a profiles/ directory in the project
+    project_dir = template_path.parent.parent  # templates/ -> project root
+    profiles_dir = project_dir / "profiles"
+    if profiles_dir.is_dir():
+        for profile_dir in profiles_dir.iterdir():
+            if profile_dir.is_dir():
+                templates_dir = profile_dir / "templates"
+                if templates_dir.is_dir() and str(templates_dir) not in searchpaths:
+                    searchpaths.append(str(templates_dir))
+    
+    # Add packaged templates last
     packaged = str(packaged_templates_dir())
     if packaged not in searchpaths:
         searchpaths.append(packaged)
+    
     return searchpaths
 
 
@@ -180,7 +213,7 @@ def _index_entry_map(entry: Any) -> Any:
 
 
 def template_environment(
-    template_path: Path, xpath_env: XPathEnvironment | None = None,
+    template_path: Path, xpath_env: XPathEnvironment | None = None, project: Any = None,
 ) -> Environment | jinks.Environment:
     """The environment for rendering *template_path*: Jinja2 or jinks.
 
@@ -198,8 +231,12 @@ def template_environment(
     ``extends``, ``use`` and includes along the same search path. Its XPath
     sees the project's namespaces and ``tp:`` extension functions from
     *xpath_env*.
+    
+    If *project* is provided, profile template directories are added to the
+    search path, allowing templates to use profile templates via the ``use``
+    directive.
     """
-    searchpaths = _searchpaths(template_path)
+    searchpaths = _searchpaths(template_path, project)
     if is_jinks_template(template_path):
         return jinks.Environment(searchpaths, parser_factory=_jinks_parser_factory(xpath_env))
     env = Environment(loader=FrontmatterLoader(searchpaths), autoescape=False)
@@ -261,6 +298,7 @@ def render_document_template(
     asset_styles: list[str] | None = None,
     fragments: dict[str, str] | None = None,
     xpath_env: XPathEnvironment | None = None,
+    project: Any = None,
 ) -> str:
     """Render a full HTML document through the selected page template.
 
@@ -303,7 +341,7 @@ def render_document_template(
                 head.remove(style)
     head_content = _inner_html(head)
     effective_odd_css = odd_css or ''
-    env = template_environment(template_path, xpath_env)
+    env = template_environment(template_path, xpath_env, project)
     tpl = load_template(env, template_path)
     return tpl.render(
         head_html=head_content,
@@ -331,6 +369,7 @@ def render_index_template(
     layout_css_url: str = '',
     context: dict | None = None,
     xpath_env: XPathEnvironment | None = None,
+    project: Any = None,
 ) -> str:
     """Render a collection index listing chunked documents.
 
@@ -345,7 +384,7 @@ def render_index_template(
     by declaring global fragments in ``opm.toml`` — no code change needed to add
     an author or date column.
     """
-    env = template_environment(template_path, xpath_env)
+    env = template_environment(template_path, xpath_env, project)
     tpl = load_template(env, template_path)
     return tpl.render(
         documents=entries,
