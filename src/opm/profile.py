@@ -21,10 +21,12 @@ Profiles can be loaded from:
 
 from __future__ import annotations
 
+import importlib.util
+import sys
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from opm.template_frontmatter import merge_deep
 
@@ -57,6 +59,10 @@ class ProfileConfig:
     
     # Configuration defaults to merge into project config
     config: dict[str, Any] = field(default_factory=dict)
+
+    # Functions to call at fixed points, by hook name (see HOOKS), each
+    # written as ``file.py:function`` relative to the profile directory.
+    hooks: dict[str, tuple[str, ...]] = field(default_factory=dict)
     
     @classmethod
     def from_path(cls, profile_path: Path) -> ProfileConfig:
@@ -92,12 +98,71 @@ class ProfileConfig:
         
         if profile_config:
             config_data['config'] = profile_config
+
+        if 'hooks' in data:
+            config_data['hooks'] = _parse_hooks(data['hooks'], profile_path)
         
         # Ensure name is set
         if 'name' not in config_data:
             config_data['name'] = profile_path.name
         
         return cls(**config_data)
+
+
+#: The hooks a profile can register in its ``[hooks]`` table.
+HOOKS = ('after_chunking',)
+
+
+def _parse_hooks(table: Any, profile_path: Path) -> dict[str, tuple[str, ...]]:
+    """Validate a profile's ``[hooks]`` table: known names, ``file:function`` entries."""
+    if not isinstance(table, dict):
+        raise ValueError(f'Profile {profile_path}: [hooks] must be a table')
+    hooks: dict[str, tuple[str, ...]] = {}
+    for name, value in table.items():
+        if name not in HOOKS:
+            raise ValueError(
+                f"Profile {profile_path}: unknown hook '{name}' (known: {', '.join(HOOKS)})"
+            )
+        entries = (value,) if isinstance(value, str) else tuple(value)
+        for entry in entries:
+            if not isinstance(entry, str) or ':' not in entry:
+                raise ValueError(
+                    f"Profile {profile_path}: hook '{name}' entry {entry!r} "
+                    "must be written as 'file.py:function'"
+                )
+        hooks[name] = entries
+    return hooks
+
+
+def load_hook(profile_name: str, profile_path: Path, entry: str) -> Callable[..., Any]:
+    """The function a hook *entry* (``file.py:function``) names in a profile.
+
+    The file is loaded from *profile_path* under a module name of its own, so
+    two profiles may each ship a ``search.py`` without clashing.
+
+    Raises:
+        FileNotFoundError: The file does not exist.
+        AttributeError: The file has no such function.
+    """
+    file_name, _, function_name = entry.rpartition(':')
+    path = profile_path / file_name
+    if not path.is_file():
+        raise FileNotFoundError(f"Profile '{profile_name}': hook file not found: {path}")
+    module_name = f'opm_profile_{profile_name}_{path.stem}'.replace('-', '_')
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    # Registered like an import, so dataclasses and pickling in it work.
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    except BaseException:
+        del sys.modules[module_name]
+        raise
+    function = getattr(module, function_name, None)
+    if not callable(function):
+        raise AttributeError(f"Profile '{profile_name}': {path.name} has no function '{function_name}'")
+    return function
 
 
 def find_profile(profile_name: str, search_paths: list[Path] | None = None) -> Path:

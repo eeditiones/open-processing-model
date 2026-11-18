@@ -896,6 +896,9 @@ class ChunkProcessor:
                 context=self._jinja_context,
                 # Add chunk-specific context
                 fragments=all_fragments,
+                # Relative URL of the output root ('' or '../'), for links
+                # into files written there, such as a search index.
+                site_root=self.url_prefix(),
                 chunk=chunk_result.metadata,
                 document=self.document,
                 documents=self.documents,
@@ -1605,7 +1608,7 @@ def build_index(
     rendered = render_index_template(
         entries=entries,
         template_path=resolve_template_path(
-            template_path, default_name=DEFAULT_INDEX_TEMPLATE_NAME
+            template_path, default_name=DEFAULT_INDEX_TEMPLATE_NAME, project=project,
         ),
         title=title or output_dir.name,
         odd_css=odd_css,

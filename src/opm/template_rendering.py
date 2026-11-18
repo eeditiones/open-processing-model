@@ -46,13 +46,23 @@ def resolve_template_path(
     template_path: Path | None,
     *,
     default_name: str = DEFAULT_TEMPLATE_NAME,
+    project: Any = None,
 ) -> Path:
-    """Resolve override template path or packaged default template."""
-    path = (
-        template_path
-        if template_path is not None
-        else default_template_path(default_name)
-    )
+    """Resolve override template path or the default template.
+
+    Without *template_path*, a template named *default_name* in one of
+    *project*'s profiles replaces the packaged default; where several profiles
+    ship one, the profile listed last wins.
+    """
+    path = template_path
+    if path is None and project is not None:
+        for _, profile_path in reversed(getattr(project, '_profiles', ())):
+            candidate = profile_path / 'templates' / default_name
+            if candidate.is_file():
+                path = candidate
+                break
+    if path is None:
+        path = default_template_path(default_name)
     if not path.is_file():
         raise FileNotFoundError(f'Template not found: {path}')
     return path

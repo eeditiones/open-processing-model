@@ -681,7 +681,7 @@ class ProjectConfig:
     Per-type ``[transform.<type>].odd`` entries override ``[transform].odd``.
     """
     profiles: tuple[str, ...] = ()
-    """Profile names to load, from ``[[profiles]]`` array.
+    """Profile names to load, from ``[project] profiles``.
 
     Profiles are loaded from the project's ``profiles/`` directory or from
     standard profile locations. They provide reusable templates, assets, and
@@ -777,19 +777,17 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     with config_path.open('rb') as f:
         data = tomllib.load(f)
 
-    # Load profiles array
-    raw_profiles = data.get('profiles', [])
+    transform = _section_table(data.get('transform'))
+    chunking_tables = _chunking_tables(data.get('chunking'))
+    index_data = _section_table(data.get('index'))
+    project_data = _section_table(data.get('project'))
+    raw_profiles = project_data.get('profiles', [])
     if isinstance(raw_profiles, str):
         profiles = (raw_profiles,)
     elif isinstance(raw_profiles, list):
         profiles = tuple(str(p) for p in raw_profiles)
     else:
         profiles = ()
-
-    transform = _section_table(data.get('transform'))
-    chunking_tables = _chunking_tables(data.get('chunking'))
-    index_data = _section_table(data.get('index'))
-    project_data = _section_table(data.get('project'))
     document_data = data.get('document')
 
     # Per-type tables: prefer [transform.<type>], accept legacy top-level [<type>].

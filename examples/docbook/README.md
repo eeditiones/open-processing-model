@@ -56,6 +56,12 @@ shared at `chunks/`. Or chunk both sample articles at once:
 opm chunk data/doc --force --preview
 ```
 
+## Search
+
+`opm.toml` switches on the `pagefind` profile (`[project] profiles`). It adds a
+search button to every page, and after chunking it builds a search index of all
+documents into `chunks/assets/search/`.
+
 ## Layout
 
 - `odd/docbook.odd` — DocBook processing model (plus `docbook.css`)

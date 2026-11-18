@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import shutil
 import threading
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence, Union
@@ -79,6 +79,8 @@ class ChunkRun:
     """The transform modules used: the main one first, then the fragment ones."""
     index_file: Path | None = None
     """The ``index.html`` an HTML run writes at the output root."""
+    document_dirs: dict[Path, str] = field(default_factory=dict)
+    """Each document's directory name below [`output_dir`][opm.project.ChunkRun.output_dir], by source file."""
 
 
 def _document_config(
@@ -284,18 +286,14 @@ class Project:
         # Load profiles
         self._profiles: tuple[Any, ...] = self._load_profiles()
         
-        # Merge profile context configs into project config
-        # Profiles can contribute context variables that will be available to all templates
+        # Profiles contribute defaults to the template context: a later profile
+        # overrides an earlier one, and the project's own [context] overrides both.
         if self._profiles:
             from opm.template_frontmatter import merge_deep
-            merged_context = self.config.template_context.copy()
-            for profile_config, _ in self._profiles:
-                if profile_config.config:
-                    # Merge context from profile config
-                    profile_context = profile_config.config.get('context', {})
-                    if profile_context:
-                        merged_context = merge_deep(merged_context, profile_context)
-            # Only update if there were profile contributions
+            merged_context = merge_deep(
+                *(profile_config.config.get('context') for profile_config, _ in self._profiles),
+                self.config.template_context,
+            )
             if merged_context != self.config.template_context:
                 self.config = replace(self.config, template_context=merged_context)
         
@@ -542,6 +540,10 @@ class Project:
 
         The arguments override the ``[chunking]`` settings of the same name.
 
+        Once every page and the index are written, the ``after_chunking``
+        hooks of the project's profiles run, each called with the project and
+        the returned [`ChunkRun`][opm.project.ChunkRun].
+
         Args:
             source: An XML file, or a directory of XML files (not searched
                 recursively).
@@ -681,13 +683,24 @@ class Project:
                 webcomponents=enabled,
                 project=self,
             )
-        return ChunkRun(
+        run_result = ChunkRun(
             output_dir=out_dir,
             documents=tuple(files),
             format=format,
             modules=tuple(all_modules),
             index_file=index_file,
+            document_dirs=dict(doc_names),
         )
+        self._run_hooks('after_chunking', run_result)
+        return run_result
+
+    def _run_hooks(self, name: str, *args: Any) -> None:
+        """Call the *name* hooks of every profile, in the order the profiles are listed."""
+        from opm.profile import load_hook
+
+        for profile_config, profile_path in self._profiles:
+            for entry in profile_config.hooks.get(name, ()):
+                load_hook(profile_config.name, profile_path, entry)(self, *args)
 
     # ── indexing and coverage ────────────────────────────────────────────────
 

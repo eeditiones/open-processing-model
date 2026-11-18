@@ -1,8 +1,10 @@
 <template>
     [% template scripts %]
     <!-- Pagefind UI: script and stylesheet for the search modal -->
-    <script defer src="[[ $context?assets ]]/search/pagefind-component-ui.js"></script>
-    <link rel="stylesheet" href="[[ $context?assets ]]/search/pagefind-component-ui.css">
+    [% let $search = $context?site_root || 'assets/' || $context?pagefind_base %]
+    <script defer src="[[ $search ]]/pagefind-component-ui.js"></script>
+    <link rel="stylesheet" href="[[ $search ]]/pagefind-component-ui.css">
+    [% endlet %]
     [% endtemplate %]
 
     [% template menu.toggles %]

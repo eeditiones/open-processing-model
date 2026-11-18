@@ -2,13 +2,14 @@ name = "pagefind"
 version = "1.0.0"
 description = "Adds Pagefind static search functionality to the site"
 
-[templating]
-templates = ["pagefind.html.tpl", "default_index.html.tpl"]
+# Build the search index once all pages are written (see search.py).
+[hooks]
+after_chunking = ["search.py:build_search"]
 
 # Context variables contributed by this profile
 # These will be merged into the project's [context] section
 [context]
 # Flag indicating pagefind is enabled
 pagefind_enabled = true
-# Base URL for pagefind assets
+# Folder below assets/ the search index and Pagefind UI are written to
 pagefind_base = "search"

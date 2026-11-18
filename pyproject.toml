@@ -41,7 +41,13 @@ dependencies = [
     "questionary>=2.1.1",
     "rich-pyfiglet>=2.0.1",
     "pygments>=2.17",
+    # Search for chunked sites, used by the bundled 'pagefind' profile.
+    "pagefind[bin]>=1.6",
 ]
+
+[project.optional-dependencies]
+# Kept for compatibility: Pagefind is now a regular dependency.
+pagefind = []
 
 [dependency-groups]
 dev = [

@@ -3,6 +3,8 @@
 
 [project]
 pythonpath = ["."]
+# Use profiles for additional functionality
+profiles = ["pagefind"]
 
 [transform]
 odd = "odd/docbook.odd"
@@ -27,6 +29,9 @@ template = "templates/docbook.typ.tpl"
 
 [context]
 site_name = "TEI Publisher Documentation"
+pagefind_enabled = true
+# Base URL for pagefind assets
+pagefind_base = "search"
 
 # opm-theme-handbook.css has a dark palette too: follow the reader's system.
 [context.theme]
@@ -41,9 +46,6 @@ output_dir = "chunks"
 # link_pattern = "/{doc}/{file}"
 doc_path = "doc"
 assets = ["templates/opm-theme-handbook.css"]
-
-# Use profiles for additional functionality
-profiles = ["pagefind"]
 
 [[chunking.fragments]]
 name = "title"

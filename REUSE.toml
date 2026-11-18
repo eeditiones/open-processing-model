@@ -25,7 +25,7 @@ SPDX-License-Identifier = "AGPL-3.0-or-later"
 # ---------------------------------------------------------------------------
 
 [[annotations]]
-path = ["src/opm/resources/scaffold/**", "src/opm/resources/templates/**", "src/opm/resources/document/**"]
+path = ["src/opm/resources/scaffold/**", "src/opm/resources/templates/**", "src/opm/resources/document/**", "src/opm/resources/profiles/**"]
 SPDX-FileCopyrightText = "2026 e-editiones"
 SPDX-License-Identifier = "CC0-1.0"
 
