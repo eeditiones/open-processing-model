@@ -1176,13 +1176,13 @@ def test_init_example_templates_keep_the_examples_own_shell(tmp_path: Path) -> N
     """--templates adds shells beside an example's own, never over them."""
     dest = tmp_path / 'folio'
     assert main(['init', str(dest), '--example', 'shakespeare', '--templates']) == 0
-    # The example's chapbook is customised — it carries a facsimile column the
-    # packaged shell knows nothing about — so it must survive untouched.
-    shell = (dest / 'templates' / 'chapbook.html.j2').read_text(encoding='utf-8')
-    assert 'opm-reader-facs' in shell
-    assert (dest / 'templates' / 'journal.html.j2').is_file()
-    assert (dest / 'templates' / 'handbook.html.j2').is_file()
-    assert (dest / 'templates' / 'document.typ.j2').is_file()
+    # The example's chapbook is customised — it adds the iiif profile's
+    # facsimile column to the packaged shell — so it must survive untouched.
+    shell = (dest / 'templates' / 'chapbook.html.tpl').read_text(encoding='utf-8')
+    assert 'iiif profile' in shell
+    assert (dest / 'templates' / 'journal.html.tpl').is_file()
+    assert (dest / 'templates' / 'handbook.html.tpl').is_file()
+    assert (dest / 'templates' / 'document.typ.tpl').is_file()
 
 
 def test_init_preserves_existing_agent_files(tmp_path: Path) -> None:

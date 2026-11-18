@@ -111,23 +111,36 @@ Two things the viewer needs, both in the templates:
   the viewer can stay blank in Chrome without any error. pb-facsimile has no
   option for it, so `escher.js` sets the default before the viewer is created.
 
-## Letter navigation
+## Profiles
 
-As in the serafin example, `correspContext` becomes a hidden `<nav>` whose
-`data-*` attributes name the neighbouring letters. `templates/letter.html.tpl`
-turns them into two rows of links: the edition's own order, and the letters
-between the same correspondents. The `correspContext` targets are the
-edition's letter numbers (`B0097`), so they name the neighbour's directory as
-they stand: the link is `../B0097/`. A neighbour links only if it was chunked
-in the same run, so at the ends of this five-letter sample the links are greyed out.
+Three of the page's parts come from profiles, switched on in `opm.toml`:
+
+```toml
+[project]
+profiles = ["edition-navigation", "registers", "iiif"]
+```
+
+- `edition-navigation` adds the two rows of links above the letter: the
+  edition's own order, and the letters between the same correspondents. As in
+  the serafin example, the ODD turns `correspContext` into a hidden `<nav>`
+  whose `data-*` attributes name the neighbouring letters. These are the
+  edition's letter numbers (`B0097`), which are also the names of the letters'
+  folders, so the link is `../B0097/`. A neighbour is linked only if it was
+  chunked in the same run, so at the ends of this five-letter sample the links
+  are greyed out. `[context.features.edition-navigation]` gives the labels in
+  German.
+- `registers` puts the register into the left column, under the heading
+  "Kontexte" (`[context.features.register]`). The ODD's own `register` mode
+  decides what it lists.
+- `iiif` shows the facsimile in the right column with `<pb-facsimile>`, which
+  loads single page images from the edition's IIIF server
+  (`[context.features.iiif]`).
 
 ## Project layout
 
 - `odd/escher.odd` — processing model (plus `escher.css`)
-- `templates/escher.html.tpl` — page shell: fonts, logo, chapbook design
-- `templates/letter.html.tpl` — a letter: navigation, head, text, register, facsimile
-- `templates/index.html.tpl` — the letter list
-- `templates/letter.css` — the two readings, navigation, register, facsimile column
+- `templates/letter.html.tpl` — a letter: head and text, in both readings
+- `templates/letter.css` — the two readings, and the look of the navigation, register and facsimile column
 - `templates/opm-theme-paper.css` — the "paper" theme, shared with the monograph example
 - `templates/escher.js` — view switch, lines, hover snippet, register highlighting
 - `extensions/escher_functions.py` — `tp:region_image`, `tp:region_coords`

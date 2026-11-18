@@ -93,10 +93,24 @@ in Typst output, the standard sigla for lacunae in a critical edition:
 | `<gap quantity="3" unit="words"/>` | `[- - -]` — dashes mark an extent undetermined in characters |
 | `<gap/>` | `[- - -]` |
 
+## Profiles
+
+The links to the neighbouring letters and the register beside the text come
+from two profiles, switched on in `opm.toml`:
+
+```toml
+[project]
+profiles = ["edition-navigation", "registers"]
+```
+
+The register shows people and places as two tabs. Each tab has a fragment of
+its own (`register_people`, `register_places`), and
+`[context.features.register] categories` lists them.
+
 ## Layout
 
 - `odd/serafin.odd` — processing model (plus `serafin.css`)
-- `templates/letter.html.tpl` — parallel panes and tabbed register rail
+- `templates/letter.html.tpl` — parallel panes for source and translation
 - `templates/letter.typ.tpl` — parallel-text print edition (two aligned columns)
 - `opm.toml` — collections, `$global:register-root`, chunk fragments
 - `data/letters/` — sample TEI

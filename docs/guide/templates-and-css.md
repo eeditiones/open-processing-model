@@ -23,8 +23,7 @@ opm uses jinks for every template whose name ends in `.tpl`. Templates with
 any other name, e.g. `page.html.j2`, are read as
 [Jinja2](https://jinja.palletsprojects.com) templates, the language earlier
 versions of opm used. opm still ships its templates in both languages, and
-`opm init --jinja` sets up a new project with Jinja2 templates. The
-`shakespeare` example uses Jinja2 throughout.
+`opm init --jinja` sets up a new project with Jinja2 templates.
 
 ## HTML templates
 
@@ -217,14 +216,11 @@ For example, the inheritance chain for a letter page in the Serafin example is
 as follows:
 
 - `templates/letter.html.tpl` – is loaded first. It fills the content area with
-  the transcription and translation, and the right-hand column with the
-  people and places mentioned. Everything else is inherited via the extended
-  `serafin.html.tpl`.
-- `templates/serafin.html.tpl` – puts the edition's logo into the menu bar at
-  the top of the page. The letter list (`index.html.tpl`) extends it too, so
-  both share the same look.
+  the transcription and translation. The register beside them comes from the
+  `registers` [profile](profiles.md). Everything else is inherited.
 - `opm/layout.html.tpl` – contributes the page layout, including the menu bar
-  and the breadcrumb band, which the edition's stylesheet colours.
+  with the edition's logo and the breadcrumb band, which the edition's
+  stylesheet colours.
 - `opm/base.html.tpl` – the root template.
 
 A template names the one it extends in its frontmatter (see
@@ -232,7 +228,7 @@ A template names the one it extends in its frontmatter (see
 
 ```html
 ---json
-{ "templating": { "extends": "serafin.html.tpl" } }
+{ "templating": { "extends": "opm/layout.html.tpl" } }
 ---
 ```
 

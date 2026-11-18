@@ -51,11 +51,18 @@ class ProfileConfig:
     description: str = ""
     author: str = ""
     
-    # Templates to include via 'use' directive
-    templates: list[str] = field(default_factory=list)
-    
-    # Assets to copy to the output
+    # Templates every HTML page uses, from [templating] use: their blocks
+    # fill the page's blocks unless the page template sets them itself.
+    use: tuple[str, ...] = ()
+
+    # Files or directories, relative to the profile directory, copied into
+    # the output's assets/ directory; stylesheets among them are linked
+    # from every page, before the project's own.
     assets: list[str] = field(default_factory=list)
+
+    # [[chunking.fragments]] tables, added to every chunking run unless the
+    # project declares a fragment of the same name.
+    fragments: list[dict[str, Any]] = field(default_factory=list)
     
     # Configuration defaults to merge into project config
     config: dict[str, Any] = field(default_factory=dict)
@@ -76,12 +83,11 @@ class ProfileConfig:
         with open(profile_file, "rb") as f:
             data = tomllib.load(f)
         
+        _check_keys(data, profile_file)
+
         # Extract known fields
         config_data = {}
-        known_fields = {
-            'name', 'version', 'description', 'author', 
-            'templates', 'assets'
-        }
+        known_fields = {'name', 'version', 'description', 'author', 'assets'}
         
         for key in known_fields:
             if key in data:
@@ -99,6 +105,15 @@ class ProfileConfig:
         if profile_config:
             config_data['config'] = profile_config
 
+        use = (data.get('templating') or {}).get('use')
+        if use:
+            config_data['use'] = (use,) if isinstance(use, str) else tuple(str(u) for u in use)
+        fragments = (data.get('chunking') or {}).get('fragments')
+        if fragments:
+            if not isinstance(fragments, list) or not all(isinstance(f, dict) for f in fragments):
+                raise ValueError(f'Profile {profile_path}: [[chunking.fragments]] must be tables')
+            config_data['fragments'] = fragments
+
         if 'hooks' in data:
             config_data['hooks'] = _parse_hooks(data['hooks'], profile_path)
         
@@ -107,6 +122,36 @@ class ProfileConfig:
             config_data['name'] = profile_path.name
         
         return cls(**config_data)
+
+
+#: The keys an ``opm-profile.toml`` may hold, and those of its tables.
+_PROFILE_KEYS = {
+    '': {'name', 'version', 'description', 'author', 'assets',
+         'templating', 'chunking', 'hooks', 'context', 'config'},
+    'templating': {'use'},
+    'chunking': {'fragments'},
+}
+
+
+def _check_keys(data: dict[str, Any], profile_file: Path) -> None:
+    """Reject unknown keys, which are mostly keys written below the wrong table.
+
+    In TOML a key after a ``[table]`` header belongs to that table, so
+    ``assets = [...]`` placed after ``[templating]`` would otherwise be
+    silently ignored.
+    """
+    for table, allowed in _PROFILE_KEYS.items():
+        values = data if table == '' else data.get(table)
+        if not isinstance(values, dict):
+            continue
+        unknown = sorted(set(values) - allowed)
+        if unknown:
+            where = f'[{table}]' if table else 'the top level'
+            raise ValueError(
+                f"{profile_file}: unknown key(s) {', '.join(unknown)} in {where}. "
+                'A key written after a [table] header belongs to that table; '
+                'top-level keys go before the first header.'
+            )
 
 
 #: The hooks a profile can register in its ``[hooks]`` table.

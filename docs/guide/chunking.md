@@ -395,23 +395,24 @@ The template also receives `odd_css` and the assets' stylesheets, exactly as
 chunk pages do, so the `tei-*` classes of a browse record are styled the same
 way on the index as inside the edition.
 
-The `serafin` example goes one step further. Its letter pages and its index
-both extend one template of its own, `serafin.html.tpl`, which holds the menu
-bar and the breadcrumb band:
+An index template of your own works best if it extends the same page layout
+as your pages, `opm/layout.html.tpl`, and keeps its own rules in the same
+stylesheet. The landing page then cannot drift from the pages it links to,
+and the design can be changed in one place:
 
 ```html
 ---json
-{ "templating": { "extends": "serafin.html.tpl" } }
+{ "templating": { "extends": "opm/layout.html.tpl" } }
 ---
 [% template breadcrumb %][[ $context?title ]][% endtemplate %]
 
 <ul class="letter-list">…</ul>
 ```
 
-So the landing page cannot drift from the letters it links to. The list's own
-rules live in `letter.css` too, under `.letter-list`, rather than in a
-`<style>` block on the index — thus the design can be changed from just one
-place. See [Template inheritance](templates-and-css.md#template-inheritance).
+Often you need no template at all: the packaged index already uses the page
+layout, and its texts can be changed under `[context.theme.index]`. The
+`serafin` and `escher` examples do this. See
+[Template inheritance](templates-and-css.md#template-inheritance).
 
 ## Previewing
 

@@ -3,6 +3,10 @@
 
 [project]
 pythonpath = ["."]
+# Previous/next letter links above the text, from correspContext, and the
+# register ("Kontexte") of the people and places a letter names (the ODD's own
+# register mode fills it), and the facsimile beside the diplomatic reading.
+profiles = ["edition-navigation", "registers", "iiif", "pagefind"]
 
 [transform]
 odd = "odd/escher.odd"
@@ -22,15 +26,31 @@ template = "templates/letter.html.tpl"
 webcomponents = true
 assets = ["templates/opm-theme-paper.css", "templates/letter.css", "templates/escher.js"]
 
-[transform.web.context]
-# The edition's IIIF image server. pb-facsimile appends the image name from
-# each page's <pb-facs-link facs>; the hover snippet asks it for one region.
-iiif_base = "https://media.sources-online.org/iiif/2/escher!"
-
 [context]
 site_name = "Briefedition Alfred Escher"
 description = "Briefe von und an Alfred Escher (1819–1882), mit diplomatischer und edierter Lesung und Faksimile."
 lang = "de"
+
+# The edition-navigation profile's links, in German.
+[context.features.edition-navigation]
+label = "Briefnavigation"
+previous_label = "Vorheriger Brief in Edition"
+next_label = "Nächster Brief in Edition"
+previous_in_correspondence_label = "Vorheriger Brief"
+next_in_correspondence_label = "Nächster Brief"
+correspondence_label = "Korrespondenz"
+
+# The edition's IIIF image server. pb-facsimile appends the image name from
+# each page's <pb-facs-link facs>; the hover snippet (escher.js) asks it for
+# one region.
+[context.features.iiif]
+viewer = "pb-facsimile"
+base_uri = "https://media.sources-online.org/iiif/2/escher!"
+label = "Faksimile"
+
+[context.features.register]
+column = "before"
+label = "Kontexte"
 
 # opm-theme-paper.css has a dark palette ("Lamplight"): follow the reader's system.
 [context.theme]
@@ -61,7 +81,6 @@ xpath = "//text"
 document_name = "'B' || substring-after(/TEI/@xml:id, 'K_')"
 file_pattern = "index.html"
 output_dir = "chunks"
-# index_template = "templates/index.html.tpl"
 index_title = "Briefe"
 doc_path = "letters"
 
@@ -81,15 +100,6 @@ name = "letter_head"
 xpath = "./ancestor::TEI"
 parameters = { mode = "letter-head" }
 
-# Neighbouring letters, from correspContext: the ODD emits their file stems as
-# data-* attributes on a hidden <nav>; templates/letter.html.tpl turns them into
-# links.
-[[chunking.fragments]]
-name = "edition_navigation"
-xpath = "./ancestor::TEI"
-parameters = { mode = "edition-navigation" }
-
-[[chunking.fragments]]
-name = "register"
-xpath = "./ancestor::TEI"
-parameters = { mode = "register" }
+[index]
+# One record per published page, as site search (Pagefind) expects
+granularity = "page"

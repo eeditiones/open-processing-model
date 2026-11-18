@@ -35,6 +35,8 @@ def build_search(project: Any, run: Any) -> None:
 
     context = project.config.template_context
     settings = (context.get('features') or {}).get('pagefind') or {}
+    if not settings.get('enabled', True):
+        return
     output = run.output_dir / ASSETS_DIR / str(settings.get('base') or 'search')
     language = str(settings.get('language') or context.get('lang') or 'en')
     dirs = {Path(source).resolve(): name for source, name in run.document_dirs.items()}

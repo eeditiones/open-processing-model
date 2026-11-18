@@ -48,56 +48,14 @@
   color: var(--ink);
 }
 
-/* ── Letter navigation ────────────────────────────────────── */
+/* ── Letter navigation (edition-navigation profile) ──────── */
 
-.letter-nav {
+/* The profile's nav sits above the letter page, outside its top padding:
+   give it the page's measure and spacing. */
+.escher .edition-nav {
   max-width: var(--measure-text);
-  margin: 0 0 var(--space-6);
-  font-family: var(--font-sans);
+  margin: var(--space-6) 0 0;
   font-size: 14px;
-  color: var(--ink-muted);
-}
-
-.letter-nav__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-2) 0;
-}
-
-.letter-nav__row + .letter-nav__row {
-  border-top: 1px solid var(--rule);
-}
-
-.letter-nav__link {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.letter-nav__link--end {
-  flex-direction: row-reverse;
-}
-
-a.letter-nav__link[href]:hover {
-  color: var(--rubric);
-}
-
-a.letter-nav__link:not([href]) {
-  color: var(--ink-faint);
-}
-
-.letter-nav__icon {
-  width: 1.1em;
-  height: 1.1em;
-  flex: none;
-}
-
-.letter-nav__mark {
-  text-align: center;
 }
 
 /* ── Letter head ──────────────────────────────────────────── */
@@ -255,15 +213,15 @@ body.escher--diplomatic {
 
 /* ── Register ("Kontexte") ────────────────────────────────── */
 
-.letter-register {
+.register-panel {
   padding: var(--space-6) 0;
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.4;
 }
 
-.letter-register__title,
-.letter-register h3 {
+.register-panel__title,
+.register-panel h3 {
   margin: var(--space-5) 0 var(--space-2);
   font-family: var(--font-sans);
   font-size: 12px;
@@ -273,29 +231,29 @@ body.escher--diplomatic {
   color: var(--ink-muted);
 }
 
-.letter-register__title {
+.register-panel__title {
   margin-top: 0;
   color: var(--ink);
 }
 
-.letter-register ul {
+.register-panel ul {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.letter-register li {
+.register-panel li {
   margin: 0 0 var(--space-1);
 }
 
-.letter-register label {
+.register-panel label {
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
   cursor: pointer;
 }
 
-.letter-register input {
+.register-panel input {
   accent-color: var(--rubric);
 }
 
@@ -305,13 +263,13 @@ body.escher--diplomatic {
 
 /* ── Facsimile ────────────────────────────────────────────── */
 
-.letter-facs {
+.iiif-facs {
   height: 30rem;
   border: 1px solid var(--rule);
   background: var(--paper-sunken);
 }
 
-.letter-facs pb-facsimile {
+.iiif-facs pb-facsimile {
   height: 100%;
   --pb-facsimile-border: 2px solid var(--rubric);
 }
@@ -341,7 +299,7 @@ body.escher--diplomatic .opm-layout:has(> .before) {
     padding-top: var(--space-6);
   }
 
-  .letter-facs {
+  .iiif-facs {
     position: sticky;
     top: calc(var(--bar-height) + var(--space-5));
     height: min(78vh, 44rem);
@@ -349,34 +307,11 @@ body.escher--diplomatic .opm-layout:has(> .before) {
 }
 
 @media (max-width: 64em) {
-  .letter-register {
+  .register-panel {
     padding: var(--space-4);
   }
 
   .escher .opm-layout > .after {
     padding: 0 0 var(--space-6);
   }
-}
-
-/* ── Letter list (index.html) ─────────────────────────────── */
-
-.letter-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.opm-reader-page .content .letter-list__item {
-  margin: 0 0 var(--space-5);
-}
-
-.opm-reader-page .content .letter-list__title {
-  font-size: 1.2rem;
-}
-
-.letter-list__id {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: 14px;
-  color: var(--ink-muted);
 }

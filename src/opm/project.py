@@ -286,6 +286,8 @@ class Project:
         # Load profiles
         self._profiles: tuple[Any, ...] = self._load_profiles()
         
+        if self._profiles:
+            self.config = self._with_profile_files(self.config)
         # Profiles contribute defaults to the template context: a later profile
         # overrides an earlier one, and the project's own [context] overrides both.
         if self._profiles:
@@ -318,6 +320,47 @@ class Project:
         config_path = Path(path) if path is not None else Path(CONFIG_FILENAME)
         config = load_project_config(config_path)
         return cls(config, root=root if root is not None else config_path.absolute().parent)
+
+    def _with_profile_files(self, config: ProjectConfig) -> ProjectConfig:
+        """*config* with the profiles' assets and fragments added.
+
+        Profile assets come before the project's, so the project's stylesheets
+        cascade after them. A profile fragment is added to every chunking run
+        that has no fragment of the same name. Applying this twice changes
+        nothing, so a [`with_config`][opm.project.Project.with_config] copy
+        stays as it was.
+        """
+        from opm.config import parse_fragments
+
+        assets: list[Path] = []
+        fragments = []
+        for profile_config, profile_path in self._profiles:
+            assets.extend(profile_path / entry for entry in profile_config.assets)
+            fragments.extend(parse_fragments(profile_config.fragments, profile_path))
+        if not assets and not fragments:
+            return config
+
+        def with_assets(existing: Sequence[Path]) -> tuple[Path, ...]:
+            return (*(a for a in assets if a not in existing), *existing)
+
+        def run_with(run: ChunkingConfig) -> ChunkingConfig:
+            own = list(run.fragments or [])
+            names = {fragment.name for fragment in own}
+            extra = [f for f in fragments if f.name not in names]
+            return replace(run, assets=with_assets(run.assets), fragments=[*own, *extra] or None)
+
+        runs = tuple(run_with(run) for run in config.chunking_runs)
+        chunking = (
+            runs[0] if runs and config.chunking is config.chunking_runs[0]
+            else run_with(config.chunking) if config.chunking is not None
+            else None
+        )
+        return replace(
+            config,
+            web_assets=with_assets(config.web_assets),
+            chunking_runs=runs,
+            chunking=chunking,
+        )
 
     def _load_profiles(self) -> tuple:
         """Load and return the project's profiles.

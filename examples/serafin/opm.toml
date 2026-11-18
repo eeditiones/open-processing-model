@@ -3,6 +3,9 @@
 
 [project]
 pythonpath = ["."]
+# Previous/next letter links above the text, from correspContext, and the
+# register of the people and places a letter names beside it.
+profiles = ["edition-navigation", "registers"]
 
 [transform]
 odd = "odd/serafin.odd"
@@ -38,6 +41,12 @@ logo = "logo-textmark.svg"
 
 [context.theme.layout]
 logo_title = false
+
+# The registers profile: one tab each for the register_people and
+# register_places fragments below, without a heading above them.
+[context.features.register]
+label = ""
+categories = ["people", "places"]
 
 [context.theme.index]
 document_one = "letter"
@@ -78,8 +87,7 @@ odd = "odd/serafin.odd"
 xpath = ".//text[@type='source']/div"
 xpath_dynamic = "//text[@type = 'source']"
 output_dir = "chunks"
-# Landing page for a directory run: it extends the same serafin.html.tpl as the
-# letters and shares their CSS.
+# Title of the collection index a directory run writes.
 index_title = "Listy"
 doc_path = "letters"
 
@@ -106,15 +114,6 @@ parameters = { mode = "breadcrumb" }
 name = "letter_head"
 xpath = "./ancestor::TEI"
 parameters = { mode = "letter-head" }
-
-# Neighbouring letters for the toolbar above the letter, from correspContext:
-# previous/next in the edition and, where the TEI records them, in the same
-# correspondence. The ODD emits the stems as data-* attributes on a hidden
-# <nav>; templates/letter.html.tpl turns them into links.
-[[chunking.fragments]]
-name = "edition_navigation"
-xpath = "./ancestor::TEI"
-parameters = { mode = "edition-navigation" }
 
 [[chunking.fragments]]
 name = "register_people"

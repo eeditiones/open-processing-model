@@ -97,6 +97,7 @@ nav:
       - Templates & CSS: guide/templates-and-css.md
       - jinks templates: guide/jinks-templates.md
       - Assets: guide/assets.md
+      - Profiles: guide/profiles.md
       - ODD coverage: guide/coverage.md
       - ODD documentation: guide/odd-documentation.md
       - XPath extensions: guide/xpath-extensions.md

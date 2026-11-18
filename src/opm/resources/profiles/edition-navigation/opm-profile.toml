@@ -1,0 +1,35 @@
+name = "edition-navigation"
+version = "1.0.0"
+description = "Links to the previous and next document of the edition, and of the same correspondence, from correspContext"
+
+# Copied to the output's assets/ and linked from every page.
+assets = ["assets/edition-navigation.css"]
+
+# The navigation above the text of every page.
+[templating]
+use = ["edition-navigation.html.tpl"]
+
+# The project ODD's edition-navigation mode renders the document's
+# correspContext as a hidden element whose attributes name the neighbouring
+# documents, by directory or file name (a trailing .xml is fine):
+#   <nav hidden="hidden" data-previous="…" data-next="…"
+#        data-previous-in-correspondence="…" data-next-in-correspondence="…"
+#        data-correspondence="Sender – Addressee"/>
+# Any of them may be empty. The template turns them into links. See the
+# serafin and escher examples' ODDs for a model.
+[[chunking.fragments]]
+name = "edition_navigation"
+xpath = "./ancestor-or-self::*[last()]"
+parameters = { mode = "edition-navigation" }
+
+# Settings; a project overrides them in [context.features.edition-navigation].
+[context.features.edition-navigation]
+enabled = true
+# Labels of the four links and of the correspondence name between them.
+previous_label = "Previous in edition"
+next_label = "Next in edition"
+previous_in_correspondence_label = "Previous letter"
+next_in_correspondence_label = "Next letter"
+correspondence_label = "Correspondence"
+# aria-label of the navigation
+label = "Edition navigation"

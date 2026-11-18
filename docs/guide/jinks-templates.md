@@ -23,9 +23,8 @@ opm decides from the file name which language a template is written in:
 Jinja2 is the template language earlier versions of opm used, and opm still
 reads it. Both kinds of template receive the same information from opm, so
 you can move a project from one language to the other one page at a time.
-All packaged templates, the templates `opm init` writes and all examples but
-`shakespeare` use jinks; `opm init --jinja` writes Jinja2 templates
-instead.
+All packaged templates, the templates `opm init` writes and all examples use
+jinks; `opm init --jinja` writes Jinja2 templates instead.
 
 ## Templating syntax
 

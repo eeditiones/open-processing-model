@@ -2,6 +2,10 @@ name = "pagefind"
 version = "1.0.0"
 description = "Adds Pagefind static search functionality to the site"
 
+# Blocks added to every HTML page: the search button and window.
+[templating]
+use = ["pagefind.html.tpl"]
+
 # Build the search index once all pages are written (see search.py).
 [hooks]
 after_chunking = ["search.py:build_search"]

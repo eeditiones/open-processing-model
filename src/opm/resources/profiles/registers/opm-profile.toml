@@ -1,0 +1,37 @@
+name = "registers"
+version = "1.0.0"
+description = "Shows the people, places and other entities a document mentions in a sidebar column"
+
+# Copied to the output's assets/ and linked from every page.
+assets = ["assets/registers.css"]
+
+# The register column of every page.
+[templating]
+use = ["registers.html.tpl"]
+
+# The register of the whole document, from the ODD's register mode (in
+# teipublisher.odd: the people and places a document names, looked up in the
+# registers under $global:register-root). A project ODD may define its own.
+[[chunking.fragments]]
+name = "register"
+xpath = "./ancestor-or-self::*[last()]"
+parameters = { mode = "register" }
+
+# Settings; a project overrides them in [context.features.register].
+[context.features.register]
+enabled = true
+# The layout column the register goes into: "before" or "after".
+column = "after"
+# Heading above the register; empty for none.
+label = "Register"
+# Several registers shown as tabs, one per category. Each needs a fragment of
+# its own in the project's opm.toml, named register_<category>, e.g.
+#   [[chunking.fragments]]
+#   name = "register_people"
+#   xpath = "./ancestor::TEI"
+#   parameters = { mode = "register", category = "people" }
+# Empty: one panel with the "register" fragment above.
+categories = []
+
+# Tab labels by category; a category without one is shown capitalised.
+[context.features.register.category_labels]

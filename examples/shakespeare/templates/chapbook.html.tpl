@@ -1,9 +1,9 @@
-{#
+[#
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
 
   chapbook: multi-page, text-centric reading, on opm's packaged page layout
-  (opm/layout.html.j2). The layout writes the menubar (logo and <title>
+  (opm/layout.html.tpl). The layout writes the menubar (logo and <title>
   from site_name or the work's title) and the breadcrumb toolbar; chapbook
   adds its text-size buttons to the menubar, the contents as the `before`
   column and page-turn links around the text, as opm-reader-* classes.
@@ -13,110 +13,79 @@
   Its stylesheet, opm-theme-chapbook.css, is listed under [transform.web]
   assets in opm.toml: copied next to the output and linked by the base
   template.
-
   Shakespeare adds a facsimile column to the scaffold shell: a IIIF viewer
   (<pb-tify>) beside the transcription, turned by the <pb-facs-link> each
-  folio emits, styled by facsimile.css. context.scripts carries pb-tify.js,
-  which ships as its own entry point rather than inside the pb-components
-  bundle.
--#}
+  folio emits. It comes from the iiif profile ([project] profiles in
+  opm.toml); facsimile.css fits it into chapbook's measurements.
+#]
 ---toml
 [theme.body]
 classes = ["opm-reader"]
+
+[templating]
+extends = "opm/layout.html.tpl"
 ---
-{% extends "opm/layout.html.j2" %}
-{% set is_chunk = chunk is defined and chunk %}
-{% set has_toc = fragments is defined and fragments.toc %}
-{% set show_facsimile = is_chunk and context.webcomponents_url %}
-{% block body_class %}{% if has_toc %}opm-reader--with-toc{% endif %}{% if show_facsimile %} opm-reader--with-facs{% endif %}{% endblock %}
+[% template body_class %][% if $context?fragments?toc %]opm-reader--with-toc[% endif %][% endtemplate %]
 
-{# pb-components resolve relative URLs against the endpoint of an ancestor
-   <pb-page>; without one getEndpoint() is undefined and pb-tify asks for
-   /undefined/assets/…. "." makes the manifest resolve beside the page.
-   api-version is pinned so pb-page does not probe ./api/version. #}
-{% block body %}
-  {% if show_facsimile %}
-  <pb-page endpoint="." api-version="1.0.0" theme="{{ context.webcomponents_theme }}">
-  {{ super() }}
-  </pb-page>
-  {% else %}
-  {{ super() }}
-  {% endif %}
-{% endblock %}
-
-{# Reader-set text size, remembered per browser. #}
-{% block menu_toggles %}
+[# Reader-set text size, remembered per browser. #]
+[% template menu.toggles %]
   <li class="opm-reader-zoom">
     <button type="button" data-chap-zoom="-0.1" title="Smaller text" aria-label="Smaller text">A&minus;</button>
     <button type="button" data-chap-zoom="0.1" title="Larger text" aria-label="Larger text">A+</button>
   </li>
-{% endblock %}
+[% endtemplate %]
 
-{% block before %}
-  {% if has_toc %}
+[% template before %]
+  [% if $context?fragments?toc %]
   <nav class="opm-reader-toc" aria-label="Contents">
     <p class="opm-reader-toc__title">Contents</p>
-    {{ fragments.toc | safe }}
+    [[ $context?fragments?toc ]]
   </nav>
-  {% endif %}
-{% endblock %}
+  [% endif %]
+[% endtemplate %]
 
-{% block content %}
-  <div class="opm-reader-page{% if is_chunk %} opm-reader-page--chunk{% endif %}{% if has_toc %} opm-reader-page--with-toc{% endif %}{% if show_facsimile %} opm-reader-page--with-facs{% endif %}">
-    <div class="opm-reader-body">
-      <article class="content" id="opm-reader-content">
-        {{ content_html | safe }}
-      </article>
+<div class="opm-reader-page[[ if (exists($context?chunk)) then ' opm-reader-page--chunk' else '' ]][[ if ($context?fragments?toc) then ' opm-reader-page--with-toc' else '' ]]">
+  <div class="opm-reader-body">
+    <article class="content" id="opm-reader-content">
+      [[ $context?content_html ]]
+    </article>
+  </div>
+
+  [% if $context?chunk?prev or $context?chunk?next %]
+  <nav class="opm-reader-folio-nav__foot" aria-label="Page navigation">
+    <div>
+      [% if $context?chunk?prev %]<a href="[[ $context?chunk?prev ]].html" rel="prev">&#8592; Previous</a>[% endif %]
     </div>
+    <div>
+      [% if $context?chunk?next %]<a href="[[ $context?chunk?next ]].html" rel="next">Next &#8594;</a>[% endif %]
+    </div>
+  </nav>
+  [% endif %]
+</div>
 
-    {% if is_chunk and (chunk.prev or chunk.next) %}
-    <nav class="opm-reader-folio-nav__foot" aria-label="Page navigation">
-      <div>
-        {% if chunk.prev %}<a href="{{ chunk.prev }}.html" rel="prev">&#8592; Previous</a>{% endif %}
-      </div>
-      <div>
-        {% if chunk.next %}<a href="{{ chunk.next }}.html" rel="next">Next &#8594;</a>{% endif %}
-      </div>
-    </nav>
-    {% endif %}
-  </div>
-{% endblock %}
+[# A footer across the bottom of every page. Fill it in, e.g.
+   <div class="opm-reader-footer"><div class="opm-reader-footer__inner">© My Edition</div></div>
+   (opm-theme-chapbook.css styles these classes), or delete it if you need none. #]
+[% template footer %]
+[% endtemplate %]
 
-{% block after %}
-  {% if show_facsimile %}
-  <!-- pb-facs-link emits the manifest URL and page index on the
-        "transcription" channel; pb-tify subscribes and turns to that page. -->
-  <aside class="opm-reader-facs" aria-label="Facsimile">
-    <pb-tify subscribe="transcription" emit="transcription"></pb-tify>
-  </aside>
-  {% endif %}
-{% endblock %}
-
-{% block footer %}
-  {% if context.footer %}
-  <div class="opm-reader-footer">
-    <div class="opm-reader-footer__inner">{{ context.footer | safe }}</div>
-  </div>
-  {% endif %}
-{% endblock %}
-
-{% block body_end %}
-  {% if is_chunk and chunk.prev %}
+[% template body_end %]
+  [% if $context?chunk?prev %]
   <div class="opm-reader-folio-nav__rail opm-reader-folio-nav__rail--prev">
-    <a href="{{ chunk.prev }}.html" rel="prev" title="Previous page (left arrow key)">
+    <a href="[[ $context?chunk?prev ]].html" rel="prev" title="Previous page (left arrow key)">
       <span class="opm-reader-folio-nav__chevron" aria-hidden="true">&#8592;</span>
       <span class="opm-reader-folio-nav__dir">Previous</span>
     </a>
   </div>
-  {% endif %}
-  {% if is_chunk and chunk.next %}
+  [% endif %]
+  [% if $context?chunk?next %]
   <div class="opm-reader-folio-nav__rail opm-reader-folio-nav__rail--next">
-    <a href="{{ chunk.next }}.html" rel="next" title="Next page (right arrow key)">
+    <a href="[[ $context?chunk?next ]].html" rel="next" title="Next page (right arrow key)">
       <span class="opm-reader-folio-nav__chevron" aria-hidden="true">&#8594;</span>
       <span class="opm-reader-folio-nav__dir">Next</span>
     </a>
   </div>
-  {% endif %}
+  [% endif %]
 
   <script>
   (function () {
@@ -139,7 +108,7 @@ classes = ["opm-reader"]
       });
     }
 
-    {# Arrow keys turn the page, as the rails do. #}
+    [# Arrow keys turn the page, as the rails do. #]
     var prev = document.querySelector('.opm-reader-folio-nav__rail--prev a');
     var next = document.querySelector('.opm-reader-folio-nav__rail--next a');
     if (!prev && !next) return;
@@ -152,4 +121,4 @@ classes = ["opm-reader"]
     });
   })();
   </script>
-{% endblock %}
+[% endtemplate %]

@@ -185,103 +185,6 @@ body.letter--parallel {
   gap: 1.1rem;
 }
 
-/* ── Correspondence toolbar (edition + thread) ────────────── */
-
-.letter-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.45rem 0.15rem 0.7rem;
-  border-bottom: 1px solid var(--opm-color-rule);
-  font-family: var(--opm-font-ui);
-}
-
-.letter-nav__side {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.letter-nav__side--next {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.letter-nav__group {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.letter-nav__group--end {
-  justify-content: flex-end;
-}
-
-.letter-nav__link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  max-width: 100%;
-  padding: 0.35rem 0.55rem;
-  border: 1px solid color-mix(in srgb, var(--opm-color-rule) 85%, transparent);
-  border-radius: 0.2rem;
-  background: color-mix(in srgb, var(--letter-parchment) 55%, var(--opm-background-color));
-  color: var(--opm-color);
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  line-height: 1;
-  text-decoration: none;
-  text-transform: uppercase;
-  transition:
-    color 0.15s ease,
-    border-color 0.15s ease,
-    background-color 0.15s ease;
-}
-
-.letter-nav__link--thread {
-  background: transparent;
-  color: var(--opm-color-muted);
-  letter-spacing: 0.06em;
-}
-
-.letter-nav__link:hover {
-  color: var(--opm-color-accent);
-  border-color: color-mix(in srgb, var(--opm-color-accent) 35%, var(--opm-color-rule));
-  background: var(--opm-color-accent-soft);
-}
-
-.letter-nav__link:focus-visible {
-  outline: 2px solid var(--opm-color-accent);
-  outline-offset: 2px;
-}
-
-.letter-nav__link--disabled {
-  opacity: 0.28;
-  pointer-events: none;
-}
-
-.letter-nav__icon {
-  flex: none;
-  width: 1rem;
-  height: 1rem;
-}
-
-.letter-nav__dir {
-  white-space: nowrap;
-}
-
-.letter-nav__mark {
-  flex: none;
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--opm-color-muted);
-  font-variant-numeric: tabular-nums;
-}
-
 /* ── Letter head: title, source note, date ────────────────── */
 
 .letter-head {
@@ -657,7 +560,7 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
 
 /* ── Register rail ────────────────────────────────────────── */
 
-.letter-register {
+.register-panel {
   font-size: 0.85rem;
 }
 
@@ -676,117 +579,10 @@ body .tippy-box[data-theme~="light-border"] > .tippy-svg-arrow > svg:last-child 
   }
 }
 
-/* ── Register tabs (CSS-only, radio driven) ───────────────── */
-
-.register-tabs__radio {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.register-tabs__strip {
-  display: flex;
-  gap: 1.25rem;
-  margin-bottom: 1.1rem;
-  border-bottom: 1px solid var(--opm-color-rule);
-}
-
-.register-tabs__tab {
-  padding: 0 0 0.55rem;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  font-family: var(--opm-font-ui);
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--opm-color-muted);
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
-}
-
-.register-tabs__tab:hover {
-  color: var(--opm-color);
-}
-
-.register-tabs__panel {
-  display: none;
-}
-
-#register-tab-people:checked ~ .register-tabs__strip .register-tabs__tab--people,
-#register-tab-places:checked ~ .register-tabs__strip .register-tabs__tab--places {
-  border-bottom-color: var(--opm-color-accent);
-  color: var(--opm-color);
-}
-
-#register-tab-people:checked ~ .register-tabs__panel--people,
-#register-tab-places:checked ~ .register-tabs__panel--places {
-  display: block;
-}
-
-/* Keyboard focus has to be visible on the label, not the hidden radio. */
-.register-tabs__radio:focus-visible ~ .register-tabs__strip .register-tabs__tab--people,
-.register-tabs__radio:focus-visible ~ .register-tabs__strip .register-tabs__tab--places {
-  outline: 2px solid var(--opm-color-accent);
-  outline-offset: 2px;
-}
-
-/* The .register list itself is styled by the ODD stylesheet; only the
-   rail-specific spacing is set here. */
-.letter-register .register ul {
-  margin: 0;
-}
-
 /* ── Collection index ─────────────────────────────────────── */
 
 @media print {
-  .letter-nav {
-    display: none;
-  }
-
   .letter-parallel:not(.letter-parallel--single) {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .letter-register {
-    break-inside: avoid;
-  }
-
-  /* Both registers on paper — tabs mean nothing in print, so the labels
-     they carried come back as headings. */
-  .register-tabs__panel {
-    display: block;
-  }
-
-  .register-tabs__panel + .register-tabs__panel {
-    margin-top: 1.5rem;
-  }
-
-  .register-tabs__panel::before {
-    display: block;
-    margin-bottom: 0.7rem;
-    padding-bottom: 0.35rem;
-    border-bottom: 1px solid var(--opm-color-rule);
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--opm-color-muted);
-  }
-
-  .register-tabs__panel--people::before {
-    content: "People";
-  }
-
-  .register-tabs__panel--places::before {
-    content: "Places";
-  }
-
-  .register-tabs__strip {
-    display: none;
   }
 }

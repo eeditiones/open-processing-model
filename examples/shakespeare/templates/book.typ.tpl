@@ -1,7 +1,7 @@
-{#
+[#
   SPDX-FileCopyrightText: 2026 e-editiones
   SPDX-License-Identifier: CC0-1.0
--#}
+#]
 // Reading edition of a First Folio play, after the Folger Shakespeare layout:
 // through-line numbers in the left margin, small-caps speech prefixes, centred
 // act/scene headings, and a running head carrying the act and scene.
@@ -11,14 +11,12 @@
 // which is a different genre from a numbered scholarly text. Everything here is
 // built on Typst's own `par.line`, which numbers typeset lines natively.
 
-{% include "opm_css_fns_default.typ.j2" %}
+[% include "opm_css_fns_default.typ.j2" %]
 
-{% set _authors = metadata.get('authors', []) -%}
-{% set _full_title = (metadata.get('title') or [''])[0] -%}
-#let full-title = "{{ _full_title | replace('"', '\\"') }}"
-#let short-title = "{{ context.short_title | default(_full_title, true) | replace('"', '\\"') }}"
-#let author = "{{ (_authors[0] if _authors else '') | replace('"', '\\"') }}"
-#let source-note = "{{ context.source_note | default('', true) | replace('"', '\\"') }}"
+#let full-title = "[[ replace(string(($context?metadata?title?*)[1]), '"', '\"', 'q') ]]"
+#let short-title = "[[ replace(string(($context?short_title[. != ''], ($context?metadata?title?*)[1])[1]), '"', '\"', 'q') ]]"
+#let author = "[[ replace(string(($context?metadata?authors?*)[1]), '"', '\"', 'q') ]]"
+#let source-note = "[[ replace(string($context?source_note), '"', '\"', 'q') ]]"
 
 #set document(title: short-title, author: author)
 
@@ -55,7 +53,7 @@
 // ── Line numbers ──────────────────────────────────────────────────────────
 // Typst numbers *typeset* lines, so a wrapped turn-under stays unnumbered —
 // the same convention the Folger's through-line numbers follow.
-#let line-number-every = {{ context.line_number_every | default(5, true) }}
+#let line-number-every = [[ ($context?line_number_every[. != 0], 5)[1] ]]
 #set par.line(
   numbering: n => if calc.rem(n, line-number-every) == 0 {
     text(size: 7pt, fill: luma(115))[#n]
@@ -122,9 +120,9 @@
   },
 )
 
-{{ odd_typst }}
+[[ $context?odd_typst ]]
 
-{% include "opm_css.typ.j2" %}
+[% include "opm_css.typ.j2" %]
 
 // ── Title page ────────────────────────────────────────────────────────────
 #{
@@ -147,4 +145,4 @@
 }
 #counter(page).update(1)
 
-{{ content_typst }}
+[[ $context?content_typst ]]

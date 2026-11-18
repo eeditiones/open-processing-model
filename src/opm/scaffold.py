@@ -152,10 +152,6 @@ EXAMPLES: tuple[ExampleProject, ...] = (
 
 EXAMPLE_NAMES = tuple(example.name for example in EXAMPLES)
 
-#: Examples whose templates are written in Jinja2 rather than jinks; one is
-#: kept to show that syntax.
-_JINJA_EXAMPLES = frozenset({'shakespeare'})
-
 # Copied from an example only as project furniture; generated output and editor
 # leavings never belong in a new project. The last three are what
 # ``examples/odd`` writes (see .gitignore); a checkout that has been built
@@ -405,8 +401,8 @@ def _scaffold_example(options: InitOptions) -> ScaffoldResult:
     written: list[Path] = []
     skipped: list[Path] = []
     force = options.force
-    # The example's own templates keep their syntax; the extra ones follow it.
-    suffix = JINJA_SUFFIX if example.name in _JINJA_EXAMPLES else JINKS_SUFFIX
+    # Every example is written in jinks; the extra shells follow it.
+    suffix = JINKS_SUFFIX
 
     for src in sorted(source.rglob('*')):
         if not src.is_file() or _EXAMPLE_SKIP & set(src.relative_to(source).parts):

@@ -14,6 +14,8 @@ the config file.
 [project]
 # Additional Python paths (relative to the config file) for custom extensions
 pythonpath = ["."]
+# Ready-made features to add to every page (see the Profiles guide)
+profiles = ["edition-navigation"]
 
 [transform]
 # Default ODD for every output mode (compiled on demand)
@@ -97,7 +99,8 @@ index_title = "Correspondence"
 
 | Section | Purpose | Related guide |
 | --- | --- | --- |
-| `[project]` | `pythonpath` additions so local extension modules import | [XPath extensions](xpath-extensions.md) |
+| `[project]` | `pythonpath` additions so local extension modules import; `profiles` to switch on | [XPath extensions](xpath-extensions.md), [Profiles](profiles.md) |
+| `[context.features.<name>]` | Settings of a profile | [Profiles](profiles.md) |
 | `[transform]` | Shared settings (`odd`, `xpath_extensions`, `documents`, `footnote_order`, `parameters`, base `css`) | [Output formats](output-formats.md), [ODD `$parameters`](odd-files.md#parameters), [Footnotes](footnotes.md), [Templates & CSS](templates-and-css.md#adding-custom-css) |
 | `[transform.web]` | Optional web-only `odd` override, HTML `template` and its `assets` | [Templates & CSS](templates-and-css.md), [Assets](assets.md) |
 | `[transform.print]` | Optional print `odd` and HTML `template` | [Output formats](output-formats.md#print-paged-media) |

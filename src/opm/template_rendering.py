@@ -195,11 +195,19 @@ class JinksPageTemplate:
     it as nodes, and writing it gives back the HTML unchanged.
     """
 
-    def __init__(self, template: jinks.Template) -> None:
+    def __init__(self, template: jinks.Template, use: tuple[str, ...] = ()) -> None:
         self.template = template
+        #: Templates the profiles add to every page, before any the context names.
+        self.use = use
 
     def render(self, **variables: Any) -> str:
         context = variables.pop('context', None) or {}
+        if self.use:
+            templating = dict(context.get('templating') or {})
+            named = templating.get('use') or []
+            named = [named] if isinstance(named, str) else list(named)
+            templating['use'] = [*self.use, *(f for f in named if f not in self.use)]
+            context = {**context, 'templating': templating}
         for name in _MARKUP_VARIABLES:
             if isinstance(variables.get(name), str):
                 variables[name] = jinks.Markup(variables[name])
@@ -249,7 +257,14 @@ def template_environment(
     """
     searchpaths = _searchpaths(template_path, project)
     if is_jinks_template(template_path):
-        return jinks.Environment(searchpaths, parser_factory=_jinks_parser_factory(xpath_env))
+        env = jinks.Environment(searchpaths, parser_factory=_jinks_parser_factory(xpath_env))
+        # HTML pages take the blocks of every profile's `use` templates; a
+        # Typst template, sharing the context, must not.
+        if project is not None and '.html' in template_path.name:
+            env.profile_use = tuple(
+                file for profile, _ in getattr(project, '_profiles', ()) for file in profile.use
+            )
+        return env
     env = Environment(loader=FrontmatterLoader(searchpaths), autoescape=False)
     env.globals['trimmed'] = TrimmedBlocks
     return env
@@ -260,7 +275,9 @@ def load_template(env: Environment | jinks.Environment, template_path: Path,
     """Load *template_path* from *env*, raising ``FileNotFoundError`` if missing."""
     if isinstance(env, jinks.Environment):
         try:
-            return JinksPageTemplate(env.get_template(template_path.name))
+            return JinksPageTemplate(
+                env.get_template(template_path.name), use=getattr(env, 'profile_use', ()),
+            )
         except jinks.TemplateNotFound as e:
             raise FileNotFoundError(f'{label} not found: {e}') from e
     try:

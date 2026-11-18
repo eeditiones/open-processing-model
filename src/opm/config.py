@@ -376,10 +376,13 @@ def _chunking_tables(value: Any) -> list[dict[str, Any]]:
     )
 
 
-def _parse_chunking(data: dict[str, Any], config_path: Path) -> ChunkingConfig:
-    """One chunking run from its ``[chunking]`` / ``[[chunking]]`` table."""
+def parse_fragments(tables: Any, base_dir: Path) -> list[FragmentConfig]:
+    """``[[chunking.fragments]]`` tables as configs; a relative ``odd`` resolves against *base_dir*.
+
+    Tables without a name or with an unknown scope are skipped.
+    """
     fragments: list[FragmentConfig] = []
-    for frag_data in data.get('fragments', []):
+    for frag_data in tables or []:
         if not isinstance(frag_data, dict):
             continue
         raw_frag_odd = frag_data.get('odd')
@@ -389,11 +392,17 @@ def _parse_chunking(data: dict[str, Any], config_path: Path) -> ChunkingConfig:
             xpath=frag_data.get('xpath', '.'),
             xpath_dynamic=frag_data.get('xpath_dynamic'),
             parameters=frag_data.get('parameters'),
-            odd=config_path.parent / str(raw_frag_odd) if raw_frag_odd else None,
+            odd=base_dir / str(raw_frag_odd) if raw_frag_odd else None,
             mode=str(frag_data.get('mode', 'web')).strip().lower() or 'web',
         )
         if fragment.name and fragment.scope in ('global', 'per-chunk'):
             fragments.append(fragment)
+    return fragments
+
+
+def _parse_chunking(data: dict[str, Any], config_path: Path) -> ChunkingConfig:
+    """One chunking run from its ``[chunking]`` / ``[[chunking]]`` table."""
+    fragments = parse_fragments(data.get('fragments', []), config_path.parent)
 
     template = data.get('template')
     index_template = data.get('index_template')
