@@ -133,10 +133,10 @@ def test_profile_context_is_added_to_the_project_context(tmp_path: Path) -> None
 def test_project_context_wins_over_profile_context(tmp_path: Path) -> None:
     """A profile supplies defaults; the project's own ``[context]`` overrides them."""
     project = Project.load(_config(
-        tmp_path, '[project]\nprofiles = ["pagefind"]\n\n[context]\npagefind_base = "find"\n',
+        tmp_path, '[project]\nprofiles = ["pagefind"]\n\n[context.features.pagefind]\nbase = "find"\n',
     ))
-    assert project.config.template_context['pagefind_base'] == 'find'
-    assert project.config.template_context['pagefind_enabled'] is True
+    pagefind = project.config.template_context['features']['pagefind']
+    assert pagefind == {'enabled': True, 'base': 'find'}
 
 
 def test_later_profile_context_wins_over_earlier_one(tmp_path: Path) -> None:
@@ -225,7 +225,7 @@ def test_pagefind_profile_adds_search_to_the_site(tmp_path: Path) -> None:
 def test_pagefind_search_folder_follows_the_context(tmp_path: Path) -> None:
     pytest.importorskip('pagefind.index')
     run = _chunking_project(
-        tmp_path, '[project]\nprofiles = ["pagefind"]\n\n[context]\npagefind_base = "find"\n',
+        tmp_path, '[project]\nprofiles = ["pagefind"]\n\n[context.features.pagefind]\nbase = "find"\n',
     ).chunk(tmp_path / 'doc.xml')
     assert (run.output_dir / 'assets' / 'find' / 'pagefind-entry.json').is_file()
     assert 'src="assets/find/pagefind-component-ui.js"' in run.index_file.read_text(encoding='utf-8')

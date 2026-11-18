@@ -29,9 +29,6 @@ template = "templates/docbook.typ.tpl"
 
 [context]
 site_name = "TEI Publisher Documentation"
-pagefind_enabled = true
-# Base URL for pagefind assets
-pagefind_base = "search"
 
 # opm-theme-handbook.css has a dark palette too: follow the reader's system.
 [context.theme]

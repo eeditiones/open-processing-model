@@ -6,10 +6,12 @@ description = "Adds Pagefind static search functionality to the site"
 [hooks]
 after_chunking = ["search.py:build_search"]
 
-# Context variables contributed by this profile
-# These will be merged into the project's [context] section
-[context]
+# Context variables contributed by this profile, merged into the project's
+# [context]. A project overrides them in its own [context.features.pagefind].
+[context.features.pagefind]
 # Flag indicating pagefind is enabled
-pagefind_enabled = true
+enabled = true
 # Folder below assets/ the search index and Pagefind UI are written to
-pagefind_base = "search"
+base = "search"
+# Language of the search index; defaults to [context] lang, then "en"
+# language = "en"

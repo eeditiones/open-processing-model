@@ -18,7 +18,11 @@ from opm.assets import ASSETS_DIR
 
 
 def build_search(project: Any, run: Any) -> None:
-    """Write the search index and the Pagefind UI below ``assets/<pagefind_base>``."""
+    """Write the search index and the Pagefind UI below ``assets/<base>``.
+
+    Settings come from ``[context.features.pagefind]``: ``base`` (default
+    ``search``) and ``language`` (default ``[context] lang``, then ``en``).
+    """
     if run.format != 'html':
         return
     try:
@@ -30,8 +34,9 @@ def build_search(project: Any, run: Any) -> None:
         ) from e
 
     context = project.config.template_context
-    output = run.output_dir / ASSETS_DIR / str(context.get('pagefind_base') or 'search')
-    language = str(context.get('pagefind_language') or context.get('lang') or 'en')
+    settings = (context.get('features') or {}).get('pagefind') or {}
+    output = run.output_dir / ASSETS_DIR / str(settings.get('base') or 'search')
+    language = str(settings.get('language') or context.get('lang') or 'en')
     dirs = {Path(source).resolve(): name for source, name in run.document_dirs.items()}
     records = project.index(list(run.documents))
 
