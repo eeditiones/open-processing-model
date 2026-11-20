@@ -32,6 +32,7 @@ from lxml import etree
 from opm.assets import ASSETS_DIR, asset_styles, resolve_assets
 from opm.chunking import chunk_document
 from opm.config import ChunkingConfig, PageConfig
+from opm.jinks_templates.merge import merge_deep
 from opm.template_frontmatter import template_context
 from opm.template_rendering import (
     LAYOUT_CSS_NAME,
@@ -53,11 +54,6 @@ class PageResult:
     """The files written, absolute."""
     href: str
     """Link to the page's entry point, relative to the output root."""
-
-    @property
-    def label(self) -> str:
-        """The ``menu`` label, else the path's stem."""
-        return self.page.menu or PurePosixPath(self.page.path).stem
 
 
 def _page_dir_and_pattern(page: PageConfig) -> tuple[str, str]:
@@ -134,12 +130,12 @@ def _render_static_page(
         'site_root': prefix,
     }
     context = template_context(
-        env, template_path.name, project.config.context_for('web', webcomponents=webcomponents),
+        env, template_path.name,
+        merge_deep(project.config.context_for('web', webcomponents=webcomponents), page.context or {}),
     )
     rendered = tpl.render(
         content_html='',
         head_html='',
-        title=page.menu or PurePosixPath(page.path).stem,
         context={**context, **urls},
         site_documents=_documents_from(documents, prefix),
     )
@@ -224,9 +220,9 @@ def _render_data_page(
         url_prefix=_url_prefix(page),
         role='page',
         on_progress=on_progress,
+        context=page.context,
         template_variables={
             'site_documents': _documents_from(documents, prefix),
-            'page_label': _page_label(project, page),
         },
     )
     page_dir = out_root / directory if directory else out_root
@@ -239,22 +235,6 @@ def _render_data_page(
         files = [out_root / page.path]
     href = f'{directory}/{files[0].name}' if directory else files[0].name
     return PageResult(page=page, files=tuple(files), href=href)
-
-
-def _page_label(project: Any, page: PageConfig) -> str:
-    """The page's ``menu`` label, else that of a page in the same directory.
-
-    One page per register entry has no menu entry of its own; its
-    breadcrumb names the overview it belongs to.
-    """
-    if page.menu:
-        return page.menu
-    directory = PurePosixPath(page.path).parent
-    return next(
-        (other.menu for other in project.config.pages
-         if other.menu and PurePosixPath(other.path).parent == directory),
-        '',
-    )
 
 
 def _documents_from(documents: Sequence[Mapping[str, Any]], prefix: str) -> list[dict[str, Any]]:

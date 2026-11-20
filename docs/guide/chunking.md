@@ -258,12 +258,12 @@ In other words: _pages_ are the missing building block you need to create a full
 [[pages]]
 path = "about.html"
 template = "templates/about.html.tpl"
-menu = "About"                     # its label, e.g. in a breadcrumb
+context = { page_title = "About" }    # this page's <title>
 
 # One page listing every place.
 [[pages]]
 path = "places/index.html"
-menu = "Places"
+context = { page_title = "Places" }
 source = "data/registers/places.xml"   # the page's own source, not the letters
 xpath = "//listPlace"                  # must select exactly one node
 parameters = { mode = "register-overview" }
@@ -291,9 +291,17 @@ the site root and without `.html` (`places/Krakow`), are pointed at the page
 opm wrote. A page directory's `manifest.json` is tagged
 `"role": "page"` so the collection index skips it.
 
-A page's `menu` label is used on the collection index. The menubar is not
-derived from pages: it reads `[context.menu] items` only, so a page you want
-linked there — e.g. a profile's browse page — is listed explicitly:
+A page's `context` table is merged over the project's `[context]` for that
+page only, the way a template's frontmatter is: tables combine key by key.
+That is how a page passes its template what the project as a whole does not
+know, such as its title: `page_title` becomes the page's `<title>` in the
+standard layout, and a template can read it as `$context?page_title`. A
+project that changes a profile's page merges its `context` with the
+profile's the same way.
+
+The menubar is not derived from pages: it reads `[context.menu] items` only,
+so a page you want linked there — e.g. a profile's browse page — is listed
+explicitly:
 
 ```toml
 [context.menu]

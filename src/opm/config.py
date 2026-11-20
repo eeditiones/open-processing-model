@@ -276,12 +276,10 @@ class PageConfig:
 
     Without one, the first chunking run's template is used, as for chunk pages.
     """
-    menu: str | None = None
-    """The page's label: its heading and breadcrumb, and those of the other
-    pages in its directory that have none of their own. The menubar is not
-    derived from this: it reads ``[context.menu] items`` only,
-    so a page that should appear there is listed explicitly, e.g. by the
-    project or by a profile's own ``[context.menu]``."""
+    context: dict[str, Any] | None = None
+    """Template context for this page only, merged over the project's
+    ``[context]`` like template frontmatter: tables combine key by key. The
+    registers profile's overviews read their title from ``page_title``."""
     source: Path | None = None
     """XML file (or directory) this page is generated from — independent of the
     source ``opm chunk`` is given. Without it the page is static: the template
@@ -318,7 +316,7 @@ class PageConfig:
 
 #: The keys a ``[[pages]]`` entry may hold.
 _PAGE_KEYS = {
-    'path', 'template', 'menu', 'source', 'xpath', 'selector',
+    'path', 'template', 'context', 'source', 'xpath', 'selector',
     'odd', 'parameters', 'fragments', 'enabled',
 }
 
@@ -375,7 +373,9 @@ def parse_pages(
         raw_template = entry.get('template')
         raw_source = entry.get('source')
         raw_odd = entry.get('odd')
-        menu = entry.get('menu')
+        context = entry.get('context')
+        if context is not None and not isinstance(context, dict):
+            raise ValueError(f'{label}: {where}.context must be a table')
         enabled = entry.get('enabled', True)
         if not isinstance(enabled, bool):
             raise ValueError(f'{label}: {where}.enabled must be a boolean')
@@ -383,7 +383,7 @@ def parse_pages(
             PageConfig(
                 path=path,
                 template=base_dir / str(raw_template) if raw_template else None,
-                menu=str(menu) if menu is not None else None,
+                context=context,
                 source=source_base / str(raw_source) if raw_source else None,
                 xpath=entry.get('xpath'),
                 selector=entry.get('selector'),

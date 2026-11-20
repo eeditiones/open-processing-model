@@ -46,6 +46,7 @@ from opm.config import (
     load_project_config,
     resolve_base_css,
 )
+from opm.jinks_templates.merge import merge_deep
 from opm.profile import load_profiles, merge_profile_configs, get_profile_paths, PROFILE_LOCATIONS
 from opm.odd_cache import ResolvedTransform, resolve_transform_module
 from opm.output_modes import output_mode
@@ -785,9 +786,6 @@ class Project:
                 only=pages if isinstance(pages, str) else None,
             )
         page_files = tuple(file for result in page_results for file in result.files)
-        page_links = [
-            {'label': result.label, 'href': result.href} for result in page_results
-        ]
 
         # Every HTML run leaves one subdirectory per document, which a web
         # server would otherwise show as a bare listing.
@@ -803,7 +801,6 @@ class Project:
                 chunking_config=chunking,
                 webcomponents=enabled,
                 project=self,
-                pages=page_links,
             )
         run_result = ChunkRun(
             output_dir=out_dir,
@@ -896,9 +893,10 @@ class Project:
 def _merge_page(own: PageConfig, profile: PageConfig) -> PageConfig:
     """A project's ``[[pages]]`` entry laid over the profile's entry for the same path.
 
-    Every key the project sets wins; the others come from the profile, so
-    ``menu = "Orte"`` alone relabels the profile's page and keeps its
-    template, selection and parameters. ``enabled`` is the project's. The
+    Every key the project sets wins; the others come from the profile.
+    ``context`` is merged key by key, so ``context = { page_title = "Orte" }``
+    alone relabels the profile's page and keeps its template, selection,
+    parameters and the rest of its context. ``enabled`` is the project's. The
     page stays a profile page (a missing ``source`` skips it) unless the
     project names its own ``source``, which must then exist.
     """
@@ -907,6 +905,8 @@ def _merge_page(own: PageConfig, profile: PageConfig) -> PageConfig:
         for f in fields(PageConfig)
         if f.name not in ('path', 'enabled', 'from_profile')
     }
+    if own.context is not None and profile.context is not None:
+        merged['context'] = merge_deep(profile.context, own.context)
     return PageConfig(
         path=own.path,
         enabled=own.enabled,

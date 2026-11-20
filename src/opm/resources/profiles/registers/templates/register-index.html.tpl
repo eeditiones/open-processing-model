@@ -9,23 +9,19 @@
 [theme.body]
 classes = ["register-page"]
 
+# No toolbar: these pages have no breadcrumb or prev/next.
+[features.toolbar]
+enabled = false
+
 [templating]
 extends = "opm/layout.html.tpl"
 ---
-[% template title %]
-<title>[[ ($context?page_label[. != ''], 'Register')[1] ]]</title>
-[% endtemplate %]
-
-[% template breadcrumb %]
-<span>[[ $context?page_label ]]</span>
-[% endtemplate %]
-
 [% let $collation = 'http://www.w3.org/2013/collation/UCA?lang=' || ($context?lang[. != ''], 'en')[1] %]
 [% let $entries = sort(parse-xml-fragment(string($context?content_html))//*:header/parent::*, $collation, function($entry) { normalize-space($entry/*:header) }) %]
 [% let $initials = distinct-values($entries ! upper-case(substring(normalize-space(*:header), 1, 1))) %]
 <div class="register-index">
   <header class="register-index__head">
-    <h1>[[ $context?page_label ]]</h1>
+    <h1>[[ $context?page_title ]]</h1>
     <p class="register-index__count">[[ count($entries) ]]</p>
   </header>
   [% if exists($entries//*:pb-geolocation) and $context?webcomponents_url %]

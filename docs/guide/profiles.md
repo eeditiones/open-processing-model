@@ -139,7 +139,6 @@ parameters = { mode = "my-mode" }
 # against the project root.
 [[pages]]
 path = "places/{xml_id}.html"
-menu = "Places"
 source = "data/registers/places.xml"
 xpath = "//listPlace/place"
 template = "templates/place.html.tpl"

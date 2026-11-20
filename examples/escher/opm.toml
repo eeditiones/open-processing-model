@@ -62,16 +62,15 @@ url = "places/index.html"
 label = "Personen"
 url = "people/index.html"
 
-# The registers profile's browse pages, labelled in German: the label heads
-# the overview and leads the breadcrumb of each entry's page. Only `menu` is
-# set; everything else comes from the profile.
+# The registers profile's browse pages, titled in German. Only the title
+# is set; everything else comes from the profile.
 [[pages]]
 path = "places/index.html"
-menu = "Orte"
+context = { page_title = "Orte" }
 
 [[pages]]
 path = "people/index.html"
-menu = "Personen"
+context = { page_title = "Personen" }
 
 # The edition-navigation profile's links, in German.
 [context.features.edition-navigation]

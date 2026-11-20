@@ -75,11 +75,11 @@ _PAGES_TOML = (
     '[[pages]]\n'
     'path = "about.html"\n'
     'template = "templates/about.html.tpl"\n'
-    'menu = "About"\n'
+    'context = { page_title = "About" }\n'
     '\n'
     '[[pages]]\n'
     'path = "places/index.html"\n'
-    'menu = "Places"\n'
+    'context = { page_title = "Places" }\n'
     'source = "register.xml"\n'
     'xpath = "//listPlace"\n'
     '\n'
@@ -150,7 +150,7 @@ def test_pages_are_parsed_from_the_config(tmp_path: Path) -> None:
         'about.html', 'places/index.html', 'places/{xml_id}.html',
     ]
     about, overview, detail = cfg.pages
-    assert about.menu == 'About'
+    assert about.context == {'page_title': 'About'}
     assert about.template == tmp_path / 'templates' / 'about.html.tpl'
     assert about.source is None
     assert overview.source == tmp_path / 'register.xml'
@@ -159,7 +159,7 @@ def test_pages_are_parsed_from_the_config(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize('toml, match', [
-    ('[[pages]]\nmenu = "x"\n', 'missing "path"'),
+    ('[[pages]]\ntemplate = "x"\n', 'missing "path"'),
     ('[[pages]]\npath = "a.html"\nweird = 1\n', 'unknown key'),
     ('[[pages]]\npath = "../a.html"\n', 'relative and stay below'),
     ('[[pages]]\npath = "/a.html"\n', 'relative and stay below'),
@@ -186,7 +186,10 @@ def test_static_and_data_pages_are_written_beside_the_reading_view(tmp_path: Pat
     # The static page, at the root, with its own content.
     about = site / 'about.html'
     assert about.is_file()
-    assert 'About this project' in about.read_text(encoding='utf-8')
+    html = about.read_text(encoding='utf-8')
+    assert 'About this project' in html
+    # The page's own context gives it its <title>.
+    assert '<title>About</title>' in html
 
     # The overview page: one file for the single selected node.
     overview = site / 'places' / 'index.html'
@@ -284,7 +287,7 @@ def test_page_links_into_the_reading_view(tmp_path: Path) -> None:
 _PROFILE_PAGES = (
     '[[pages]]\n'
     'path = "places/{xml_id}.html"\n'
-    'menu = "Places"\n'
+    'context = { page_title = "Places" }\n'
     'source = "register.xml"\n'
     'xpath = "//listPlace/place"\n'
     'template = "templates/place.html.tpl"\n'
@@ -374,7 +377,7 @@ def test_menubar_reads_context_menu_items_only(tmp_path: Path) -> None:
 
 def test_a_disabled_page_is_not_rendered(tmp_path: Path) -> None:
     project = _project(tmp_path, (
-        '[[pages]]\npath = "about.html"\ntemplate = "templates/about.html.tpl"\nmenu = "About"\nenabled = false\n'
+        '[[pages]]\npath = "about.html"\ntemplate = "templates/about.html.tpl"\nenabled = false\n'
     ))
     run = project.chunk(tmp_path / 'doc.xml')
     assert not (run.output_dir / 'about.html').exists()
@@ -448,7 +451,7 @@ def test_registers_profile_adds_the_register_pages(tmp_path: Path) -> None:
     krakow = (site / 'places' / 'pl1.html').read_text(encoding='utf-8')
     assert 'Mentioned in doc.xml' in krakow
     assert '<title>Kraków</title>' in krakow
-    assert '<a href="index.html">Places</a>' in krakow
+    assert 'class="toolbar"' not in krakow and 'class="toolbar"' not in places
     assert 'Mentioned in doc' not in (site / 'places' / 'pl2.html').read_text(encoding='utf-8')
     # The explicit [context.menu] entries are in the menubar of every page,
     # prefixed with the page's path back to the root.
@@ -467,12 +470,15 @@ def test_a_project_page_entry_overrides_only_the_keys_it_sets(tmp_path: Path) ->
     project = _project(tmp_path, (
         '[project]\nprofiles = ["registers"]\n\n'
         # A new label for the overview; a new source for the entries' pages.
-        '[[pages]]\npath = "places/index.html"\nmenu = "Orte"\n\n'
-        '[[pages]]\npath = "places/{xml_id}.html"\nsource = "orte.xml"\n'
+        '[[pages]]\npath = "places/index.html"\ncontext = { page_title = "Orte" }\n\n'
+        '[[pages]]\npath = "places/{xml_id}.html"\nsource = "orte.xml"\n\n'
+        # A context key of its own: merged with the profile's, not replacing it.
+        '[[pages]]\npath = "people/index.html"\ncontext = { lead = "Alle Personen" }\n'
     ))
     pages = {page.path: page for page in project.config.pages}
     overview = pages['places/index.html']
-    assert overview.menu == 'Orte'
+    assert overview.context == {'page_title': 'Orte'}
+    assert pages['people/index.html'].context == {'page_title': 'People', 'lead': 'Alle Personen'}
     # Everything else is still the profile's.
     assert overview.xpath == '//listPlace'
     assert overview.parameters == {'mode': 'register-overview'}
@@ -486,7 +492,6 @@ def test_a_project_page_entry_overrides_only_the_keys_it_sets(tmp_path: Path) ->
     site = run.output_dir
     assert '<h1>Orte</h1>' in (site / 'places' / 'index.html').read_text(encoding='utf-8')
     assert 'Krakau' in (site / 'places' / 'pl1.html').read_text(encoding='utf-8')
-    assert '<a href="index.html">Orte</a>' in (site / 'places' / 'pl1.html').read_text(encoding='utf-8')
 
 
 def test_registers_profile_skips_a_register_whose_source_is_missing(tmp_path: Path) -> None:

@@ -38,6 +38,7 @@ from opm.transform import (
     run_transform,
     xpath_select,
 )
+from opm.jinks_templates.merge import merge_deep
 from opm.template_frontmatter import template_context
 from opm.template_rendering import (
     DEFAULT_INDEX_TEMPLATE_NAME,
@@ -131,6 +132,7 @@ class ChunkProcessor:
         url_prefix: str | None = None,
         role: str = 'document',
         template_variables: Mapping[str, Any] | None = None,
+        context: Mapping[str, Any] | None = None,
     ):
         self.module = load_transform_module(module_path)
         # Further variables for the page template, beside the built-in ones
@@ -186,8 +188,10 @@ class ChunkProcessor:
         )
         # Chunk pages are HTML, so the web overlay applies. Includes the derived
         # webcomponents_url when web-component mode is on.
-        self.template_context: dict[str, Any] = cfg.context_for(
-            'web', webcomponents=webcomponents,
+        # An auxiliary page's own `context` table goes on top, merged the
+        # same way.
+        self.template_context: dict[str, Any] = merge_deep(
+            cfg.context_for('web', webcomponents=webcomponents), dict(context or {}),
         )
         # The project's parameters, with this run's own on top: a run that
         # renders the same document differently (the documentation site's home
@@ -1454,6 +1458,7 @@ def chunk_document(
     url_prefix: str | None = None,
     role: str = 'document',
     template_variables: Mapping[str, Any] | None = None,
+    context: Mapping[str, Any] | None = None,
 ) -> dict[str, str]:
     """Chunk a document using the specified configuration.
 
@@ -1473,7 +1478,9 @@ def chunk_document(
 
     *template_variables* are passed to the page template beside the built-in
     variables; auxiliary pages (``[[pages]]``) use them to hand their
-    templates the site's documents.
+    templates the site's documents. *context* is merged over the project's
+    template context with [`merge_deep`][opm.jinks_templates.merge.merge_deep]:
+    a page's own ``context`` table.
 
     Returns the run's anchor map, ``xml:id`` → chunk file. Pass it as
     *anchors* to a later run over the same output directory, and ``#id``
@@ -1530,6 +1537,7 @@ def chunk_document(
         url_prefix=url_prefix,
         role=role,
         template_variables=template_variables,
+        context=context,
     )
     if output_format == 'pb-view':
         processor.export_pb_view(doc_path=doc_path, on_progress=on_progress)
@@ -1608,17 +1616,12 @@ def build_index(
     chunking_config: ChunkingConfig | None = None,
     webcomponents: bool = False,
     project: Any = None,
-    pages: Sequence[Mapping[str, str]] | None = None,
 ) -> Path | None:
     """Render ``<output_dir>/index.html`` listing every chunked document.
 
     ``http.server`` serves ``index.html`` in preference to a directory listing,
     so writing this file is all that is needed for ``opm serve`` to show a real
     landing page.
-
-    *pages* lists the auxiliary pages (``[[pages]]``) as ``{label, href}``
-    mappings, so the index can link them under their ``menu`` labels. They are
-    not documents and do not appear in *entries*.
 
     *project_config* also supplies the template ``context``, so the index and
     the chunk pages read the same ``[context]`` values. Pass *webcomponents* to
@@ -1631,10 +1634,10 @@ def build_index(
     classes exactly as the document pages do. An explicit *odd_css* wins.
 
     Returns the path written, or *None* when *output_dir* holds no chunked
-    documents and no *pages* were given.
+    documents.
     """
     entries = collect_index_entries(output_dir)
-    if not entries and not pages:
+    if not entries:
         return None
 
     if odd_css is None and module_path is not None:
@@ -1651,7 +1654,6 @@ def build_index(
 
     rendered = render_index_template(
         entries=entries,
-        pages=list(pages or []),
         template_path=resolve_template_path(
             template_path, default_name=DEFAULT_INDEX_TEMPLATE_NAME, project=project,
         ),
@@ -1679,7 +1681,6 @@ def build_index(
 
 def build_index_json(
     output_dir: Path, *, title: str | None = None,
-    pages: Sequence[Mapping[str, str]] | None = None,
 ) -> Path | None:
     """Write ``<output_dir>/index.json`` listing every chunked document.
 
@@ -1688,14 +1689,12 @@ def build_index_json(
     are or what order they belong in — a static site generator would have to
     rediscover that by scanning. This writes it once, from the same
     [`collect_index_entries`][opm.chunking.collect_index_entries] the HTML index is built from, so both agree.
-    *pages* lists the auxiliary pages (``[[pages]]``) as ``{label, href}``
-    mappings under a separate ``pages`` key.
 
     Returns the path written, or *None* when *output_dir* holds no chunked
-    documents and no *pages* were given.
+    documents.
     """
     entries = collect_index_entries(output_dir)
-    if not entries and not pages:
+    if not entries:
         return None
 
     index_file = output_dir / 'index.json'
@@ -1704,7 +1703,6 @@ def build_index_json(
             {
                 'title': title or output_dir.name,
                 'documents': [asdict(entry) for entry in entries],
-                'pages': [dict(page) for page in pages or []],
             },
             indent=2,
             ensure_ascii=False,

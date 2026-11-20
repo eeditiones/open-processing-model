@@ -48,12 +48,12 @@ categories = []
 #   in collection($global:data-default) that mention the entry.
 #
 # A project changes a page by declaring a [[pages]] entry with the same path
-# in opm.toml: the keys it sets (its own `source`, a `menu` label in another
-# language) win, the rest stays. enabled = false switches a page off. When the default source is missing, its pages are
+# in opm.toml: the keys it sets (its own `source`, a title in another
+# language as `context = { page_title = "Orte" }`) win, the rest stays. enabled = false switches a page off. When the default source is missing, its pages are
 # skipped — a project without a register simply gets none of its pages.
 [[pages]]
 path = "places/index.html"
-menu = "Places"
+context = { page_title = "Places" }
 source = "data/registers/places.xml"
 xpath = "//listPlace"
 parameters = { mode = "register-overview" }
@@ -68,7 +68,7 @@ template = "templates/register-entry.html.tpl"
 
 [[pages]]
 path = "people/index.html"
-menu = "People"
+context = { page_title = "People" }
 source = "data/registers/persons.xml"
 xpath = "//listPerson"
 parameters = { mode = "register-overview" }

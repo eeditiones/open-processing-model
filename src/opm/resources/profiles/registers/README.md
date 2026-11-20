@@ -56,13 +56,12 @@ mentions. It also adds pages to browse the registers:
 To change one of these pages, declare a `[[pages]]` entry with the same `path`
 in `opm.toml`. Only the keys you set change; the rest stays as the profile has
 it. Your registers are elsewhere? Set your own `source`. Want the overview
-headed in another language? Set `menu`, which also leads the breadcrumb of
-each entry's page:
+headed in another language? Set its `page_title` in the page's `context`:
 
 ```toml
 [[pages]]
 path = "people/index.html"
-menu = "Personen"
+context = { page_title = "Personen" }
 ```
 
 To switch a page off, set `enabled = false`. See
