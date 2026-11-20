@@ -111,16 +111,22 @@
         {%- if blocks.logo %}
         <li class="logo">{{ blocks.logo }}</li>
         {%- endif %}
+        {#- Menu URLs are relative to the site root; as in jinks, where the
+            context-path prefixes them, each page's path back to the root
+            (site_root) does here. Absolute and http URLs are used as given. -#}
+        {%- set root = site_root|default('') %}
         {%- for item in menu_items %}
         {%- if item.url is defined %}
-        <li><a href="{{ item.url }}">{{ item.label or item.id }}</a></li>
+        {%- set url = item.url if item.url.startswith(('http', '/')) else root ~ item.url %}
+        <li><a href="{{ url }}">{{ item.label or item.id }}</a></li>
         {%- elif item.subitems is defined %}
         <li>
           <details class="dropdown">
             <summary>{{ item.label or item.id }}</summary>
             <ul>
               {%- for sub in item.subitems %}
-              <li><a href="{{ sub.url }}">{{ sub.label or sub.id }}</a></li>
+              {%- set sub_url = sub.url if sub.url.startswith(('http', '/')) else root ~ sub.url %}
+              <li><a href="{{ sub_url }}">{{ sub.label or sub.id }}</a></li>
               {%- endfor %}
             </ul>
           </details>
@@ -231,7 +237,7 @@
 {%- set doc_title = (fragments.title | striptags | trim) if fragments is defined and fragments.title else '' -%}
 {%- set logo_title = work_title or context.site_name or doc_title or context.title or title -%}
 {%- if logo_src or logo_title %}
-<a href="{{ context.home_url or index_url or 'index.html' }}">
+<a href="{{ context.home_url or index_url or (site_root|default('')) ~ 'index.html' }}">
   {#- theme.layout.logo_title = false: the logo is a wordmark carrying the
       name, so the name becomes its alt text instead of a second line. #}
   {%- if logo_src and context.theme.layout.logo_title == false %}<img class="logo__image" src="{{ logo_src }}" alt="{{ logo_title }}">

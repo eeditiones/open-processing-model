@@ -41,7 +41,11 @@
     menu.items            links after the logo: [{ label, url }], or
                           [{ label, subitems: [{ label, url }] }] for a
                           drop-down; as in jinks, `id` stands in for a
-                          missing label
+                          missing label. URLs are relative to the site
+                          root and prefixed with the page's path back to
+                          it (site_root), as jinks prefixes them with the
+                          context-path; absolute and http URLs are used
+                          as given
     features.menubar      false drops the menubar (the header block stays)
     features.toolbar.enabled     false drops the toolbar
     features.toolbar.navigation  previous/next links for chunk pages
@@ -83,7 +87,7 @@
         [% let $logo-src = if ($logo != '' and $context?assets and not(contains($logo, '/')) and not(contains($logo, ':'))) then $context?assets || '/' || $logo else $logo %]
         [% let $logo-title = string(($context?site_name, normalize-space($context?fragments?title), $context?title)[string(.) != ''][1]) %]
         [% if $logo-src != '' or $logo-title != '' %]
-        <a href="[[ ($context?home_url, $context?index_url, 'index.html')[string(.) != ''][1] ]]">
+        <a href="[[ ($context?home_url, $context?index_url, string(($context?site_root, '')[1]) || 'index.html')[string(.) != ''][1] ]]">
           [# theme.layout.logo_title = false: the logo is a wordmark carrying the
               name, so the name becomes its alt text instead of a second line. #]
           [% if $logo-src != '' and $context?theme?layout?logo_title = false() %]
@@ -99,22 +103,30 @@
         [% endlet %]
         [% endblock %]
         </li>
+        [# Menu URLs are relative to the site root; as in jinks, where the
+           context-path prefixes them, each page's path back to the root
+           (site_root: '' at the root, '../' one level down) does here.
+           Absolute and http URLs are used as given. #]
+        [% let $root = string(($context?site_root, '')[1]) %]
         [% for $item in $context?menu?items?* %]
         [% if exists($item?url) %]
-        <li><a href="[[ $item?url ]]">[[ ($item?label, $item?id)[1] ]]</a></li>
+        [% let $url = if (starts-with($item?url, 'http') or starts-with($item?url, '/')) then $item?url else $root || $item?url %]
+        <li><a href="[[ $url ]]">[[ ($item?label, $item?id)[1] ]]</a></li>
+        [% endlet %]
         [% elif exists($item?subitems) %]
         <li>
           <details class="dropdown">
             <summary>[[ ($item?label, $item?id)[1] ]]</summary>
             <ul>
               [% for $sub in $item?subitems?* %]
-              <li><a href="[[ $sub?url ]]">[[ ($sub?label, $sub?id)[1] ]]</a></li>
+              <li><a href="[[ if (starts-with($sub?url, 'http') or starts-with($sub?url, '/')) then $sub?url else $root || $sub?url ]]">[[ ($sub?label, $sub?id)[1] ]]</a></li>
               [% endfor %]
             </ul>
           </details>
         </li>
         [% endif %]
         [% endfor %]
+        [% endlet %]
         [% block menu.left %][% endblock %]
       </ul>
       <ul>

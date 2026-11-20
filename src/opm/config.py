@@ -11,10 +11,11 @@ directory.
 
 from __future__ import annotations
 
+import re
 import sys
 import tomllib
 from dataclasses import dataclass, field, replace
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -245,6 +246,154 @@ class ChunkingConfig:
     ``<output_dir>/css/``). Must match the ``path`` of the consuming
     ``pb-document``. When unset the data is written directly into ``output_dir``.
     """
+
+
+@dataclass
+class PageConfig:
+    """One ``[[pages]]`` entry: an auxiliary page of the site, beside the reading view.
+
+    A page is rendered by ``opm chunk`` into the chunk output root, after the
+    chunking runs. It differs from a chunk in its contract with the site: a
+    fixed ``path`` (instead of a per-document subdirectory), no prev/next
+    navigation, and no listing as a document in the collection index — though
+    its ``menu`` label is listed there. With ``source`` and ``xpath`` it is
+    rendered through the same ODD machinery as a chunk, one page per selected
+    node when ``path`` holds a placeholder.
+    """
+
+    path: str
+    """Output path relative to the chunk output root, e.g. ``about.html`` or
+    ``places/{xml_id}.html``.
+
+    A path without a placeholder names a single page (its ``xpath`` must then
+    select exactly one node, or no ``source`` is given at all). A path with a
+    placeholder — ``{xml_id}``, ``{ident}``, ``{stem}``, ``{index}``, the same
+    vocabulary as [`ChunkingConfig.file_pattern`][opm.config.ChunkingConfig.file_pattern]
+    — yields one page per node ``xpath`` selects from ``source``.
+    """
+    template: Path | None = None
+    """Page template, resolved against the config file's (or profile's) directory.
+
+    Without one, the first chunking run's template is used, as for chunk pages.
+    """
+    menu: str | None = None
+    """The page's label: its heading and breadcrumb, and those of the other
+    pages in its directory that have none of their own. The menubar is not
+    derived from this: it reads ``[context.menu] items`` only,
+    so a page that should appear there is listed explicitly, e.g. by the
+    project or by a profile's own ``[context.menu]``."""
+    source: Path | None = None
+    """XML file (or directory) this page is generated from — independent of the
+    source ``opm chunk`` is given. Without it the page is static: the template
+    alone is rendered, through no ODD.
+
+    Resolved against the project root for a profile's pages, so a profile can
+    name a conventional location (``data/registers/places.xml``) the project
+    overrides by declaring its own page with the same ``path``.
+    """
+    xpath: str | None = None
+    """Selects the nodes rendered into this page's file(s), from ``source``."""
+    selector: str | None = None
+    """Dotted path of a chunk selector, an alternative to ``xpath``."""
+    odd: Path | None = None
+    """ODD to compile for this page; without one, the first chunking run's."""
+    parameters: dict[str, Any] | None = None
+    """XPath ``$parameters`` for this page's rendering, over ``[transform.parameters]``."""
+    fragments: list[FragmentConfig] | None = None
+    """``[[pages.fragments]]`` tables, rendered into the page like chunk fragments."""
+    module: Path | None = None
+    """Resolved compiled transform path (set after compile-on-demand, not from TOML)."""
+    enabled: bool = True
+    """``enabled = false`` switches the page off — how a project opts out of a
+    profile-contributed page: declare a ``[[pages]]`` entry with the same
+    ``path`` and ``enabled = false``."""
+    from_profile: bool = False
+    """Set when the entry came from a profile, not the project's own config.
+
+    A profile ships defaults for projects that may not have the data, so a
+    profile page whose ``source`` is missing is skipped silently; the same
+    mistake in the project's own config is an error.
+    """
+
+
+#: The keys a ``[[pages]]`` entry may hold.
+_PAGE_KEYS = {
+    'path', 'template', 'menu', 'source', 'xpath', 'selector',
+    'odd', 'parameters', 'fragments', 'enabled',
+}
+
+#: Placeholders a page ``path`` may hold — the ``file_pattern`` vocabulary.
+_PAGE_PATH_FIELDS = ('xml_id', 'ident', 'index', 'stem')
+
+_PAGE_FIELD_RE = re.compile(r'\{(\w+)(?::[^}]*)?\}')
+
+
+def parse_pages(
+    tables: Any, base_dir: Path, source_base: Path | None = None, *,
+    label: str = 'opm.toml',
+) -> tuple[PageConfig, ...]:
+    """``[[pages]]`` tables as configs.
+
+    *base_dir* resolves ``template``, ``odd`` and fragment ODDs (the config
+    file's directory for ``opm.toml``, the profile directory for a profile);
+    *source_base* resolves ``source`` — the project root for a profile, so a
+    profile can point at the project's data. *label* names the file in error
+    messages.
+    """
+    source_base = source_base if source_base is not None else base_dir
+    if tables is None:
+        return ()
+    if isinstance(tables, dict):
+        tables = [tables]
+    if not isinstance(tables, list) or not all(isinstance(t, dict) for t in tables):
+        raise ValueError(f'{label}: pages must be an array of tables ([[pages]])')
+    pages: list[PageConfig] = []
+    seen: set[str] = set()
+    for position, entry in enumerate(tables, start=1):
+        where = f'pages[{position}]'
+        unknown = sorted(set(entry) - _PAGE_KEYS)
+        if unknown:
+            raise ValueError(f'{label}: {where} has unknown key(s): {", ".join(unknown)}')
+        raw_path = entry.get('path')
+        if not isinstance(raw_path, str) or not raw_path.strip():
+            raise ValueError(f'{label}: {where} is missing "path"')
+        path = raw_path.strip()
+        if not path or path.startswith('/') or '..' in PurePosixPath(path).parts:
+            raise ValueError(f'{label}: {where}.path must be relative and stay below the output root, got {raw_path!r}')
+        path = path.strip('/')
+        for field_name in _PAGE_FIELD_RE.findall(path):
+            if field_name not in _PAGE_PATH_FIELDS:
+                raise ValueError(
+                    f'{label}: {where}.path placeholder {{{field_name}}} is unknown '
+                    f'(known: {", ".join("{" + f + "}" for f in _PAGE_PATH_FIELDS)})'
+                )
+        if path in seen:
+            raise ValueError(f'{label}: {where}.path {path!r} is declared twice')
+        seen.add(path)
+        if entry.get('xpath') and entry.get('selector'):
+            raise ValueError(f'{label}: {where} cannot set both "xpath" and "selector"')
+        raw_template = entry.get('template')
+        raw_source = entry.get('source')
+        raw_odd = entry.get('odd')
+        menu = entry.get('menu')
+        enabled = entry.get('enabled', True)
+        if not isinstance(enabled, bool):
+            raise ValueError(f'{label}: {where}.enabled must be a boolean')
+        pages.append(
+            PageConfig(
+                path=path,
+                template=base_dir / str(raw_template) if raw_template else None,
+                menu=str(menu) if menu is not None else None,
+                source=source_base / str(raw_source) if raw_source else None,
+                xpath=entry.get('xpath'),
+                selector=entry.get('selector'),
+                odd=base_dir / str(raw_odd) if raw_odd else None,
+                parameters=entry.get('parameters'),
+                fragments=parse_fragments(entry.get('fragments', []), base_dir) or None,
+                enabled=enabled,
+            )
+        )
+    return tuple(pages)
 
 
 @dataclass
@@ -667,6 +816,11 @@ class ProjectConfig:
     """Every chunking run, in order: one per ``[[chunking]]`` entry, or the
     single ``[chunking]`` table. Later runs are handed the anchors of earlier
     ones, so links between their pages resolve."""
+    pages: tuple[PageConfig, ...] = ()
+    """Every ``[[pages]]`` entry, in order: auxiliary pages of the site (an
+    "about" page, register browsers), rendered by ``opm chunk`` into the chunk
+    output root after the chunking runs. Profiles contribute entries of their
+    own; a project entry with the same ``path`` replaces the profile's."""
     document: DocumentConfig | None = None
     """``[document]``: set when the project is an ``opm odd document`` site."""
     index_max_chars: int = 1500
@@ -971,6 +1125,8 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     ]
     _check_run_output_dirs(chunking_runs, chunking_tables)
 
+    pages = parse_pages(data.get('pages'), config_path.parent)
+
     raw_pythonpath = project_data.get('pythonpath', [])
     if isinstance(raw_pythonpath, str):
         raw_pythonpath = [raw_pythonpath]
@@ -1042,6 +1198,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         parameters=parameters,
         chunking=chunking,
         chunking_runs=tuple(chunking_runs),
+        pages=pages,
         document=_document_config(document_data, config_path),
         index_max_chars=int(index_data.get('max_chars', 1500)),
         index_min_chars=int(index_data.get('min_chars', 40)),

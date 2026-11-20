@@ -1214,6 +1214,26 @@ def chunk(
             ),
         ),
     ] = None,
+    no_pages: Annotated[
+        bool,
+        typer.Option(
+            '--no-pages',
+            help=(
+                'Skip the auxiliary pages declared in [[pages]] (HTML output only); '
+                'build the chunking runs alone.'
+            ),
+        ),
+    ] = False,
+    page: Annotated[
+        Optional[str],
+        typer.Option(
+            '--page',
+            help=(
+                'Build only the auxiliary pages whose path starts with this prefix, '
+                'e.g. --page places. HTML output only.'
+            ),
+        ),
+    ] = None,
     preview: Annotated[
         bool,
         typer.Option(
@@ -1327,6 +1347,7 @@ def chunk(
                 overwrite=True,
                 on_document=_on_document,
                 on_progress=_on_progress,
+                pages=False if no_pages else page,
             )
             if file_task is not None:
                 progress.update(file_task, completed=len(input_files))
@@ -1350,6 +1371,10 @@ def chunk(
             typer.echo(f'  - <document>.xml/*.{ext}: chunk files')
             if run.index_file is not None:
                 typer.echo('  - index.html: collection index served at the site root')
+        if run.pages:
+            typer.echo('  - auxiliary pages ([[pages]]):')
+            for page_file in run.pages:
+                typer.echo(f'    - {page_file.relative_to(out_dir).as_posix()}')
 
         _report_xpath_errors(xpath_log, strict=strict)
 

@@ -322,7 +322,13 @@ items = [
 ]
 ```
 
-As in TEI Publisher, an entry may have an `id` instead of a `label`.
+As in TEI Publisher, an entry may have an `id` instead of a `label`. URLs
+are relative to the site root and are prefixed automatically with the page's
+path back to it (`../` from a chunk page, nothing at the root) — where a TEI
+Publisher application prefixes them with the context-path. Absolute and
+`http(s)` URLs are used as given. To link an auxiliary page (see
+[Auxiliary pages](chunking.md#auxiliary-pages)) in the menu bar, list it here
+explicitly.
 
 The logo is made from an image (`logo` in `[context]`) and a title: the
 `site_name`, or, if there is none, the title of the document shown. Both are

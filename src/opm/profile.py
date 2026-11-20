@@ -63,7 +63,13 @@ class ProfileConfig:
     # [[chunking.fragments]] tables, added to every chunking run unless the
     # project declares a fragment of the same name.
     fragments: list[dict[str, Any]] = field(default_factory=list)
-    
+
+    # [[pages]] tables, added to the site unless the project declares a page
+    # with the same path. Parsed by opm.config.parse_pages when the project
+    # merges them: template/odd resolve against the profile directory,
+    # source against the project root.
+    pages: list[dict[str, Any]] = field(default_factory=list)
+
     # Configuration defaults to merge into project config
     config: dict[str, Any] = field(default_factory=dict)
 
@@ -114,6 +120,12 @@ class ProfileConfig:
                 raise ValueError(f'Profile {profile_path}: [[chunking.fragments]] must be tables')
             config_data['fragments'] = fragments
 
+        pages = data.get('pages')
+        if pages:
+            if not isinstance(pages, list) or not all(isinstance(p, dict) for p in pages):
+                raise ValueError(f'Profile {profile_path}: [[pages]] must be an array of tables')
+            config_data['pages'] = pages
+
         if 'hooks' in data:
             config_data['hooks'] = _parse_hooks(data['hooks'], profile_path)
         
@@ -126,7 +138,7 @@ class ProfileConfig:
 
 #: The keys an ``opm-profile.toml`` may hold, and those of its tables.
 _PROFILE_KEYS = {
-    '': {'name', 'version', 'description', 'author', 'assets',
+    '': {'name', 'version', 'description', 'author', 'assets', 'pages',
          'templating', 'chunking', 'hooks', 'context', 'config'},
     'templating': {'use'},
     'chunking': {'fragments'},

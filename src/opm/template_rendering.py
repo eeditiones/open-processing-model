@@ -398,6 +398,8 @@ def render_index_template(
     context: dict | None = None,
     xpath_env: XPathEnvironment | None = None,
     project: Any = None,
+    pages: list | None = None,
+    site_root: str = '',
 ) -> str:
     """Render a collection index listing chunked documents.
 
@@ -407,6 +409,8 @@ def render_index_template(
     an assets setting is configured — an ``assets`` URL prefix plus
     ``asset_styles``, the stylesheets among those assets in declared order. The
     index sits at the output root, so those URLs carry no ``../`` prefix.
+    ``pages`` lists the auxiliary pages (``[[pages]]``) as ``{label, href}``
+    mappings.
 
     Each entry exposes ``fragments``, so a project controls what the index shows
     by declaring global fragments in ``opm.toml`` — no code change needed to add
@@ -416,6 +420,9 @@ def render_index_template(
     tpl = load_template(env, template_path)
     return tpl.render(
         documents=entries,
+        pages=pages or [],
+        # The index sits at the output root, so menu URLs need no prefix.
+        site_root=site_root,
         title=title,
         odd_css=odd_css or '',
         odd_css_url=odd_css_url,

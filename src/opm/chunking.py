@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import re
 import shutil
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
@@ -127,8 +127,23 @@ class ChunkProcessor:
         anchors: Mapping[str, str] | None = None,
         merge_manifest: bool = False,
         footnote_order: str | Callable | None = None,
+        shared_root: Path | None = None,
+        url_prefix: str | None = None,
+        role: str = 'document',
+        template_variables: Mapping[str, Any] | None = None,
     ):
         self.module = load_transform_module(module_path)
+        # Further variables for the page template, beside the built-in ones
+        # (an auxiliary page's list of the site's documents, `site_documents`).
+        self.template_variables: dict[str, Any] = dict(template_variables or {})
+        # An auxiliary page ([[pages]]) writes into its own directory below the
+        # output root but shares the root's css/ and assets/; *shared_root* and
+        # *url_prefix* say where that root is and how to reach it, replacing
+        # the link_doc-derived defaults. *role* tags the manifest so the
+        # collection index can tell a page's directory from a document's.
+        self._shared_root_override = shared_root
+        self._url_prefix_override = url_prefix
+        self.role = role
         # A later run of a multi-run config: add to the manifest an earlier run
         # of the same invocation wrote, rather than replace it.
         self.merge_manifest = merge_manifest
@@ -284,12 +299,16 @@ class ChunkProcessor:
         Each document gets its own subdirectory, so stylesheets and assets
         belong one level up, beside the collection index — one copy for the
         whole edition. Without ``link_doc`` the output directory is itself the
-        root.
+        root. An explicit *shared_root* (an auxiliary page) wins over both.
         """
+        if self._shared_root_override is not None:
+            return self._shared_root_override
         return self.output_dir.parent if self.config.link_doc else self.output_dir
 
     def url_prefix(self) -> str:
         """Return the relative path from a chunk page back to [`shared_root`][opm.chunking.ChunkProcessor.shared_root]."""
+        if self._url_prefix_override is not None:
+            return self._url_prefix_override
         return '../' if self.config.link_doc else ''
 
     def write_shared_files(
@@ -905,6 +924,7 @@ class ChunkProcessor:
                 # Stylesheet URLs, plus an assets prefix when configured.
                 # The inline strings above stay available either way.
                 **self._shared_urls,
+                **self.template_variables,
             )
             
             return rendered
@@ -1027,6 +1047,10 @@ class ChunkProcessor:
         one the later run's own links resolved to.
         """
         payload = asdict(manifest)
+        if self.role != 'document':
+            # An auxiliary page's directory must not read as a document in
+            # the collection index (see collect_index_entries).
+            payload['role'] = self.role
         if self.config.name:
             for entry in payload['chunks']:
                 entry['run'] = self.config.name
@@ -1426,6 +1450,10 @@ def chunk_document(
     anchors: Mapping[str, str] | None = None,
     merge_manifest: bool = False,
     footnote_order: str | Callable | None = None,
+    shared_root: Path | None = None,
+    url_prefix: str | None = None,
+    role: str = 'document',
+    template_variables: Mapping[str, Any] | None = None,
 ) -> dict[str, str]:
     """Chunk a document using the specified configuration.
 
@@ -1442,6 +1470,10 @@ def chunk_document(
     *footnote_order* names the callable ordering each chunk's footnotes before
     they are placed, overriding ``[transform] footnote_order``; see
     [`inject_cached_footnotes`][opm.runtime.pm_runtime.inject_cached_footnotes].
+
+    *template_variables* are passed to the page template beside the built-in
+    variables; [`render_pages`][opm.pages.render_pages] uses them to hand
+    register pages the site's documents.
 
     Returns the run's anchor map, ``xml:id`` → chunk file. Pass it as
     *anchors* to a later run over the same output directory, and ``#id``
@@ -1494,6 +1526,10 @@ def chunk_document(
         anchors=anchors,
         merge_manifest=merge_manifest,
         footnote_order=footnote_order,
+        shared_root=shared_root,
+        url_prefix=url_prefix,
+        role=role,
+        template_variables=template_variables,
     )
     if output_format == 'pb-view':
         processor.export_pb_view(doc_path=doc_path, on_progress=on_progress)
@@ -1539,6 +1575,9 @@ def collect_index_entries(output_dir: Path) -> list[IndexEntry]:
             data = json.loads(manifest_file.read_text(encoding='utf-8'))
         except (OSError, json.JSONDecodeError):
             continue
+        if data.get('role') and data['role'] != 'document':
+            # An auxiliary page's directory ([[pages]]), not a chunked document.
+            continue
 
         doc_dir = manifest_file.parent
         chunks = data.get('chunks') or []
@@ -1569,12 +1608,17 @@ def build_index(
     chunking_config: ChunkingConfig | None = None,
     webcomponents: bool = False,
     project: Any = None,
+    pages: Sequence[Mapping[str, str]] | None = None,
 ) -> Path | None:
     """Render ``<output_dir>/index.html`` listing every chunked document.
 
     ``http.server`` serves ``index.html`` in preference to a directory listing,
     so writing this file is all that is needed for ``opm serve`` to show a real
     landing page.
+
+    *pages* lists the auxiliary pages (``[[pages]]``) as ``{label, href}``
+    mappings, so the index can link them under their ``menu`` labels. They are
+    not documents and do not appear in *entries*.
 
     *project_config* also supplies the template ``context``, so the index and
     the chunk pages read the same ``[context]`` values. Pass *webcomponents* to
@@ -1587,10 +1631,10 @@ def build_index(
     classes exactly as the document pages do. An explicit *odd_css* wins.
 
     Returns the path written, or *None* when *output_dir* holds no chunked
-    documents.
+    documents and no *pages* were given.
     """
     entries = collect_index_entries(output_dir)
-    if not entries:
+    if not entries and not pages:
         return None
 
     if odd_css is None and module_path is not None:
@@ -1607,6 +1651,7 @@ def build_index(
 
     rendered = render_index_template(
         entries=entries,
+        pages=list(pages or []),
         template_path=resolve_template_path(
             template_path, default_name=DEFAULT_INDEX_TEMPLATE_NAME, project=project,
         ),
@@ -1632,7 +1677,10 @@ def build_index(
     return index_file
 
 
-def build_index_json(output_dir: Path, *, title: str | None = None) -> Path | None:
+def build_index_json(
+    output_dir: Path, *, title: str | None = None,
+    pages: Sequence[Mapping[str, str]] | None = None,
+) -> Path | None:
     """Write ``<output_dir>/index.json`` listing every chunked document.
 
     The JSON counterpart of [`build_index`][opm.chunking.build_index]. A directory run splits its
@@ -1640,12 +1688,14 @@ def build_index_json(output_dir: Path, *, title: str | None = None) -> Path | No
     are or what order they belong in — a static site generator would have to
     rediscover that by scanning. This writes it once, from the same
     [`collect_index_entries`][opm.chunking.collect_index_entries] the HTML index is built from, so both agree.
+    *pages* lists the auxiliary pages (``[[pages]]``) as ``{label, href}``
+    mappings under a separate ``pages`` key.
 
     Returns the path written, or *None* when *output_dir* holds no chunked
-    documents.
+    documents and no *pages* were given.
     """
     entries = collect_index_entries(output_dir)
-    if not entries:
+    if not entries and not pages:
         return None
 
     index_file = output_dir / 'index.json'
@@ -1654,6 +1704,7 @@ def build_index_json(output_dir: Path, *, title: str | None = None) -> Path | No
             {
                 'title': title or output_dir.name,
                 'documents': [asdict(entry) for entry in entries],
+                'pages': [dict(page) for page in pages or []],
             },
             indent=2,
             ensure_ascii=False,

@@ -81,6 +81,8 @@ class ChunkRun:
     """The ``index.html`` an HTML run writes at the output root."""
     document_dirs: dict[Path, str] = field(default_factory=dict)
     """Each document's directory name below [`output_dir`][opm.project.ChunkRun.output_dir], by source file."""
+    pages: tuple[Path, ...] = ()
+    """The auxiliary pages (``[[pages]]``) written below [`output_dir`][opm.project.ChunkRun.output_dir], absolute."""
 
 
 def _document_config(
@@ -322,22 +324,32 @@ class Project:
         return cls(config, root=root if root is not None else config_path.absolute().parent)
 
     def _with_profile_files(self, config: ProjectConfig) -> ProjectConfig:
-        """*config* with the profiles' assets and fragments added.
+        """*config* with the profiles' assets, fragments and pages added.
 
         Profile assets come before the project's, so the project's stylesheets
         cascade after them. A profile fragment is added to every chunking run
-        that has no fragment of the same name. Applying this twice changes
-        nothing, so a [`with_config`][opm.project.Project.with_config] copy
-        stays as it was.
+        that has no fragment of the same name. A profile page is added unless
+        the project declares a page with the same ``path`` — the project's
+        entry then wins, so it can repoint a profile's ``source`` at its own
+        data. Applying this twice changes nothing, so a
+        [`with_config`][opm.project.Project.with_config] copy stays as it was.
         """
-        from opm.config import parse_fragments
+        from opm.config import parse_fragments, parse_pages
 
         assets: list[Path] = []
         fragments = []
+        pages = []
         for profile_config, profile_path in self._profiles:
             assets.extend(profile_path / entry for entry in profile_config.assets)
             fragments.extend(parse_fragments(profile_config.fragments, profile_path))
-        if not assets and not fragments:
+            pages.extend(
+                replace(page, from_profile=True)
+                for page in parse_pages(
+                    profile_config.pages, profile_path, self.root,
+                    label=f"profile '{profile_config.name}'",
+                )
+            )
+        if not assets and not fragments and not pages:
             return config
 
         def with_assets(existing: Sequence[Path]) -> tuple[Path, ...]:
@@ -355,11 +367,14 @@ class Project:
             else run_with(config.chunking) if config.chunking is not None
             else None
         )
+        own_page_paths = {page.path for page in config.pages}
+        merged_pages = (*config.pages, *(p for p in pages if p.path not in own_page_paths))
         return replace(
             config,
             web_assets=with_assets(config.web_assets),
             chunking_runs=runs,
             chunking=chunking,
+            pages=merged_pages,
         )
 
     def _load_profiles(self) -> tuple:
@@ -573,6 +588,7 @@ class Project:
         overwrite: bool = False,
         on_document: Callable[[int, Path], None] | None = None,
         on_progress: Callable[[int, int], None] | None = None,
+        pages: bool | str | None = None,
     ) -> ChunkRun:
         """Split *source* into pages, as ``opm chunk`` does.
 
@@ -582,6 +598,12 @@ class Project:
         puts every document's data under ``<doc_path>/<name>.xml/`` instead.
 
         The arguments override the ``[chunking]`` settings of the same name.
+
+        For HTML output, the auxiliary pages declared in ``[[pages]]`` are
+        rendered into the same output root after the chunking runs, unless
+        *pages* is ``False``; a *pages* string limits the build to pages whose
+        ``path`` starts with it (``--page``). Non-HTML formats skip pages:
+        they feed external site generators, which build their own.
 
         Once every page and the index are written, the ``after_chunking``
         hooks of the project's profiles run, each called with the project and
@@ -610,6 +632,9 @@ class Project:
                 before it is chunked.
             on_progress: Called with ``(done, total)`` chunks as each
                 document is processed.
+            pages: ``False`` skips the ``[[pages]]`` auxiliary pages; a
+                string builds only pages whose ``path`` starts with it;
+                ``None`` (default) builds them all. HTML output only.
 
         Raises:
             ValueError: The config has no ``[chunking]`` section, *format* is
@@ -673,6 +698,10 @@ class Project:
         # Built once and shared: templates test links against it.
         names = frozenset(doc_names.values())
 
+        # Each document's anchor map, kept so the auxiliary pages can link
+        # into the reading view: id → the document's directory + chunk file.
+        anchors_by_doc: dict[Path, dict[str, str]] = {}
+
         for position, xml_file in enumerate(files):
             if on_document is not None:
                 on_document(position, xml_file)
@@ -710,6 +739,48 @@ class Project:
                     merge_manifest=index > 0,
                 ) or {}  # a wrapped or stubbed chunk_document may still return None
                 written = len(set(anchors.values()))
+            anchors_by_doc[xml_file] = anchors
+
+        # Auxiliary pages ([[pages]]): rendered after the runs, into the same
+        # output root. They receive every document's anchors (prefixed with
+        # the document's directory) so they can link into the reading view.
+        page_results: list = []
+        if format == 'html' and pages is not False:
+            from opm.pages import render_pages
+
+            page_anchors = {
+                xml_id: f'{doc_names[xml_file]}/{chunk_file}'
+                for xml_file, doc_anchors in anchors_by_doc.items()
+                for xml_id, chunk_file in doc_anchors.items()
+            }
+            from opm.chunking import collect_index_entries
+
+            # The documents just chunked, for pages that list or search them
+            # (a register entry's "mentioned in"): source file and first page.
+            first_pages = {entry.name: entry.href for entry in collect_index_entries(out_dir)}
+            site_documents = [
+                {
+                    'name': doc_names[xml_file],
+                    'path': str(xml_file.resolve()),
+                    'href': first_pages[doc_names[xml_file]],
+                }
+                for xml_file in files
+                if doc_names[xml_file] in first_pages
+            ]
+            page_results = render_pages(
+                self,
+                out_dir=out_dir,
+                run=chunking,
+                webcomponents=enabled,
+                xpath_extensions=extensions,
+                anchors=page_anchors,
+                documents=site_documents,
+                only=pages if isinstance(pages, str) else None,
+            )
+        page_files = tuple(file for result in page_results for file in result.files)
+        page_links = [
+            {'label': result.label, 'href': result.href} for result in page_results
+        ]
 
         # Every HTML run leaves one subdirectory per document, which a web
         # server would otherwise show as a bare listing.
@@ -725,6 +796,7 @@ class Project:
                 chunking_config=chunking,
                 webcomponents=enabled,
                 project=self,
+                pages=page_links,
             )
         run_result = ChunkRun(
             output_dir=out_dir,
@@ -733,6 +805,7 @@ class Project:
             modules=tuple(all_modules),
             index_file=index_file,
             document_dirs=dict(doc_names),
+            pages=page_files,
         )
         self._run_hooks('after_chunking', run_result)
         return run_result

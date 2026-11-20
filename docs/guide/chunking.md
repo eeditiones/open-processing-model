@@ -1,10 +1,17 @@
 # Chunking
 
-Large documents are awkward to serve as one giant HTML page. `opm chunk` splits a
-document into smaller pieces, transforms each one, and writes the results plus a
-manifest — this is ideal for static site generators and web components.
+While `opm transform` transforms a single input to a single output, `opm chunk` operates on a whole collection of XML files.
+It can also split large documents into smaller pieces to make them easier to read. The split may happen at page boundaries – if marked up –
+or per division and is configurable.
 
-Three different types of output are supported (use `--format` to switch between them):
+Besides the main content, chunking may also produce other content fragments, e.g. for a sidebar
+or breadcrumbs. Every piece of content is transformed through ODD.
+
+In `html` mode, the combined result of each chunking run – i.e. main content plus fragments – will be passed on
+to a template, which assembles the different pieces into an output page. However, there are two other modes, which generate raw
+data instead of a complete page. Those are intended to be consumed by external tools, which will handle the final rendering.
+
+The three different types of output modes are (use `--format` to switch between them):
 
 - **`html`** (default) — renders each chunk through a template
   (`chunking.template`, else the `[transform.web]` template), generating a series of HTML files. Use this for quick previews
@@ -218,6 +225,97 @@ name. The search index (`opm index`) covers all runs; an EPUB is built from the
 first.
 
 A single `[chunking]` table works exactly as before.
+
+## Auxiliary pages
+
+The primary purpose of OPM is to transform a set of input documents into a collection of outputs.
+This is what `[[chunking]]` was designed for.
+
+However, `[[chunking]]` makes some assumptions:
+
+* it always needs at least one XML input file
+* every processed document produces exactly one output directory in html mode
+* appends to the list of documents appearing on the default browse page
+
+On its own, `[[chunking]]` is sufficient to create a nice basic website
+with reading views for each document and a landing page listing the content.
+
+But a full website usually needs more than that: besides the main content, there will be auxiliary pages, which may or may not
+have been generated from XML. The configuration therefore supports another category: `pages`. This allows you to render any number
+of auxiliary content pages by appending their configurations to the `[[pages]]` array. Contrary to `[[chunking]]`, `[[pages]]` are
+more generic: 
+
+* they don't require an XML input at all, but can just be static HTML
+* you have full control over where the output is stored
+
+In other words: _pages_ are the missing building block you need to create a full static website with OPM.
+
+`opm chunk` automatically processes `[[pages]]`, but only if the output format is `html`. For the other formats, `json` and `pb-view`,
+`[[pages]]` is ignored: those are exchange formats, which produce raw data, not a complete website.
+
+```toml
+# A static page: no source, the template alone is rendered.
+[[pages]]
+path = "about.html"
+template = "templates/about.html.tpl"
+menu = "About"                     # its label, e.g. in a breadcrumb
+
+# One page listing every place.
+[[pages]]
+path = "places/index.html"
+menu = "Places"
+source = "data/registers/places.xml"   # the page's own source, not the letters
+xpath = "//listPlace"                  # must select exactly one node
+parameters = { mode = "register-overview" }
+
+# One page per place, named by its xml:id: places/Krakow.html, …
+[[pages]]
+path = "places/{xml_id}.html"
+source = "data/registers/places.xml"
+xpath = "//listPlace/place"
+```
+
+A page with `source` is rendered through the same ODD machinery as a chunk —
+same selector, fragments, link rewriting — so the difference is only the
+contract with the site: a fixed `path` (a placeholder like `{xml_id}`,
+`{ident}`, `{stem}` or `{index}` yields one page per selected node; without a
+placeholder the path is a single page and must select exactly one node), no
+per-document subdirectory, no prev/next, and no listing in `index.html`.
+Link to a page from the menubar with `[context.menu] items`. Pages receive the
+chunking runs' anchors, so they can link into the reading view; links to a
+page itself use its stable path. A page template also receives
+`site_documents`: for every document of the site its `title`, the `href` of
+its first page and the `refs` its text points to, which is how a register
+entry lists where it is mentioned. Links written the TEI Publisher way, from
+the site root and without `.html` (`places/Krakow`), are pointed at the page
+opm wrote. A page directory's `manifest.json` is tagged
+`"role": "page"` so the collection index skips it.
+
+A page's `menu` label is used on the collection index. The menubar is not
+derived from pages: it reads `[context.menu] items` only, so a page you want
+linked there — e.g. a profile's browse page — is listed explicitly:
+
+```toml
+[context.menu]
+items = [{ label = "Places", url = "places/index.html" }]
+```
+
+Menu URLs are relative to the site root and the layout prefixes them with the
+page's path back to it (`../` from a chunk page, nothing at the root) — where
+a TEI Publisher application prefixes them with the context-path. Set
+`enabled = false` on a `[[pages]]` entry to switch a page (e.g. one a profile
+contributed) off.
+
+Pages inherit the first chunking run's ODD, template, assets and parameters;
+`template`, `odd`, `parameters` and `[[pages.fragments]]` override them per
+page. Pages are HTML-only: `--format json` and `--format pb-view` skip them,
+since those feed an external site generator that builds its own pages. Use
+`--no-pages` to build the reading view alone, or `--page places` to build only
+the pages whose path starts with a prefix.
+
+Profiles can declare `[[pages]]` in their `opm-profile.toml` (see
+[Profiles](profiles.md)); a project entry with the same `path` replaces the
+profile's, so the project can repoint `source` at its own data.
 
 ## `$parameters?root`
 

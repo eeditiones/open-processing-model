@@ -96,7 +96,31 @@ how to write the model.
 
 ### registers: people and places
 
-Shows the register of a document beside its text. What the register lists is
+Shows the register of a document beside its text, and adds browse pages for
+the people and places registers, rendered into the chunk output after the
+reading view.
+
+The overviews, `people/index.html` and `places/index.html`, list every entry
+alphabetically under its first letter, with a row of letters to jump by. Each
+entry is rendered by your ODD's `register-overview` mode, as in TEI Publisher.
+When the entries carry coordinates (`teipublisher.odd` gives places a map pin),
+a map with all of them sits above the list.
+
+Each entry also gets a page of its own, `people/{xml:id}.html` or
+`places/{xml:id}.html`. It shows the entry as your ODD renders it and lists
+the documents that mention it, that is, whose text points to the entry with
+`@key` or `@ref`.
+
+The pages read `data/registers/persons.xml` The pages read `data/registers/persons.xml`
+and `data/registers/places.xml` by default. Point them at your own register
+files with a `[[pages]]` entry of the same `path` in `opm.toml`, or switch one
+off with `enabled = false`; when a source file is missing, that register's
+pages are skipped. To link the overviews in the menubar, add them to
+`[context.menu] items` yourself (see
+[The menu bar and the toolbar](templates-and-css.md#the-menu-bar-and-the-toolbar)).
+See [Auxiliary pages](chunking.md#auxiliary-pages).
+
+What the sidebar register lists is
 decided by your ODD's `register` mode: `teipublisher.odd` looks up every
 person and place a document names in the registers under
 `$global:register-root`.
@@ -184,6 +208,16 @@ name = "my_fragment"
 xpath = "./ancestor-or-self::*[last()]"
 parameters = { mode = "my-mode" }
 
+# Auxiliary pages added to the site, unless the project declares a page with
+# the same path. "template" resolves against the profile folder, "source"
+# against the project root.
+[[pages]]
+path = "places/{xml_id}.html"
+menu = "Places"
+source = "data/registers/places.xml"
+xpath = "//listPlace/place"
+template = "templates/place.html.tpl"
+
 # Python functions to call once all pages are written.
 [hooks]
 after_chunking = ["build.py:build"]
@@ -212,6 +246,10 @@ template and a profile fill the same block, both appear, one after the other:
 </template>
 ```
 
-A hook is a Python function in a file of the profile. It receives the project
-and a description of the finished run, including the output folder and the
-documents. The bundled `pagefind` profile's `search.py` is a complete example.
+A `[[pages]]` entry makes the profile contribute standalone pages of the site
+— register browsers, an about page — rendered by `opm chunk` after the
+chunking runs; see [Auxiliary pages](chunking.md#auxiliary-pages). A hook is
+a Python function in a file of the profile, for everything that is not a
+page: it receives the project and a description of the finished run, including
+the output folder and the documents. The bundled `pagefind` profile's
+`search.py` is a complete example.

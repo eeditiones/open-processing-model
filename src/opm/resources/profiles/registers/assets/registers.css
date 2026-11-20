@@ -116,3 +116,121 @@
     color: var(--opm-color-muted);
   }
 }
+
+/* ── Register pages: overview and entry ──────────────────── */
+
+/* The overview (register-index.html.tpl): names in two columns under their
+   initial, a row of initials to jump by, and for places a map on top. */
+.register-index,
+.register-entry {
+  max-width: var(--opm-index-width, 60rem);
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+.register-index__head {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--opm-color-rule);
+}
+
+.register-index__head h1 {
+  margin: 0 0 0.75rem;
+  font-family: var(--opm-font-display);
+  font-weight: var(--opm-display-weight, 400);
+}
+
+.register-index__count {
+  margin: 0;
+  font-family: var(--opm-font-ui);
+  font-size: 0.8rem;
+  color: var(--opm-color-muted);
+}
+
+.register-index__map {
+  display: block;
+  width: 100%;
+  height: min(40vh, 22rem);
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--opm-color-rule);
+}
+
+.register-index__letters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-bottom: 1rem;
+  font-family: var(--opm-font-ui);
+  font-size: 0.85rem;
+}
+
+.register-index__letters a {
+  color: var(--opm-color-muted);
+  text-decoration: none;
+}
+
+.register-index__letters a:hover {
+  color: var(--opm-color-accent);
+}
+
+.register-index__letter {
+  margin: 1.5rem 0 0.5rem;
+  font-family: var(--opm-font-display);
+  font-size: 1.25rem;
+  font-weight: var(--opm-display-weight, 400);
+  color: var(--opm-color-muted);
+}
+
+.register-index__list {
+  columns: 2;
+  column-gap: 2.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.register-index__item {
+  break-inside: avoid;
+  margin: 0 0 0.35rem;
+}
+
+/* The ODD's entry: a header with the link and, for a place, its pin. */
+.register-index__item > header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.register-index__item pb-geolocation {
+  flex: none;
+  color: var(--opm-color-muted);
+  cursor: pointer;
+}
+
+.register-index__item pb-geolocation:hover {
+  color: var(--opm-color-accent);
+}
+
+@media (max-width: 40rem) {
+  .register-index__list {
+    columns: 1;
+  }
+}
+
+/* The entry (register-entry.html.tpl) and the documents that mention it. */
+.register-entry__mentions {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--opm-color-rule);
+}
+
+.register-entry__mentions h2 {
+  margin: 0 0 0.5rem;
+  font-family: var(--opm-font-ui);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}

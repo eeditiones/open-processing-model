@@ -104,12 +104,14 @@ body.letter {
 
 /* ── Breadcrumb toolbar: parchment band ───────────────────── */
 
+/* Letters and the registers profile's pages (body.register-page) share it. */
+
 /* The layout's content-top region, stretched across the page. */
-.letter .opm-layout > .content-top {
+:is(.letter, .register-page) .opm-layout > .content-top {
   grid-column: 1 / -1;
 }
 
-.letter .toolbar {
+:is(.letter, .register-page) .toolbar {
   min-height: var(--letter-toolbar-height);
   padding: 0.6rem var(--letter-pad);
   border-bottom: 1px solid var(--opm-color-rule);
@@ -134,7 +136,7 @@ body.letter {
   background-position: center, center;
 }
 
-.letter .toolbar .breadcrumb {
+:is(.letter, .register-page) .toolbar .breadcrumb {
   font-family: var(--opm-font-display);
   font-size: 1.05rem;
   font-weight: 400;
@@ -148,12 +150,28 @@ body.letter {
 }
 
 /* The breadcrumb fragment is a nest of tei-* spans — flatten it to one line. */
-.letter .toolbar .breadcrumb .tei-title,
-.letter .toolbar .breadcrumb span {
+:is(.letter, .register-page) .toolbar .breadcrumb .tei-title,
+:is(.letter, .register-page) .toolbar .breadcrumb span {
   font: inherit;
   color: inherit;
   letter-spacing: inherit;
   font-style: normal;
+}
+
+/* A register entry's breadcrumb: the overview, a link, then the entry. */
+.register-page .toolbar .breadcrumb a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.register-page .toolbar .breadcrumb a:hover {
+  color: var(--opm-color-accent);
+}
+
+.register-page .toolbar .breadcrumb a + span::before {
+  content: "›";
+  margin: 0 0.5em;
+  opacity: 0.6;
 }
 
 /* ── Page shell ───────────────────────────────────────────── */
