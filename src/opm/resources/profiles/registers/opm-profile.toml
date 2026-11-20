@@ -43,12 +43,13 @@ categories = []
 # - an overview: every entry in the ODD's register-overview mode (as in TEI
 #   Publisher), sorted and grouped by initial in register-index.html.tpl,
 #   with a map when the entries carry pb-geolocation pins;
-# - one page per entry: the ODD's default rendering of the entry, plus the
-#   documents that mention it (register-entry.html.tpl).
+# - one page per entry, in the ODD's register-details mode (as in TEI
+#   Publisher). With `static` set, teipublisher.odd lists there the documents
+#   in collection($global:data-default) that mention the entry.
 #
-# A project points `source` at its own register files by declaring a
-# [[pages]] entry with the same path in opm.toml, and switches a page off
-# with enabled = false. When the default source is missing, its pages are
+# A project changes a page by declaring a [[pages]] entry with the same path
+# in opm.toml: the keys it sets (its own `source`, a `menu` label in another
+# language) win, the rest stays. enabled = false switches a page off. When the default source is missing, its pages are
 # skipped — a project without a register simply gets none of its pages.
 [[pages]]
 path = "places/index.html"
@@ -62,6 +63,7 @@ template = "templates/register-index.html.tpl"
 path = "places/{xml_id}.html"
 source = "data/registers/places.xml"
 xpath = "//listPlace/place"
+parameters = { mode = "register-details", static = true }
 template = "templates/register-entry.html.tpl"
 
 [[pages]]
@@ -76,6 +78,7 @@ template = "templates/register-index.html.tpl"
 path = "people/{xml_id}.html"
 source = "data/registers/persons.xml"
 xpath = "//listPerson/person"
+parameters = { mode = "register-details", static = true }
 template = "templates/register-entry.html.tpl"
 
 # The menubar is not configured here: it reads [context.menu] items only, so

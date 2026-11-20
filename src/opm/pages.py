@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import posixpath
 import re
+from urllib.parse import quote, unquote
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Mapping, Sequence
@@ -261,29 +262,6 @@ def _documents_from(documents: Sequence[Mapping[str, Any]], prefix: str) -> list
     return [{**doc, 'href': f"{prefix}{doc['href']}"} for doc in documents]
 
 
-def describe_documents(documents: Sequence[Mapping[str, str]]) -> list[dict[str, Any]]:
-    """Add each document's ``title`` and ``refs`` to *documents*.
-
-    ``title`` is the first ``titleStmt/title`` of the source, else its name;
-    ``refs`` the ids its text points to with ``@key`` or ``@ref`` (a leading
-    ``#`` dropped), so a register entry's page can list where it is
-    mentioned without opening every document again.
-    """
-    described = []
-    for doc in documents:
-        root = xml_parse(str(doc['path'])).getroot()
-        title = root.xpath("normalize-space((//*[local-name()='titleStmt']/*[local-name()='title'])[1])")
-        scope = root.xpath("//*[local-name()='text']") or [root]
-        refs = {
-            token.removeprefix('#')
-            for node in scope
-            for value in node.xpath('.//@key | .//@ref')
-            for token in str(value).split()
-        }
-        described.append({**doc, 'title': title or doc['name'], 'refs': sorted(refs)})
-    return described
-
-
 _HREF_RE = re.compile(r'(\shref=")([^"#?]+)([^"]*)(")')
 
 
@@ -308,15 +286,18 @@ def _resolve_page_links(out_root: Path, results: Sequence[PageResult]) -> None:
         here = file.parent.relative_to(out_root).as_posix() if file.parent != out_root else '.'
 
         def fix(match: re.Match, file: Path = file, here: str = here) -> str:
-            href = match.group(2)
-            if '://' in href or href.startswith(('/', '.', 'mailto:', 'javascript:')):
+            raw = match.group(2)
+            if '://' in raw or raw.startswith(('/', '.', 'mailto:', 'javascript:')):
                 return match.group(0)
+            # An ODD may percent-encode the id (`Enge_Z%C3%BCrich`); files
+            # are named by the id itself.
+            href = unquote(raw)
             if (file.parent / href).exists():
                 return match.group(0)
             target = f'{href.rstrip("/")}.html'
             if target not in known:
                 return match.group(0)
-            rel = posixpath.relpath(target, here)
+            rel = quote(posixpath.relpath(target, here), safe='/')
             return f'{match.group(1)}{rel}{match.group(3)}{match.group(4)}'
 
         html = file.read_text(encoding='utf-8')
@@ -348,15 +329,13 @@ def render_pages(
     *documents* are the chunked documents, each a map of ``name``, ``path``
     (the source file) and ``href`` (its first page, relative to the output
     root). Page templates receive them as ``site_documents``, with ``href``
-    relative to the page, so a register entry can list the documents that
-    mention it. Links between pages written the TEI Publisher way are then
+    relative to the page. Links between pages written the TEI Publisher way are then
     resolved, see [`_resolve_page_links`][opm.pages._resolve_page_links].
 
     Pages are rendered in config order, HTML only — ``--format json`` and
     ``pb-view`` feed external site generators, which build their own pages.
     """
     results: list[PageResult] = []
-    documents = describe_documents(documents) if project.config.pages else []
     for page in project.config.pages:
         if only and not page.path.startswith(only):
             continue

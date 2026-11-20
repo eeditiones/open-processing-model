@@ -284,9 +284,9 @@ per-document subdirectory, no prev/next, and no listing in `index.html`.
 Link to a page from the menubar with `[context.menu] items`. Pages receive the
 chunking runs' anchors, so they can link into the reading view; links to a
 page itself use its stable path. A page template also receives
-`site_documents`: for every document of the site its `title`, the `href` of
-its first page and the `refs` its text points to, which is how a register
-entry lists where it is mentioned. Links written the TEI Publisher way, from
+`site_documents`: for every document of the site its `name` and the `href`
+of its first page. Which documents mention a register entry is up to the ODD,
+which can search them with `collection()` (see the registers profile). Links written the TEI Publisher way, from
 the site root and without `.html` (`places/Krakow`), are pointed at the page
 opm wrote. A page directory's `manifest.json` is tagged
 `"role": "page"` so the collection index skips it.

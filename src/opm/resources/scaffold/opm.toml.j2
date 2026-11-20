@@ -3,6 +3,10 @@
 
 [project]
 pythonpath = ["."]
+# Profiles add ready-made features to the site: a register of people and
+# places, previous/next links, search, a facsimile viewer. `opm profile list`
+# shows them; `opm profile add <name>` switches one on here.
+# profiles = ["registers"]
 
 [transform]
 odd = "{{ odd_path }}"
@@ -36,6 +40,13 @@ register-root = "urn:registers"
 #     "data/registers/persons.xml",
 #     "data/registers/places.xml",
 # ]
+
+# The documents of the edition, as collection($global:data-default): the
+# registers profile lists on each entry's page the documents that mention it.
+# Set data-default = "urn:documents" above and uncomment:
+# [[transform.collections]]
+# uri = "urn:documents"
+# documents = ["data/*.xml"]
 
 # Replaces the base rules compiled into the ODD stylesheet (popovers, column
 # breaks, margin notes) for every output type. Design CSS for your pages

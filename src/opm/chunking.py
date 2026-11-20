@@ -1472,8 +1472,8 @@ def chunk_document(
     [`inject_cached_footnotes`][opm.runtime.pm_runtime.inject_cached_footnotes].
 
     *template_variables* are passed to the page template beside the built-in
-    variables; [`render_pages`][opm.pages.render_pages] uses them to hand
-    register pages the site's documents.
+    variables; auxiliary pages (``[[pages]]``) use them to hand their
+    templates the site's documents.
 
     Returns the run's anchor map, ``xml:id`` → chunk file. Pass it as
     *anchors* to a later run over the same output directory, and ``#id``

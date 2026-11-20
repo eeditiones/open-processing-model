@@ -1,0 +1,436 @@
+<TEI xmlns="http://www.tei-c.org/ns/1.0" xml:id="persons" type="Person">
+    <teiHeader>
+        <fileDesc>
+            <titleStmt>
+                <title>Alfred Escher Briefedition: Personendaten</title>
+            </titleStmt>
+            <publicationStmt>
+                <p>Publication Information</p>
+            </publicationStmt>
+            <sourceDesc>
+                <p>Information about the source</p>
+            </sourceDesc>
+        </fileDesc>
+    </teiHeader>
+    <standOff>
+        <listPerson>
+            <person xml:id="Schweizer-Alexander" n="Schweizer Alexander" type="correspondent">
+                <persName type="main">
+                    <forename>Alexander</forename>
+                    <surname>Schweizer</surname>
+                </persName>
+                <birth>1808</birth>
+                <death>1888</death>
+                <figure>
+                    <graphic url="Schweizer_Alexander_01.jpg">
+                        <desc>Alexander Schweizer (1808–1888), Turnlehrer von Alfred Escher. Der in Murten geborene Theologe Alexander Schweizer wirkte 1836 als Professor und Vikar am Zürcher Grossmünster und war von 1836 bis 1869 Mitglied des Kirchenrates. Obgleich sich Schweizer innerhalb der theologischen Wissenschaft zum liberalen Lager zählte, riet er 1838/39 von der Berufung von David Friedrich Strauss zum Professor für Dogmatik und Kirchengeschichte an der Universität Zürich ab. Fotografie um 1865.</desc>
+                        <desc type="source">Graphische Sammlung und Kartensammlung der Zentralbibliothek Zürich</desc>
+                    </graphic>
+                </figure>
+                <note type="bio">
+                    <p>Evangelischer <placeName key="Zürich">Zürcher</placeName> Theologe und
+            liberal-konservativer Politiker: Privatdozent (1834/35), ausserordentlicher (1835–1841)
+            und ordentlicher Professor (1841–1888) für praktische Theologie, Neues Testament und
+            Ethik an der Universität <placeName key="Zürich_Stadt">Zürich</placeName>;
+            Hilfsprediger in <placeName key="Leipzig (D)">Leipzig</placeName> (1833/34), Vikar
+            (1834–1844) und Pfarrer (1844–1871) am Grossmünster in <placeName key="Zürich_Stadt">Zürich</placeName>; Kirchenrat (1836–1869), Grossrat (1838–1842).
+            </p>
+                    <p>Schweizer studierte Theologie in <placeName key="Zürich_Stadt">Zürich</placeName>
+            (bis 1831) und <placeName key="Berlin (D)">Berlin</placeName> (1832/33). </p>
+                    <p>Mitglied des Schweizerischen Zofingervereins (Sektion <placeName key="Zürich">Zürich</placeName> 1825–1830). </p>
+                    <p>Ehemaliger Turnlehrer Alfred Eschers. Zudem hielt Schweizer die Abdankungsrede bei Eschers
+            Beerdigung.</p>
+                </note>
+                <idno type="gnd">118612158</idno>
+                <idno type="URI">http://www.hls-dhs-dss.ch/textes/d/D10446.php</idno>
+                <bibl>
+                    <choice>
+                        <abbr>Vgl.</abbr>
+                        <expan>Vergleiche</expan>
+                    </choice>
+            <ref type="lit">Schweizer, Aufzeichnungen</ref>; <ref type="lit">Regierungsetat ZH</ref>
+            1839–1842; <ref target="http://www.hls-dhs-dss.ch/textes/d/D10446.php">
+                        <ref type="lit">HLS online</ref>, Schweizer Alexander</ref>; <ref type="lit">Campi/Kunz/Moser, Schweizer</ref>; <ref type="lit">Gagliardi/Nabholz/Strohl,
+                Universität Zürich</ref>, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 957; <ref type="lit">Beringer, Zofingerverein</ref> I, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 423; <ref type="lit">Jung, Aufbruch</ref>, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 13, 63; <ref type="sum" target="Freunde_und_Bekannte_p8"><!--S. 15–16--></ref>.</bibl>
+            </person>
+            <person xml:id="Frick-Johannes-Heinrich" n="Frick Johannes Heinrich" type="mentioned">
+                <persName type="main">
+                    <forename>Johannes Heinrich</forename>
+                    <surname>Frick</surname>
+                </persName>
+                <birth>1800</birth>
+                <death>1855</death>
+                <idno type="gnd">100126863</idno>
+            </person>
+            <person xml:id="Schweizer-Heinrich" n="Schweizer Heinrich" type="correspondent">
+                <persName type="main">
+                    <forename>Heinrich</forename>
+                    <surname>Schweizer</surname>
+                </persName>
+                <birth>1800</birth>
+                <death>1882</death>
+                <figure>
+                    <graphic url="Schweizer_Heinrich_01.jpg">
+                        <desc>Pfarrer Heinrich Schweizer (1801–1882), Privatlehrer von Alfred Escher.</desc>
+                        <desc type="source">Graphische Sammlung und Kartensammlung der Zentralbibliothek Zürich</desc>
+                    </graphic>
+                </figure>
+                <note type="bio">
+                    <p>Evangelischer <placeName key="Zürich">Zürcher</placeName> Theologe: Vikar in <placeName key="Bubikon">Bubikon</placeName> (1827), Pfarrer in <placeName key="Albisrieden (Zürich)">Albisrieden</placeName> (1827–1830), <placeName key="Bubikon">Bubikon</placeName> (1830–1834), <placeName key="Schwerzenbach">Schwerzenbach</placeName> (1837–1841) und <placeName key="Rüti (ZH)">Rüti</placeName>
+            (1841–1871). </p>
+                    <p>Schweizer studierte Theologie in <placeName key="Zürich_Stadt">Zürich</placeName> (bis 1827). </p>
+                    <p>Ehemaliger Privatlehrer Alfred Eschers. </p>
+                </note>
+                <bibl>
+                    <choice>
+                        <abbr>Vgl.</abbr>
+                        <expan>Vergleiche</expan>
+                    </choice>
+            <ref type="lit">Helfenstein, Escher und Schweizer</ref>; <ref type="lit">Dejung/Wuhrmann, Pfarrerbuch</ref>, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 523; <ref type="sum" target="Freunde_und_Bekannte_p9"><!--Jung/Fischer, Escher Briefe, Bd. 2, S. 16--></ref>.</bibl>
+            </person>
+            <person xml:id="Hayes-Eliza" n="Hayes Eliza" type="mentioned">
+                <persName type="main">
+                    <forename>Eliza</forename>
+                    <surname>Hayes</surname>
+                </persName>
+            </person>
+            <person xml:id="Escher-_vom-Glas-Heinrich" n="Escher (vom Glas) Heinrich" type="mentioned">
+                <persName type="main">
+                    <forename>Heinrich</forename>
+                    <surname>Escher</surname>
+                </persName>
+                <birth>1776</birth>
+                <death>1853</death>
+                <figure>
+                    <graphic url="Escher_vom_Glas_Heinrich_01.jpg">
+                        <desc>Heinrich Escher um 1840. Ölgemälde von Johann Conrad Zeller (1807–1856).</desc>
+                        <desc type="source">Graphische Sammlung und Kartensammlung der Zentralbibliothek Zürich</desc>
+                    </graphic>
+                </figure>
+                <note type="bio">
+                    <p>Ab 1815 Ehemann <persName key="Escher-Zollikofer-_von-Altenklingen-Lydia">Lydia Escher-Zollikofers</persName>,
+            Vater Alfred Eschers und <persName key="Stockar-Escher-_vom-Glas-Clementine">Clementine Stockar-Eschers</persName>; <placeName key="Zürich">Zürcher</placeName>
+            Kaufmann und Privatier: kaufmännische Erfahrungen bei <persName key="Hottinger Hans Konrad">Hans Konrad Hottinger</persName> im Bankhaus Hottinguer
+            und Compagnie in <placeName key="Paris (F)">Paris</placeName> (1791/92) und in <placeName key="London (UK)">London</placeName> (1793), Tätigkeit als Kaufmann in den <placeName key="Vereinigte_Staaten_von_Amerika">Vereinigten Staaten</placeName> (1795–1806) und
+            dabei Bekanntschaft mit führenden <placeName key="Vereinigte_Staaten_von_Amerika">US-amerikanischen</placeName> Persönlichkeiten,
+                <choice>
+                            <abbr>u. a.</abbr>
+                            <expan>unter anderem</expan>
+                        </choice> mit <persName key="Washington George">George Washington</persName> und <persName key="Jefferson Thomas">Thomas Jefferson</persName>, Aufenthalt in <placeName key="Paris (F)">Paris</placeName> und <placeName key="Zürich_Stadt">Zürich</placeName> (1806–1812), erneute Tätigkeit in den <placeName key="Vereinigte_Staaten_von_Amerika">Vereinigten Staaten</placeName> (1812–1814); nach
+            seiner Rückkehr nach <placeName key="Zürich">Zürich</placeName> (1814) Privatier,
+            widmete er sich der Erweiterung seiner entomologischen Sammlung; ab 1831 lebte er mit
+            seiner Familie im Gut <placeName key="Belvoir_Enge_Zürich">Belvoir</placeName> in
+            der Gemeinde <placeName key="Enge_Zürich">Enge</placeName> bei <placeName key="Zürich_Stadt">Zürich</placeName>.</p>
+                </note>
+                <idno type="gnd">117512699</idno>
+                <idno type="URI">http://www.hls-dhs-dss.ch/textes/d/D30956.php</idno>
+                <bibl>
+            <choice>
+                        <abbr>Vgl.</abbr>
+                        <expan>Vergleiche</expan>
+                    </choice>
+            <ref type="lit">Heer, Escher-Zollikofer</ref>; <ref type="lit">Keller-Escher, Escher vom
+                Glas</ref>, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 57–64; <ref type="lit">Jung,
+                Escher</ref>, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 30–33, 40–42.</bibl>
+            </person>
+            <person xml:id="Pestalozzi-Hans-Jakob" n="Pestalozzi Hans Jakob" type="correspondent">
+                <persName type="main">
+                    <forename>Hans Jakob</forename>
+                    <surname>Pestalozzi</surname>
+                </persName>
+                <birth>1801</birth>
+                <death>1874</death>
+                <note type="bio">
+                    <p>
+    Wirtschaftsliberaler <placeName key="Zürich">Zürcher</placeName> Politiker und Jurist: Mitglied der 
+    Sekundarschulpflege von <placeName key="Wädenswil">Wädenswil</placeName> (1856–1874), 
+    Grossrat (1843–1863), Ständerat (1849–1863); 
+    Kantonsprokurator (1825–1828) und Fürsprecher (1828–1866) 
+    in <placeName key="Winterthur">Winterthur</placeName> <choice>
+                            <abbr>bzw.</abbr>
+                            <expan>beziehungsweise</expan>
+                        </choice> in <placeName key="Wädenswil">Wädenswil</placeName>. </p>
+                    <p>Mitglied des Schweizerischen 
+    Zofingervereins (Sektion <placeName key="Zürich_Stadt">Zürich</placeName> 1819/20). </p>
+                    <p>Pestalozzi leitete die von den Liberalen 
+    einberufene Volksversammlung in 
+    <placeName key="Schwamendingen (Zürich)">Schwamendingen</placeName> (1841) und war 
+    Mitunterzeichner des Aufrufs zur 
+    Volksversammlung in <placeName key="Unterstrass (Zürich)">Unterstrass</placeName> (1845). 
+</p>
+                </note>
+                <idno type="gnd">1051893674</idno>
+                <idno type="URI">http://www.hls-dhs-dss.ch/textes/d/D3673.php</idno>
+                <bibl>
+    <choice>
+                        <abbr>Vgl.</abbr>
+                        <expan>Vergleiche</expan>
+                    </choice> <ref type="lit">Regierungsetat ZH</ref> 1865/66; 
+    <ref type="lit">Pestalozzi-Keyser, Geschichte Pestalozzi</ref>, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 147–150, Stammtafel 23; 
+    <ref target="http://www.hls-dhs-dss.ch/textes/d/D3673.php">
+                        <ref type="lit">HLS online</ref>, Pestalozzi Hans Jakob</ref>; 
+    <ref type="lit">Gruner, Bundesversammlung</ref> I, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 93; 
+    <ref type="lit">Beringer, Zofingerverein</ref> I, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 422; 
+    <ref target="http://www.parlament.ch/d/suche/seiten/biografie.aspx?biografie_id=2904">
+                        <ref type="lit">National- und Ständeratsmitglieder online</ref>, Pestalozzi H. Jakob</ref>.
+    </bibl>
+            </person>
+            <person xml:id="Stockar-Escher-_vom-Glas-Clementine" n="Stockar-Escher (vom Glas) Clementine" type="correspondent">
+                <persName type="main">
+                    <forename>Clementine</forename>
+                    <surname>Stockar-Escher</surname>
+                </persName>
+                <birth>1816</birth>
+                <death>1886</death>
+                <figure>
+                    <graphic url="Stockar-Escher_Clementine_01.jpg">
+                        <desc>Clementine Stockar-Escher (1816–1886) bei der Arbeit. Auf der Staffelei das Porträt des 17jährigen Egbert Stockar. Fotografie 1859.</desc>
+                        <desc type="source">Graphische Sammlung und Kartensammlung der Zentralbibliothek Zürich</desc>
+                    </graphic>
+                </figure>
+                <note type="bio">
+                    <p> Tochter von <persName key="Escher-Zollikofer-_von-Altenklingen-Lydia">Lydia
+                Escher-Zollikofer</persName> und <persName key="Escher-_vom-Glas-Heinrich">Heinrich Escher</persName>, Schwester von Alfred Escher; ab 1837 Ehefrau von <persName key="Stockar Kaspar">Kaspar Stockar</persName> (1812–1882); Porträt-,
+            Genre- und Blumenmalerin sowie Lithographin. </p>
+                    <p>Nach der Heirat mit <persName key="Stockar Kaspar">Kaspar Stockar</persName> wurde
+            die begabte Autodidaktin von dessen Freund, dem Porträtisten und Hofmaler <persName key="Winterhalter Franz Xaver">Franz Winterhalter</persName>, gefördert.
+            Seit 1840 stellte sie regelmässig an den Jahresausstellungen des Schweizerischen
+            Kunstvereins aus und war auch an der Schweizerischen Landesausstellung in <placeName key="Zürich_Stadt">Zürich</placeName> 1883 vertreten. Sie malte nie zu
+            kommerziellen, sondern ausschliesslich zu privaten Zwecken.</p>
+                </note>
+                <idno type="gnd">1015305563</idno>
+                <bibl>
+            <choice>
+                        <abbr>Vgl.</abbr>
+                        <expan>Vergleiche</expan>
+                    </choice>
+            <ref type="lit">Schweizerischer Kunstverein, Künstler-Lexikon</ref>, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 260; <ref type="lit">Schmidt-Liebich, Künstlerinnen</ref>,
+                <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice>
+            455–456<!-- Pendenz: Aufnahme?; <ref type="lit">Jung, Aufbruch</ref>, <abbr norm="Seite(n)">S.</abbr> 1107-->.
+        </bibl>
+            </person>
+            <person xml:id="Horner-Johann-Jakob" n="Horner Johann Jakob" type="correspondent">
+                <persName type="main">
+                    <forename>Johann Jakob</forename>
+                    <surname>Horner</surname>
+                </persName>
+                <birth>1804</birth>
+                <death>1886</death>
+                <note type="bio">
+                    <p>
+                        <placeName key="Zürich">Zürcher</placeName> Mathematiker und Bibliothekar: Lehrer für
+            Mathematik am Carolinum (1829–1833) und am Gymnasium <placeName key="Zürich_Stadt">Zürich</placeName> (1833–1863); Unterbibliothekar (1832–1848) und
+            Oberbibliothekar der Stadtbibliothek <placeName key="Zürich_Stadt">Zürich</placeName> (1849–1885), Bibliothekar der Naturforschenden Gesellschaft
+            (1831/1837–1881) und der Museumsgesellschaft (1833–1880). </p>
+                    <p>Horner studierte Theologie in <placeName key="Zürich_Stadt">Zürich</placeName> (bis
+            1825). </p>
+                    <p>Privatlehrer Alfred Eschers für Mathematik, Geometrie und Geographie.</p>
+                </note>
+                <idno type="gnd">140778705</idno>
+                <bibl>
+                    <choice>
+                        <abbr>Vgl.</abbr>
+                        <expan>Vergleiche</expan>
+                    </choice>
+            <ref type="lit">Zürcherische Freitagszeitung</ref>, 26. März 1886 (Nekrolog); <ref type="lit">Anzeiger für schweizerische Geschichte</ref> V, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 84; <ref type="lit">Meyer von Knonau, Horner</ref>; <ref type="lit">HBLS</ref> IV, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 291; <ref type="lit">Hunziker,
+                Mittelschulen</ref>, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 315; <ref type="sum" target="Freunde_und_Bekannte_p7"><!--S. 15--></ref>.</bibl>
+            </person>
+            <person xml:id="Escher-Zollikofer-_von-Altenklingen-Lydia" n="Escher-Zollikofer (von Altenklingen) Lydia" type="mentioned">
+                <persName type="main">
+                    <forename>Lydia</forename>
+                    <surname>Escher-Zollikofer</surname>
+                </persName>
+                <birth>1797</birth>
+                <death>1868</death>
+                <figure>
+                    <graphic url="Escher-Zollikofer_von_Altenklingen_Lydia_01.jpg">
+                        <desc>Lydia Escher-Zollikofer (1797–1868). Mutter von Alfred Escher. Öl auf Leinwand. Gemalt von Johann Conrad Zeller (1807–1856).</desc>
+                        <desc type="source"/>
+                    </graphic>
+                </figure>
+                <note type="bio">
+                    <p>Lydia Escher-Zollikofer (von Altenklingen) (1797-1868), Tochter von <persName key="Zollikofer-Kunkler Elisabetha">Elisabetha Zollikofer-Kunkler</persName> und <persName key="Zollikofer (von Altenklingen) Daniel Hermann">Daniel Hermann
+                Zollikofer (von Altenklingen)</persName>, ab 1815 Ehefrau <persName key="Escher-_vom-Glas-Heinrich">Heinrich Eschers</persName>, Mutter Alfred Eschers und
+                <persName key="Stockar-Escher-_vom-Glas-Clementine">Clementine
+                Stockar-Eschers</persName>. –</p>
+                    <p>Nach dem Bezug des <placeName key="Belvoir_Enge_Zürich">Belvoir</placeName> 1831
+            blieb sie bis zu ihrem Tod die Herrin über das von der <placeName key="Zürich_Stadt">Zürcher</placeName> Gesellschaft separierte Anwesen in der <placeName key="Enge_Zürich">Enge</placeName>. Schon früh zeigten sich verschiedene
+            psychische und physische Krankheitssymptome; so litt sie bereits seit den 1830er Jahren
+            an Gicht.</p>
+                </note>
+                <bibl>
+                    <choice>
+                        <abbr>Vgl.</abbr>
+                        <expan>Vergleiche</expan>
+                    </choice>
+            <ref type="lit">Keller-Escher, Escher vom Glas</ref>, Genealogie; <ref type="lit">Heer,
+                Escher-Zollikofer</ref>, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 220, 222, 241; <ref type="lit">Jung, Aufbruch</ref>, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 55–56,
+            261.</bibl>
+            </person>
+            <person xml:id="Rahn-Escher-Hans-Konrad" n="Rahn-Escher Hans Konrad" type="correspondent">
+                <persName type="main">
+                    <forename>Hans Konrad</forename>
+                    <surname>Rahn-Escher</surname>
+                </persName>
+                <birth>1802</birth>
+                <death>1881</death>
+                <note type="bio">
+                    <p>Konservativer <placeName key="Zürich">Zürcher</placeName> Politiker und Mediziner:
+            Grossrat (1839–1866), Erziehungsrat (1839–1847), Mitglied der Aufsichtskommission des
+            Gymnasiums <placeName key="Zürich">Zürich</placeName> (1841–1847, Präsident 1842–1845); Arzt in <placeName key="Zürich_Stadt">Zürich</placeName> (1823–1881), Mitglied der kantonalen
+            Ärztegesellschaft (1823–1881), Lehrer am medizinisch-chirurgischen Institut in <placeName key="Zürich_Stadt">Zürich</placeName> (1830–1833), Mitglied der
+            Aufsichtskommission der Tierarzneischule (1840–1861, Präsident 1850–1861), Mitglied der
+            städtischen Sanitätskommission (1870–1874). </p>
+                    <p> Rahn-Escher war beim <placeName key="Zürich_Stadt">Zürich</placeName>putsch von 1839
+            als Vizepräsident des kantonalen Zentralkomitees («Glaubenskomitee») eine der führenden
+            Figuren der konservativen Bewegung gegen die liberale Regierung. Rahn-Escher war der
+            Arzt von Eschers Mutter <persName key="Escher-Zollikofer-_von-Altenklingen-Lydia">Lydia Escher-Zollikofer</persName>.
+        </p>
+                </note>
+                <idno type="gnd">116324945</idno>
+                <idno type="URI">http://www.hls-dhs-dss.ch/textes/d/D13512.php</idno>
+                <bibl>
+                    <choice>
+                        <abbr>Vgl.</abbr>
+                        <expan>Vergleiche</expan>
+                    </choice>
+            <ref type="lit">Regierungsetat ZH</ref> 1840–1861; <ref type="lit">Züricher Post</ref>,
+            20. Dezember 1881 (Nekrolog); <ref type="lit">Rahn-Meyer, Rahn-Escher</ref>; <ref type="lit">Schnyder-Sproß, Familie Rahn</ref>, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice>
+            361–367; <ref target="http://www.hls-dhs-dss.ch/textes/d/D13512.php">
+                        <ref type="lit">HLS online</ref>, Rahn Hans Conrad</ref>; <ref type="lit">HBLS</ref>
+            V, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 522; <ref type="lit">Jung, Escher</ref>, <choice>
+                        <abbr>S.</abbr>
+                        <expan>Seite(n)</expan>
+                    </choice> 87.</bibl>
+            </person>
+            <person xml:id="Escher-_vom-Glas-Alfred" n="Escher (vom Glas) Alfred" type="correspondent">
+                <persName type="main">
+                    <forename>Alfred</forename>
+                    <surname>Escher</surname>
+                </persName>
+                <birth>1819</birth>
+                <death>1882</death>
+                <figure>
+                    <graphic url="Escher_vom_Glas_Alfred_01.jpg">
+                        <desc>Alfred Escher auf einer Radierung von Edouard Jeanmaire (1847–1916).</desc>
+                        <desc type="source">Stadtarchiv Zürich</desc>
+                    </graphic>
+                    <graphic url="Escher_vom_Glas_Alfred_02.jpg">
+                        <desc>Alfred Escher im Alter von 12 Jahren. Ölgemälde von J. Grund</desc>
+                        <desc type="source">Graphische Sammlung und Kartensammlung der Zentralbibliothek Zürich</desc>
+                    </graphic>
+                    <graphic url="Escher_vom_Glas_Alfred_03.jpg">
+                        <desc>Alfred Escher mit 19 Jahren. Ölgemälde von Andreas Hirnschrot (1799–1845).</desc>
+                        <desc type="source">Privatbesitz</desc>
+                    </graphic>
+                    <graphic url="Escher_vom_Glas_Alfred_04.jpg">
+                        <desc>Alfred Escher 1849. Lithografie von Johann Conrad Werdmüller (1819–1892) nach einem Aquarell von Clementine Stockar-Escher (1816–1886).</desc>
+                        <desc type="source">Privatbesitz</desc>
+                    </graphic>
+                </figure>
+                <note type="bio">
+                    <p>Wirtschaftsliberaler <placeName key="Zürich">Zürcher</placeName> Politiker, Jurist und Unternehmer: Grosser Stadtrat von
+                <placeName key="Zürich_Stadt">Zürich</placeName> (1859–1874), Gross- <choice>
+                            <abbr>bzw.</abbr>
+                            <expan>beziehungsweise</expan>
+                        </choice> Kantonsrat (1844–1882, Präsident 1848, 1852,
+            1857, 1861, 1864, 1868), Erziehungsrat (1845–1855), Regierungsrat (1848–1855,
+            Amtsbürgermeister <choice>
+                            <abbr>bzw.</abbr>
+                            <expan>beziehungsweise</expan>
+                        </choice> Präsident 1849, 1851/52,
+            1853–1855), Tagsatzungsgesandter (1845, 1846, 1848), eidgenössischer Kommissär im <placeName key="Tessin">Tessin</placeName> (1848), Nationalrat (1848–1882, Präsident
+            1849/50, 1856/57, 1862/63, 1855 verzichtete er auf das Amt), massgeblicher Anteil an der
+            Gründung des Eidgenössischen Polytechnikums in <placeName key="Zürich_Stadt">Zürich</placeName> und Vizepräsident des Schweizerischen Schulrats (1854–1882);
+            Privatdozent an der Universität <placeName key="Zürich_Stadt">Zürich</placeName> für
+            Zivilprozess- und Bundesstaatsrecht (1844–1847); Mitbegründer und Direktionspräsident
+            der Zürich-Bodensee-Bahn (1853), Mitbegründer,
+            Direktionspräsident (1853–1871) und Verwaltungsratspräsident (1872–1882) der Schweizerischen Nordostbahn, Mitbegründer und Verwaltungsratspräsident
+            der Schweizerischen Kreditanstalt (1856–1877, 1880–1882), Aufsichtsrat der
+            Schweizerischen Rentenanstalt (1857–1874), Direktionspräsident und Verwaltungsrat der
+            Gotthardbahn (1871–1878). </p>
+                    <p> Escher studierte Rechtswissenschaft in <placeName key="Zürich_Stadt">Zürich</placeName>, <placeName key="Bonn (D)">Bonn</placeName> und <placeName key="Berlin (D)">Berlin</placeName> (1837–1842). </p>
+                    <p> Mitglied des Schweizerischen Zofingervereins (Sektion <placeName key="Zürich_Stadt">Zürich</placeName> 1837–1842, Präsident 1839/40; Centralpräsident 1840/41). </p>
+                    <p> Während Jahrzehnten prägte Escher die <placeName key="Zürich">zürcherische</placeName>
+            und eidgenössische Politik und hinterliess auch wirtschaftsgeschichtlich tiefe Spuren:
+            Innert weniger Jahre (1852–1857) vermochte er infrastrukturpolitische Meilensteine zu
+            setzen (Eisenbahn-, Bildungswesen, Finanzplatz). Erfolgsentscheidend waren dabei Eschers
+            Durchsetzungsvermögen, sein Beziehungsnetz, das Wirtschaft und Politik miteinander
+            verflocht, und die absoluten Mehrheiten der Liberalen («System Escher»).</p>
+                </note>
+                <idno type="gnd">118830295</idno>
+                <idno type="URI">http://www.hls-dhs-dss.ch/textes/d/D3626.php</idno>
+                <bibl>
+            <choice>
+                        <abbr>Vgl.</abbr>
+                        <expan>Vergleiche</expan>
+                    </choice>
+            <ref type="lit">Jung, Escher</ref>; <ref type="lit">Jung, Aufbruch</ref>; <ref type="lit">Gagliardi, Escher</ref>.</bibl>
+            </person>
+            <person xml:id="Bürkli-Johann-Georg" n="Bürkli Johann Georg" type="mentioned">
+                <persName type="main">
+                    <forename>Johann Georg</forename>
+                    <surname>Bürkli</surname>
+                </persName>
+                <birth>1793</birth>
+                <death>1851</death>
+                <idno type="gnd">1061010287</idno>
+                <idno type="URI">http://www.hls-dhs-dss.ch/textes/d/D32392.php</idno>
+            </person>
+        </listPerson>
+    </standOff>
+</TEI>

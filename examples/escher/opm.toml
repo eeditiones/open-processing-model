@@ -18,6 +18,25 @@ xpath_extensions = [
     "extensions.escher_functions",
 ]
 
+# The registers, under the name the ODD looks names up by:
+# collection($global:register-root)/id(@key). The letters, under the name a
+# register entry's page searches for the letters that mention it:
+# collection($global:data-default).
+[transform.namespaces]
+global = "http://teipublisher.com/global"
+
+[transform.variables.global]
+register-root = "urn:registers"
+data-default = "urn:letters"
+
+[[transform.collections]]
+uri = "urn:registers"
+documents = ["data/registers/persons.xml", "data/registers/places.xml"]
+
+[[transform.collections]]
+uri = "urn:letters"
+documents = ["data/letters/*.xml"]
+
 [transform.web]
 template = "templates/letter.html.tpl"
 # <pb-popover> for names and abbreviations, <pb-facs-link>/<pb-facsimile> for
@@ -30,6 +49,29 @@ assets = ["templates/opm-theme-paper.css", "templates/letter.css", "templates/es
 site_name = "Briefedition Alfred Escher"
 description = "Briefe von und an Alfred Escher (1819–1882), mit diplomatischer und edierter Lesung und Faksimile."
 lang = "de"
+
+[[context.menu.items]]
+label = "Briefe"
+url = "index.html"
+
+[[context.menu.items]]
+label = "Orte"
+url = "places/index.html"
+
+[[context.menu.items]]
+label = "Personen"
+url = "people/index.html"
+
+# The registers profile's browse pages, labelled in German: the label heads
+# the overview and leads the breadcrumb of each entry's page. Only `menu` is
+# set; everything else comes from the profile.
+[[pages]]
+path = "places/index.html"
+menu = "Orte"
+
+[[pages]]
+path = "people/index.html"
+menu = "Personen"
 
 # The edition-navigation profile's links, in German.
 [context.features.edition-navigation]

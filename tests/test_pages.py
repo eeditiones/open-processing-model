@@ -26,6 +26,14 @@ _MODELS = (
     '<model predicate="$parameters?mode=\'register-overview\'" behaviour="pass-through">'
     '<param name="id" value="@xml:id"/><param name="label" value="placeName[1]/string()"/>'
     '<pb:template xmlns=""><div><header><a href="places/[[id]]">[[label]]</a></header></div></pb:template>'
+    '</model>'
+    # An entry's page (register-details, static) lists the documents that
+    # mention it, looked up by the ODD in collection($global:data-default).
+    '<model predicate="$parameters?mode=\'register-details\' and $parameters?static" behaviour="pass-through">'
+    '<param name="label" value="placeName[1]/string()"/>'
+    '<param name="docs" value="let $id := string(@xml:id) return '
+    'string-join(collection($global:data-default)[.//@key = $id] ! tokenize(document-uri(.), \'/\')[last()], \', \')"/>'
+    '<pb:template xmlns=""><div><h1>[[label]]</h1><p class="mentions">Mentioned in [[docs]]</p></div></pb:template>'
     '</model><model behaviour="block"/></elementSpec>'
     '<elementSpec ident="placeName"><model behaviour="paragraph"/></elementSpec>'
     '<elementSpec ident="listPerson"><model behaviour="block"/></elementSpec>'
@@ -112,7 +120,8 @@ def _profile(base: Path, name: str, toml: str = '', templates: dict[str, str] | 
 def _odd() -> str:
     return (
         '<?xml version="1.0"?>\n'
-        '<TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:pb="http://teipublisher.com/1.0">'
+        '<TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:pb="http://teipublisher.com/1.0"'
+        ' xmlns:global="http://teipublisher.com/global">'
         '<teiHeader><fileDesc><titleStmt><title>t</title></titleStmt>'
         '<publicationStmt><p>p</p></publicationStmt>'
         '<sourceDesc><p>s</p></sourceDesc></fileDesc></teiHeader>'
@@ -302,7 +311,8 @@ def test_profile_pages_are_added_to_the_site(tmp_path: Path) -> None:
 
 
 def test_project_page_wins_over_a_profile_page_with_the_same_path(tmp_path: Path) -> None:
-    _profile(tmp_path / 'profiles', 'places', _PROFILE_PAGES)
+    # The keys the project sets win; the profile's template is kept.
+    _profile(tmp_path / 'profiles', 'places', _PROFILE_PAGES, templates={'place.html.tpl': _ABOUT_TEMPLATE})
     project = _project(tmp_path, (
         '[project]\nprofiles = ["places"]\n\n'
         '[[pages]]\npath = "places/{xml_id}.html"\nsource = "doc.xml"\nxpath = "//body/div"\n'
@@ -404,6 +414,10 @@ def test_registers_profile_adds_the_register_pages(tmp_path: Path) -> None:
     (registers / 'persons.xml').write_text(_PERSONS, encoding='utf-8')
     project = _project(tmp_path, (
         '[project]\nprofiles = ["registers"]\n\n'
+        # The documents an entry's page searches, as a pattern.
+        '[transform.namespaces]\nglobal = "http://teipublisher.com/global"\n\n'
+        '[transform.variables.global]\ndata-default = "urn:docs"\n\n'
+        '[[transform.collections]]\nuri = "urn:docs"\ndocuments = ["doc*.xml"]\n\n'
         # The menubar entries are the project's explicit choice.
         '[context.menu]\nitems = [\n'
         '    { label = "People", url = "people/index.html" },\n'
@@ -432,9 +446,10 @@ def test_registers_profile_adds_the_register_pages(tmp_path: Path) -> None:
 
     # An entry lists the documents mentioning it; one nobody mentions does not.
     krakow = (site / 'places' / 'pl1.html').read_text(encoding='utf-8')
-    assert 'Mentioned in' in krakow and 'href="../doc.xml/001.html"' in krakow
+    assert 'Mentioned in doc.xml' in krakow
+    assert '<title>Kraków</title>' in krakow
     assert '<a href="index.html">Places</a>' in krakow
-    assert 'Mentioned in' not in (site / 'places' / 'pl2.html').read_text(encoding='utf-8')
+    assert 'Mentioned in doc' not in (site / 'places' / 'pl2.html').read_text(encoding='utf-8')
     # The explicit [context.menu] entries are in the menubar of every page,
     # prefixed with the page's path back to the root.
     chunk_page = (site / 'doc.xml' / '001.html').read_text(encoding='utf-8')
@@ -442,6 +457,36 @@ def test_registers_profile_adds_the_register_pages(tmp_path: Path) -> None:
     assert 'href="../people/index.html"' in chunk_page
     assert '>Places<' in chunk_page and '>People<' in chunk_page
     assert 'href="../people/index.html"' in (site / 'people' / 'p1.html').read_text(encoding='utf-8')
+
+
+def test_a_project_page_entry_overrides_only_the_keys_it_sets(tmp_path: Path) -> None:
+    registers = tmp_path / 'data' / 'registers'
+    registers.mkdir(parents=True)
+    (registers / 'places.xml').write_text(_REGISTER, encoding='utf-8')
+    (tmp_path / 'orte.xml').write_text(_REGISTER.replace('Kraków', 'Krakau'), encoding='utf-8')
+    project = _project(tmp_path, (
+        '[project]\nprofiles = ["registers"]\n\n'
+        # A new label for the overview; a new source for the entries' pages.
+        '[[pages]]\npath = "places/index.html"\nmenu = "Orte"\n\n'
+        '[[pages]]\npath = "places/{xml_id}.html"\nsource = "orte.xml"\n'
+    ))
+    pages = {page.path: page for page in project.config.pages}
+    overview = pages['places/index.html']
+    assert overview.menu == 'Orte'
+    # Everything else is still the profile's.
+    assert overview.xpath == '//listPlace'
+    assert overview.parameters == {'mode': 'register-overview'}
+    assert overview.template is not None and overview.template.name == 'register-index.html.tpl'
+    assert overview.from_profile
+    entry = pages['places/{xml_id}.html']
+    assert entry.source == tmp_path / 'orte.xml' and not entry.from_profile
+    assert entry.template is not None and entry.template.name == 'register-entry.html.tpl'
+
+    run = project.chunk(tmp_path / 'doc.xml', template=_layout_page(tmp_path))
+    site = run.output_dir
+    assert '<h1>Orte</h1>' in (site / 'places' / 'index.html').read_text(encoding='utf-8')
+    assert 'Krakau' in (site / 'places' / 'pl1.html').read_text(encoding='utf-8')
+    assert '<a href="index.html">Orte</a>' in (site / 'places' / 'pl1.html').read_text(encoding='utf-8')
 
 
 def test_registers_profile_skips_a_register_whose_source_is_missing(tmp_path: Path) -> None:
@@ -489,3 +534,17 @@ def test_cli_no_pages_and_page_flags(tmp_path: Path, monkeypatch) -> None:
     assert rc == 0
     assert (site / 'about.html').is_file()
     assert (site / 'places' / 'pl1.html').is_file()
+
+
+def test_page_links_resolve_percent_encoded_ids(tmp_path: Path) -> None:
+    from opm.pages import PageConfig, PageResult, _resolve_page_links
+
+    site = tmp_path / 'site'
+    (site / 'places').mkdir(parents=True)
+    entry = site / 'places' / 'Enge_Zürich.html'
+    entry.write_text('<p>Enge</p>', encoding='utf-8')
+    overview = site / 'places' / 'index.html'
+    overview.write_text('<a href="places/Enge_Z%C3%BCrich">Enge</a>', encoding='utf-8')
+    page = PageConfig(path='places/index.html')
+    _resolve_page_links(site, [PageResult(page=page, files=(overview, entry), href='places/index.html')])
+    assert overview.read_text(encoding='utf-8') == '<a href="Enge_Z%C3%BCrich.html">Enge</a>'

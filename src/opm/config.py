@@ -1053,12 +1053,15 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
             raise ValueError(
                 f'opm.toml: transform.collections["{uri}"].documents must be a string or list',
             )
-        collections.append(
-            CollectionConfig(
-                uri=uri,
-                documents=tuple(config_path.parent / str(p) for p in raw_members),
-            ),
-        )
+        members: list[Path] = []
+        for raw in raw_members:
+            pattern = str(raw)
+            if any(ch in pattern for ch in '*?['):
+                # A glob (`data/letters/*.xml`), in a stable order.
+                members.extend(sorted(p for p in config_path.parent.glob(pattern) if p.is_file()))
+            else:
+                members.append(config_path.parent / pattern)
+        collections.append(CollectionConfig(uri=uri, documents=tuple(members)))
 
     raw_namespaces = transform.get('namespaces', {})
     if not isinstance(raw_namespaces, dict):

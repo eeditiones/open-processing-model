@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<TEI xmlns="http://www.tei-c.org/ns/1.0" xml:id="K_0098" type="Brief"><teiHeader><fileDesc><titleStmt><title>Alfred Escher an Heinrich Schweizer, Zürich, Dienstag, 06. September 1831</title></titleStmt><publicationStmt><p>Digitale Briefedition Alfred Escher, Zürich: Alfred Escher-Stiftung.</p></publicationStmt><sourceDesc><msDesc><msIdentifier><institution>ZBZ</institution><idno>FA Escher vG 207.104</idno></msIdentifier></msDesc><bibl type="printed"/></sourceDesc></fileDesc><profileDesc><textClass><keywords scheme="http://briefedition.alfred-escher.ch/keywords"><term>Haus und Garten (Bewirtschaftung)</term><term>Freundschaften</term></keywords><keywords scheme="http://briefedition.alfred-escher.ch/theme"><term>Jugend- und Studentenzeit</term></keywords></textClass><correspDesc><correspAction type="sent"><persName key="Escher (vom Glas) Alfred" type="addressee">Alfred Escher</persName><persName key="Schweizer Heinrich" type="sender">Heinrich Schweizer</persName><placeName>Zürich</placeName><date when="1831-09-06">06. September 1831</date></correspAction><correspContext><ref type="previous" target="B0097"/><ref type="next" target="B0099"/><ref type="next-in-corresp" target="B0099"/><ref type="previous-in-corresp" target="B0097"/></correspContext></correspDesc></profileDesc></teiHeader><text><front>
+<TEI xmlns="http://www.tei-c.org/ns/1.0" xml:id="K_0098" type="Brief"><teiHeader><fileDesc><titleStmt><title>Alfred Escher an Heinrich Schweizer, Zürich, Dienstag, 06. September 1831</title></titleStmt><publicationStmt><p>Digitale Briefedition Alfred Escher, Zürich: Alfred Escher-Stiftung.</p></publicationStmt><sourceDesc><msDesc><msIdentifier><institution>ZBZ</institution><idno>FA Escher vG 207.104</idno></msIdentifier></msDesc><bibl type="printed"/></sourceDesc></fileDesc><profileDesc><textClass><keywords scheme="http://briefedition.alfred-escher.ch/keywords"><term>Haus und Garten (Bewirtschaftung)</term><term>Freundschaften</term></keywords><keywords scheme="http://briefedition.alfred-escher.ch/theme"><term>Jugend- und Studentenzeit</term></keywords></textClass><correspDesc><correspAction type="sent"><persName key="Escher-_vom-Glas-Alfred" type="addressee">Alfred Escher</persName><persName key="Schweizer-Heinrich" type="sender">Heinrich Schweizer</persName><placeName>Zürich</placeName><date when="1831-09-06">06. September 1831</date></correspAction><correspContext><ref type="previous" target="B0097"/><ref type="next" target="B0099"/><ref type="next-in-corresp" target="B0099"/><ref type="previous-in-corresp" target="B0097"/></correspContext></correspDesc></profileDesc></teiHeader><text><front>
       <div type="dateline">
         <p rend="right" xml:id="K_0098_p1">
                     <lb xml:id="p1-l1"/>
                     <note type="transcript">Siegel</note>
-          <placeName key="Zürich (Stadt)">Zürich</placeName>. 
+          <placeName key="Zürich_Stadt">Zürich</placeName>. 
          <date when="1831-09-06">6<hi rend="sup">ten</hi> <choice><abbr>7<hi rend="sup">ber</hi> </abbr><expan>September</expan></choice>
                     </date>
         </p>
@@ -15,14 +15,14 @@
       </div>
     </front><body>
       <p rend="indent" xml:id="K_0098_p3">
-                <lb xml:id="p1-l3"/>Wie freuten sich <persName key="Escher (vom Glas) Heinrich">Papa</persName> und <persName key="Escher-Zollikofer (von Altenklingen) Lydia">Mamma</persName> <date when="1831-09-06">diesen Morgen</date>, <lb xml:id="p1-l4"/> als sich die Wolken etwas
+                <lb xml:id="p1-l3"/>Wie freuten sich <persName key="Escher-_vom-Glas-Heinrich">Papa</persName> und <persName key="Escher-Zollikofer-_von-Altenklingen-Lydia">Mamma</persName> <date when="1831-09-06">diesen Morgen</date>, <lb xml:id="p1-l4"/> als sich die Wolken etwas
 				verzogen hatten, und der Himmel ein wenig <lb xml:id="p1-l5"/> lichter war! 6 Schreiner
 				kamen, weil sie auf den ersten schönen Tag<lb xml:id="p1-l6"/> bestellt worden waren, um
 				Meublen ins Schiff zu tragen; als<lb xml:id="p1-l7"/> man sich nach diesem umsehen
 				wollte, <add>das auf d. ersten schönen Tag bestellt worden war</add> kam es heraus,
 				daß der<lb xml:id="p1-l8"/> Schiffmann, glaubend, daß das Wetter, Meublen zu ziehen,
 				nicht <lb xml:id="p1-l9"/> erlaube, das Schiff für diesen Tag ausgemiethet<!-- ursprünglich "nur gemiethet"; korr. BF, 20.09.2011 --> hatte. Also
-					<del>war</del> <lb xml:id="p1-l10"/> konnte man gar kein Schiff laden, weil sonst keines<!-- ursprünglich "keiner"; korr. BF, 20.09.2011 --> da war,<lb xml:id="p1-l11"/> das<!-- ursprünglich "der"; korr. BF, 20.09.2011 --> mit einer Brücke, wie dieses<!-- ursprünglich "dieser"; korr. BF, 20.09.2011 --> versehen worden war. Diese <lb xml:id="p1-l12"/> mannigfaltigen Hindernisse zwingen uns, Morgens nicht <lb xml:id="p1-l13"/> nach <placeName key="Belvoir (Enge, Zürich)">Belvoir</placeName> <hi rend="underline">zum Bleiben</hi> zu gehen; <date when="1831-09-08">Donnerstags</date> ist Feyertag; <lb xml:id="p1-l14"/> also können wir auch an diesem Tage nicht gehen, dagegen auf<lb xml:id="p1-l15"/>  <date when="1831-09-09">Freytag</date> wird das eigentliche Ziehen dorthin abgestellt
+					<del>war</del> <lb xml:id="p1-l10"/> konnte man gar kein Schiff laden, weil sonst keines<!-- ursprünglich "keiner"; korr. BF, 20.09.2011 --> da war,<lb xml:id="p1-l11"/> das<!-- ursprünglich "der"; korr. BF, 20.09.2011 --> mit einer Brücke, wie dieses<!-- ursprünglich "dieser"; korr. BF, 20.09.2011 --> versehen worden war. Diese <lb xml:id="p1-l12"/> mannigfaltigen Hindernisse zwingen uns, Morgens nicht <lb xml:id="p1-l13"/> nach <placeName key="Belvoir_Enge_Zürich">Belvoir</placeName> <hi rend="underline">zum Bleiben</hi> zu gehen; <date when="1831-09-08">Donnerstags</date> ist Feyertag; <lb xml:id="p1-l14"/> also können wir auch an diesem Tage nicht gehen, dagegen auf<lb xml:id="p1-l15"/>  <date when="1831-09-09">Freytag</date> wird das eigentliche Ziehen dorthin abgestellt
 				werden, <lb xml:id="p1-l16"/>
                 <del>daß</del> Sie <add>können</add> also Ihren lieben Brief mir noch <hi rend="underline">zum letzten
 					Mahle</hi> (!)<lb xml:id="p1-l17"/> in den Neuberg senden! Um <hi rend="underline">12 Uhr.</hi> noch einige
@@ -44,7 +44,7 @@
       <p rend="indent" xml:id="K_0098_p6">
                 <lb xml:id="p1-l26"/>Die gewiß oft <hi rend="underline">peinliche</hi> Unruhe, in die die Ihnen bekannten
 				Hindernisse in den so ange
-                <lb xml:id="p1-l27"/>häuften Geschäften <persName key="Escher-Zollikofer (von Altenklingen) Lydia">Mamma</persName> versetzt, wirken
+                <lb xml:id="p1-l27"/>häuften Geschäften <persName key="Escher-Zollikofer-_von-Altenklingen-Lydia">Mamma</persName> versetzt, wirken
 					nachth<add>eilig</add>
                 <note type="transcript">ein Teil des Papiers fehlt</note> <add>a</add>uf Ihre Gesundheit, und erregen oft bey ihr<lb xml:id="p1-l28"/> die
 				Besorgniß, ob wohl ihre Kräft hinreichen werden<note type="transcript">ein Teil des Papiers

@@ -27,11 +27,18 @@ documents = [
     "data/registers/works.xml",
 ]
 
+# The letters, which a register entry's page searches for the ones that
+# mention it: collection($global:data-default).
+[[transform.collections]]
+uri = "/db/apps/serafin/data/letters"
+documents = ["data/letters/*.xml"]
+
 [transform.namespaces]
 global = "http://teipublisher.com/global"
 
 [transform.variables.global]
 register-root = "/db/apps/serafin/data/registers"
+data-default = "/db/apps/serafin/data/letters"
 
 [context]
 site_name = "Korespondencja Mikołaja Serafina"
