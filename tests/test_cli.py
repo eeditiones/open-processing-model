@@ -1208,6 +1208,77 @@ def test_init_bare_skips_project_furniture(tmp_path: Path) -> None:
             assert not (dest / f).exists()
 
 
+def test_init_profile_switches_profiles_on(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    dest = tmp_path / 'edition'
+    assert main(['init', str(dest), '--profile', 'registers', '-p', 'pagefind']) == 0
+    assert load_project_config(dest / 'opm.toml').profiles == ('registers', 'pagefind')
+    # The commented-out hint became the setting: no second `profiles` line.
+    text = (dest / 'opm.toml').read_text(encoding='utf-8')
+    assert text.count('profiles =') == 1
+
+
+def test_init_profile_adds_to_an_examples_own_profiles(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    dest = tmp_path / 'ex'
+    assert main(['init', str(dest), '-e', 'serafin', '-p', 'pagefind', '-p', 'registers']) == 0
+    assert load_project_config(dest / 'opm.toml').profiles == (
+        'edition-navigation', 'registers', 'pagefind',
+    )
+
+
+def test_init_unknown_profile_writes_nothing(tmp_path: Path) -> None:
+    dest = tmp_path / 'edition'
+    assert main(['init', str(dest), '-p', 'no-such-profile']) == 1
+    assert not (dest / 'opm.toml').exists()
+
+
+def test_profile_add_and_remove_edit_opm_toml(tmp_path: Path, monkeypatch) -> None:
+    from opm.config import load_project_config
+
+    dest = tmp_path / 'edition'
+    assert main(['init', str(dest)]) == 0
+    monkeypatch.chdir(dest)
+    assert main(['profile', 'add', 'registers', 'iiif']) == 0
+    assert load_project_config(dest / 'opm.toml').profiles == ('registers', 'iiif')
+    assert main(['profile', 'add', 'no-such-profile']) == 1
+    assert main(['profile', 'remove', 'registers']) == 0
+    assert load_project_config(dest / 'opm.toml').profiles == ('iiif',)
+    # Comments elsewhere in the file survive the edits.
+    assert '# Profiles add ready-made features' in (dest / 'opm.toml').read_text(encoding='utf-8')
+
+
+def test_profile_add_prints_what_to_prepare(tmp_path: Path, monkeypatch, capsys) -> None:
+    dest = tmp_path / 'edition'
+    assert main(['init', str(dest)]) == 0
+    monkeypatch.chdir(dest)
+    capsys.readouterr()
+    assert main(['profile', 'add', 'registers']) == 0
+    out = capsys.readouterr().out
+    assert 'Before you start' in out and 'data/registers/persons.xml' in out
+    assert 'opm profile show registers' in out
+
+
+def test_profile_show_prints_the_readme(tmp_path: Path, monkeypatch, capsys) -> None:
+    monkeypatch.chdir(tmp_path)
+    assert main(['profile', 'show', 'iiif']) == 0
+    out = capsys.readouterr().out
+    assert 'facsimile viewer' in out and 'Settings' in out
+    assert main(['profile', 'show', 'no-such-profile']) == 1
+
+
+def test_profile_list_marks_the_projects_profiles(tmp_path: Path, monkeypatch, capsys) -> None:
+    dest = tmp_path / 'edition'
+    assert main(['init', str(dest), '-p', 'registers']) == 0
+    monkeypatch.chdir(dest)
+    capsys.readouterr()
+    assert main(['profile', 'list']) == 0
+    out = capsys.readouterr().out
+    assert 'registers' in out and 'pagefind' in out and '✓' in out
+
+
 def test_init_refuses_existing_config_without_force(tmp_path: Path) -> None:
     dest = tmp_path / 'edition'
     assert main(['init', str(dest)]) == 0
@@ -1487,6 +1558,7 @@ def test_init_picker_asks_about_extra_templates(tmp_path: Path, monkeypatch) -> 
     monkeypatch.setattr('sys.stdin.isatty', lambda: True)
     monkeypatch.setattr(cli, '_choose_start', lambda: ('tei', None))
     monkeypatch.setattr(cli, '_ask_extra_templates', lambda: True)
+    monkeypatch.setattr(cli, '_ask_profiles', lambda: [])
     dest = tmp_path / 'asked'
     assert main(['init', str(dest)]) == 0
     assert (dest / 'templates' / 'chapbook.html.tpl').is_file()
@@ -1504,9 +1576,32 @@ def test_init_templates_flag_skips_the_question(tmp_path: Path, monkeypatch) -> 
     monkeypatch.setattr('sys.stdin.isatty', lambda: True)
     monkeypatch.setattr(cli, '_choose_start', lambda: ('tei', None))
     monkeypatch.setattr(cli, '_ask_extra_templates', _refuse)
+    monkeypatch.setattr(cli, '_ask_profiles', lambda: [])
     dest = tmp_path / 'flagged'
     assert main(['init', str(dest), '--templates']) == 0
     assert (dest / 'templates' / 'journal.html.tpl').is_file()
+
+
+def test_init_picker_asks_about_profiles(tmp_path: Path, monkeypatch) -> None:
+    """An empty project's interactive init offers the profiles; --profile skips that."""
+    from opm import cli
+    from opm.config import load_project_config
+
+    monkeypatch.setattr('sys.stdin.isatty', lambda: True)
+    monkeypatch.setattr(cli, '_choose_start', lambda: ('tei', None))
+    monkeypatch.setattr(cli, '_ask_extra_templates', lambda: False)
+    monkeypatch.setattr(cli, '_ask_profiles', lambda: ['registers'])
+    dest = tmp_path / 'asked'
+    assert main(['init', str(dest)]) == 0
+    assert load_project_config(dest / 'opm.toml').profiles == ('registers',)
+
+    def _refuse() -> list[str]:
+        raise AssertionError('should not ask when --profile was passed')
+
+    monkeypatch.setattr(cli, '_ask_profiles', _refuse)
+    dest = tmp_path / 'flagged'
+    assert main(['init', str(dest), '-p', 'pagefind']) == 0
+    assert load_project_config(dest / 'opm.toml').profiles == ('pagefind',)
 
 
 def test_init_copy_base_odd_tei(tmp_path: Path) -> None:

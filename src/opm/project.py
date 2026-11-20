@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import shutil
 import threading
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field, fields, replace
 from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence, Union
@@ -41,6 +41,7 @@ from opm.chunking import build_index, chunk_document
 from opm.config import (
     CONFIG_FILENAME,
     ChunkingConfig,
+    PageConfig,
     ProjectConfig,
     load_project_config,
     resolve_base_css,
@@ -328,10 +329,11 @@ class Project:
 
         Profile assets come before the project's, so the project's stylesheets
         cascade after them. A profile fragment is added to every chunking run
-        that has no fragment of the same name. A profile page is added unless
-        the project declares a page with the same ``path`` — the project's
-        entry then wins, so it can repoint a profile's ``source`` at its own
-        data. Applying this twice changes nothing, so a
+        that has no fragment of the same name. A profile page is added; when
+        the project declares a page with the same ``path``, the keys the
+        project's entry sets win (see [`_merge_page`][opm.project._merge_page]),
+        so it can repoint a profile's ``source`` or relabel a page and keep
+        the rest. Applying this twice changes nothing, so a
         [`with_config`][opm.project.Project.with_config] copy stays as it was.
         """
         from opm.config import parse_fragments, parse_pages
@@ -367,8 +369,15 @@ class Project:
             else run_with(config.chunking) if config.chunking is not None
             else None
         )
+        profile_pages = {page.path: page for page in pages}
         own_page_paths = {page.path for page in config.pages}
-        merged_pages = (*config.pages, *(p for p in pages if p.path not in own_page_paths))
+        merged_pages = (
+            *(
+                _merge_page(page, profile_pages[page.path]) if page.path in profile_pages else page
+                for page in config.pages
+            ),
+            *(p for p in pages if p.path not in own_page_paths),
+        )
         return replace(
             config,
             web_assets=with_assets(config.web_assets),
@@ -392,11 +401,9 @@ class Project:
             return ()
         
         # Build search paths: project-local, user, bundled
-        search_paths = [
-            self.root / "profiles",
-            Path.home() / ".opm" / "profiles",
-            Path(__file__).parent / "resources" / "profiles",
-        ]
+        from opm.profile import profile_search_paths
+
+        search_paths = profile_search_paths(self.root)
         
         profiles = []
         for profile_name in self.config.profiles:
@@ -884,3 +891,25 @@ class Project:
             parameters=parameters,
             base_css=resolve_base_css(self.config.document_css, self.root),
         )
+
+
+def _merge_page(own: PageConfig, profile: PageConfig) -> PageConfig:
+    """A project's ``[[pages]]`` entry laid over the profile's entry for the same path.
+
+    Every key the project sets wins; the others come from the profile, so
+    ``menu = "Orte"`` alone relabels the profile's page and keeps its
+    template, selection and parameters. ``enabled`` is the project's. The
+    page stays a profile page (a missing ``source`` skips it) unless the
+    project names its own ``source``, which must then exist.
+    """
+    merged = {
+        f.name: getattr(own, f.name) if getattr(own, f.name) is not None else getattr(profile, f.name)
+        for f in fields(PageConfig)
+        if f.name not in ('path', 'enabled', 'from_profile')
+    }
+    return PageConfig(
+        path=own.path,
+        enabled=own.enabled,
+        from_profile=own.source is None,
+        **merged,
+    )

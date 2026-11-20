@@ -192,6 +192,9 @@ class InitOptions:
     #: Skip README.md, AGENTS.md, CLAUDE.md and .gitignore, for projects that
     #: live inside a repository which already has its own.
     bare: bool = False
+    #: Profiles to switch on in ``[project] profiles``, after any an example
+    #: already uses.
+    profiles: tuple[str, ...] = ()
 
 
 #: Sample document written into an empty project, relative to its root.
@@ -489,9 +492,38 @@ def _example_result(
 
 
 def scaffold(options: InitOptions) -> ScaffoldResult:
-    """Write a project tree from *options* and return what was created."""
-    if options.example:
-        return _scaffold_example(options)
+    """Write a project tree from *options* and return what was created.
+
+    The profiles in *options* are checked before anything is written, and
+    added to the new ``opm.toml`` afterwards.
+    """
+    from opm.profile import available_profiles, read_project_profiles, write_project_profiles
+
+    dest_dir = options.directory.expanduser().resolve()
+    known = {profile.name for profile in available_profiles(dest_dir)}
+    unknown = [name for name in options.profiles if name not in known]
+    if unknown:
+        raise ScaffoldError(
+            f'Unknown profile {", ".join(map(repr, unknown))}. '
+            f'Available: {", ".join(sorted(known)) or "none"}.'
+        )
+
+    result = _scaffold_example(options) if options.example else _scaffold_project(options)
+
+    config_path = result.directory / 'opm.toml'
+    if options.profiles and config_path.is_file():
+        current = read_project_profiles(config_path)
+        wanted = current + [name for name in dict.fromkeys(options.profiles) if name not in current]
+        if wanted != current:
+            try:
+                write_project_profiles(config_path, wanted)
+            except ValueError as e:
+                raise ScaffoldError(str(e)) from e
+    return result
+
+
+def _scaffold_project(options: InitOptions) -> ScaffoldResult:
+    """Write an empty project for *options.vocabulary*."""
 
     vocab = options.vocabulary.strip().lower()
     if vocab not in VOCABULARIES:

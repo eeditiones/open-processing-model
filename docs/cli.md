@@ -31,6 +31,7 @@ opm [OPTIONS] COMMAND [ARGS]...
 - [`index`](#opm-index): Emit embedding-ready JSONL records for a...
 - [`serve`](#opm-serve): Start a local HTTP server rooted at the...
 - [`odd`](#opm-odd): Inspect or document an ODD: corpus...
+- [`profile`](#opm-profile): List the profiles a project can use, and...
 
 ### `opm init`
 
@@ -62,6 +63,7 @@ opm init [OPTIONS] [DIRECTORY]
 | `--base` | Also copy the templates the HTML templates inherit from (`templates/opm/`) and the base stylesheet (`styles/default-styles.css`), to edit them in the project. |
 | `--bare` | Skip README.md, AGENTS.md, CLAUDE.md and .gitignore. |
 | `--jinja` | Empty projects only: write the templates in Jinja2 syntax (`.j2`) instead of the jinks syntax of TEI Publisher (`.tpl`). |
+| `--profile, -p TEXT` | Switch on a profile in the new project; repeat for several. See `opm profile list`. |
 | `--help` | Show this message and exit. |
 
 ### `opm transform`
@@ -132,6 +134,8 @@ opm chunk [OPTIONS] [INPUT_XML]
 | `--footnote-order TEXT` | Dotted import path of a callable that orders each run's footnotes before they are placed, e.g. --footnote-order opm.runtime.footnote_order.labelled_first (lettered apparatus before numbered commentary). Applies to the output modes that place footnotes themselves (web, markdown). Falls back to transform.footnote_order in opm.toml. Importing the module runs top-level code: only use trusted code. |
 | `--format TEXT` | Output format for chunk files: "html" (default, rendered via the page template), "json" (one JSON file per chunk containing content, head, odd_css, and fragments — suitable for static site generators such as Eleventy), or "pb-view" (index.json lookup table plus one part file per chunk, consumable by the dynamic pb-view web component in static mode). |
 | `--doc-path TEXT` | For --format pb-view: document path subdirectory. Data is written to <output-dir>/<doc-path>/ and must match the pb-document @path; CSS stays shared at <output-dir>/css/. Falls back to chunking.doc_path in config. |
+| `--no-pages` | Skip the auxiliary pages declared in [[pages]] (HTML output only); build the chunking runs alone. |
+| `--page TEXT` | Build only the auxiliary pages whose path starts with this prefix, e.g. --page places. HTML output only. |
 | `--preview, -v` | After chunking, start a local HTTP server rooted at the output directory and open the first page in a browser (HTML output only). |
 | `--port, -p INTEGER` | Port for --preview (default: 8080). |
 | `--strict` | Exit with an error when an XPath expression fails at run time, instead of treating it as false or empty. Expressions opm cannot run at all (eXist functions, XQuery syntax) are reported when the ODD is compiled and do not count. |
@@ -347,4 +351,117 @@ opm odd coverage [OPTIONS] [INPUT_XML]
 | `--all, -a` | List every finding instead of the first 20 per section. |
 | `--json` | Print the whole report as JSON instead of tables. |
 | `--config, -c PATH` | Path to opm.toml. |
+| `--help` | Show this message and exit. |
+
+### `opm profile`
+
+List the profiles a project can use, and switch them on or off.
+
+**Usage:**
+
+```text
+opm profile [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--help` | Show this message and exit. |
+
+
+**Commands:**
+
+- [`list`](#opm-profile-list): List the available profiles, marking those...
+- [`add`](#opm-profile-add): Switch profiles on: add them to [project]...
+- [`show`](#opm-profile-show): Describe a profile: what it adds, what it...
+- [`remove`](#opm-profile-remove): Switch profiles off: remove them from...
+
+#### `opm profile list`
+
+List the available profiles, marking those the project uses.
+
+**Usage:**
+
+```text
+opm profile list [OPTIONS]
+```
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--config, -c PATH` | Path to opm.toml (default: ./opm.toml). |
+| `--help` | Show this message and exit. |
+
+#### `opm profile add`
+
+Switch profiles on: add them to [project] profiles in opm.toml.
+
+**Usage:**
+
+```text
+opm profile add [OPTIONS] NAMES...
+```
+
+**Arguments:**
+
+| Argument | Description |
+| --- | --- |
+| `NAMES` | Profiles to switch on. |
+
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--config, -c PATH` | Path to opm.toml (default: ./opm.toml). |
+| `--help` | Show this message and exit. |
+
+#### `opm profile show`
+
+Describe a profile: what it adds, what it needs, its settings.
+
+**Usage:**
+
+```text
+opm profile show [OPTIONS] NAME
+```
+
+**Arguments:**
+
+| Argument | Description |
+| --- | --- |
+| `NAME` | The profile to describe. |
+
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--config, -c PATH` | Path to opm.toml (default: ./opm.toml). |
+| `--help` | Show this message and exit. |
+
+#### `opm profile remove`
+
+Switch profiles off: remove them from [project] profiles in opm.toml.
+
+**Usage:**
+
+```text
+opm profile remove [OPTIONS] NAMES...
+```
+
+**Arguments:**
+
+| Argument | Description |
+| --- | --- |
+| `NAMES` | Profiles to switch off. |
+
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--config, -c PATH` | Path to opm.toml (default: ./opm.toml). |
 | `--help` | Show this message and exit. |

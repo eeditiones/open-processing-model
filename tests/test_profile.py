@@ -508,3 +508,68 @@ def _odd(models: str = _MODELS) -> str:
         f'<text><body><schemaSpec ident="tiny" ns="">{models}</schemaSpec></body></text>'
         '</TEI>'
     )
+
+
+# ── listing and choosing profiles ────────────────────────────────────────────
+
+def test_available_profiles_prefers_the_projects_own(tmp_path: Path, monkeypatch) -> None:
+    from opm.profile import available_profiles
+
+    monkeypatch.setenv('HOME', str(tmp_path / 'home'))
+    own = tmp_path / 'profiles' / 'registers'
+    own.mkdir(parents=True)
+    (own / 'opm-profile.toml').write_text('name = "registers"\ndescription = "mine"\n', encoding='utf-8')
+    (tmp_path / 'profiles' / 'not-a-profile').mkdir()
+    found = {p.name: p for p in available_profiles(tmp_path)}
+    assert found['registers'].origin == 'project'
+    assert found['registers'].description == 'mine'
+    assert found['pagefind'].origin == 'packaged'
+    assert 'not-a-profile' not in found
+
+
+@pytest.mark.parametrize(('before', 'after_line'), [
+    # A list over several lines, with a comment inside, is replaced whole.
+    ('[project]\nprofiles = [\n    "a",  # x\n]\n\n[transform]\nodd = "x"\n', 'profiles = ["b", "c"]'),
+    # No [project] table: one is added before the first table.
+    ('# top\n[transform]\nodd = "x"\n', 'profiles = ["b", "c"]'),
+    # A commented-out example becomes the setting.
+    ('[project]\n# profiles = ["registers"]\npythonpath = ["."]\n', 'profiles = ["b", "c"]'),
+])
+def test_write_project_profiles_keeps_the_rest_of_the_file(tmp_path: Path, before: str, after_line: str) -> None:
+    from opm.profile import read_project_profiles, write_project_profiles
+
+    path = tmp_path / 'opm.toml'
+    path.write_text(before, encoding='utf-8')
+    write_project_profiles(path, ['b', 'c'])
+    text = path.read_text(encoding='utf-8')
+    assert read_project_profiles(path) == ['b', 'c']
+    assert text.count('profiles =') == 1 and after_line in text
+    for line in before.splitlines():
+        if 'profiles' not in line and line.strip() not in ('"a",  # x', ']'):
+            assert line in text
+
+
+def test_readme_section_and_headings() -> None:
+    from opm.profile import readme_section, top_level_headings
+
+    text = (
+        '### x: title\n\nIntro.\n\n#### Before you start\n\n1. Do this.\n\n'
+        '    ```toml\n    # not a heading\n    ```\n\n#### Settings\n\nNone.\n'
+    )
+    setup = readme_section(text)
+    assert setup is not None and setup.startswith('1. Do this.') and '# not a heading' in setup
+    assert 'None.' not in setup
+    assert readme_section(text, 'Missing') is None
+    shifted = top_level_headings(text)
+    assert shifted.startswith('# x: title') and '\n## Settings\n' in shifted
+    assert '    # not a heading' in shifted
+
+
+def test_every_packaged_profile_has_a_readme_with_setup() -> None:
+    from opm.profile import PACKAGED_PROFILES, profile_readme, readme_section
+
+    for path in PACKAGED_PROFILES.iterdir():
+        if (path / 'opm-profile.toml').is_file():
+            readme = profile_readme(path)
+            assert readme is not None, path.name
+            assert readme_section(readme), path.name

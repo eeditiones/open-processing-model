@@ -22,6 +22,7 @@ Profiles can be loaded from:
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 import tomllib
 from dataclasses import dataclass, field
@@ -320,3 +321,219 @@ def merge_profile_configs(
     for profile in profile_configs:
         merged = merge_deep(merged, profile.config)
     return merged
+
+
+# ── choosing a project's profiles ────────────────────────────────────────────
+
+#: The profiles that ship with opm.
+PACKAGED_PROFILES = Path(__file__).parent / 'resources' / 'profiles'
+
+
+def profile_search_paths(project_root: Path | None = None) -> list[Path]:
+    """Where a project's profiles are looked up, first match wins.
+
+    The project's own ``profiles/`` directory, then ``~/.opm/profiles``, then
+    the profiles packaged with opm. Without *project_root*, the current
+    directory stands in for the project.
+    """
+    root = project_root if project_root is not None else Path.cwd()
+    return [root / 'profiles', Path.home() / '.opm' / 'profiles', PACKAGED_PROFILES]
+
+
+@dataclass(frozen=True)
+class AvailableProfile:
+    """A profile a project can use, as [`available_profiles`][opm.profile.available_profiles] finds it."""
+
+    name: str
+    description: str
+    path: Path
+    #: ``project``, ``user`` or ``packaged``: which search path it came from.
+    origin: str
+
+
+def available_profiles(project_root: Path | None = None) -> list[AvailableProfile]:
+    """Every profile a project at *project_root* can name, sorted by name.
+
+    A profile found in several places is listed once, from the place that
+    wins (see [`profile_search_paths`][opm.profile.profile_search_paths]).
+    A directory without ``opm-profile.toml`` is not a profile.
+    """
+    origins = ('project', 'user', 'packaged')
+    found: dict[str, AvailableProfile] = {}
+    for origin, base in zip(origins, profile_search_paths(project_root)):
+        if not base.is_dir():
+            continue
+        for path in sorted(base.iterdir()):
+            if path.name in found or not (path / 'opm-profile.toml').is_file():
+                continue
+            try:
+                description = ProfileConfig.from_path(path).description
+            except (OSError, ValueError, tomllib.TOMLDecodeError):
+                description = ''
+            found[path.name] = AvailableProfile(path.name, description, path, origin)
+    return [found[name] for name in sorted(found)]
+
+
+_TABLE_HEADER = re.compile(r'^\s*\[\[?\s*([^\]]+?)\s*\]\]?\s*(#.*)?$')
+_PROFILES_KEY = re.compile(r'^\s*profiles\s*=')
+_PROFILES_HINT = re.compile(r'^\s*#\s*profiles\s*=.*$')
+
+
+def read_project_profiles(config_path: Path) -> list[str]:
+    """The ``[project] profiles`` of the ``opm.toml`` at *config_path*."""
+    with config_path.open('rb') as f:
+        data = tomllib.load(f)
+    project = data.get('project')
+    raw = project.get('profiles', []) if isinstance(project, dict) else []
+    if isinstance(raw, str):
+        return [raw]
+    return [str(name) for name in raw] if isinstance(raw, list) else []
+
+
+def write_project_profiles(config_path: Path, profiles: list[str]) -> None:
+    """Set ``[project] profiles`` in the ``opm.toml`` at *config_path*.
+
+    Only that one setting changes: the rest of the file, comments included,
+    stays as written. An existing ``profiles = [...]`` (on one line or
+    several) is replaced, else a commented-out ``# profiles = ...`` line;
+    otherwise the line goes right below ``[project]``,
+    and a missing ``[project]`` table is added before the first table.
+
+    Raises:
+        ValueError: The edited file would not read back with *profiles*.
+    """
+    text = config_path.read_text(encoding='utf-8')
+    lines = text.splitlines(keepends=True)
+    newline = '\r\n' if '\r\n' in text else '\n'
+    value = f'profiles = [{", ".join(_toml_string(name) for name in profiles)}]{newline}'
+
+    header = next(
+        (i for i, line in enumerate(lines)
+         if (m := _TABLE_HEADER.match(line)) and m.group(1) == 'project' and not line.lstrip().startswith('[[')),
+        None,
+    )
+    if header is None:
+        first_table = next((i for i, line in enumerate(lines) if _TABLE_HEADER.match(line)), len(lines))
+        lines[first_table:first_table] = [f'[project]{newline}', value, newline]
+    else:
+        end = next(
+            (i for i in range(header + 1, len(lines)) if _TABLE_HEADER.match(lines[i])),
+            len(lines),
+        )
+        start = next((i for i in range(header + 1, end) if _PROFILES_KEY.match(lines[i])), None)
+        hint = next((i for i in range(header + 1, end) if _PROFILES_HINT.match(lines[i])), None)
+        if start is None and hint is not None:
+            # The commented-out example `opm init` writes becomes the setting.
+            lines[hint] = value
+        elif start is None:
+            lines.insert(header + 1, value)
+        else:
+            stop = start
+            # A list over several lines ends at the line closing its bracket.
+            depth = 0
+            for stop in range(start, end):
+                depth += _bracket_depth(lines[stop])
+                if depth <= 0:
+                    break
+            lines[start:stop + 1] = [value]
+
+    edited = ''.join(lines)
+    if not edited.endswith(('\n', '\r\n')):
+        edited += newline
+    try:
+        reread = tomllib.loads(edited).get('project', {}).get('profiles')
+    except tomllib.TOMLDecodeError as exc:
+        raise ValueError(f'{config_path}: could not set [project] profiles: {exc}') from exc
+    if reread != list(profiles):
+        raise ValueError(f'{config_path}: could not set [project] profiles; edit the file by hand')
+    config_path.write_text(edited, encoding='utf-8')
+
+
+def _toml_string(value: str) -> str:
+    return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
+
+
+def _bracket_depth(line: str) -> int:
+    """How many more ``[`` than ``]`` *line* opens, outside strings and comments."""
+    depth = 0
+    quote = ''
+    for char in line:
+        if quote:
+            if char == quote:
+                quote = ''
+        elif char in '"\'':
+            quote = char
+        elif char == '#':
+            break
+        elif char == '[':
+            depth += 1
+        elif char == ']':
+            depth -= 1
+    return depth
+
+
+# ── a profile's README ───────────────────────────────────────────────────────
+
+#: The README heading whose section ``opm profile add`` prints.
+SETUP_HEADING = 'Before you start'
+
+_HEADING = re.compile(r'^(#{1,6})\s+(.*?)\s*#*\s*$')
+
+
+def profile_readme(profile_path: Path) -> str | None:
+    """The text of the profile's ``README.md``, or ``None`` without one."""
+    readme = profile_path / 'README.md'
+    return readme.read_text(encoding='utf-8') if readme.is_file() else None
+
+
+def _headings(lines: list[str]) -> list[tuple[int, int, str]]:
+    """``(line index, level, title)`` of every heading outside code blocks."""
+    found = []
+    fence = ''
+    for index, line in enumerate(lines):
+        stripped = line.lstrip()
+        if fence:
+            if stripped.startswith(fence):
+                fence = ''
+            continue
+        if stripped.startswith(('```', '~~~')):
+            fence = stripped[:3]
+            continue
+        if (m := _HEADING.match(line)):
+            found.append((index, len(m.group(1)), m.group(2)))
+    return found
+
+
+def top_level_headings(text: str) -> str:
+    """*text* with its headings shifted so the highest is level 1.
+
+    The packaged READMEs start at level 3, to sit inside the documentation
+    page that includes them; on their own they read from the top.
+    """
+    lines = text.splitlines()
+    headings = _headings(lines)
+    if not headings:
+        return text
+    shift = min(level for _, level, _ in headings) - 1
+    for index, level, title in headings:
+        lines[index] = f'{"#" * (level - shift)} {title}'
+    return '\n'.join(lines) + ('\n' if text.endswith('\n') else '')
+
+
+def readme_section(text: str, title: str = SETUP_HEADING) -> str | None:
+    """The body of the section headed *title* (any level, case ignored), or ``None``.
+
+    The section ends at the next heading of the same or a higher level.
+    """
+    lines = text.splitlines()
+    headings = _headings(lines)
+    for position, (index, level, heading) in enumerate(headings):
+        if heading.strip().lower() != title.lower():
+            continue
+        end = next(
+            (other for other, other_level, _ in headings[position + 1:] if other_level <= level),
+            len(lines),
+        )
+        body = '\n'.join(lines[index + 1:end]).strip()
+        return body or None
+    return None
