@@ -12,6 +12,21 @@
     <script defer src="[[ $search ]]/pagefind-component-ui.js"></script>
     <link rel="stylesheet" href="[[ $search ]]/pagefind-component-ui.css">
     [% endlet %]
+    <style>
+        /* Fit the search button to the menubar: a block, so it does not sit
+           on the text baseline, and sized and coloured like the other
+           controls. Override the --pf-* variables in a theme to change it. */
+        .menubar pagefind-modal-trigger {
+            display: block;
+            --pf-input-height: 2rem;
+            --pf-font: var(--opm-font-ui);
+            --pf-background: var(--opm-surface);
+            --pf-border: var(--opm-color-rule);
+            --pf-border-focus: var(--opm-color-accent);
+            --pf-text-muted: var(--opm-color-muted);
+            --pf-border-radius: var(--opm-radius-sm);
+        }
+    </style>
     [% endif %]
     [% endtemplate %]
 

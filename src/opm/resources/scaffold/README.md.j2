@@ -29,13 +29,13 @@ opm serve
 - HTML template for pages and chunks: `templates/{{ html_template }}.html{{ tpl }}` (set in `opm.toml`).
 {%- if extra_templates %}
   Also copied, ready to switch to: `chapbook` (reading), `journal` (article with
-  masthead and TOC rail), `handbook` (docs), `tufte`, `bootstrap`; and
+  masthead and TOC rail), `handbook` (docs); and
   `document.typ{{ tpl }}`, opm's plain Typst template, as an alternative to the one
   `[transform.typst]` names
 {%- else %}
   `opm init --templates` copies the alternatives too: `chapbook` (reading),
-  `journal` (article with masthead and TOC rail), `handbook` (docs), `tufte`,
-  `bootstrap`, and opm's plain Typst template as `document.typ{{ tpl }}`
+  `journal` (article with masthead and TOC rail), `handbook` (docs), and
+  opm's plain Typst template as `document.typ{{ tpl }}`
 {%- endif %}
 - XPath extensions: `extensions/` (see `[project] pythonpath` in `opm.toml`)
 

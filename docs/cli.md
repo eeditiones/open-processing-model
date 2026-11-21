@@ -59,7 +59,7 @@ opm init [OPTIONS] [DIRECTORY]
 | `--example, -e TEXT` | Start from a bundled example project instead of an empty one: jats, docbook, serafin, escher, monograph, shakespeare, odd. |
 | `--list-examples` | List the bundled example projects and exit. |
 | `--copy-base-odd` | TEI only: also copy packaged teipublisher.odd and tp.css into odd/. |
-| `--templates` | Also copy the alternative HTML templates (chapbook, journal, handbook, tufte, bootstrap) beside the one the project uses, and opm's plain default Typst template as `templates/document.typ.tpl`. |
+| `--templates` | Also copy the alternative HTML templates (chapbook, journal, handbook) beside the one the project uses, and opm's plain default Typst template as `templates/document.typ.tpl`. |
 | `--base` | Also copy the templates the HTML templates inherit from (`templates/opm/`) and the base stylesheet (`styles/default-styles.css`), to edit them in the project. |
 | `--bare` | Skip README.md, AGENTS.md, CLAUDE.md and .gitignore. |
 | `--jinja` | Empty projects only: write the templates in Jinja2 syntax (`.j2`) instead of the jinks syntax of TEI Publisher (`.tpl`). |

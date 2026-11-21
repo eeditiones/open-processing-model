@@ -1091,7 +1091,7 @@ def test_init_tei_creates_project(tmp_path: Path) -> None:
     assert (dest / 'templates' / 'opm-theme-chapbook.css').is_file()
     # Only the shell opm.toml wires up: --templates asks for the alternatives.
     assert not (dest / 'templates' / 'journal.html.tpl').exists()
-    assert not (dest / 'templates' / 'tufte.html.tpl').exists()
+    assert not (dest / 'templates' / 'handbook.html.tpl').exists()
     assert (dest / 'templates' / 'book.typ.tpl').is_file()
     assert not (dest / 'templates' / 'document.typ.tpl').exists()
     assert (dest / 'templates' / 'default.docx').is_file()
@@ -1125,10 +1125,6 @@ def test_init_templates_copies_alternative_shells(tmp_path: Path) -> None:
     for name in ('chapbook', 'journal', 'handbook'):
         assert (dest / 'templates' / f'{name}.html.tpl').is_file()
         assert (dest / 'templates' / f'opm-theme-{name}.css').is_file()
-    # Both demo shells carry their styling inline, so they ship without a .css.
-    assert (dest / 'templates' / 'tufte.html.tpl').is_file()
-    assert (dest / 'templates' / 'bootstrap.html.tpl').is_file()
-    assert not (dest / 'templates' / 'opm-theme-tufte.css').exists()
     # The plain Typst shell opm falls back to, beside the book shell opm.toml names.
     assert (dest / 'templates' / 'document.typ.tpl').is_file()
     assert 'template = "templates/book.typ.tpl"' in (dest / 'opm.toml').read_text(encoding='utf-8')
@@ -1140,7 +1136,7 @@ def test_init_jinja_writes_jinja2_templates(tmp_path: Path) -> None:
 
     dest = tmp_path / 'edition'
     assert main(['init', str(dest), '--jinja', '--templates', '--base']) == 0
-    for name in ('chapbook', 'journal', 'handbook', 'tufte', 'bootstrap'):
+    for name in ('chapbook', 'journal', 'handbook'):
         assert (dest / 'templates' / f'{name}.html.j2').is_file()
         assert not (dest / 'templates' / f'{name}.html.tpl').exists()
     assert (dest / 'templates' / 'book.typ.j2').is_file()
@@ -1366,16 +1362,6 @@ def test_init_jats_wires_journal_shell(tmp_path: Path) -> None:
     # ...and is linked as an asset, for single pages and chunks alike.
     assert cfg.web_assets == (dest / 'templates' / 'opm-theme-journal.css',)
     assert cfg.chunking.assets == cfg.web_assets
-
-
-def test_init_shell_without_stylesheet_wires_no_asset(tmp_path: Path) -> None:
-    from opm.config import load_project_config
-    from opm.scaffold import InitOptions, scaffold
-
-    dest = tmp_path / 'tufte'
-    scaffold(InitOptions(directory=dest, html_template='tufte', bare=True))
-    assert load_project_config(dest / 'opm.toml').web_assets == ()
-    assert '# assets = ' in (dest / 'opm.toml').read_text(encoding='utf-8')
 
 
 def test_init_jats_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:

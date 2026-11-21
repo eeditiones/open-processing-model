@@ -55,7 +55,7 @@ ODD-generated CSS, a user stylesheet, and optional [tei-publisher web components
 
 ```bash
 opm transform data/sample.xml \
-  --preview --template templates/tufte.html.tpl
+  --preview --template templates/journal.html.tpl
 ```
 
 ## Print (paged media)

@@ -170,7 +170,7 @@ def init_cmd(
             '--templates',
             help=(
                 'Also copy the alternative HTML templates (chapbook, journal, '
-                'handbook, tufte, bootstrap) beside the one the project uses, '
+                'handbook) beside the one the project uses, '
                 "and opm's plain default Typst template as "
                 '`templates/document.typ.tpl`.'
             ),

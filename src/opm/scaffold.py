@@ -49,7 +49,7 @@ _HTML_TEMPLATE = {
 #: Reading shells ``--templates`` copies beside the one the project wires up.
 #: Without the flag a project gets only the shell it actually uses, so the
 #: templates/ directory says what the project is rather than what it could be.
-_EXTRA_SHELLS = ('chapbook', 'journal', 'handbook', 'tufte', 'bootstrap')
+_EXTRA_SHELLS = ('chapbook', 'journal', 'handbook')
 #: The plain Typst shell opm falls back to when no template is configured, which
 #: ``--templates`` also copies, beside the book shell the project wires up.
 def _typst_default(suffix: str) -> tuple[str, Path]:
@@ -266,9 +266,7 @@ def _shell_copies(
 
     A shell is a ``.html.tpl`` (``.html.j2`` with *suffix* ``.j2``) plus its
     theme stylesheet ([`shell_stylesheet`][opm.scaffold.shell_stylesheet]),
-    when it has one — linked as an asset through ``[transform.web] assets`` —
-    while ``tufte`` and ``bootstrap`` load their framework from a CDN and ship
-    alone.
+    when it has one — linked as an asset through ``[transform.web] assets``.
     """
     copies: list[tuple[str, Path]] = []
     for name in names:

@@ -49,8 +49,6 @@ that example instead. With `--templates`, opm copies the alternatives as well:
 | `chapbook` | reading a text page by page |
 | `journal` | a scholarly article, with masthead and table of contents |
 | `handbook` | documentation, with navigation on the left |
-| `tufte` | a demo, styled with [Tufte CSS](https://edwardtufte.github.io/tufte-css/) |
-| `bootstrap` | a demo, styled with [Bootstrap](https://getbootstrap.com) |
 
 Once copied, the templates are yours: you can edit them as you like.
 
@@ -59,10 +57,8 @@ whether you want the other templates too. When you start from an example
 (`--example`), `--templates` adds them to the templates which come with the
 example, but does not overwrite any of them.
 
-`chapbook`, `journal` and `handbook` build on opm's page layout
-(`opm/layout.html.tpl`), so each of them only contains what is particular to
-it. `tufte` and `bootstrap` build only on `opm/base.html.tpl`, because Tufte CSS
-and Bootstrap come with a page layout of their own. See
+All three build on opm's page layout (`opm/layout.html.tpl`), so each of
+them only contains what is particular to it. See
 [Template inheritance](#template-inheritance).
 
 ### Switching to another template
@@ -88,7 +84,7 @@ examples and list it instead of `opm-theme-chapbook.css`.
 To try a template for a single run, pass it on the command line instead:
 
 ```bash
-opm transform data/sample.xml --template templates/tufte.html.tpl -o out.html
+opm transform data/sample.xml --template templates/handbook.html.tpl -o out.html
 ```
 
 ### Print templates
