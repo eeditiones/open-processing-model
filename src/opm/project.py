@@ -596,6 +596,7 @@ class Project:
         overwrite: bool = False,
         on_document: Callable[[int, Path], None] | None = None,
         on_progress: Callable[[int, int], None] | None = None,
+        on_step: Callable[[str], None] | None = None,
         pages: bool | str | None = None,
     ) -> ChunkRun:
         """Split *source* into pages, as ``opm chunk`` does.
@@ -639,7 +640,11 @@ class Project:
             on_document: Called with the position and path of each document
                 before it is chunked.
             on_progress: Called with ``(done, total)`` chunks as each
-                document is processed.
+                document is processed, and with the entries of a data page
+                as it is rendered.
+            on_step: Called with a short label when a step after the
+                chunking starts: the auxiliary pages, the collection index
+                and each ``after_chunking`` hook.
             pages: ``False`` skips the ``[[pages]]`` auxiliary pages; a
                 string builds only pages whose ``path`` starts with it;
                 ``None`` (default) builds them all. HTML output only.
@@ -775,6 +780,8 @@ class Project:
                 for xml_file in files
                 if doc_names[xml_file] in first_pages
             ]
+            if on_step is not None and self.config.pages:
+                on_step('Building pages')
             page_results = render_pages(
                 self,
                 out_dir=out_dir,
@@ -784,6 +791,7 @@ class Project:
                 anchors=page_anchors,
                 documents=site_documents,
                 only=pages if isinstance(pages, str) else None,
+                on_progress=on_progress,
             )
         page_files = tuple(file for result in page_results for file in result.files)
 
@@ -791,6 +799,8 @@ class Project:
         # server would otherwise show as a bare listing.
         index_file: Path | None = None
         if format == 'html':
+            if on_step is not None:
+                on_step('Writing index')
             index_file = build_index(
                 out_dir,
                 template_path=chunking.index_template,
@@ -811,15 +821,22 @@ class Project:
             document_dirs=dict(doc_names),
             pages=page_files,
         )
-        self._run_hooks('after_chunking', run_result)
+        self._run_hooks('after_chunking', run_result, on_step=on_step)
         return run_result
 
-    def _run_hooks(self, name: str, *args: Any) -> None:
-        """Call the *name* hooks of every profile, in the order the profiles are listed."""
+    def _run_hooks(
+        self, name: str, *args: Any, on_step: Callable[[str], None] | None = None
+    ) -> None:
+        """Call the *name* hooks of every profile, in the order the profiles are listed.
+
+        *on_step*, if given, is told each hook's profile before it runs.
+        """
         from opm.profile import load_hook
 
         for profile_config, profile_path in self._profiles:
             for entry in profile_config.hooks.get(name, ()):
+                if on_step is not None:
+                    on_step(f'Running {profile_config.name}')
                 load_hook(profile_config.name, profile_path, entry)(self, *args)
 
     # ── indexing and coverage ────────────────────────────────────────────────

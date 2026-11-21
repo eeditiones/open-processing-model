@@ -1395,6 +1395,21 @@ def chunk(
             # Total arrives with the first callback: only the chunker knows how
             # many chunks a document splits into. Until then the bar pulses.
             chunk_task = progress.add_task('Processing chunks', total=None)
+            # The task on_progress feeds: the chunks, then each later step.
+            current = [chunk_task]
+
+            def _finish(task_id) -> None:
+                # A step without a count (the index, a hook) shows as done.
+                task = next(t for t in progress.tasks if t.id == task_id)
+                done = task.total if task.total is not None else max(task.completed, 1)
+                progress.update(task_id, total=done, completed=done)
+
+            def _on_step(label: str) -> None:
+                # Every document is chunked once the later steps begin.
+                if file_task is not None:
+                    progress.update(file_task, completed=len(input_files))
+                _finish(current[0])
+                current[0] = progress.add_task(label, total=None)
 
             def _on_document(position: int, xml_file: Path) -> None:
                 if file_task is None:
@@ -1406,8 +1421,8 @@ def chunk(
                     chunk_task, completed=0, description=f'Chunking {xml_file.name}'
                 )
 
-            def _on_progress(current: int, total: int) -> None:
-                progress.update(chunk_task, completed=current, total=total)
+            def _on_progress(done: int, total: int) -> None:
+                progress.update(current[0], completed=done, total=total)
 
             run = project.chunk(
                 input_xml,
@@ -1424,8 +1439,10 @@ def chunk(
                 overwrite=True,
                 on_document=_on_document,
                 on_progress=_on_progress,
+                on_step=_on_step,
                 pages=False if no_pages else page,
             )
+            _finish(current[0])
             if file_task is not None:
                 progress.update(file_task, completed=len(input_files))
 
