@@ -32,8 +32,7 @@ footnote_order = "opm.runtime.footnote_order.labelled_first"
 css = "styles/default-styles.css"
 
 [transform.web]
-# Page template for full-document HTML output (overridable with --template):
-# jinks for a .tpl file, Jinja2 otherwise
+# Jinks page template for full-document HTML output (overridable with --template)
 template = "templates/default.html.tpl"
 # Emit tei-publisher web components (overridable with --webcomponents/--no-webcomponents).
 # The bundle URL is a template value: set webcomponents_url in [transform.web.context]

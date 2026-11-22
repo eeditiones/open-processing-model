@@ -623,7 +623,7 @@ def test_lb_pass_through_template_for_typst(tmp_path) -> None:
 
 
 def test_teipublisher_typst_fills_book_template_metadata(tmp_path) -> None:
-    """TEI header title/authors are keyed metadata consumed by ``book.typ.j2``."""
+    """TEI header title/authors are keyed metadata consumed by ``book.typ.tpl``."""
     from opm.odd_compiler import compile_odd
     from opm.transform import load_transform_module, run_transform
 
@@ -648,7 +648,7 @@ def test_teipublisher_typst_fills_book_template_metadata(tmp_path) -> None:
     out = run_transform(
         mod,
         root,
-        typst_template_path=_scaffold_template('book.typ.j2'),
+        typst_template_path=_scaffold_template('book.typ.tpl'),
     )
     assert 'title: [The Greatest Markup]' in out
     assert '"Alice Smith"' in out
@@ -676,7 +676,7 @@ def test_docbook_typst_note_is_inflow_callout_not_marginnote(tmp_path) -> None:
     mod_path = tmp_path / 'docbook_typst.py'
     mod_path.write_text(compile_odd(str(odd_path), output_mode='typst'), encoding='utf-8')
     mod = load_transform_module(mod_path)
-    out = run_transform(mod, root, typst_template_path=_scaffold_template('docbook.typ.j2'))
+    out = run_transform(mod, root, typst_template_path=_scaffold_template('docbook.typ.tpl'))
     assert '#opm-css("note")' in out
     assert 'stroke: (left: 4pt + rgb("#d07f00"))' in out
     assert 'If you installed without docker' in out
@@ -741,9 +741,9 @@ def _jats_typst_metadata(tmp_path) -> dict[str, str]:
     from opm.transform import load_transform_module, run_transform
 
     keys = ('title', 'authors', 'author_records', 'journal', 'volume', 'elocation', 'date', 'doi', 'license')
-    template = tmp_path / 'dump.typ.j2'
+    template = tmp_path / 'dump.typ.tpl'
     template.write_text(
-        '\n'.join("%s=={{ (metadata.get('%s') or [''])[0] }}" % (k, k) for k in keys),
+        '\n'.join("%s==[[ ($metadata?('%s')?*, '')[1] ]]" % (k, k) for k in keys),
         encoding='utf-8',
     )
     mod_path = tmp_path / 'jats_typst.py'
@@ -773,7 +773,7 @@ def test_jats_typst_metadata_carries_the_citation_apparatus(tmp_path) -> None:
 
 
 def test_jats_typst_authors_key_stays_a_plain_name(tmp_path) -> None:
-    """``book.typ.j2`` prints ``authors`` verbatim, so the record goes in its own key."""
+    """``book.typ.tpl`` prints ``authors`` verbatim, so the record goes in its own key."""
     meta = _jats_typst_metadata(tmp_path)
     assert meta['authors'] == 'Elisa Bastianello'
     assert '|' not in meta['authors']

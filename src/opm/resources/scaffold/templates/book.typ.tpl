@@ -27,7 +27,7 @@
 #set text(font: ("New Computer Modern", "Times New Roman"))
 #show raw: set text(font: ("Iosevka", "DejaVu Sans Mono", "Courier New"))
 
-[% include "opm_css_fns_default.typ.j2" %]
+[% include "opm_css_fns_default.typ" %]
 
 #show: marginalia.setup.with(
   inner: (far: 1.8cm),
@@ -52,6 +52,6 @@
 #set heading(numbering: "1.")
 #set par(justify: true)
 
-[% include "opm_css.typ.j2" %]
+[% include "opm_css.typ" %]
 
 [[ $context?content_typst ]]

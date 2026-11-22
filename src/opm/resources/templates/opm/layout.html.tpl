@@ -1,6 +1,5 @@
 [#
-  The page layout, with the regions of the jinks base layout
-  (opm/layout.html.j2 is the same layout for Jinja2 templates):
+  The page layout, with the regions of the jinks base layout:
 
       header      (full width, sticky)
       hero        (full width)

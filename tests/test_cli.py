@@ -137,9 +137,9 @@ def test_transform_uses_packaged_default_template_for_full_html(tmp_path: Path, 
 def test_transform_uses_template_override_for_full_html(tmp_path: Path, monkeypatch) -> None:
     _write_tiny_odd(tmp_path / 'tiny.odd')
     _config_with_odd(tmp_path)
-    template = tmp_path / 'custom.j2'
+    template = tmp_path / 'custom.tpl'
     template.write_text(
-        "<html><head><meta name='x' content='y'></head><body>{{ content_html|safe }}</body></html>",
+        "<html><head><meta name='x' content='y'></head><body>[[ $content_html ]]</body></html>",
         encoding='utf-8',
     )
     xml = tmp_path / 'in.xml'
@@ -161,9 +161,9 @@ def test_transform_uses_template_override_for_full_html(tmp_path: Path, monkeypa
 def _project_with_web_assets(tmp_path: Path) -> Path:
     """A project whose [transform.web] template links its assets."""
     _write_tiny_odd(tmp_path / 'tiny.odd')
-    (tmp_path / 'page.html.j2').write_text(
-        "<html><head>{% for href in asset_styles %}<link href='{{ href }}'>{% endfor %}"
-        "</head><body>ASSETS=[{{ assets }}]{{ content_html|safe }}</body></html>",
+    (tmp_path / 'page.html.tpl').write_text(
+        "<html><head>[% for $href in $asset_styles?* %]<link href='[[ $href ]]'>[% endfor %]"
+        "</head><body>ASSETS=[[[ $assets ]]][[ $content_html ]]</body></html>",
         encoding='utf-8',
     )
     (tmp_path / 'edition.css').write_text('body { margin: 0 }', encoding='utf-8')
@@ -171,7 +171,7 @@ def _project_with_web_assets(tmp_path: Path) -> Path:
     (tmp_path / 'opm.toml').write_text(
         '[transform.web]\n'
         'odd = "tiny.odd"\n'
-        'template = "page.html.j2"\n'
+        'template = "page.html.tpl"\n'
         'assets = ["edition.css", "paper.jpg"]\n',
         encoding='utf-8',
     )
@@ -211,18 +211,18 @@ def test_transform_preview_puts_web_assets_beside_the_page(tmp_path: Path, monke
 def test_chunking_inherits_web_template_and_assets(tmp_path: Path) -> None:
     from opm.config import load_project_config
 
-    for name in ('page.html.j2', 'own.html.j2', 'edition.css', 'other.css'):
+    for name in ('page.html.tpl', 'own.html.tpl', 'edition.css', 'other.css'):
         (tmp_path / name).write_text('', encoding='utf-8')
     config_file = tmp_path / 'opm.toml'
     config_file.write_text(
         '[transform.web]\n'
-        'template = "page.html.j2"\n'
+        'template = "page.html.tpl"\n'
         'assets = ["edition.css"]\n'
         '[[chunking]]\n'
         'output_dir = "a"\n'
         '[[chunking]]\n'
         'output_dir = "a"\n'
-        'template = "own.html.j2"\n'
+        'template = "own.html.tpl"\n'
         'assets = ["other.css"]\n'
         '[[chunking]]\n'
         'output_dir = "a"\n'
@@ -233,9 +233,9 @@ def test_chunking_inherits_web_template_and_assets(tmp_path: Path) -> None:
     inherited, own, opted_out = config.chunking_runs
 
     assert config.web_assets == (tmp_path / 'edition.css',)
-    assert inherited.template == tmp_path / 'page.html.j2'
+    assert inherited.template == tmp_path / 'page.html.tpl'
     assert inherited.assets == (tmp_path / 'edition.css',)
-    assert own.template == tmp_path / 'own.html.j2'
+    assert own.template == tmp_path / 'own.html.tpl'
     assert own.assets == (tmp_path / 'other.css',)
     assert opted_out.assets == ()
 
@@ -243,8 +243,8 @@ def test_chunking_inherits_web_template_and_assets(tmp_path: Path) -> None:
 def test_transform_fragment_output_skips_template_shell(tmp_path: Path, monkeypatch) -> None:
     _write_tiny_odd(tmp_path / 'tiny.odd')
     _config_with_odd(tmp_path)
-    template = tmp_path / 'custom.j2'
-    template.write_text("<html><body>WRAP {{ content_html|safe }}</body></html>", encoding='utf-8')
+    template = tmp_path / 'custom.tpl'
+    template.write_text("<html><body>WRAP [[ $content_html ]]</body></html>", encoding='utf-8')
     xml = tmp_path / 'in.xml'
     xml.write_text('<doc><item>ok</item></doc>', encoding='utf-8')
     out = tmp_path / 'out.html'
@@ -276,7 +276,7 @@ template = "style.docx"
 
 [transform.typst]
 odd = "typst.odd"
-template = "book.typ.j2"
+template = "book.typ.tpl"
 """,
         encoding='utf-8',
     )
@@ -287,7 +287,7 @@ template = "book.typ.j2"
     assert cfg.odd_for_type('typst') == tmp_path / 'typst.odd'
     assert cfg.odd_for_type('markdown') == tmp_path / 'web.odd'  # falls back to web-as-default
     assert cfg.document_docx_template == tmp_path / 'style.docx'
-    assert cfg.typst_template == tmp_path / 'book.typ.j2'
+    assert cfg.typst_template == tmp_path / 'book.typ.tpl'
 
 
 def test_load_project_config_print_template(tmp_path: Path) -> None:
@@ -298,16 +298,16 @@ def test_load_project_config_print_template(tmp_path: Path) -> None:
 odd = "shared.odd"
 
 [transform.print]
-template = "templates/print.html.j2"
+template = "templates/print.html.tpl"
 
 [transform.web]
-template = "templates/web.html.j2"
+template = "templates/web.html.tpl"
 """,
         encoding='utf-8',
     )
     cfg = load_project_config(tmp_path / 'opm.toml')
-    assert cfg.print_template == tmp_path / 'templates' / 'print.html.j2'
-    assert cfg.document_template == tmp_path / 'templates' / 'web.html.j2'
+    assert cfg.print_template == tmp_path / 'templates' / 'print.html.tpl'
+    assert cfg.document_template == tmp_path / 'templates' / 'web.html.tpl'
     assert cfg.print_template != cfg.document_template
 
 
@@ -321,7 +321,7 @@ odd = "shared.odd"
 
 [transform.typst]
 odd = "typst-only.odd"
-template = "book.typ.j2"
+template = "book.typ.tpl"
 
 [chunking]
 xpath = "//div"
@@ -346,18 +346,18 @@ def test_load_project_config_resolves_document_and_chunking_paths(tmp_path: Path
 css = "styles/site.css"
 
 [transform.web]
-template = "templates/page.html.j2"
+template = "templates/page.html.tpl"
 
 [chunking]
-template = "templates/chunk.html.j2"
+template = "templates/chunk.html.tpl"
 """,
         encoding='utf-8',
     )
     cfg = load_project_config(tmp_path / 'opm.toml')
-    assert cfg.document_template == tmp_path / 'templates' / 'page.html.j2'
+    assert cfg.document_template == tmp_path / 'templates' / 'page.html.tpl'
     assert cfg.document_css == tmp_path / 'styles' / 'site.css'
     assert cfg.chunking is not None
-    assert cfg.chunking.template == tmp_path / 'templates' / 'chunk.html.j2'
+    assert cfg.chunking.template == tmp_path / 'templates' / 'chunk.html.tpl'
 
 
 def test_transform_config_paths_resolve_relative_to_config_file(tmp_path: Path, monkeypatch) -> None:
@@ -366,10 +366,10 @@ def test_transform_config_paths_resolve_relative_to_config_file(tmp_path: Path, 
     (project / 'templates').mkdir(parents=True)
     _write_tiny_odd(project / 'tiny.odd')
     # [transform] css is the base override, so it arrives compiled into odd_css.
-    (project / 'templates' / 'custom.j2').write_text(
-        '<html><head><!-- config-relative-template -->{{ head_html|safe }}'
-        '<style>{{ odd_css }}</style></head>'
-        '<body>{{ content_html|safe }}</body></html>',
+    (project / 'templates' / 'custom.tpl').write_text(
+        '<html><head><!-- config-relative-template -->[[ $head_html ]]'
+        '<style>[[ $odd_css ]]</style></head>'
+        '<body>[[ $content_html ]]</body></html>',
         encoding='utf-8',
     )
     (project / 'site.css').write_text('.site { color: green; }', encoding='utf-8')
@@ -379,7 +379,7 @@ css = "site.css"
 
 [transform.web]
 odd = "tiny.odd"
-template = "templates/custom.j2"
+template = "templates/custom.tpl"
 """,
         encoding='utf-8',
     )
@@ -1128,44 +1128,6 @@ def test_init_templates_copies_alternative_shells(tmp_path: Path) -> None:
     # The plain Typst shell opm falls back to, beside the book shell opm.toml names.
     assert (dest / 'templates' / 'document.typ.tpl').is_file()
     assert 'template = "templates/book.typ.tpl"' in (dest / 'opm.toml').read_text(encoding='utf-8')
-
-
-def test_init_jinja_writes_jinja2_templates(tmp_path: Path) -> None:
-    """--jinja scaffolds the Jinja2 versions of the templates instead of jinks ones."""
-    from opm.config import load_project_config
-
-    dest = tmp_path / 'edition'
-    assert main(['init', str(dest), '--jinja', '--templates', '--base']) == 0
-    for name in ('chapbook', 'journal', 'handbook'):
-        assert (dest / 'templates' / f'{name}.html.j2').is_file()
-        assert not (dest / 'templates' / f'{name}.html.tpl').exists()
-    assert (dest / 'templates' / 'book.typ.j2').is_file()
-    assert (dest / 'templates' / 'document.typ.j2').is_file()
-    assert (dest / 'templates' / 'opm' / 'layout.html.j2').is_file()
-    assert not (dest / 'templates' / 'opm' / 'layout.html.tpl').exists()
-    cfg = load_project_config(dest / 'opm.toml')
-    assert cfg.document_template.name == 'chapbook.html.j2'
-    assert cfg.typst_template.name == 'book.typ.j2'
-    assert 'chapbook.html.j2' in (dest / 'AGENTS.md').read_text(encoding='utf-8')
-    assert 'jinks' not in (dest / 'AGENTS.md').read_text(encoding='utf-8')
-
-
-def test_init_jinja_and_jinks_shells_render_the_same_text(tmp_path: Path, monkeypatch) -> None:
-    """Both syntaxes of a scaffolded project put the same document on the page."""
-    import re
-
-    pages = {}
-    for flag in ('', '--jinja'):
-        dest = tmp_path / (flag or 'jinks').strip('-')
-        assert main(['init', str(dest), *([flag] if flag else [])]) == 0
-        monkeypatch.chdir(dest)
-        assert main(['chunk', 'data/sample.xml', '--force']) == 0
-        page = next((dest / 'chunks').rglob('001.html')).read_text(encoding='utf-8')
-        article = re.search(r'<article class="content".*?</article>', page, re.S)
-        assert article is not None
-        pages[flag] = ' '.join(article.group(0).split())
-        assert 'opm-reader-folio-nav__rail' in page
-    assert pages[''] == pages['--jinja']
 
 
 def test_init_example_templates_keep_the_examples_own_shell(tmp_path: Path) -> None:

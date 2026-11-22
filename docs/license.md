@@ -79,7 +79,7 @@ keep publishing your work under the AGPL. See
 ## Dependencies
 
 All runtime dependencies are permissively licensed and impose no copyleft of their own:
-lxml and Babel (BSD-3-Clause), Jinja2 (BSD), elementpath, Typer, Rich, python-docx and
+lxml and Babel (BSD-3-Clause), elementpath, Typer, Rich, python-docx and
 platformdirs (MIT).
 
 ---

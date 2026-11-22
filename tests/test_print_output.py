@@ -312,7 +312,7 @@ def test_print_transform_injects_footnote_float_baseline(tmp_path: Path) -> None
 
 
 def test_docbook_print_uses_print_template_not_handbook(tmp_path: Path, monkeypatch) -> None:
-    """DocBook example: -t print wraps with print.html.j2, not handbook chrome."""
+    """DocBook example: -t print wraps with print.html.tpl, not handbook chrome."""
     from opm.cli import main
 
     root = Path(__file__).resolve().parents[1] / 'examples' / 'docbook'

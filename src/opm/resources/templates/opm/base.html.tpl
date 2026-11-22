@@ -1,6 +1,6 @@
 [#
   The document skeleton every opm HTML template can extend, <head> handling
-  only (opm/base.html.j2 is the same for Jinja2 templates). For a page with header,
+  only. For a page with header,
   sidebars and footer, extend opm/layout.html.tpl instead.
 
   Blocks: html_attributes (more attributes for <html>), meta, title, styles,

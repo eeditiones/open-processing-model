@@ -13,7 +13,7 @@
 #import "@preview/zebraw:0.6.3": *
 #import "@preview/arkheion:0.1.0": arkheion, arkheion-appendices
 
-[% include "opm_css_fns_default.typ.j2" %]
+[% include "opm_css_fns_default.typ" %]
 
 // No `marginalia.setup` here on purpose: it would replace arkheion's page
 // geometry with its own. Add it back (see book.typ.tpl) if your ODD emits margin
@@ -21,7 +21,7 @@
 
 [[ $context?odd_typst ]]
 
-[% include "opm_css.typ.j2" %]
+[% include "opm_css.typ" %]
 
 // The title block below is built from ODD-rendered content, so every #tei_* and
 // #opm-css definition above has to be in scope before the show rule runs.

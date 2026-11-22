@@ -124,10 +124,10 @@ def test_web_pages_leaves_other_modes_alone(tmp_path: Path) -> None:
 def test_global_fragments_reach_the_document_template(tmp_path: Path) -> None:
     from opm.config import FragmentConfig
 
-    template = tmp_path / 'page.html.j2'
+    template = tmp_path / 'page.html.tpl'
     template.write_text(
-        '<html><head><title>{{ fragments.title | striptags }}</title></head>'
-        '<body>{{ content_html | safe }}</body></html>',
+        '<html><head><title>[[ string($fragments?title) ]]</title></head>'
+        '<body>[[ $content_html ]]</body></html>',
         encoding='utf-8',
     )
     cfg = ProjectConfig(

@@ -13,18 +13,9 @@ next to HTML pages, a template may produce Typst, CSS or any other text
 format. Most of this page concentrates on HTML templates, because those are
 the files you will most likely want to change.
 
-opm decides from the file name which language a template is written in:
-
-| File name | Template language |
-| --- | --- |
-| ends in `.tpl`, e.g. `page.html.tpl` or `book.typ.tpl` | jinks |
-| anything else, e.g. `page.html.j2` | Jinja2 |
-
-Jinja2 is the template language earlier versions of opm used, and opm still
-reads it. Both kinds of template receive the same information from opm, so
-you can move a project from one language to the other one page at a time.
-All packaged templates, the templates `opm init` writes and all examples use
-jinks; `opm init --jinja` writes Jinja2 templates instead.
+Template files end in `.tpl`, e.g. `page.html.tpl` or `book.typ.tpl`.
+Earlier versions of opm also read Jinja2 templates (ending in `.j2`); these
+are no longer supported, and opm stops with an error if you configure one.
 
 ## Templating syntax
 
@@ -259,12 +250,9 @@ It adds a class to the `body` element and names the layout it builds upon. The r
 settings it accepts are described under
 [Template inheritance](templates-and-css.md#template-inheritance). As in TEI
 Publisher, the layout writes every region, and its stylesheet
-(`opm-layout.css`) hides the empty ones. (The Jinja2 version of the layout
-leaves them out instead.) The layout's blocks and settings have the same names
-as in TEI Publisher's base layout, e.g. the `before-top` and `menu.toggles`
-blocks or the `theme.layout.before.width` setting. The Jinja2 version uses
-underscores in block names instead (`before_top`, `menu_toggles`), since
-Jinja2 does not allow `-` or `.` in them.
+(`opm-layout.css`) hides the empty ones. The layout's blocks and settings
+have the same names as in TEI Publisher's base layout, e.g. the `before-top`
+and `menu.toggles` blocks or the `theme.layout.before.width` setting.
 
 Besides the layout, opm provides `default_document.html.tpl`, which shows the
 transformed document in the layout. It is a good starting point for your own
@@ -329,7 +317,7 @@ contains nothing but templates, apart from blank lines, keeps the default
 content of the `content` block as well. If it extends a layout which in turn
 extends another, the content of the page it was given is passed on.
 
-If you know Jinja2, note that there is no equivalent of `super()`: as soon as
+There is no equivalent of Jinja2's `super()`: as soon as
 a template adds to a block, the block's default content disappears.
 
 ## Template-only files

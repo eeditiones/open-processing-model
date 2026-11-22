@@ -380,17 +380,17 @@ rules, so a project can change the default style without losing the ODD's
 own renditions. <!--Because it changes the compiled stylesheet it is part of the ODD
 cache key, so a project overriding it gets its own compiled module.-->
 
-```jinja
-<link rel="stylesheet" href="{{ odd_css_url }}">
+```html
+<link rel="stylesheet" href="[[ $odd_css_url ]]">
 ```
 <!--
 The `odd_css` string is still passed, so a template that inlines it keeps
 working, and the URL is empty when the stylesheet turns out to be empty — hence
 the defensive form used by the packaged template:
 
-```jinja
-{% if odd_css_url %}<link rel="stylesheet" href="{{ odd_css_url }}">
-{% elif odd_css %}<style>{{ odd_css }}</style>{% endif %}
+```html
+[% if $odd_css_url %]<link rel="stylesheet" href="[[ $odd_css_url ]]">
+[% elif $odd_css %]<style>[[ $odd_css ]]</style>[% endif %]
 ```
 -->
 Anything else a page needs, such as the template's own stylesheet, images,
@@ -485,13 +485,13 @@ You can override the page itself with `chunking.index_template`. The template re
 `documents` — each with `name`, `stem`, `label`, `href`, `chunks` and
 `fragments` — plus `title`:
 
-```jinja
-{% for doc in documents %}
+```html
+[% for $doc in $documents?* %]
   <article>
-    {{ doc.fragments.browse or doc.fragments.title or doc.label }}
-    <a href="{{ doc.href }}">{{ doc.chunks }} sections</a>
+    [[ ($doc?fragments?browse, $doc?fragments?title, $doc?label)[1] ]]
+    <a href="[[ $doc?href ]]">[[ $doc?chunks ]] sections</a>
   </article>
-{% endfor %}
+[% endfor %]
 ```
 
 Because `fragments` is passed whole, adding an author or date column needs no

@@ -194,16 +194,6 @@ def init_cmd(
             help='Skip README.md, AGENTS.md, CLAUDE.md and .gitignore.',
         ),
     ] = False,
-    jinja: Annotated[
-        bool,
-        typer.Option(
-            '--jinja',
-            help=(
-                'Empty projects only: write the templates in Jinja2 syntax '
-                '(`.j2`) instead of the jinks syntax of TEI Publisher (`.tpl`).'
-            ),
-        ),
-    ] = False,
     profile: Annotated[
         Optional[list[str]],
         typer.Option(
@@ -236,8 +226,6 @@ def init_cmd(
 
     if example is not None and copy_base_odd:
         _note('--copy-base-odd does not apply to --example; ignoring it.')
-    if example is not None and jinja:
-        _note('--jinja does not apply to --example, which keeps its own templates; ignoring it.')
 
     vocab = (vocabulary or 'tei').strip().lower()
     if example is None and copy_base_odd and vocab != 'tei':
@@ -252,7 +240,6 @@ def init_cmd(
                 templates=templates,
                 base=base,
                 bare=bare,
-                jinja=jinja and example is None,
                 copy_base_odd=copy_base_odd and vocab == 'tei' and example is None,
                 profiles=tuple(profile or ()),
             )
@@ -1055,7 +1042,7 @@ def transform_cmd(
         Optional[Path],
         typer.Option(
             '--template',
-            help='Template path: a page template (.tpl for jinks, else Jinja2) for HTML/print/Typst output, or .docx for DOCX output.',
+            help='Template path: a jinks page template (.tpl) for HTML/print/Typst output, or .docx for DOCX output.',
         ),
     ] = None,
     xpath: Annotated[
@@ -1214,7 +1201,7 @@ def chunk(
             '-t',
             exists=True,
             dir_okay=False,
-            help='Page template for chunk pages: .tpl for jinks, else Jinja2 (overrides chunking.template in config).',
+            help='Jinks page template (.tpl) for chunk pages (overrides chunking.template in config).',
         ),
     ] = None,
     force: Annotated[

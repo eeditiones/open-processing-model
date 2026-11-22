@@ -62,7 +62,6 @@ opm init [OPTIONS] [DIRECTORY]
 | `--templates` | Also copy the alternative HTML templates (chapbook, journal, handbook) beside the one the project uses, and opm's plain default Typst template as `templates/document.typ.tpl`. |
 | `--base` | Also copy the templates the HTML templates inherit from (`templates/opm/`) and the base stylesheet (`styles/default-styles.css`), to edit them in the project. |
 | `--bare` | Skip README.md, AGENTS.md, CLAUDE.md and .gitignore. |
-| `--jinja` | Empty projects only: write the templates in Jinja2 syntax (`.j2`) instead of the jinks syntax of TEI Publisher (`.tpl`). |
 | `--profile, -p TEXT` | Switch on a profile in the new project; repeat for several. See `opm profile list`. |
 | `--help` | Show this message and exit. |
 
@@ -94,7 +93,7 @@ opm transform [OPTIONS] [INPUT_XML]
 | `--preview, -v` | Preview output: channel web/print → browser, markdown → Rich (paged in a TTY so bold/italic survive), docx/epub → the platform default application, typst → the compiled PDF, opened by typst (typst compile --open) when the typst command is installed; other channels → plain text in the terminal. |
 | `--param, -p KEY=VALUE` | Runtime parameter for XPath $parameters (repeatable), e.g. -p mode=toc -p display=browse |
 | `--css PATH` | CSS file replacing the packaged base rules compiled into the ODD stylesheet. Falls back to transform.css in the project config. |
-| `--template PATH` | Template path: a page template (.tpl for jinks, else Jinja2) for HTML/print/Typst output, or .docx for DOCX output. |
+| `--template PATH` | Template path: a jinks page template (.tpl) for HTML/print/Typst output, or .docx for DOCX output. |
 | `--xpath, -x EXPR` | XPath 3.1 expression evaluated with the document root as the context item; the single selected element becomes the transform root. Unprefixed names use the same default element namespace as the document root. $parameters is bound from --param. |
 | `--xpath-extensions TEXT` | Dotted import path(s) of Python module(s) whose public callables become XPath functions in the tp: namespace (repeat option to add modules; e.g. --xpath-extensions extensions.common --xpath-extensions extensions.dates). Importing these modules runs top-level code: only use trusted code. |
 | `--footnote-order TEXT` | Dotted import path of a callable that orders each run's footnotes before they are placed, e.g. --footnote-order opm.runtime.footnote_order.labelled_first (lettered apparatus before numbered commentary). Applies to the output modes that place footnotes themselves (web, markdown). Falls back to transform.footnote_order in opm.toml. Importing the module runs top-level code: only use trusted code. |
@@ -126,7 +125,7 @@ opm chunk [OPTIONS] [INPUT_XML]
 | --- | --- |
 | `--odd, -d PATH` | ODD file to compile on demand for chunking (overrides chunking.odd in config). |
 | `--output-dir, -o PATH` | Directory to write chunked files (overrides chunking.output_dir in config). |
-| `--template, -t FILE` | Page template for chunk pages: .tpl for jinks, else Jinja2 (overrides chunking.template in config). |
+| `--template, -t FILE` | Jinks page template (.tpl) for chunk pages (overrides chunking.template in config). |
 | `--force, -f` | Remove the existing output directory without prompting. |
 | `--depth INTEGER` | Maximum division/section depth for chunk splitting (overrides chunking.depth in config). |
 | `--webcomponents, --no-webcomponents` | Enable/disable tei-publisher web components mode. Falls back to transform.web.webcomponents in the project config. |

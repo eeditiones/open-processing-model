@@ -51,8 +51,6 @@ The next time you run `opm chunk`, every page gets the profiles' additions.
 You do not need to change your templates, as long as they extend opm's page
 layout, `opm/layout.html.tpl`, which provides the places a profile fills in:
 the columns beside the text, the menu bar and the area above the text.
-Profiles only work with jinks templates (ending in `.tpl`), not with Jinja2
-templates.
 
 ## Changing a profile's settings
 

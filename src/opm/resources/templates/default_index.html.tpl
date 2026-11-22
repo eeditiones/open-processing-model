@@ -1,6 +1,6 @@
 [#
   The packaged collection index, written by `opm chunk` for a directory, on
-  opm's page layout (default_index.html.j2 is the same for Jinja2).
+  opm's page layout.
 
   A masthead in the hero region (context.site_name or the index title,
   context.description, the counts), a bar to filter the documents and switch

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import jinja2
+
+import pytest
 
 from opm import jinks_templates as jinks
 from opm.chunking import chunk_document
@@ -13,7 +14,6 @@ from opm.project import Project
 from opm.runtime.xpath_env import XPathEnvironment
 from opm.template_frontmatter import template_context
 from opm.template_rendering import (
-    is_jinks_template,
     load_template,
     render_document_template,
     render_typst_document_template,
@@ -25,15 +25,11 @@ from tests.test_chunking import _write_chunking_fixture_module, _write_chunking_
 _DOC = '<html lang="en"><head><title>T</title></head><body><p>a &amp; b</p></body></html>'
 
 
-def test_engine_is_chosen_by_suffix(tmp_path: Path) -> None:
-    assert is_jinks_template(Path('page.html.tpl'))
-    assert is_jinks_template(Path('book.typ.tpl'))
-    assert not is_jinks_template(Path('page.html.j2'))
-    # Any other name stays Jinja2, as it always was.
-    assert not is_jinks_template(Path('page.html'))
+def test_jinja2_templates_are_rejected(tmp_path: Path) -> None:
     (tmp_path / 'a.html.j2').write_text('{{ x }}', encoding='utf-8')
     (tmp_path / 'a.html.tpl').write_text('[[ $x ]]', encoding='utf-8')
-    assert isinstance(template_environment(tmp_path / 'a.html.j2'), jinja2.Environment)
+    with pytest.raises(ValueError, match='Jinja2 templates are no longer supported'):
+        template_environment(tmp_path / 'a.html.j2')
     assert isinstance(template_environment(tmp_path / 'a.html.tpl'), jinks.Environment)
 
 
@@ -59,10 +55,8 @@ def test_document_template_variables(tmp_path: Path) -> None:
     assert '<footer>Site &amp; Co P&lt; stack</footer>' in out
 
 
-def test_template_context_for_jinks_adds_defaults(tmp_path: Path) -> None:
-    (tmp_path / 'p.html.tpl').write_text('x', encoding='utf-8')
-    env = template_environment(tmp_path / 'p.html.tpl')
-    ctx = template_context(env, 'p.html.tpl', {'site': 's'})
+def test_template_context_adds_defaults() -> None:
+    ctx = template_context({'site': 's'})
     assert ctx['site'] == 's'
     assert 'layout' in ctx['theme']
 
@@ -281,17 +275,15 @@ def test_base_template_wraps_body_in_pb_page(tmp_path: Path) -> None:
         serialized_html=_DOC, template_path=plain, odd_css='', parameters={})
 
 
-def test_scaffolded_shells_exist_in_both_syntaxes() -> None:
+def test_scaffolded_shells_exist() -> None:
     from opm.resources import packaged_document_dir  # noqa: F401  (package import check)
     from opm.scaffold import _EXTRA_SHELLS, _resource_root
 
     templates = _resource_root().joinpath('scaffold', 'templates')
     for name in _EXTRA_SHELLS:
         assert templates.joinpath(f'{name}.html.tpl').is_file(), name
-        assert templates.joinpath(f'{name}.html.j2').is_file(), name
     for name in ('book', 'docbook'):
         assert templates.joinpath(f'{name}.typ.tpl').is_file(), name
-        assert templates.joinpath(f'{name}.typ.j2').is_file(), name
 
 
 _MENU = {'items': [
@@ -336,30 +328,8 @@ def test_layout_uses_jinks_names(tmp_path: Path) -> None:
     assert 'Nothing' not in out
 
 
-def test_jinja_layout_menu_content_blocks_and_label(tmp_path: Path) -> None:
-    page = tmp_path / 'page.html.j2'
-    page.write_text(
-        '---json\n{"label": "Fallback title"}\n---\n'
-        '{% extends "opm/layout.html.j2" %}'
-        '{% block above_content %}<p>above</p>{% endblock %}'
-        '{% block below_content %}<p>below</p>{% endblock %}',
-        encoding='utf-8')
-    out = render_document_template(serialized_html=_DOC, template_path=page, odd_css='',
-                                   parameters={}, context={'menu': _MENU,
-                                                           'theme': {'body': {'classes': ['b1']}}})
-    squashed = ''.join(out.split())
-    assert '<title>Fallbacktitle</title>' in squashed
-    assert '<bodyclass="b1">' in squashed
-    assert '<p>above</p><articleclass="content"><p>a&amp;b</p></article><p>below</p></main>' in squashed
-    assert '<li><ahref="index.html">Start</a></li>' in squashed
-    assert ('<detailsclass="dropdown"><summary>Letters</summary><ul>'
-            '<li><ahref="date.html">Bydate</a></li><li><ahref="people.html">People</a></li>'
-            '</ul></details>') in squashed
-    assert 'Nothing' not in out
-
-
-def test_default_index_jinja_twin_matches(tmp_path: Path) -> None:
-    """``default_index.html.j2`` writes the same entries and masthead as the jinks one."""
+def test_default_index_entries_and_masthead(tmp_path: Path) -> None:
+    """``default_index.html.tpl`` writes the entries and the masthead."""
     from opm.chunking import IndexEntry
     from opm.template_rendering import default_template_path, render_index_template
 
@@ -369,7 +339,7 @@ def test_default_index_jinja_twin_matches(tmp_path: Path) -> None:
         IndexEntry(name='b.xml', stem='b', label='B', href='b.xml/001.html', chunks=1,
                    fragments={}),
     ]
-    for name in ('default_index.html.tpl', 'default_index.html.j2'):
+    for name in ('default_index.html.tpl',):
         out = render_index_template(
             entries=entries, template_path=default_template_path(name), title='Letters',
             context={'site_name': 'Edition', 'description': 'Two letters.',
@@ -386,13 +356,13 @@ def test_default_index_jinja_twin_matches(tmp_path: Path) -> None:
 
 
 def test_default_index_hero_image() -> None:
-    """``theme.index.hero.image`` puts an ``<img>`` behind the masthead in both syntaxes."""
+    """``theme.index.hero.image`` puts an ``<img>`` behind the masthead."""
     from opm.chunking import IndexEntry
     from opm.template_rendering import default_template_path, render_index_template
 
     entries = [IndexEntry(name='a.xml', stem='a', label='A', href='a.xml/001.html', chunks=2,
                           fragments={})]
-    for name in ('default_index.html.tpl', 'default_index.html.j2'):
+    for name in ('default_index.html.tpl',):
         plain = render_index_template(entries=entries, template_path=default_template_path(name),
                                       title='Letters', context={})
         assert '<header class="opm-masthead">' in plain, name
@@ -425,7 +395,7 @@ def test_layout_wordmark_logo() -> None:
 
     entries = [IndexEntry(name='a.xml', stem='a', label='A', href='a.xml/001.html', chunks=1,
                           fragments={})]
-    for name in ('default_index.html.tpl', 'default_index.html.j2'):
+    for name in ('default_index.html.tpl',):
         both = render_index_template(
             entries=entries, template_path=default_template_path(name), title='Listy',
             assets='assets', context={'site_name': 'Serafin', 'logo': 'mark.svg'},

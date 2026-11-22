@@ -215,10 +215,10 @@ Using an attribute `@cssClass="doc-title"` on the model should then result in a 
 
 Mind these points:
 
-- Place the extension **before** `[% include "opm_css.typ.j2" %]`. That
+- Place the extension **before** `[% include "opm_css.typ" %]`. That
   fragment reads `opm-css-fns` when it is included, so entries added after it
   never take effect and the content comes out unstyled.
-- Place it **after** the include of `opm_css_fns_default.typ.j2` (if your
+- Place it **after** the include of `opm_css_fns_default.typ` (if your
   template has one), which creates the dictionary and its defaults such as
   `pb` and `marginnote`. Writing `opm-css-fns + (…)` earlier fails because
   the name does not exist yet. A key that matches a default replaces it.

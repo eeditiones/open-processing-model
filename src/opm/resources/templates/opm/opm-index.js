@@ -1,5 +1,5 @@
 /* The collection index's filter and list/grid switch
-   (default_index.html.tpl and .j2 include this file inline).
+   (default_index.html.tpl includes this file inline).
 
    Without JavaScript the index is a plain list: the bar stays hidden. The
    filter matches every word typed against an entry's text, ignoring case

@@ -9,7 +9,7 @@ pythonpath = ["."]
 # profiles = ["registers"]
 
 [transform]
-odd = "{{ odd_path }}"
+odd = "[[ $odd_path ]]"
 xpath_extensions = [
     "opm.runtime.common_xpath_functions"
 ]
@@ -22,19 +22,19 @@ global = "http://teipublisher.com/global"
 
 # Values for those settings, grouped by the prefix declared above. Until a
 # variable is given a value here (and, for the collection ones, a matching
-# [[transform.collections]] below), models that use it fall back to rendering the
+# [% raw %][[transform.collections]][% endraw %] below), models that use it fall back to rendering the
 # element itself — which is what standalone opm projects have always done.
 [transform.variables.global]
 # Register of persons/places/organisations, resolved as collection($global:register-root).
 # Any absolute URI works; this is just an opaque key that has to match the
-# [[transform.collections]] uri below. Porting from eXist? Paste that app's
+# [% raw %][[transform.collections]][% endraw %] uri below. Porting from eXist? Paste that app's
 # $config:register-root here verbatim and the ODD needs no changes.
 register-root = "urn:registers"
 
 # Point a collection URI at the files it contains. Uncomment and list your
 # register files to make collection($global:register-root) resolve. `uri` must
 # match register-root above; the files themselves come from `documents`.
-# [[transform.collections]]
+# [% raw %][[transform.collections]][% endraw %]
 # uri = "urn:registers"
 # documents = [
 #     "data/registers/persons.xml",
@@ -44,7 +44,7 @@ register-root = "urn:registers"
 # The documents of the edition, as collection($global:data-default): the
 # registers profile lists on each entry's page the documents that mention it.
 # Set data-default = "urn:documents" above and uncomment:
-# [[transform.collections]]
+# [% raw %][[transform.collections]][% endraw %]
 # uri = "urn:documents"
 # documents = ["data/*.xml"]
 
@@ -54,27 +54,19 @@ register-root = "urn:registers"
 # css = "styles/base.css"
 
 [transform.web]
-template = "templates/{{ html_template }}.html{{ tpl }}"
+template = "templates/[[ $html_template ]].html.tpl"
 # Emit TEI Publisher web components and let the template load the bundle.
 # Its URL is an ordinary template value, so serving it yourself is just
 # [transform.web.context] with webcomponents_url = "..." below.
-webcomponents = {{ 'true' if webcomponents else 'false' }}
+webcomponents = [[ if ($webcomponents) then 'true' else 'false' ]]
 # Stylesheets, images and fonts the template uses, copied into an assets/
 # directory beside the output. The template links the stylesheets for you.
 # Switching to another template? Change its stylesheet here too.
-{% if html_css -%}
-assets = ["templates/{{ html_css }}"]
-{%- else -%}
-# assets = ["templates/edition.css"]
-{%- endif %}
+[% if $html_css %]assets = ["templates/[[ $html_css ]]"][% else %]# assets = ["templates/edition.css"][% endif %]
 
 # Anything here reaches every template as `context` — templates only,
 # never XPath — so TOML types survive: booleans, numbers, arrays, sub-tables.
-{%- if tpl == '.tpl' %}
-# Read it as [[ $context?site_name ]] or [% if $context?show_downloads %].
-{%- else %}
-# Read it as {{ '{{ context.site_name }}' }} or {% raw %}{% if context.show_downloads %}{% endraw %}.
-{%- endif %}
+# Read it as [% raw %][[ $context?site_name ]][% endraw %] or [% raw %][% if $context?show_downloads %][% endraw %].
 # [context]
 # site_name = "My edition"
 # show_downloads = true
@@ -82,11 +74,11 @@ assets = ["templates/{{ html_css }}"]
 #                               # assets copies it to <output-root>/assets/,
 #                               # one directory above the chunk pages
 #
-# Links in the menu bar of opm/layout.html{{ tpl }}, after the logo:
+# Links in the menu bar of opm/layout.html.tpl, after the logo:
 # [context.menu]
 # items = [{ label = "About", url = "about.html" }]
 #
-# Templates extending opm/layout.html{{ tpl }} read their layout settings here too.
+# Templates extending opm/layout.html.tpl read their layout settings here too.
 # The defaults (opm/defaults.toml in the package) are:
 # [context.theme.layout.before]
 # width = "18rem"      # column left of the text
@@ -101,39 +93,32 @@ assets = ["templates/{{ html_css }}"]
 # [transform.typst.context]
 # paper = "a5"
 
-{% if 'docx' in outputs -%}
-[transform.docx]
+[% if 'docx' = $outputs?* %][transform.docx]
 template = "templates/default.docx"
-{% endif %}
-{% if 'typst' in outputs -%}
-[transform.typst]
-template = "{{ typst_template }}"
-{% endif %}
-{% if 'markdown' in outputs -%}
-[transform.markdown]
-# Optional per-type ODD override: odd = "{{ odd_path }}"
-{% endif %}
-{% if chunk_selector -%}
+[% endif %]
+[% if 'typst' = $outputs?* %][transform.typst]
+template = "[[ $typst_template ]]"
+[% endif %]
+[% if 'markdown' = $outputs?* %][transform.markdown]
+# Optional per-type ODD override: odd = "[[ $odd_path ]]"
+[% endif %][% if $chunk_selector %]
 [chunking]
-selector = "{{ chunk_selector }}"
-depth = {{ chunk_depth }}
+selector = "[[ $chunk_selector ]]"
+depth = [[ $chunk_depth ]]
 output_dir = "chunks"
 
-[[chunking.fragments]]
+[% raw %][[chunking.fragments]][% endraw %]
 name = "title"
 scope = "global"
-xpath = "{{ title_xpath }}"
+xpath = "[[ $title_xpath ]]"
 parameters = { mode = "title" }
-
-{% if breadcrumbs -%}
-[[chunking.fragments]]
+[% if $breadcrumbs %]
+[% raw %][[chunking.fragments]][% endraw %]
 name = "breadcrumbs"
 scope = "per-chunk"
 xpath = "."
 parameters = { mode = "breadcrumb" }
-{% endif -%}
-{% endif -%}
-
+[% endif %][% endif %]
 [index]
 # `opm index` rolls the ODD's own output up into JSONL records for a search
 # index or vector store. The defaults suit prose; uncomment to tune.
@@ -145,12 +130,12 @@ parameters = { mode = "breadcrumb" }
 # divisions (a `section` behaviour, or any record that carries a heading).
 # Declaring any unit *replaces* that walk.
 #
-# [[index.units]]
+# [% raw %][[index.units]][% endraw %]
 # name = "heading"
 # behaviours = ["heading"]
 # emit = false       # label the next passage; do not emit a record
 #
-# [[index.units]]
+# [% raw %][[index.units]][% endraw %]
 # name = "paragraph"
 # behaviours = ["paragraph"]
 
@@ -158,15 +143,15 @@ parameters = { mode = "breadcrumb" }
 # JSON records are selected by `elements`, `behaviours` or `models`. A facet
 # stays in the prose and is repeated as a list of strings you can filter on:
 #
-# [[index.fields]]
+# [% raw %][[index.fields]][% endraw %]
 # name = "persons"
-# elements = ["{{ index_name_element }}"]
+# elements = ["[[ $index_name_element ]]"]
 #
-# A `fragment` field is the other source: it names a [[chunking.fragments]]
+# A `fragment` field is the other source: it names a [% raw %][[chunking.fragments]][% endraw %]
 # entry (the same HTML the page template already renders), strips it to a
 # scalar, and copies it onto every record from that page:
 #
-# [[index.fields]]
+# [% raw %][[index.fields]][% endraw %]
 # name = "breadcrumb"
 # fragment = "breadcrumbs"
 #
@@ -174,7 +159,7 @@ parameters = { mode = "breadcrumb" }
 # tagged kind = "note" and linked to the passage it came from, and it leaves
 # that passage's text (inline = true keeps it in both places):
 #
-# [[index.fields]]
+# [% raw %][[index.fields]][% endraw %]
 # name = "note"
-# elements = ["{{ index_note_element }}"]
+# elements = ["[[ $index_note_element ]]"]
 # metadata = false

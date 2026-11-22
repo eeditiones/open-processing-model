@@ -11,8 +11,7 @@ from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 
-from jinja2 import Environment, PackageLoader
-
+from opm import jinks_templates as jinks
 from opm.output_modes import RENDER_MODES
 
 VOCABULARIES = ('tei', 'docbook', 'jats')
@@ -28,16 +27,11 @@ _ODD_PATH = {
     'docbook': 'odd/docbook.odd',
     'jats': 'odd/jats.odd',
 }
-#: Suffix of the templates ``opm init`` copies: jinks by default, Jinja2 with
-#: ``--jinja``.
-JINKS_SUFFIX = '.tpl'
-JINJA_SUFFIX = '.j2'
 # JATS has no Typst-specific shell of its own; the generic one fits an article.
-# Without the suffix, which depends on the template syntax.
 _TYPST_TEMPLATE = {
-    'tei': 'templates/book.typ',
-    'docbook': 'templates/docbook.typ',
-    'jats': 'templates/book.typ',
+    'tei': 'templates/book.typ.tpl',
+    'docbook': 'templates/docbook.typ.tpl',
+    'jats': 'templates/book.typ.tpl',
 }
 # Which of the copied HTML shells `opm.toml` wires up. A journal article wants
 # the journal surface; the rest read as books or documentation.
@@ -52,18 +46,16 @@ _HTML_TEMPLATE = {
 _EXTRA_SHELLS = ('chapbook', 'journal', 'handbook')
 #: The plain Typst shell opm falls back to when no template is configured, which
 #: ``--templates`` also copies, beside the book shell the project wires up.
-def _typst_default(suffix: str) -> tuple[str, Path]:
-    return (f'templates/default_document.typ{suffix}', Path('templates') / f'document.typ{suffix}')
+_TYPST_DEFAULT = ('templates/default_document.typ.tpl', Path('templates') / 'document.typ.tpl')
 #: What ``--base`` copies: the packaged templates the shells extend, and the
 #: base stylesheet. opm prefers a project's copy at the same relative path
 #: (``templates/opm/…``, ``styles/default-styles.css``) over its own.
-def _base_copies(suffix: str) -> tuple[tuple[str, Path], ...]:
-    return (
-        (f'templates/opm/base.html{suffix}', Path('templates') / 'opm' / f'base.html{suffix}'),
-        (f'templates/opm/layout.html{suffix}', Path('templates') / 'opm' / f'layout.html{suffix}'),
-        ('templates/opm/opm-layout.css', Path('templates') / 'opm' / 'opm-layout.css'),
-        ('styles/default-styles.css', Path('styles') / 'default-styles.css'),
-    )
+_BASE_COPIES = (
+    ('templates/opm/base.html.tpl', Path('templates') / 'opm' / 'base.html.tpl'),
+    ('templates/opm/layout.html.tpl', Path('templates') / 'opm' / 'layout.html.tpl'),
+    ('templates/opm/opm-layout.css', Path('templates') / 'opm' / 'opm-layout.css'),
+    ('styles/default-styles.css', Path('styles') / 'default-styles.css'),
+)
 # Elements the commented-out [[index.fields]] examples point at, per vocabulary:
 # (footnote-like element, person-name element).
 _INDEX_FIELD_ELEMENTS = {
@@ -187,8 +179,6 @@ class InitOptions:
     #: Also copy the packaged templates the shells extend (``opm/base.html.tpl``,
     #: ``opm/layout.html.tpl`` and its stylesheet) and the base stylesheet.
     base: bool = False
-    #: Write Jinja2 templates (``.j2``) instead of jinks ones (``.tpl``).
-    jinja: bool = False
     #: Skip README.md, AGENTS.md, CLAUDE.md and .gitignore, for projects that
     #: live inside a repository which already has its own.
     bare: bool = False
@@ -259,12 +249,10 @@ def shell_stylesheet(name: str) -> str:
     return f'opm-theme-{name}.css'
 
 
-def _shell_copies(
-    names: tuple[str, ...], dest_dir: Path, suffix: str = JINKS_SUFFIX,
-) -> list[tuple[str, Path]]:
+def _shell_copies(names: tuple[str, ...], dest_dir: Path) -> list[tuple[str, Path]]:
     """Return ``(packaged resource, destination)`` pairs for the HTML shells *names*.
 
-    A shell is a ``.html.tpl`` (``.html.j2`` with *suffix* ``.j2``) plus its
+    A shell is a ``.html.tpl`` plus its
     theme stylesheet ([`shell_stylesheet`][opm.scaffold.shell_stylesheet]),
     when it has one — linked as an asset through ``[transform.web] assets``.
     """
@@ -272,8 +260,8 @@ def _shell_copies(
     for name in names:
         copies.append(
             (
-                f'scaffold/templates/{name}.html{suffix}',
-                dest_dir / 'templates' / f'{name}.html{suffix}',
+                f'scaffold/templates/{name}.html.tpl',
+                dest_dir / 'templates' / f'{name}.html.tpl',
             )
         )
         css = shell_stylesheet(name)
@@ -317,12 +305,9 @@ def _record(dest: Path, written: list[Path], skipped: list[Path], did_write: boo
     (written if did_write else skipped).append(dest)
 
 
-def _jinja_env() -> Environment:
-    return Environment(
-        loader=PackageLoader('opm', 'resources/scaffold'),
-        autoescape=False,
-        keep_trailing_newline=True,
-    )
+def _scaffold_env() -> jinks.Environment:
+    """The jinks environment for the project files ``opm init`` writes."""
+    return jinks.Environment([Path(str(_resource_root().joinpath('scaffold')))])
 
 
 def find_example(name: str) -> ExampleProject:
@@ -336,7 +321,7 @@ def find_example(name: str) -> ExampleProject:
 
 
 def _agent_guidance(
-    env: Environment,
+    env: jinks.Environment,
     dest_dir: Path,
     *,
     vocabulary: str,
@@ -346,7 +331,6 @@ def _agent_guidance(
     extra_templates: bool,
     written: list[Path],
     skipped: list[Path],
-    tpl: str = JINKS_SUFFIX,
 ) -> None:
     """Write AGENTS.md / CLAUDE.md — never overwritten, even with ``--force``."""
     context = {
@@ -355,9 +339,8 @@ def _agent_guidance(
         'sample': sample,
         'html_template': html_template,
         'extra_templates': extra_templates,
-        'tpl': tpl,
     }
-    template = env.get_template('agent_guidance.md.j2')
+    template = env.get_template('agent_guidance.md.tpl')
     for name, heading, intro in (
         (
             'AGENTS.md',
@@ -402,8 +385,6 @@ def _scaffold_example(options: InitOptions) -> ScaffoldResult:
     written: list[Path] = []
     skipped: list[Path] = []
     force = options.force
-    # Every example is written in jinks; the extra shells follow it.
-    suffix = JINKS_SUFFIX
 
     for src in sorted(source.rglob('*')):
         if not src.is_file() or _EXAMPLE_SKIP & set(src.relative_to(source).parts):
@@ -429,13 +410,12 @@ def _scaffold_example(options: InitOptions) -> ScaffoldResult:
         # Never overwrite a shell the example ships, even with --force: the
         # example's own copy may be customised (the Shakespeare chapbook
         # carries a facsimile column the packaged one knows nothing about).
-        typst_default = _typst_default(suffix)
-        for src_rel, dest in [*_shell_copies(_EXTRA_SHELLS, dest_dir, suffix), (typst_default[0], dest_dir / typst_default[1])]:
+        for src_rel, dest in [*_shell_copies(_EXTRA_SHELLS, dest_dir), (_TYPST_DEFAULT[0], dest_dir / _TYPST_DEFAULT[1])]:
             _record(dest, written, skipped, _copy_packaged(src_rel, dest, force=False))
 
     if options.base:
         # Same rule: an example may already carry its own copy.
-        for src_rel, rel in _base_copies(suffix):
+        for src_rel, rel in _BASE_COPIES:
             dest = dest_dir / rel
             _record(dest, written, skipped, _copy_packaged(src_rel, dest, force=False))
 
@@ -456,7 +436,7 @@ def _scaffold_example(options: InitOptions) -> ScaffoldResult:
         else _HTML_TEMPLATE.get(example.vocabulary, 'chapbook')
     )
     _agent_guidance(
-        _jinja_env(),
+        _scaffold_env(),
         dest_dir,
         vocabulary=example.vocabulary,
         odd_path=odd_path,
@@ -467,10 +447,6 @@ def _scaffold_example(options: InitOptions) -> ScaffoldResult:
         extra_templates=options.templates,
         written=written,
         skipped=skipped,
-        tpl=(
-            cfg.document_template.suffix
-            if cfg.document_template is not None else suffix
-        ),
     )
     return _example_result(example, dest_dir, written, skipped)
 
@@ -541,8 +517,7 @@ def _scaffold_project(options: InitOptions) -> ScaffoldResult:
     title = dest_dir.name
     is_tei = vocab == 'tei'
     odd_path = _ODD_PATH[vocab]
-    suffix = JINJA_SUFFIX if options.jinja else JINKS_SUFFIX
-    typst_template = _TYPST_TEMPLATE[vocab] + suffix
+    typst_template = _TYPST_TEMPLATE[vocab]
     chunk_selector = _CHUNK_SELECTOR[vocab]
     title_xpath = _TITLE_XPATH[vocab]
     html_template = options.html_template.strip() or _HTML_TEMPLATE[vocab]
@@ -551,18 +526,17 @@ def _scaffold_project(options: InitOptions) -> ScaffoldResult:
     skipped: list[Path] = []
     force = options.force
 
-    env = _jinja_env()
-    toml_text = env.get_template('opm.toml.j2').render(
+    env = _scaffold_env()
+    toml_text = env.get_template('opm.toml.tpl').render(
         odd_path=odd_path,
         webcomponents=options.webcomponents,
-        outputs=set(options.outputs),
+        outputs=sorted(options.outputs),
         typst_template=typst_template,
         chunk_selector=chunk_selector if options.chunking else '',
         chunk_depth=options.chunk_depth,
         title_xpath=title_xpath,
         breadcrumbs=vocab in _BREADCRUMBS,
         html_template=html_template,
-        tpl=suffix,
         # The shell's stylesheet, wired up as an asset when it has one.
         html_css=(
             shell_stylesheet(html_template)
@@ -575,14 +549,13 @@ def _scaffold_project(options: InitOptions) -> ScaffoldResult:
     _record(config_path, written, skipped, _write_text(config_path, toml_text, force=force))
 
     if not options.bare:
-        readme_text = env.get_template('README.md.j2').render(
+        readme_text = env.get_template('README.md.tpl').render(
             title=title,
             vocabulary=vocab,
             odd_path=odd_path,
             sample=SAMPLE_PATH,
             html_template=html_template,
             extra_templates=options.templates,
-            tpl=suffix,
         )
         _record(
             dest_dir / 'README.md',
@@ -601,7 +574,6 @@ def _scaffold_project(options: InitOptions) -> ScaffoldResult:
             extra_templates=options.templates,
             written=written,
             skipped=skipped,
-            tpl=suffix,
         )
 
         _record(
@@ -634,7 +606,7 @@ def _scaffold_project(options: InitOptions) -> ScaffoldResult:
     shells: tuple[str, ...] = (html_template,)
     if options.templates:
         shells += tuple(name for name in _EXTRA_SHELLS if name != html_template)
-    copies: list[tuple[str, Path]] = _shell_copies(shells, dest_dir, suffix)
+    copies: list[tuple[str, Path]] = _shell_copies(shells, dest_dir)
     if 'typst' in options.outputs:
         copies.append(
             (
@@ -643,8 +615,7 @@ def _scaffold_project(options: InitOptions) -> ScaffoldResult:
             )
         )
         if options.templates:
-            typst_default = _typst_default(suffix)
-            copies.append((typst_default[0], dest_dir / typst_default[1]))
+            copies.append((_TYPST_DEFAULT[0], dest_dir / _TYPST_DEFAULT[1]))
     if 'docx' in options.outputs:
         copies.append(('templates/default.docx', dest_dir / 'templates' / 'default.docx'))
 
@@ -661,7 +632,7 @@ def _scaffold_project(options: InitOptions) -> ScaffoldResult:
         copies.append((f'odd/{stem}.css', dest_dir / 'odd' / f'{stem}.css'))
     copies.append((f'scaffold/sample/{vocab}.xml', dest_dir / SAMPLE_PATH))
     if options.base:
-        copies.extend((src_rel, dest_dir / rel) for src_rel, rel in _base_copies(suffix))
+        copies.extend((src_rel, dest_dir / rel) for src_rel, rel in _BASE_COPIES)
 
     for src_rel, dest in copies:
         _record(dest, written, skipped, _copy_packaged(src_rel, dest, force=force))

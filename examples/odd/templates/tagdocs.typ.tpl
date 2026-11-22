@@ -44,7 +44,7 @@
   raw-text: (font: ("DejaVu Sans Mono", "Menlo", "Courier New"), size: 0.82em),
 )
 
-[% include "opm_css_fns_default.typ.j2" %]
+[% include "opm_css_fns_default.typ" %]
 
 // No margin notes in the documentation: keep the outer column narrow.
 #show: marginalia.setup.with(
@@ -54,7 +54,7 @@
   bottom: 2.4cm,
 )
 
-[% include "opm_css.typ.j2" %]
+[% include "opm_css.typ" %]
 
 [[ $context?odd_typst ]]
 

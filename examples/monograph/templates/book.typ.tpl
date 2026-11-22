@@ -45,7 +45,7 @@
 // References are set in rubric; in print they are text, not links.
 #show link: it => text(fill: rubric, it.body)
 
-[% include "opm_css_fns_default.typ.j2" %]
+[% include "opm_css_fns_default.typ" %]
 
 #show: marginalia.setup.with(
   inner: (far: 1.6cm),
@@ -226,7 +226,7 @@
   }
 }
 
-[% include "opm_css.typ.j2" %]
+[% include "opm_css.typ" %]
 
 [[ $context?content_typst ]]
 [% endlet %]

@@ -19,11 +19,9 @@ called jinks, with XPath expressions: `[[ $context?title ]]` inserts a value,
 `[% if … %]` tests a condition. This page explains how opm uses templates;
 [jinks templates](jinks-templates.md) describes the language itself.
 
-opm uses jinks for every template whose name ends in `.tpl`. Templates with
-any other name, e.g. `page.html.j2`, are read as
-[Jinja2](https://jinja.palletsprojects.com) templates, the language earlier
-versions of opm used. opm still ships its templates in both languages, and
-`opm init --jinja` sets up a new project with Jinja2 templates.
+Template files end in `.tpl`. Earlier versions of opm also read
+[Jinja2](https://jinja.palletsprojects.com) templates (ending in `.j2`); these
+are no longer supported.
 
 ## HTML templates
 
@@ -177,7 +175,7 @@ properties matter:
   template makes plain which values are the project's own.
 -->
 
-<!--A missing key is falsy rather than an error, so `{% if context.foo %}` is safe
+<!--A missing key is falsy rather than an error, so `[% if $context?foo %]` is safe
 for a value the project has not set.-->
 
 All templates receive the same settings: templates for whole documents, for

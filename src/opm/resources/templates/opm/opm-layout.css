@@ -1,10 +1,10 @@
-/* Layout behind opm/layout.html.j2 and opm/layout.html.tpl, modelled on the
+/* Layout behind opm/layout.html.tpl, modelled on the
    jinks base layout.
 
    Regions: header and hero across the page; before-top / content-top /
    after-top above before / content / after; footer across the page. A region
-   the template leaves empty takes no room: layout.html.j2 leaves it out,
-   layout.html.tpl writes it empty and the :has() rules below hide it.
+   the template leaves empty takes no room: layout.html.tpl writes it empty
+   and the :has() rules below hide it.
 
    A theme adjusts it through custom properties rather than by overriding
    these rules:
@@ -372,8 +372,7 @@
 }
 
 /* layout.html.tpl writes every region, as jinks does. A region counts as
-   empty when it holds no element besides a drawer's head; layout.html.j2
-   never writes such a region, so these rules change nothing there. */
+   empty when it holds no element besides a drawer's head. */
 .opm-layout:has(> .before > :not(.opm-drawer__head)) {
   --opm-layout-before-track: var(--opm-layout-before-width, 18rem);
 }
@@ -664,7 +663,7 @@
 }
 
 /* ===========================================================================
-   Collection index (default_index.html.tpl / .j2)
+   Collection index (default_index.html.tpl)
 
    A masthead in the hero region, a sticky bar to filter the documents and
    switch between a list and a grid, and one entry per document. Selectors

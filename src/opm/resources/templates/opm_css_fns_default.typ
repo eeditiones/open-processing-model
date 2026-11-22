@@ -2,7 +2,7 @@
 //   #let opm-css-fns = opm-css-fns + ( center: (body) => align(center, body), )
 //
 // Margin notes use the marginalia package; templates must apply
-// ``#show: marginalia.setup.with(...)`` (see default_document.typ.j2).
+// ``#show: marginalia.setup.with(...)`` (see default_document.typ.tpl).
 #import "@preview/marginalia:0.3.1" as marginalia: note
 
 // Outer margin reserved for margin notes by the ``marginalia.setup`` call each

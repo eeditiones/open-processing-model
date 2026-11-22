@@ -215,9 +215,8 @@ class ChunkProcessor:
         self.odd_css: str = getattr(self.module, 'ODD_GENERATED_CSS', '') or ''
         self.chunks: list[etree._Element] = []
         self.results: list[ChunkResult] = []
-        self._jinja_env: Any | None = None
-        self._jinja_template: Any | None = None
-        self._jinja_context: dict[str, Any] = {}
+        self._page_template: Any | None = None
+        self._page_context: dict[str, Any] = {}
         # Built once per document; each chunk derives a run of its own from it.
         self._base_context: Any | None = None
         self._id_index: dict[str, etree._Element] | None = None
@@ -512,7 +511,7 @@ class ChunkProcessor:
         chunk_id = f"chunk-{index + 1:03d}"
         chunk_file = self._chunk_file(chunk, index)
 
-        # Filename stems so templates can link them as {{ chunk.prev }}.html.
+        # Filename stems so templates can link them as [[ $chunk?prev ]].html.
         prev_id = (
             Path(self._chunk_file(self.chunks[index - 1], index - 1)).stem
             if index > 0 else None
@@ -867,19 +866,16 @@ class ChunkProcessor:
     def _load_chunk_template(self, template_path: Path | None) -> Any | None:
         """The compiled chunk template, built once and reused for every chunk.
 
-        Also merges the template's frontmatter into the context once. *None*
-        when there is no template, and chunks are written as raw HTML.
+        *None* when there is no template, and chunks are written as raw HTML.
         """
-        if self._jinja_template is None:
+        if self._page_template is None:
             chunk_template = self._chunk_template_path(template_path)
             if chunk_template is None:
                 return None
-            self._jinja_env = template_environment(chunk_template, self.xpath_env, self.project)
-            self._jinja_template = load_template(self._jinja_env, chunk_template)
-            self._jinja_context = template_context(
-                self._jinja_env, chunk_template.name, self.template_context,
-            )
-        return self._jinja_template
+            env = template_environment(chunk_template, self.xpath_env, self.project)
+            self._page_template = load_template(env, chunk_template)
+            self._page_context = template_context(self.template_context)
+        return self._page_template
 
     def render_chunk_template(
         self, 
@@ -916,7 +912,7 @@ class ChunkProcessor:
                 # and XPath never disagree about a parameter's value.
                 parameters=self._expand_placeholders(self.parameters),
                 lang="",
-                context=self._jinja_context,
+                context=self._page_context,
                 # Add chunk-specific context
                 fragments=all_fragments,
                 # Relative URL of the output root ('' or '../'), for links

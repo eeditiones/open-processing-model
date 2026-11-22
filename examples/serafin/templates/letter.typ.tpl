@@ -11,7 +11,7 @@
 // Columns are also the stricter layout — they hold the alignment at every
 // segment, where facing pages drift apart as soon as one side runs longer.
 
-[% include "opm_css_fns_default.typ.j2" %]
+[% include "opm_css_fns_default.typ" %]
 
 #let doc-title = "[[ replace(string(($context?metadata?title?*)[1]), '"', '\"', 'q') ]]"
 #let source-label = "[[ replace(($context?source_label[. != ''], 'Transcription')[1], '"', '\"', 'q') ]]"
@@ -83,7 +83,7 @@
 
 [[ $context?odd_typst ]]
 
-[% include "opm_css.typ.j2" %]
+[% include "opm_css.typ" %]
 
 #align(center)[
   #text(size: 1.35em)[#doc-title]

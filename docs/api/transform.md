@@ -7,8 +7,8 @@ against parsed XML.
 
 ## Templates
 
-Rendering transform output through Jinja2 or jinks templates, and the frontmatter
-those templates may carry.
+Rendering transform output through jinks page templates, and the context they
+receive.
 
 ::: opm.template_rendering
 

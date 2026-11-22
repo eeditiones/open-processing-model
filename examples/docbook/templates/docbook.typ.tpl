@@ -27,7 +27,7 @@
 #set text(font: ("New Computer Modern", "Times New Roman"))
 #show raw: set text(font: ("Iosevka", "DejaVu Sans Mono", "Courier New"))
 
-[% include "opm_css_fns_default.typ.j2" %]
+[% include "opm_css_fns_default.typ" %]
 
 // marginalia sets the page margins, so these numbers decide the measure. The
 // packaged defaults reserve ~5cm on the outer edge for margin notes; this
@@ -69,6 +69,6 @@
 #set heading(numbering: "1.")
 #set par(justify: true)
 
-[% include "opm_css.typ.j2" %]
+[% include "opm_css.typ" %]
 
 [[ $context?content_typst ]]

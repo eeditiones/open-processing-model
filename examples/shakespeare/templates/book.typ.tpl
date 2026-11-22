@@ -11,7 +11,7 @@
 // which is a different genre from a numbered scholarly text. Everything here is
 // built on Typst's own `par.line`, which numbers typeset lines natively.
 
-[% include "opm_css_fns_default.typ.j2" %]
+[% include "opm_css_fns_default.typ" %]
 
 #let full-title = "[[ replace(string(($context?metadata?title?*)[1]), '"', '\"', 'q') ]]"
 #let short-title = "[[ replace(string(($context?short_title[. != ''], ($context?metadata?title?*)[1])[1]), '"', '\"', 'q') ]]"
@@ -122,7 +122,7 @@
 
 [[ $context?odd_typst ]]
 
-[% include "opm_css.typ.j2" %]
+[% include "opm_css.typ" %]
 
 // ── Title page ────────────────────────────────────────────────────────────
 #{

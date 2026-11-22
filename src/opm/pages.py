@@ -130,7 +130,6 @@ def _render_static_page(
         'site_root': prefix,
     }
     context = template_context(
-        env, template_path.name,
         merge_deep(project.config.context_for('web', webcomponents=webcomponents), page.context or {}),
     )
     rendered = tpl.render(

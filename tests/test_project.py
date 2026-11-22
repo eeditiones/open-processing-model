@@ -268,11 +268,11 @@ def test_document_name_names_each_documents_directory(tmp_path: Path) -> None:
 
 
 def test_document_name_reaches_the_templates(tmp_path: Path) -> None:
-    (tmp_path / 'page.html.j2').write_text(
-        '<html><body>{{ document }}|{{ documents | sort | join(",") }}</body></html>',
+    (tmp_path / 'page.html.tpl').write_text(
+        '<html><body>[[ $document ]]|[[ string-join(sort($documents?*), ",") ]]</body></html>',
         encoding='utf-8',
     )
-    project = _project(tmp_path, 'document_name = "/doc/@n"\ntemplate = "page.html.j2"\n')
+    project = _project(tmp_path, 'document_name = "/doc/@n"\ntemplate = "page.html.tpl"\n')
     _named_doc(tmp_path / 'docs' / 'one.xml', 'x1')
     _named_doc(tmp_path / 'docs' / 'two.xml', 'x2')
 

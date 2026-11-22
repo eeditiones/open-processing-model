@@ -2,7 +2,7 @@
 // Override via [transform.typst] template in project config or --template
 
 // Handlers for ODD @cssClass / @rend names emitted as #opm-css("name")[…].
-[% include "opm_css_fns_default.typ.j2" %]
+[% include "opm_css_fns_default.typ" %]
 
 #show: marginalia.setup.with(
   inner: (far: 1.8cm),
@@ -22,7 +22,7 @@
 // ),
 // )
 
-[% include "opm_css.typ.j2" %]
+[% include "opm_css.typ" %]
 
 [[ $context?odd_typst ]]
 

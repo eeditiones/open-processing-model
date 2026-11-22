@@ -285,14 +285,14 @@ def test_chunk_html_template_includes_odd_css(tmp_path: Path) -> None:
     )
     _write_chunking_fixture_xml(xml_path)
 
-    template = tmp_path / 'chunk.html.j2'
+    template = tmp_path / 'chunk.html.tpl'
     template.write_text(
-        '<html><head>{% if odd_css %}<style>{{ odd_css }}</style>{% endif %}</head>'
-        '<body>{{ content_html | safe }}</body></html>',
+        '<html><head>[% if $odd_css %]<style>[[ $odd_css ]]</style>[% endif %]</head>'
+        '<body>[[ $content_html ]]</body></html>',
         encoding='utf-8',
     )
     config = _chunking_config('css-chunks')
-    config.template = Path('chunk.html.j2')
+    config.template = Path('chunk.html.tpl')
 
     chunk_document(
         module_path=module_path,
@@ -944,7 +944,7 @@ def test_chapbook_running_head_uses_title_fragment(tmp_path: Path) -> None:
     config = ChunkingConfig(
         xpath='//section',
         output_dir='title-chunks',
-        template=_scaffold_template('chapbook.html.j2'),
+        template=_scaffold_template('chapbook.html.tpl'),
         fragments=[
             FragmentConfig(
                 name='title',
@@ -1039,10 +1039,10 @@ def test_build_index_gets_the_webcomponents_url_in_web_component_mode(tmp_path: 
 
     out = tmp_path / 'chunks'
     _write_manifest(out, 'a.xml', fragments={'title': '<span>Letter One</span>'})
-    template = tmp_path / 'index.html.j2'
+    template = tmp_path / 'index.html.tpl'
     template.write_text(
-        '{% if context.webcomponents_url %}'
-        '<script src="{{ context.webcomponents_url }}"></script>{% endif %}',
+        '[% if $context?webcomponents_url %]'
+        '<script src="[[ $context?webcomponents_url ]]"></script>[% endif %]',
         encoding='utf-8',
     )
 
@@ -1259,10 +1259,10 @@ def test_build_index_passes_the_stylesheet_to_the_template(tmp_path: Path) -> No
     out = tmp_path / 'chunks'
     _write_manifest(out, 'a.xml', fragments={'browse': '<span class="tei-title">T</span>'})
 
-    template = tmp_path / 'index.html.j2'
+    template = tmp_path / 'index.html.tpl'
     template.write_text(
-        '<style>{{ odd_css }}</style>'
-        '{% for doc in documents %}{{ doc.fragments.browse | safe }}{% endfor %}',
+        '<style>[[ $odd_css ]]</style>'
+        '[% for $doc in $documents?* %][[ $doc?fragments?browse ]][% endfor %]',
         encoding='utf-8',
     )
 
@@ -1290,8 +1290,8 @@ def test_build_index_reads_odd_css_from_the_transform_module(tmp_path: Path) -> 
 
     out = tmp_path / 'chunks'
     _write_manifest(out, 'a.xml')
-    template = tmp_path / 'index.html.j2'
-    template.write_text('<style>{{ odd_css }}</style>', encoding='utf-8')
+    template = tmp_path / 'index.html.tpl'
+    template.write_text('<style>[[ $odd_css ]]</style>', encoding='utf-8')
 
     html = build_index(
         out, template_path=template, module_path=module_path
@@ -1302,9 +1302,9 @@ def test_build_index_reads_odd_css_from_the_transform_module(tmp_path: Path) -> 
 
 def _template_echoing_urls(path: Path) -> None:
     path.write_text(
-        'ODD=[{{ odd_css_url }}] ASSETS=[{{ assets }}] STYLES=[{{ asset_styles|join(",") }}]\n'
-        '{% if odd_css_url %}<link href="{{ odd_css_url }}">{% else %}<style>{{ odd_css }}</style>{% endif %}\n'
-        '{{ content_html }}',
+        'ODD=[[[ $odd_css_url ]]] ASSETS=[[[ $assets ]]] STYLES=[[[ string-join($asset_styles?*, ",") ]]]\n'
+        '[% if $odd_css_url %]<link href="[[ $odd_css_url ]]">[% else %]<style>[[ $odd_css ]]</style>[% endif %]\n'
+        '[[ $content_html ]]',
         encoding='utf-8',
     )
 
@@ -1317,7 +1317,7 @@ def test_no_stylesheets_written_when_there_are_none(tmp_path: Path) -> None:
     """
     module_path = tmp_path / 'chunk_fixture.py'
     xml_path = tmp_path / 'fixture.xml'
-    template = tmp_path / 'page.html.j2'
+    template = tmp_path / 'page.html.tpl'
     _write_chunking_fixture_module(module_path)
     _write_chunking_fixture_xml(xml_path)
     _template_echoing_urls(template)
@@ -1341,13 +1341,13 @@ def test_page_template_sees_the_documents_of_the_run(tmp_path: Path) -> None:
     """``documents`` lets a template link only to documents that were chunked."""
     module_path = tmp_path / 'chunk_fixture.py'
     xml_path = tmp_path / 'fixture.xml'
-    template = tmp_path / 'page.html.j2'
+    template = tmp_path / 'page.html.tpl'
     _write_chunking_fixture_module(module_path)
     _write_chunking_fixture_xml(xml_path)
     template.write_text(
-        "DOC=[{{ document }}] "
-        "RUN=[{{ 'fixture.xml' in documents }}|{{ 'other.xml' in documents }}|"
-        "{{ documents | length }}]",
+        "DOC=[[[ $document ]]] "
+        "RUN=[[[ 'fixture.xml' = $documents?* ]]|[[ 'other.xml' = $documents?* ]]|"
+        "[[ array:size($documents) ]]]",
         encoding='utf-8',
     )
 
@@ -1363,17 +1363,17 @@ def test_page_template_sees_the_documents_of_the_run(tmp_path: Path) -> None:
         return (tmp_path / output_dir / '001.html').read_text(encoding='utf-8')
 
     # A single document knows only itself.
-    assert 'DOC=[fixture.xml] RUN=[True|False|1]' in _page('single')
+    assert 'DOC=[fixture.xml] RUN=[true|false|1]' in _page('single')
     # A directory run passes every file it chunks.
     run = frozenset({'fixture.xml', 'other.xml'})
-    assert 'RUN=[True|True|2]' in _page('run', documents=run)
+    assert 'RUN=[true|true|2]' in _page('run', documents=run)
 
 
 def test_chunking_always_writes_stylesheets_as_files(tmp_path: Path) -> None:
     """Chunk output is multi-page, so the stylesheet is a cacheable file, never inlined."""
     module_path = tmp_path / 'chunk_fixture.py'
     xml_path = tmp_path / 'fixture.xml'
-    template = tmp_path / 'page.html.j2'
+    template = tmp_path / 'page.html.tpl'
     _write_chunking_fixture_module(module_path)
     module_path.write_text(
         module_path.read_text(encoding='utf-8').replace(
@@ -1407,7 +1407,7 @@ def test_stylesheet_url_is_relative_to_the_shared_root(tmp_path: Path) -> None:
     """In a directory run the pages sit one level down, so URLs need ``../``."""
     module_path = tmp_path / 'chunk_fixture.py'
     xml_path = tmp_path / 'fixture.xml'
-    template = tmp_path / 'page.html.j2'
+    template = tmp_path / 'page.html.tpl'
     _write_chunking_fixture_module(module_path)
     module_path.write_text(
         module_path.read_text(encoding='utf-8').replace(
@@ -1442,7 +1442,7 @@ def test_assets_are_copied_to_the_shared_root(tmp_path: Path) -> None:
     """Files and directories listed in chunking.assets land in assets/."""
     module_path = tmp_path / 'chunk_fixture.py'
     xml_path = tmp_path / 'fixture.xml'
-    template = tmp_path / 'page.html.j2'
+    template = tmp_path / 'page.html.tpl'
     _write_chunking_fixture_module(module_path)
     _write_chunking_fixture_xml(xml_path)
     _template_echoing_urls(template)
@@ -1610,15 +1610,15 @@ def test_chunk_pages_and_index_receive_the_project_context(tmp_path: Path) -> No
     _write_chunking_fixture_module(module_path)
     _write_chunking_fixture_xml(xml_path)
 
-    template = tmp_path / 'page.html.j2'
+    template = tmp_path / 'page.html.tpl'
     template.write_text(
-        '<!doctype html><html><head><title>{{ context.site_name }}</title>'
-        '{% if context.webcomponents_url %}<script src="{{ context.webcomponents_url }}"></script>'
-        '{% endif %}</head><body>{{ content_html }}</body></html>',
+        '<!doctype html><html><head><title>[[ $context?site_name ]]</title>'
+        '[% if $context?webcomponents_url %]<script src="[[ $context?webcomponents_url ]]"></script>'
+        '[% endif %]</head><body>[[ $content_html ]]</body></html>',
         encoding='utf-8',
     )
-    index_template = tmp_path / 'index.html.j2'
-    index_template.write_text('<h1>{{ context.site_name }}</h1>', encoding='utf-8')
+    index_template = tmp_path / 'index.html.tpl'
+    index_template.write_text('<h1>[[ $context?site_name ]]</h1>', encoding='utf-8')
 
     project_config = ProjectConfig(
         template_context={'site_name': 'My Edition'},
