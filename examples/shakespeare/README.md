@@ -65,25 +65,6 @@ the page boundary. A speech split over a page break therefore stays a speech on
 both pages, rather than collapsing into loose text. `view = "page"` matches the
 lookup key a `pb-view` sends in that mode.
 
-## Template context
-
-`[transform.web.context]` carries project values to the Jinja2 templates,
-untouched by XPath. It overlays `[context]`, so values only the HTML page needs
-stay out of the Typst and EPUB runs:
-
-```toml
-[transform.web.context]
-scripts = [
-    "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.8/dist/pb-tify.js",
-]
-webcomponents_theme = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.8/css/components.css"
-```
-
-`scripts` is the list every stock template renders as module scripts after the
-pb-components bundle; `webcomponents_theme` is the stylesheet `<pb-page>` loads.
-Both are read by `templates/chapbook.html.j2` alone. The Typst-only values sit
-in `[transform.typst.context]` for the same reason.
-
 ## Facsimiles
 
 Chunk pages carry a IIIF viewer beside the text, the way the TEI Publisher
@@ -96,30 +77,22 @@ into a `<pb-facs-link>` that announces a manifest URL and a page index on the
 page being transformed is a detached copy in which `preceding::pb` would find
 nothing and every folio would claim to be page 1.
 
-**The viewer.** `templates/chapbook.html.j2` puts a `<pb-tify>` in an aside
-column and subscribes it to the same channel, so turning the page moves the
-facsimile with it:
+**The viewer.** The `iiif` profile, switched on in `opm.toml`, puts a
+`<pb-tify>` in a column beside the text and subscribes it to the same channel,
+so turning the page moves the facsimile with it:
 
-```html
-<pb-tify subscribe="transcription" emit="transcription"></pb-tify>
+```toml
+[project]
+profiles = ["iiif"]
 ```
 
-`pb-tify` is published as its own entry point rather than inside
-`pb-components-bundle.js`, so the template loads a second module. Its URL is one
-entry in `[transform.web.context] scripts`, the list the template renders as
-module scripts after the bundle. That list is unconditional, so the module is
-requested on every HTML run; the viewer around it is not. The facsimile column
-and its `<pb-page>` wrapper follow web component mode, so `--no-webcomponents` —
-or a full-document transform, which has no page chunks — leaves the page as
-plain text.
-
-The page also needs a `<pb-page endpoint=".">` around the content. TEI
-Publisher components resolve relative URLs against the endpoint of an ancestor
-`pb-page`; with none, `getEndpoint()` is `undefined` and the viewer asks for
-`/undefined/assets/…` and reports *Error loading IIIF manifest: File not
-found*. `endpoint="."` resolves the manifest beside the page. `api-version` is
-pinned so `pb-page` does not probe `./api/version`, and `theme` points at the
-packaged `components.css` it would otherwise look for next to the page.
+The profile also loads `pb-tify.js`, which is published separately from the
+main web components bundle, and wraps the page in the `<pb-page endpoint=".">`
+the components need to find the manifest. Without that wrapper the viewer asks
+for `/undefined/assets/…` and reports *Error loading IIIF manifest: File not
+found*. The column only appears in web component mode, so `--no-webcomponents`
+leaves the page as plain text. `templates/facsimile.css` fits the column into
+the chapbook layout.
 
 **The manifest.** A deployed TEI Publisher answers `api/iiif/<doc>`; nothing
 does here. `teipublisher.odd` already has a `<pb>` model for that case, chosen
@@ -168,7 +141,7 @@ opm transform data/F-ado.xml -t typst -o folio.typ && typst compile folio.typ
 
 The line numbers are Typst's own `par.line`, which numbers *typeset* lines — so
 a wrapped turn-under stays unnumbered, the convention the Folger follows.
-`templates/book.typ.j2` is hand-written rather than built on a package: the
+`templates/book.typ.tpl` is hand-written rather than built on a package: the
 Typst drama templates on Universe format *new* stageplays to Dramatists Guild
 or screenplay rules, which is a different genre from a numbered scholarly text.
 
@@ -201,8 +174,9 @@ opm transform data/F-ado.xml -t epub -o folio.epub
 ## Layout
 
 - `odd/shakespeare.odd` — processing model (plus `shakespeare.css`)
-- `templates/chapbook.html.j2` — reading view, extending opm's page layout (`opm/layout.html.j2`); its stylesheet `templates/chapbook.css` is listed under `assets`
-- `templates/book.typ.j2` — Folger-style print edition (line numbers, running heads)
+- `templates/chapbook.html.tpl` — reading view, extending opm's page layout (`opm/layout.html.tpl`); its stylesheet `templates/opm-theme-chapbook.css` is listed under `assets`
+- `templates/facsimile.css` — fits the `iiif` profile's viewer column into the chapbook layout
+- `templates/book.typ.tpl` — Folger-style print edition (line numbers, running heads)
 - `templates/epub.css` — EPUB reading text (scene chapters, no page furniture)
 - `opm.toml` — page chunking, `[context]`, `$global:` settings, chunk fragments
 - `iiif/<document>.xml/manifest.json` — IIIF manifests, copied to `chunks/assets/`

@@ -1,0 +1,727 @@
+/* SPDX-FileCopyrightText: 2026 e-editiones
+   SPDX-License-Identifier: CC0-1.0 */
+
+/* Here rather than in the template, so every page that links this file,
+   the collection index too, gets the same faces. */
+@import url("https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap");
+
+/* ===========================================================================
+   opm theme "paper" — a scholarly edition of historical sources, book or
+   letters, read like a printed critical edition. First made for the
+   Römerbrief of the Karl Barth-Gesamtausgabe.
+
+   A printed page on screen: warm paper, near-black ink and one rubric red,
+   used as a printer would — for references, the chapter line and note
+   numbers. No cards, no shadows except a popover's; hairlines separate.
+   A margin beside the text (--rail-margin) holds the source's page numbers;
+   register names (--entity) stay quiet until touched.
+
+   Type: EB Garamond for everything in the text (it carries the Greek),
+   Alegreya Sans only for furniture — buttons, labels, note numbers.
+
+   The page grid is opm's packaged layout (opm/layout.html.tpl): the running
+   head is its header, the contents its `before` column, which the layout
+   turns into a drawer on narrow screens. Its palette is handed to opm's
+   design tokens (--opm-*), which colour the menubar, breadcrumbs, drawer and
+   the collection index alike; rules for the reading page itself are scoped
+   to body.opm-reader, which the index does not carry. Dark ("Lamplight")
+   applies with theme.color_scheme = "auto" or "dark" in opm.toml.
+
+   Inside the text column every size is an em of the reading size, because
+   the A−/A+ buttons set font-size on #opm-reader-content.
+
+   It styles the opm-reader-* classes the chapbook-style templates write
+   (contents rail, page, page turning, text size). What one edition needs
+   beyond that lives in its own stylesheet, listed after this one:
+   monograph.css for the Römerbrief, letter.css for the Escher letters.
+   =========================================================================== */
+
+:root {
+  /* Colour — "Paper" */
+  --paper: #f6f1e7;
+  --paper-raised: #fbf8f1;
+  --paper-sunken: #ece5d6;
+  --ink: #211c16;
+  --ink-muted: #675d51;
+  --ink-faint: #8f8474;          /* marks only, never text */
+  --rule: #ddd3c2;
+  --rule-strong: #b8ab96;
+  --rubric: #962a1c;
+  --rubric-soft: #f1dfd6;
+  --entity: #2f5468;
+  --highlight: #f4e6b3;
+  --focus: var(--entity);
+  --shadow-popover: 0 1px 2px rgba(33, 28, 22, 0.08), 0 8px 24px rgba(33, 28, 22, 0.12);
+
+  /* Type */
+  --font-serif: "EB Garamond", Garamond, "Iowan Old Style", "Times New Roman", serif;
+  --font-sans: "Alegreya Sans", "Gill Sans", "Segoe UI", sans-serif;
+
+  /* Space */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 72px;
+
+  /* Radius — a book has square corners */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+
+  /* Layout */
+  --measure-text: 38rem;   /* ≈ 66 characters of reading text */
+  --rail-contents: 15rem;
+  --rail-margin: 5rem;     /* right margin: original page numbers */
+
+  /* opm's design tokens, from the palette above */
+  --opm-background-color: var(--paper);
+  --opm-surface: var(--paper-raised);
+  --opm-color: var(--ink);
+  --opm-color-muted: var(--ink-muted);
+  --opm-color-rule: var(--rule);
+  --opm-color-accent: var(--rubric);
+  --opm-color-accent-soft: var(--rubric-soft);
+  --opm-font-body: var(--font-serif);
+  --opm-font-display: var(--font-serif);
+  --opm-font-ui: var(--font-sans);
+  --opm-radius: var(--radius-md);
+  --opm-radius-sm: var(--radius-sm);
+  --opm-shadow: var(--shadow-popover);
+  --opm-menubar-height: 3.5rem;
+  --opm-breadcrumb-separator: "·";
+  --opm-background-color-drawer: var(--paper-raised);
+  --opm-drawer-padding: 0px;
+
+  /* Entity popovers (pb-popover / tippy), when the ODD emits them */
+  --pb-popover-theme: "light-border";
+
+  color-scheme: light;
+}
+
+/* "Lamplight": theme.color_scheme = "auto" follows the system, "dark" pins it. */
+@media (prefers-color-scheme: dark) {
+  :root[data-opm-color-scheme="auto"] {
+    --paper: #1a1814;
+    --paper-raised: #23201b;
+    --paper-sunken: #121110;
+    --ink: #ebe3d5;
+    --ink-muted: #a89e8f;
+    --ink-faint: #7d7466;
+    --rule: #38332b;
+    --rule-strong: #564e43;
+    --rubric: #e3907b;
+    --rubric-soft: #3b2520;
+    --entity: #97bed2;
+    --highlight: #3a3118;
+    --shadow-popover: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+
+:root[data-opm-color-scheme="dark"] {
+  --paper: #1a1814;
+  --paper-raised: #23201b;
+  --paper-sunken: #121110;
+  --ink: #ebe3d5;
+  --ink-muted: #a89e8f;
+  --ink-faint: #7d7466;
+  --rule: #38332b;
+  --rule-strong: #564e43;
+  --rubric: #e3907b;
+  --rubric-soft: #3b2520;
+  --entity: #97bed2;
+  --highlight: #3a3118;
+  --shadow-popover: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+body {
+  line-height: 1.6;
+  font-feature-settings: "kern", "liga", "onum", "pnum";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body.opm-reader {
+  --opm-layout-gutter: var(--space-5);
+  --opm-layout-gap: var(--space-7);
+  --opm-layout-before-width: var(--rail-contents);
+  --opm-layout-content-max: calc(var(--measure-text) + var(--rail-margin));
+}
+
+::selection {
+  background: var(--highlight);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline-color: var(--focus);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Menubar ──────────────────────────────────────────────── */
+
+/* Colours come from the tokens; here only the bar's shape. Unscoped, so the
+   collection index wears the same bar. */
+.menubar {
+  gap: var(--space-5);
+  padding: 0 var(--space-5);
+}
+
+.menubar ul {
+  gap: var(--space-2);
+}
+
+.menubar .logo a {
+  gap: var(--space-3);
+}
+
+.logo__title {
+  font-size: 19px;
+}
+
+/* Menu links. */
+.menubar li:not(.logo, .trigger, .opm-reader-zoom) > a {
+  padding: 6px 8px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  border-radius: var(--radius-sm);
+}
+
+.menubar li:not(.logo, .trigger, .opm-reader-zoom) > a:hover {
+  color: var(--ink);
+  background: var(--rubric-soft);
+}
+
+/* Text size and the drawer trigger: small outlined buttons. */
+.opm-reader-zoom {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.opm-reader-zoom button,
+.menubar .trigger label {
+  display: inline-flex;
+  align-items: center;
+  min-width: 2.25rem;
+  justify-content: center;
+  padding: 6px 10px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--ink-muted);
+  background: transparent;
+  border: 1px solid var(--ink-faint);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.opm-reader-zoom button:hover,
+.menubar .trigger label:hover {
+  color: var(--ink);
+  border-color: var(--ink-muted);
+  background: var(--paper-raised);
+}
+
+/* ── Shell ────────────────────────────────────────────────── */
+
+/* ── Contents rail ────────────────────────────────────────── */
+
+.opm-reader-toc {
+  position: sticky;
+  top: var(--opm-menubar-height);
+  max-height: calc(100vh - var(--opm-menubar-height));
+  overflow-y: auto;
+  padding: var(--space-7) 0 var(--space-6);
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.opm-reader-toc__title {
+  margin: 0 0 var(--space-4);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.opm-reader-toc ul,
+.opm-reader-toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.opm-reader-toc li {
+  margin: 0 0 var(--space-2);
+}
+
+.opm-reader-toc li > ul,
+.opm-reader-toc li > ol {
+  margin: var(--space-1) 0 var(--space-3);
+  font-size: 15px;
+}
+
+.opm-reader-toc li li a {
+  color: var(--ink-muted);
+}
+
+/* A TOC fragment is ODD output: it may arrive as headings and divs rather
+   than a list, so the rail neutralises heading sizes rather than assuming. */
+.opm-reader-toc :is(h1, h2, h3, h4, h5, h6) {
+  margin: var(--space-4) 0 var(--space-1);
+  font-family: var(--font-serif);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.opm-reader-toc :is(h1, h2, h3, h4, h5, h6):first-child {
+  margin-top: 0;
+}
+
+.opm-reader-toc a {
+  display: block;
+  margin-left: calc(-1 * var(--space-2));
+  padding: 2px var(--space-2);
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+
+.opm-reader-toc a:hover {
+  background: var(--rubric-soft);
+}
+
+.opm-reader-toc [aria-current] {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* The monograph's contents (toc mode in monograph.odd): chapters with their
+   number line, and under the chapter being read its sections, each ending in
+   its pericope. The template marks the page's own links aria-current. */
+.rb-toc li { margin: 0; }
+
+.rb-toc__chapter + .rb-toc__chapter { margin-top: var(--space-3); }
+
+.rb-toc__num {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.opm-reader-toc .rb-toc__sections {
+  margin: 2px 0 0;
+  font-size: 15px;
+}
+
+.rb-toc__ref {
+  font-style: italic;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+/* On a chunk page, sections only for the current chapter; a whole-document
+   page has no current chapter and lists them all. */
+.rb-toc--chunk .rb-toc__chapter:not(:has([aria-current])) > .rb-toc__sections { display: none; }
+
+.rb-toc__chapter > a[aria-current] { font-weight: inherit; }
+
+.rb-toc__chapter:has([aria-current]) > a .rb-toc__num,
+.rb-toc__sections [aria-current] .rb-toc__ref {
+  color: var(--rubric);
+}
+
+/* ── Page ─────────────────────────────────────────────────── */
+
+.opm-reader-page {
+  min-width: 0;
+  padding: var(--space-6) 0 var(--space-7);
+}
+
+/* Breadcrumbs: the toolbar above the text. */
+.opm-reader .toolbar {
+  padding: var(--space-6) 0 0;
+  font-size: 13px;
+}
+
+/* Under the breadcrumbs the page needs no space of its own above. */
+.content-top:has(> :not(.toolbar), li, .breadcrumb > *) + .opm-main .opm-reader-page {
+  padding-top: 0;
+}
+
+.opm-reader-body {
+  position: relative;
+}
+
+/* ── Content typography ───────────────────────────────────── */
+
+.opm-reader-page .content {
+  max-width: var(--measure-text);
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  line-height: 1.6;
+  color: var(--ink);
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+.opm-reader-page .content > :first-child {
+  margin-top: 0;
+}
+
+.opm-reader-page .content :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.opm-reader-page .content h1 {
+  margin: 0 0 1em;
+  font-size: 2.2em;
+  letter-spacing: 0.02em;
+}
+
+.opm-reader-page .content h2 {
+  margin: 2em 0 0.6em;
+  font-size: 1.1em;
+  letter-spacing: 0.05em;
+  font-variant-caps: small-caps;
+}
+
+.opm-reader-page .content h3 {
+  margin: 1.6em 0 0.5em;
+  font-size: 1em;
+  font-style: italic;
+}
+
+.opm-reader-page .content :is(h4, h5, h6) {
+  margin: 1.4em 0 0.4em;
+  font-size: 0.9em;
+  letter-spacing: 0.06em;
+  font-variant-caps: all-small-caps;
+}
+
+/* Opening heading of a chunk: no space above, whatever wrappers the ODD put
+   around it (section, pb-observable, …). */
+.opm-reader-page--chunk .content > :is(h1, h2, h3, h4, h5, h6):first-child,
+.opm-reader-page--chunk .content > :first-child > :is(h1, h2, h3, h4, h5, h6):first-child,
+.opm-reader-page--chunk .content > :first-child > :first-child > :is(h1, h2, h3, h4, h5, h6):first-child {
+  margin-top: 0;
+}
+
+.opm-reader-page .content p {
+  margin: 0 0 1em;
+}
+
+.opm-reader-page .content a {
+  color: var(--rubric);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+
+.opm-reader-page .content a:hover {
+  background: var(--rubric-soft);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.opm-reader-page .content blockquote {
+  margin: 0.8em 0 0.8em 1.6em;
+  font-size: 0.9em;
+  line-height: 1.55;
+}
+
+.opm-reader-page .content hr {
+  margin: 2em auto;
+  width: 2.5rem;
+  border: 0;
+  border-top: 1px solid var(--rubric);
+}
+
+.opm-reader-page .content :is(ul, ol) {
+  margin: 0 0 1em;
+  padding-left: 1.4em;
+}
+
+.opm-reader-page .content li {
+  margin-bottom: 0.3em;
+}
+
+.opm-reader-page .content figure {
+  margin: 1.6em 0;
+}
+
+.opm-reader-page .content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.opm-reader-page .content :is(figcaption, .tei-figDesc) {
+  margin-top: 0.5em;
+  font-size: 0.8em;
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+.opm-reader-page .content table {
+  width: 100%;
+  margin: 1.5em 0;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.opm-reader-page .content :is(th, td) {
+  padding: 0.4em 0.55em;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+.opm-reader-page .content th {
+  font-family: var(--font-sans);
+  font-size: 0.7em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.opm-reader-page .content .tei-speaker {
+  display: block;
+  margin-bottom: 0.25em;
+  font-size: 0.85em;
+  letter-spacing: 0.06em;
+  font-variant-caps: all-small-caps;
+  color: var(--ink-muted);
+}
+
+/* Register names and other alternates: quiet until touched. The variant
+   (.altcontent) opens as a popover on hover or focus. Only used when web
+   components are off; with them on, <pb-popover> does this itself. */
+.opm-reader-page .content .alternate {
+  position: relative;
+  display: inline;
+  cursor: help;
+  text-decoration: underline dotted var(--ink-faint);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
+}
+
+.opm-reader-page .content .alternate:hover {
+  color: var(--entity);
+  text-decoration-color: var(--entity);
+}
+
+.opm-reader-page .content .alternate .altcontent {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 0.35rem);
+  z-index: 20;
+  min-width: 8rem;
+  max-width: min(20rem, 70vw);
+  padding: var(--space-3) var(--space-4);
+  transform: translateX(-50%);
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  color: var(--ink);
+  font-size: 15px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.45;
+  text-indent: 0;
+  text-align: left;
+  white-space: normal;
+}
+
+.opm-reader-page .content .alternate:hover .altcontent,
+.opm-reader-page .content .alternate:focus-within .altcontent {
+  display: block;
+}
+
+/* ── Page turning ─────────────────────────────────────────── */
+
+/* Wide screens: a quiet arrow at each edge of the window. */
+.opm-reader-folio-nav__rail {
+  display: none;
+}
+
+.opm-reader-folio-nav__rail a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-2);
+  color: var(--ink-faint);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+
+.opm-reader-folio-nav__rail a:hover {
+  color: var(--rubric);
+  background: var(--rubric-soft);
+}
+
+.opm-reader-folio-nav__chevron {
+  font-family: var(--font-serif);
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.opm-reader-folio-nav__dir {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* Foot of the page: the same two links. */
+.opm-reader-folio-nav__foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-5);
+  max-width: var(--measure-text);
+  margin-top: var(--space-7);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--rule);
+}
+
+.opm-reader-folio-nav__foot a {
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  font-variant-caps: small-caps;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.opm-reader-folio-nav__foot a:hover {
+  color: var(--rubric);
+}
+
+/* ── Footer ───────────────────────────────────────────────── */
+
+.opm-reader-footer {
+  margin-top: var(--space-7);
+  padding: var(--space-5);
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.opm-reader-footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  max-width: 76rem;
+  margin: 0 auto;
+}
+
+.opm-reader-footer a {
+  color: inherit;
+}
+
+/* ── Contents beside the page / in a drawer ───────────────── */
+
+@media (min-width: 64.001em) {
+  .opm-reader-folio-nav__rail {
+    display: block;
+    position: fixed;
+    top: 50%;
+    z-index: 40;
+    transform: translateY(-50%);
+  }
+
+  .opm-reader-folio-nav__rail--prev { left: var(--space-2); }
+  .opm-reader-folio-nav__rail--next { right: var(--space-2); }
+
+  .opm-reader-folio-nav__foot { display: flex; }
+}
+
+@media (max-width: 64em) {
+  /* The drawer's head names the contents already. */
+  .opm-reader-toc__title {
+    display: none;
+  }
+
+  .opm-reader-toc {
+    position: static;
+    max-height: none;
+    padding: var(--space-4);
+  }
+}
+
+@media (max-width: 48em) {
+  /* Let the controls wrap under the title rather than widen the page. */
+  .menubar {
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .menubar > ul {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+  }
+
+  .logo__title {
+    font-size: 17px;
+  }
+
+  .opm-reader-page .content {
+    font-size: 1.125rem;
+  }
+}
+
+@media print {
+  .opm-reader-toc,
+  .opm-reader-folio-nav__rail,
+  .opm-reader-folio-nav__foot,
+  .opm-reader-footer {
+    display: none;
+  }
+
+  body.opm-reader {
+    background: #fff;
+    color: #000;
+  }
+
+  .opm-reader .opm-main,
+  .opm-reader-page {
+    display: block;
+    width: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+}

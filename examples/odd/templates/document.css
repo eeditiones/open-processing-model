@@ -1,7 +1,7 @@
 /* SPDX-FileCopyrightText: 2026 e-editiones
    SPDX-License-Identifier: CC0-1.0 */
 
-/* The page grid is opm's packaged layout (opm/layout.html.j2): the site
+/* The page grid is opm's packaged layout (opm/layout.html.tpl): the site
    header is its header, the navigation its `before` column, "On this page"
    its `after` column. This file sets the layout's measurements through the
    --opm-layout-* properties on body.doc and styles what goes inside. The

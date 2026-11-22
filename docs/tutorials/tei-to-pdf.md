@@ -70,7 +70,7 @@ opm transform data/sample.xml -t typst --preview
 ### 3. Change the page layout
 
 The paper size, fonts, margins and title page are set in a template,
-`templates/book.typ.j2`. Open it in a text editor to make changes. The
+`templates/book.typ.tpl`. Open it in a text editor to make changes. The
 template uses a ready-made book layout for Typst called
 [ilm](https://typst.app/universe/package/ilm). For example, to print on A5
 paper, look for the lines starting with `#show: ilm.with(` and add a

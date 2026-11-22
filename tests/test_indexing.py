@@ -550,6 +550,91 @@ def test_nested_boundaries_do_not_collide_on_one_id() -> None:
     assert len(records) == len({r['id'] for r in records})
 
 
+def test_text_after_a_titled_block_returns_to_the_division() -> None:
+    """A note inside a section is its own unit, but what follows is the section's."""
+    note = {
+        'xpath': '/*/div/note', 'element': 'note', 'behaviour': 'block',
+        'model': 'tei-note1',
+        'children': [
+            {'xpath': '/*/div/note/head', 'element': 'head', 'behaviour': 'heading',
+             'model': 'tei-head1', 'children': ['Important']},
+            _para('A caveat the reader should keep in mind here.',
+                  xpath='/*/div/note/p'),
+        ],
+    }
+    doc = [_section(
+        'upload', 'Uploading',
+        _para('Prose before the note, explaining the upload.', xpath='/*/div/p[1]'),
+        note,
+        _para('Prose after the note, still about uploading.', xpath='/*/div/p[2]'),
+    )]
+    records = _build(doc, anchors={'upload': 'upload.html'})
+
+    after = next(r for r in records if 'after the note' in r['document'])
+    assert after['metadata']['heading'] == 'Uploading'
+    assert after['metadata']['href'] == 'upload.html#upload'
+    caveat = next(r for r in records if 'caveat' in r['document'])
+    assert caveat['metadata']['heading'] == 'Important'
+    assert 'after the note' not in caveat['document']
+    assert len(records) == len({r['id'] for r in records})
+
+
+# ── granularity ──────────────────────────────────────────────────────────────
+
+def _page_doc() -> list:
+    note = {
+        'xpath': '/*/div/note', 'element': 'note', 'behaviour': 'block',
+        'model': 'tei-note1',
+        'children': [
+            {'xpath': '/*/div/note/head', 'element': 'head', 'behaviour': 'heading',
+             'model': 'tei-head1', 'children': ['Important']},
+            _para('A caveat the reader should keep in mind here.',
+                  xpath='/*/div/note/p'),
+        ],
+    }
+    return [_section(
+        'upload', 'Uploading',
+        _para('Prose before the note, explaining the upload. ' * 20, xpath='/*/div/p[1]'),
+        note,
+        _para('Prose after the note, still about uploading.', xpath='/*/div/p[2]'),
+    )]
+
+
+def test_page_granularity_writes_one_record_per_page() -> None:
+    options = IndexOptions(granularity='page', max_chars=200)
+    records = _build(
+        _page_doc(), options=options, chunk_file='003.html',
+        anchors={'upload': '003.html'},
+    )
+
+    assert len(records) == 1
+    meta = records[0]['metadata']
+    assert meta['heading'] == 'Uploading'
+    assert meta['href'] == '003.html#upload'
+    assert (meta['part'], meta['n_parts']) == (0, 1)
+    text = records[0]['document']
+    assert 'caveat' in text and 'after the note' in text
+    assert text.count('explaining the upload') == 20  # no overlap repeats
+
+
+def test_page_granularity_keeps_extracted_fields_linked() -> None:
+    options = IndexOptions(
+        granularity='page',
+        fields=(FieldSpec(name='note', elements=frozenset({'note'}), metadata=False),),
+    )
+    records = _build(_page_doc(), options=options, chunk_file='003.html')
+
+    page, note = records
+    assert note['metadata']['kind'] == 'note'
+    assert note['metadata']['parent'] == page['id']
+    assert 'caveat' not in page['document']
+
+
+def test_unknown_granularity_is_rejected() -> None:
+    with pytest.raises(ValueError, match='granularity'):
+        IndexOptions(granularity='passage')
+
+
 # ── templates ────────────────────────────────────────────────────────────────
 
 def test_template_content_reaches_the_index() -> None:

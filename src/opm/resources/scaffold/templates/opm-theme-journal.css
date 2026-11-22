@@ -1,0 +1,419 @@
+/* SPDX-FileCopyrightText: 2026 e-editiones
+   SPDX-License-Identifier: CC0-1.0 */
+
+/* Here rather than in the template, so every page that links this file,
+   the collection index too, gets the same faces. */
+@import url("https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..600&display=swap");
+
+/* Journal — a scholarly article surface: masthead, TOC rail, single measure.
+
+   Written around journal front matter — byline, affiliations, citation line,
+   abstract, reference list — so it suits JATS out of the box, but the shell
+   itself is vocabulary-neutral: anything the ODD renders lands in `.content`.
+
+   The page grid is opm's packaged layout (opm/layout.html.tpl): the masthead is
+   its header, the contents rail its `before` column. This file sets opm's
+   design tokens (--opm-*), which style the masthead, drawer and the
+   collection index alike; the article page's measurements and contents are
+   scoped to body.jr, which the index does not carry. */
+
+:root {
+  --opm-background-color: #fbfaf7;
+  --opm-surface: #ffffff;
+  --opm-color: #1c1b19;
+  --opm-color-muted: #6b6862;
+  --opm-color-rule: #dcd8d0;
+  --opm-color-accent: #7a2e2e;
+  --opm-color-accent-soft: rgba(122, 46, 46, 0.08);
+  --opm-font-body: "Source Serif 4", "Iowan Old Style", Georgia, serif;
+  --opm-font-display: var(--opm-font-body);
+  --opm-display-weight: 600;
+  --opm-font-ui: "Source Sans 3", -apple-system, "Segoe UI", sans-serif;
+
+  /* The masthead: white, compact, as wide as the article page. Its height
+     is what anchors scroll clear of when it wraps to two lines. */
+  --opm-menubar-background: var(--opm-surface);
+  --opm-menubar-max: calc(var(--jr-rail) + var(--jr-measure) + 8rem);
+  --opm-menubar-height: 4.25rem;
+
+  --jr-measure: 36rem;
+  --jr-rail: 15rem;
+  --jr-pad: clamp(1.1rem, 4vw, 2.5rem);
+
+  /* ODD stylesheets reach for TEI Publisher web-component tokens — jats.css
+     draws the abstract's rule with var(--pb-color-focus). A static page has no
+     <pb-page> to define them, so bind them here or those rules collapse. */
+  --pb-color-focus: var(--opm-color-accent);
+  --pb-footnote-font-size: 0.8125rem;
+}
+
+body {
+  font-size: 1.0625rem;
+  line-height: 1.65;
+}
+
+body.jr {
+  /* The page is as wide as the masthead; the text keeps to one measure at
+     its left edge, with the rail (when there is one) beside it. */
+  --opm-layout-content-max: calc(var(--jr-rail) + var(--jr-measure) + 8rem - 2 * var(--jr-pad));
+  --opm-layout-before-width: calc(var(--jr-rail) + 2.5rem);
+  --opm-layout-gap: 2.5rem;
+  --opm-layout-gutter: var(--jr-pad);
+  /* The rail sticks under the masthead, its own top padding clearing it. */
+  --opm-layout-sticky-top: 2rem;
+}
+
+/* --- masthead: the layout's menubar -------------------------------- */
+
+.menubar {
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+  min-height: 0;
+  padding: 0.6rem var(--jr-pad);
+  font-size: 0.8125rem;
+}
+
+.jr-journal {
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--opm-color-accent);
+}
+
+.menubar a.jr-journal {
+  color: var(--opm-color-accent);
+  text-decoration: none;
+}
+
+a.jr-journal:hover {
+  text-decoration: underline;
+}
+
+/* journal-meta prints title, publisher and ISSN as inline spans */
+.jr-journal .journal-meta {
+  font-size: inherit;
+}
+
+.menubar > ul:last-child {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.jr-article {
+  max-width: 24rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--opm-color-muted);
+}
+
+/* --- page ----------------------------------------------------------- */
+
+body.jr--with-toc {
+  --opm-layout-content-max: calc(var(--jr-measure) + 5.5rem - 2 * var(--jr-pad));
+}
+
+.jr .opm-main {
+  padding-bottom: 4rem;
+}
+
+.jr .opm-main > * {
+  max-width: var(--jr-measure);
+}
+
+/* --- contents rail -------------------------------------------------- */
+
+.jr-rail__nav {
+  padding-top: 2.5rem;
+  font-family: var(--opm-font-ui);
+  font-size: 0.875rem;
+}
+
+.jr-rail__title {
+  margin: 0 0 0.6rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--opm-color-muted);
+}
+
+.jr-rail__nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.jr-rail__nav ul ul {
+  padding-left: 0.85rem;
+}
+
+.jr-rail__nav li {
+  margin: 0 0 0.35rem;
+  line-height: 1.35;
+}
+
+.jr-rail__nav a {
+  color: var(--opm-color);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  padding-left: 0.6rem;
+  display: block;
+}
+
+.jr-rail__nav a:hover {
+  color: var(--opm-color-accent);
+  border-left-color: var(--opm-color-accent);
+  background: var(--opm-color-accent-soft);
+}
+
+/* --- article -------------------------------------------------------- */
+
+.content {
+  padding-top: 2.5rem;
+}
+
+.content .title,
+.content h1 {
+  font-size: 1.9rem;
+  line-height: 1.2;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+}
+
+.content h2 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 2.25rem 0 0.6rem;
+}
+
+.content h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 1.75rem 0 0.5rem;
+}
+
+.content p {
+  margin: 0 0 1.1rem;
+  hyphens: auto;
+}
+
+.content a {
+  color: var(--opm-color-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+/* byline, affiliations, citation line: the front-matter apparatus */
+.content .flex {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  font-family: var(--opm-font-ui);
+}
+
+.content .flex .tei-contrib-group {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.content .pub-date {
+  color: var(--opm-color-muted);
+  font-size: 0.875rem;
+}
+
+.content .orcid,
+.content .email {
+  font-family: var(--opm-font-ui);
+  font-size: 0.75rem;
+  font-weight: 400;
+  margin-left: 0.5rem;
+  text-decoration: none;
+  border-bottom: 1px dotted currentColor;
+}
+
+.content .affiliations,
+.content .citation-line {
+  font-family: var(--opm-font-ui);
+  font-size: 0.8125rem;
+  color: var(--opm-color-muted);
+}
+
+.content .citation-line {
+  margin: 0.35rem 0 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--opm-color-rule);
+}
+
+.content .abstract {
+  background: var(--opm-surface);
+  border-left: 3px solid var(--opm-color-accent);
+  padding: 0.9rem 1.2rem 0.1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+.content .abstract h2 {
+  font-family: var(--opm-font-ui);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--opm-color-muted);
+  margin: 0 0 0.4rem;
+}
+
+/* On chunked pages the masthead already carries journal title, publisher and
+   ISSN — but only when a `journal` fragment supplies them. Without that
+   fragment, and in a standalone transform, they stay in the flow. */
+.jr--chunk.jr--journal-meta .content .journal-meta {
+  display: none;
+}
+
+.content .permissions .license {
+  margin-left: 0.4em;
+}
+
+.content .permissions {
+  font-family: var(--opm-font-ui);
+  font-size: 0.75rem;
+  color: var(--opm-color-muted);
+}
+
+.content blockquote,
+.content .tei-disp-quote {
+  margin: 1.2rem 0 1.2rem 1.2rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--opm-color-rule);
+  color: var(--opm-color-muted);
+}
+
+.content figure {
+  margin: 1.6rem 0;
+}
+
+.content .figure-head {
+  font-family: var(--opm-font-ui);
+  font-size: 0.8125rem;
+  color: var(--opm-color-muted);
+}
+
+.content table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.content th,
+.content td {
+  border-bottom: 1px solid var(--opm-color-rule);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+}
+
+/* footnote markers and the note apparatus the ODD emits */
+.content a.note {
+  font-family: var(--opm-font-ui);
+  font-size: 0.7rem;
+  font-weight: 600;
+  vertical-align: super;
+  line-height: 0;
+  text-decoration: none;
+  padding: 0 0.1em;
+}
+
+.content .footnote {
+  display: grid;
+  grid-template-columns: 1.75rem 1fr;
+  gap: 0 0.25rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: var(--opm-color-muted);
+}
+
+.content .footnote .fn-number {
+  font-family: var(--opm-font-ui);
+  font-weight: 600;
+  color: var(--opm-color-accent);
+}
+
+.content .footnote .fn-content {
+  margin: 0;
+}
+
+.content .fn-back {
+  text-decoration: none;
+  margin-left: 0.35rem;
+}
+
+/* reference list */
+.content ol.references {
+  padding-left: 1.4rem;
+  font-size: 0.9rem;
+}
+
+.content ol.references li {
+  margin-bottom: 0.65rem;
+}
+
+/* --- pager ---------------------------------------------------------- */
+
+.jr-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--opm-color-rule);
+  font-family: var(--opm-font-ui);
+  font-size: 0.875rem;
+}
+
+.jr-pager__slot--next {
+  text-align: right;
+}
+
+.jr-pager a {
+  color: var(--opm-color-accent);
+  text-decoration: none;
+}
+
+.jr-pager a:hover {
+  text-decoration: underline;
+}
+
+/* --- narrow screens: the rail becomes a drawer ----------------------- */
+
+/* The layout shows the menubar's Contents button on narrow screens only. */
+@media (max-width: 64em) {
+  .menubar .trigger label {
+    display: inline-block;
+    padding: 0.2rem 0.7rem;
+    border: 1px solid var(--opm-color-rule);
+    border-radius: 999px;
+    background: var(--opm-surface);
+  }
+
+  /* The drawer's head carries the title. */
+  .jr-rail__title {
+    display: none;
+  }
+
+  .jr-rail__nav {
+    padding-top: 0;
+  }
+
+  .jr .opm-main > * {
+    max-width: none;
+  }
+}
+
+@media print {
+  .jr-pager {
+    display: none;
+  }
+
+  body.jr {
+    background: #fff;
+  }
+}

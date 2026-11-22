@@ -3,7 +3,7 @@
 
 /* Karl Barth-Gesamtausgabe: "Der Römerbrief" design for paged media.
 
-   The CSS counterpart of book.typ.j2, for Prince or Paged.js: A5, EB Garamond
+   The CSS counterpart of book.typ.tpl, for Prince or Paged.js: A5, EB Garamond
    at 10pt, justified and indented, one rubric red; Alegreya Sans for the
    furniture (running head, folio, note numbers). Measurements are those of
    the Typst template, so the two PDFs read alike.
@@ -33,7 +33,7 @@
 
 /* ── Page ─────────────────────────────────────────────────── */
 
-/* Margins as marginalia.setup in book.typ.j2: 1.6cm inside, and outside a
+/* Margins as marginalia.setup in book.typ.tpl: 1.6cm inside, and outside a
    1.4cm column for the page numbers of the 1922 edition, 0.4cm from the
    text and 0.5cm from the edge. */
 @page {

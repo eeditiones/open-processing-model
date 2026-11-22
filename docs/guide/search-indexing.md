@@ -1,12 +1,10 @@
 # Search indexing
 
 A published edition is only as findable as its index. `opm index` prepares
-that index from the same processing model that produces the reading view, so
-what a reader sees on the page is also what a search can retrieve.
-
-Each passage becomes one line of JSON: the text to search or embed, a handful
-of labels, and — where the project is split into pages — a link back to the
-spot in the edition.
+that index. It walks through your documents using the same processing model
+that renders the reading view, and writes out what it finds as searchable
+*records*: one line of JSON per passage of text, together with a handful of
+labels saying what the passage is and where it sits in the edition.
 
 ```bash
 opm index examples/tei-test.xml -o records.jsonl
@@ -14,10 +12,11 @@ opm index data/ -o corpus.jsonl          # a directory, subdirectories included
 opm index -o corpus.jsonl                # no path: defaults to ./data
 ```
 
-The file is not tied to a particular search engine. You load it into a vector
-database, Elasticsearch, or even a small in-browser search. What `opm` takes
-on is editorial: how the source is sliced into passages, and which labels and
-extra hits those passages should carry.
+The file is not tied to a particular search engine. You can load it into a
+vector database, Elasticsearch, or even a small search script running in the
+browser. What `opm` takes on is the editorial part of the work: how the source
+is divided into records, and which labels and additional text each record
+should carry.
 
 ## Why the processing model
 
@@ -33,25 +32,25 @@ whatever else you configure.
 
 ## Basic concepts
 
-The `index` command distinguishes between __units__ and __fields__, which correspond
-to two different conceptual questions:
+The `index` command distinguishes between __units__ and __fields__, which
+answer two different questions:
 
-The first is **how large should a passage be**. A chapter, a letter, a
-paragraph? That is the size of the index: each passage becomes one retrievable
-item. In the configuration this is a *unit*.
+*Units* determine how large a record is. A unit is the piece of text a search
+returns: a chapter, a letter, a paragraph. Choosing units means choosing the
+grain of your search results.
 
-The second is **what to attach to a passage** without changing that size. A
-person name should stay in the sentence, yet you may want to filter results by
-who is mentioned. A footnote sits inside a paragraph, but readers often search
-for the note. The trail in the page navigation should appear on every hit from
-that page. In the configuration these are *fields*.
+*Fields* are labels attached to a record without changing its size. A field
+answers "what else is this record about?" — who is mentioned in it, for
+example, or which note it contains, or where it sits in the page navigation.
+Readers can filter and sort by these labels.
 
-Units define passages. Fields annotate them, lift a nested piece out as an
-extra hit, or copy a piece of page furniture the ODD already produces.
+In short: units define the records; fields annotate them. A field can also
+copy a piece of text the ODD already produces — page headings, for instance —
+onto every record.
 
 ## Output record shape
 
-Each line of the JSONL file is one passage:
+Each line of the JSONL file is one record:
 
 ```json
 {
@@ -75,30 +74,55 @@ Each line of the JSONL file is one passage:
 }
 ```
 
-`heading` is the local title of a titled division. `breadcrumb` appears only
-if you declare a field for it (see [Referencing fragments](#referencing-fragments)
-below). `kind` names a declared unit or an extracted field; `parent` points
-an extracted hit (e.g. a note) back at the passage it came from.
+`heading` is the title of the division the record belongs to. `breadcrumb`
+appears only if you declare a field for it (see
+[Referencing fragments](#referencing-fragments) below). `kind` names the
+declared unit or extracted field a record came from, and `parent` points from
+an extracted record back to the record it was extracted from.
 
-## Choosing passages
+## Search engines and web pages
+
+Two kinds of search ask for different records, and `granularity` chooses
+between them:
+
+| Value | One record per | Suits |
+| --- | --- | --- |
+| `split` (default) | section, cut to a maximum length | vector databases and AI assistants, which work best on short pieces of text |
+| `page` | published page | site search such as [Pagefind](https://pagefind.app/), where each result should be one page |
+
+```toml
+[index]
+granularity = "page"
+```
+
+or `opm index --granularity page`. With `page`, everything on a page — its
+sections, notes and boxes — goes into one record, named after the first
+heading and linking to the page. Nothing is cut, so the length settings below
+(except `min_chars`) do not apply. Without a `[chunking]` section the whole
+document is one page. Fields with `metadata = false` still produce records of
+their own.
+
+## Choosing units
 
 With no extra configuration, `opm index` treats **titled divisions** as
-passages: a chapter, a section, a `div` that carries a heading. That is a
+units: a chapter, a section, a `div` that carries a heading. That is a
 sensible default for a handbook or a monograph. Nested divisions with their
-own headings become nested passages. A heading with no body to speak of is
-dropped as noise (see [Controlling the length of passages](#controlling-the-length-of-passages)
+own headings become units of their own, and so does a titled block such as a
+note; the text after it goes back to the enclosing division. A heading with
+no body to speak of is dropped as noise (see
+[Controlling the length of records](#controlling-the-length-of-records)
 below).
 
 You do not have to think in XML element names here. The indexer follows the
 *behaviour* the ODD assigned — `section`, or any block that opens with a
 heading — so a TEI `div` and a DocBook `section` land in the same kind of
-passage if the processing model presented them that way.
+record if the processing model presented them that way.
 
-### Smaller passages
+### Smaller units
 
 Correspondence, drama, or a lexicon often want a smaller item than a chapter.
 `[[index.units]]` *replaces* the default. Each entry names the behaviours (or,
-if you must, the elements or models) that should open a passage.
+if you must, the elements or models) that should start a new record.
 
 ```toml
 [[index.units]]
@@ -106,17 +130,17 @@ name = "paragraph"
 behaviours = ["paragraph"]
 ```
 
-Note that you can configure more than one `[[index.units]]`, each defining a certain type 
-of passage to index.
+Note that you can configure more than one `[[index.units]]`, each defining a
+certain type of record to index.
 
 ## Extracting metadata
 
-Metadata fields are attached to the passage, they stay connected to it. A full 
-text search engine can use a metadata entry either as a facet or a field.
+Metadata fields stay attached to their record: they describe it without
+changing what the text search covers. This is the right choice when you want
+to filter or facet on something — the persons mentioned in a paragraph, say —
+while keeping the paragraph itself as one result.
 
-In the simplest case, a metadata field is directly copied from the text. It is not
-removed from the passage. This would apply, for example, if you index people or places
-mentioned:
+In the simplest case, a metadata field is copied straight from the text:
 
 ```toml
 [[index.fields]]
@@ -124,8 +148,8 @@ name = "persons"
 elements = ["persName"]
 ```
 
-The name remains in `document`. Distinct occurrences are also copied onto
-the passage as a list, in document order:
+The name remains in `document`. Distinct occurrences are also copied onto the
+record as a list, in document order:
 
 ```json
 "metadata": {
@@ -133,15 +157,12 @@ the passage as a list, in document order:
 }
 ```
 
-### Extracting into separate records 
+### Extracting into separate records
 
-A long note in the middle of a paragraph blurs what the paragraph is about,
-and it is often the thing a reader is searching for. Here you want a second
-record, tagged so you can include or exclude notes at query time, and linked
-back to the paragraph it annotates.
-
-The `metadata = false` setting does this: instead of attaching the field to its parent,
-it generates a separate entry, but keeps the link back to the passage it came from.
+A long note drowning a paragraph, on the other hand, is often exactly what a
+reader is searching for. Instead of leaving it embedded in the paragraph, you
+can index it as a record of its own, tagged and linked back to the paragraph
+it annotates. The `metadata = false` setting does this:
 
 ```toml
 [[index.fields]]
@@ -165,13 +186,13 @@ decision baked into the file.
 ### Referencing fragments
 
 When indexing a document, `opm` uses the rules you defined in the `chunking`
-sections of `opm.toml` to paginate the text. This is necessary because you later 
-want to link search hits back to the page on which they appear.
+sections of `opm.toml` to paginate the text. This is necessary because you
+later want to link search hits back to the page on which they appear.
 
 However, each chunk may consist of multiple fragments. For example, `title`
 or `breadcrumbs` are distinct fragments, computed for each chunk separately.
-
-A field may reference one of those fragments to include its plain text into every record:
+A field may reference one of those fragments to include its plain text in
+every record:
 
 ```toml
 [[chunking.fragments]]
@@ -185,13 +206,13 @@ name = "breadcrumb"
 fragment = "breadcrumbs"
 ```
 
-## Controlling the length of passages
+## Controlling the length of records
 
 A unit longer than `--max-chars` is split at natural boundaries (paragraphs,
 blocks, list items, and the like), with `--overlap` pieces of context carried
 into the next part so a sentence is not cut off mid-thought. Units shorter
-than `--min-chars` are dropped: a heading with no body is retrieval noise, not
-a passage.
+than `--min-chars` are dropped: a heading with no body is noise in search
+results.
 
 | Option | Config key | Default |
 | --- | --- | --- |
@@ -207,19 +228,19 @@ overlap = 1
 ```
 
 A unit entry may set its own `min_chars` when the global floor would be wrong
-for that kind of passage — headings you do intend to retrieve, for example.
+for that kind of record — headings you do intend to retrieve, for example.
 
-## Opening the passage from a hit
+## Opening the page from a hit
 
-A search hit is only useful if the reader can open the passage it came from.
+A search hit is only useful if the reader can open the text it came from.
 That is the job of `href`: it names the published page and, where possible,
 the exact spot on it.
 
 If the project chunks its documents (a `[chunking]` section in `opm.toml`),
 `opm index` splits each document into the same pages `opm chunk` publishes,
 and indexes them one page at a time. Every record then knows which page it
-came from. `href` is that page’s filename, followed by `#` and the passage’s
-`xml:id` where it has one:
+came from. `href` is that page's filename, followed by `#` and the `xml:id`
+of the section where it has one:
 
 ```json
 "chunk": "002.html",
@@ -233,8 +254,8 @@ publish.
 
 ## Using the index
 
-Load the JSONL into a store that matches how
-you want to query — vectors, full text, or a script that runs in the browser.
+Load the JSONL into a store that matches how you want to query — vectors,
+full text, or a script that runs in the browser.
 
 ### Loading into ChromaDB
 
@@ -282,11 +303,11 @@ helpers.bulk(Elasticsearch('http://localhost:9200'), [
 `heading` and, if you declared it, `breadcrumb` are worth boosting in a query.
 Array fields such as `persons` are keyword arrays; they facet without further
 mapping. `href` and `chunk` are the link you render with each hit (see
-[Opening the passage from a hit](#opening-the-passage-from-a-hit)).
+[Opening the page from a hit](#opening-the-page-from-a-hit)).
 
 ### Searching in the browser
 
-The JSONL is already one passage per line with the link (and, if you declared
+The JSONL is already one record per line with the link (and, if you declared
 it, the breadcrumb) attached, so it can ship as a static asset beside the
 pages and be searched with [MiniSearch](https://github.com/lucaong/minisearch)
 — no index server, no build step, and the site stays deployable to any static
@@ -328,16 +349,16 @@ const hits = index.search(query, {
 
 Three things are worth getting right:
 
-- **Load lazily.** Build the index on the first keystroke, not on page load —
-  a few hundred passages is comfortably under a megabyte, but it should never
-  sit in front of first paint.
-- **Collapse splits of one passage.** A unit longer than `--max-chars` becomes
-  several records sharing one `href`, which otherwise fill the result list
-  with the same heading. Results come back score-ordered, so keeping the first
-  record per `href` keeps the best one.
-- **Group by `title`.** It turns a flat ranking into “where in the corpus this
-  is”, which is what `breadcrumb` and `title` are there for.
+- **Load lazily.** Build the index on the first keystroke, not on page load
+  — a few hundred records is comfortably under a megabyte, but it should
+  never delay the first page the reader sees.
+- **Index whole pages.** With the default `split`, a long section becomes
+  several records sharing one `href`, and a note becomes a record of its own,
+  so one page fills the result list several times. `granularity = "page"`
+  gives one record per page.
+- **Group by `title`.** It turns a flat ranking into "where in the corpus
+  this is", which is what `breadcrumb` and `title` are there for.
 
-This scales to a few thousand passages. Past that the whole index still has to
+This scales to a few thousand records. Past that the whole index still has to
 reach the browser on first search, and a tool that shards its index across
 files — e.g. [Pagefind](https://pagefind.app/) — will be more adequate.

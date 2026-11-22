@@ -11,10 +11,11 @@ directory.
 
 from __future__ import annotations
 
+import re
 import sys
 import tomllib
 from dataclasses import dataclass, field, replace
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -133,11 +134,11 @@ class ChunkingConfig:
     output_dir: str = "chunks"
     template: Path | None = None
     index_template: Path | None = None
-    """Optional Jinja2 template for the collection index written when chunking a directory.
+    """Optional page template for the collection index written when chunking a directory.
 
     Rendered to ``<output_dir>/index.html`` so ``opm serve`` shows a real
     landing page instead of the bare directory listing. When *None* the
-    packaged ``default_index.html.j2`` is used.
+    packaged ``default_index.html.tpl`` is used.
     """
     index_title: str | None = None
     """Heading for the generated collection index (default: the output directory name)."""
@@ -245,6 +246,154 @@ class ChunkingConfig:
     ``<output_dir>/css/``). Must match the ``path`` of the consuming
     ``pb-document``. When unset the data is written directly into ``output_dir``.
     """
+
+
+@dataclass
+class PageConfig:
+    """One ``[[pages]]`` entry: an auxiliary page of the site, beside the reading view.
+
+    A page is rendered by ``opm chunk`` into the chunk output root, after the
+    chunking runs. It differs from a chunk in its contract with the site: a
+    fixed ``path`` (instead of a per-document subdirectory), no prev/next
+    navigation, and no listing as a document in the collection index — though
+    its ``menu`` label is listed there. With ``source`` and ``xpath`` it is
+    rendered through the same ODD machinery as a chunk, one page per selected
+    node when ``path`` holds a placeholder.
+    """
+
+    path: str
+    """Output path relative to the chunk output root, e.g. ``about.html`` or
+    ``places/{xml_id}.html``.
+
+    A path without a placeholder names a single page (its ``xpath`` must then
+    select exactly one node, or no ``source`` is given at all). A path with a
+    placeholder — ``{xml_id}``, ``{ident}``, ``{stem}``, ``{index}``, the same
+    vocabulary as [`ChunkingConfig.file_pattern`][opm.config.ChunkingConfig.file_pattern]
+    — yields one page per node ``xpath`` selects from ``source``.
+    """
+    template: Path | None = None
+    """Page template, resolved against the config file's (or profile's) directory.
+
+    Without one, the first chunking run's template is used, as for chunk pages.
+    """
+    context: dict[str, Any] | None = None
+    """Template context for this page only, merged over the project's
+    ``[context]`` like template frontmatter: tables combine key by key. The
+    registers profile's overviews read their title from ``page_title``."""
+    source: Path | None = None
+    """XML file (or directory) this page is generated from — independent of the
+    source ``opm chunk`` is given. Without it the page is static: the template
+    alone is rendered, through no ODD.
+
+    Resolved against the project root for a profile's pages, so a profile can
+    name a conventional location (``data/registers/places.xml``) the project
+    overrides by declaring its own page with the same ``path``.
+    """
+    xpath: str | None = None
+    """Selects the nodes rendered into this page's file(s), from ``source``."""
+    selector: str | None = None
+    """Dotted path of a chunk selector, an alternative to ``xpath``."""
+    odd: Path | None = None
+    """ODD to compile for this page; without one, the first chunking run's."""
+    parameters: dict[str, Any] | None = None
+    """XPath ``$parameters`` for this page's rendering, over ``[transform.parameters]``."""
+    fragments: list[FragmentConfig] | None = None
+    """``[[pages.fragments]]`` tables, rendered into the page like chunk fragments."""
+    module: Path | None = None
+    """Resolved compiled transform path (set after compile-on-demand, not from TOML)."""
+    enabled: bool = True
+    """``enabled = false`` switches the page off — how a project opts out of a
+    profile-contributed page: declare a ``[[pages]]`` entry with the same
+    ``path`` and ``enabled = false``."""
+    from_profile: bool = False
+    """Set when the entry came from a profile, not the project's own config.
+
+    A profile ships defaults for projects that may not have the data, so a
+    profile page whose ``source`` is missing is skipped silently; the same
+    mistake in the project's own config is an error.
+    """
+
+
+#: The keys a ``[[pages]]`` entry may hold.
+_PAGE_KEYS = {
+    'path', 'template', 'context', 'source', 'xpath', 'selector',
+    'odd', 'parameters', 'fragments', 'enabled',
+}
+
+#: Placeholders a page ``path`` may hold — the ``file_pattern`` vocabulary.
+_PAGE_PATH_FIELDS = ('xml_id', 'ident', 'index', 'stem')
+
+_PAGE_FIELD_RE = re.compile(r'\{(\w+)(?::[^}]*)?\}')
+
+
+def parse_pages(
+    tables: Any, base_dir: Path, source_base: Path | None = None, *,
+    label: str = 'opm.toml',
+) -> tuple[PageConfig, ...]:
+    """``[[pages]]`` tables as configs.
+
+    *base_dir* resolves ``template``, ``odd`` and fragment ODDs (the config
+    file's directory for ``opm.toml``, the profile directory for a profile);
+    *source_base* resolves ``source`` — the project root for a profile, so a
+    profile can point at the project's data. *label* names the file in error
+    messages.
+    """
+    source_base = source_base if source_base is not None else base_dir
+    if tables is None:
+        return ()
+    if isinstance(tables, dict):
+        tables = [tables]
+    if not isinstance(tables, list) or not all(isinstance(t, dict) for t in tables):
+        raise ValueError(f'{label}: pages must be an array of tables ([[pages]])')
+    pages: list[PageConfig] = []
+    seen: set[str] = set()
+    for position, entry in enumerate(tables, start=1):
+        where = f'pages[{position}]'
+        unknown = sorted(set(entry) - _PAGE_KEYS)
+        if unknown:
+            raise ValueError(f'{label}: {where} has unknown key(s): {", ".join(unknown)}')
+        raw_path = entry.get('path')
+        if not isinstance(raw_path, str) or not raw_path.strip():
+            raise ValueError(f'{label}: {where} is missing "path"')
+        path = raw_path.strip()
+        if not path or path.startswith('/') or '..' in PurePosixPath(path).parts:
+            raise ValueError(f'{label}: {where}.path must be relative and stay below the output root, got {raw_path!r}')
+        path = path.strip('/')
+        for field_name in _PAGE_FIELD_RE.findall(path):
+            if field_name not in _PAGE_PATH_FIELDS:
+                raise ValueError(
+                    f'{label}: {where}.path placeholder {{{field_name}}} is unknown '
+                    f'(known: {", ".join("{" + f + "}" for f in _PAGE_PATH_FIELDS)})'
+                )
+        if path in seen:
+            raise ValueError(f'{label}: {where}.path {path!r} is declared twice')
+        seen.add(path)
+        if entry.get('xpath') and entry.get('selector'):
+            raise ValueError(f'{label}: {where} cannot set both "xpath" and "selector"')
+        raw_template = entry.get('template')
+        raw_source = entry.get('source')
+        raw_odd = entry.get('odd')
+        context = entry.get('context')
+        if context is not None and not isinstance(context, dict):
+            raise ValueError(f'{label}: {where}.context must be a table')
+        enabled = entry.get('enabled', True)
+        if not isinstance(enabled, bool):
+            raise ValueError(f'{label}: {where}.enabled must be a boolean')
+        pages.append(
+            PageConfig(
+                path=path,
+                template=base_dir / str(raw_template) if raw_template else None,
+                context=context,
+                source=source_base / str(raw_source) if raw_source else None,
+                xpath=entry.get('xpath'),
+                selector=entry.get('selector'),
+                odd=base_dir / str(raw_odd) if raw_odd else None,
+                parameters=entry.get('parameters'),
+                fragments=parse_fragments(entry.get('fragments', []), base_dir) or None,
+                enabled=enabled,
+            )
+        )
+    return tuple(pages)
 
 
 @dataclass
@@ -376,10 +525,13 @@ def _chunking_tables(value: Any) -> list[dict[str, Any]]:
     )
 
 
-def _parse_chunking(data: dict[str, Any], config_path: Path) -> ChunkingConfig:
-    """One chunking run from its ``[chunking]`` / ``[[chunking]]`` table."""
+def parse_fragments(tables: Any, base_dir: Path) -> list[FragmentConfig]:
+    """``[[chunking.fragments]]`` tables as configs; a relative ``odd`` resolves against *base_dir*.
+
+    Tables without a name or with an unknown scope are skipped.
+    """
     fragments: list[FragmentConfig] = []
-    for frag_data in data.get('fragments', []):
+    for frag_data in tables or []:
         if not isinstance(frag_data, dict):
             continue
         raw_frag_odd = frag_data.get('odd')
@@ -389,11 +541,17 @@ def _parse_chunking(data: dict[str, Any], config_path: Path) -> ChunkingConfig:
             xpath=frag_data.get('xpath', '.'),
             xpath_dynamic=frag_data.get('xpath_dynamic'),
             parameters=frag_data.get('parameters'),
-            odd=config_path.parent / str(raw_frag_odd) if raw_frag_odd else None,
+            odd=base_dir / str(raw_frag_odd) if raw_frag_odd else None,
             mode=str(frag_data.get('mode', 'web')).strip().lower() or 'web',
         )
         if fragment.name and fragment.scope in ('global', 'per-chunk'):
             fragments.append(fragment)
+    return fragments
+
+
+def _parse_chunking(data: dict[str, Any], config_path: Path) -> ChunkingConfig:
+    """One chunking run from its ``[chunking]`` / ``[[chunking]]`` table."""
+    fragments = parse_fragments(data.get('fragments', []), config_path.parent)
 
     template = data.get('template')
     index_template = data.get('index_template')
@@ -469,6 +627,19 @@ def _check_index_fragment_fields(
             )
 
 
+def _index_granularity(index_data: dict) -> str:
+    """Read ``[index] granularity``, rejecting a value ``opm index`` would not know."""
+    from opm.indexing import GRANULARITIES
+
+    value = str(index_data.get('granularity', 'split'))
+    if value not in GRANULARITIES:
+        raise ValueError(
+            f'[index] granularity must be one of {", ".join(GRANULARITIES)}, '
+            f'not {value!r}',
+        )
+    return value
+
+
 def _index_units(index_data: dict) -> tuple:
     """Parse ``[[index.units]]`` into [`opm.indexing.UnitSpec`][opm.indexing.UnitSpec]s.
 
@@ -539,7 +710,7 @@ class ProjectConfig:
     ``[transform.web.context]``.
     """
     template_context: dict[str, Any] = field(default_factory=dict)
-    """Arbitrary values exposed to every Jinja2 template as ``context`` (``[context]``).
+    """Arbitrary values exposed to every page template as ``context`` (``[context]``).
 
     Unlike [`parameters`][opm.config.ProjectConfig.parameters], which is bound to XPath ``$parameters`` and so
     must be a flat map of strings, this keeps TOML types intact — booleans,
@@ -554,7 +725,7 @@ class ProjectConfig:
     web template needs never leaks into the Typst one.
     """
     document_template: Path | None = None
-    """Jinja2 HTML shell for web output from ``[transform.web] template``.
+    """Page template for web output from ``[transform.web] template``.
 
     Chunking runs without a ``template`` of their own use it too.
     """
@@ -582,11 +753,11 @@ class ProjectConfig:
     document_docx_template: Path | None = None
     typst_template: Path | None = None
     print_template: Path | None = None
-    """Jinja2 HTML shell for ``-t print`` from ``[transform.print] template``.
+    """Page template for ``-t print`` from ``[transform.print] template``.
 
     Print does not fall back to [`document_template`][opm.config.ProjectConfig.document_template] — web shells usually
     include nav and web components that do not belong on a paged-media page.
-    When unset, the packaged ``default_print.html.j2`` is used.
+    When unset, the packaged ``default_print.html.tpl`` is used.
     """
     epub_css: Path | None = None
     """Stylesheet appended to the EPUB package from ``[transform.epub] css``.
@@ -645,6 +816,11 @@ class ProjectConfig:
     """Every chunking run, in order: one per ``[[chunking]]`` entry, or the
     single ``[chunking]`` table. Later runs are handed the anchors of earlier
     ones, so links between their pages resolve."""
+    pages: tuple[PageConfig, ...] = ()
+    """Every ``[[pages]]`` entry, in order: auxiliary pages of the site (an
+    "about" page, register browsers), rendered by ``opm chunk`` into the chunk
+    output root after the chunking runs. Profiles contribute entries of their
+    own; a project entry with the same ``path`` replaces the profile's."""
     document: DocumentConfig | None = None
     """``[document]``: set when the project is an ``opm odd document`` site."""
     index_max_chars: int = 1500
@@ -657,6 +833,8 @@ class ProjectConfig:
     """``[[index.fields]]`` — [`opm.indexing.FieldSpec`][opm.indexing.FieldSpec]s from a passage or a chunking fragment."""
     index_units: tuple = ()
     """``[[index.units]]`` — [`opm.indexing.UnitSpec`][opm.indexing.UnitSpec]s that open a passage."""
+    index_granularity: str = 'split'
+    """``[index] granularity`` — ``split`` (one record per unit) or ``page`` (one per published page)."""
     pythonpath: tuple[Path, ...] = ()
     transform_odd: Path | None = None
     """Default transform ODD from ``[transform].odd`` or ``[transform.web].odd``."""
@@ -664,6 +842,13 @@ class ProjectConfig:
     """Map of transform type → ODD path (compiled on demand).
 
     Per-type ``[transform.<type>].odd`` entries override ``[transform].odd``.
+    """
+    profiles: tuple[str, ...] = ()
+    """Profile names to load, from ``[project] profiles``.
+
+    Profiles are loaded from the project's ``profiles/`` directory or from
+    standard profile locations. They provide reusable templates, assets, and
+    configuration defaults.
     """
 
     def extend_sys_path(self) -> None:
@@ -688,7 +873,7 @@ class ProjectConfig:
         """Return the template ``context`` for *transform_type*.
 
         ``[context]`` supplies the base; ``[transform.<type>.context]`` is
-        merged over it with [`merge_deep`][opm.template_frontmatter.merge_deep]:
+        merged over it with [`merge_deep`][opm.jinks_templates.merge.merge_deep]:
         tables combine key by key, lists are joined. When *webcomponents* is on, ``webcomponents_url`` falls back to
         [`DEFAULT_WEBCOMPONENTS_URL`][opm.config.DEFAULT_WEBCOMPONENTS_URL] —
         unless the project set that key itself, which then wins.
@@ -699,8 +884,8 @@ class ProjectConfig:
         formats force it on.
         """
         key = _section_for(transform_type)
-        # Merged like template frontmatter, so [transform.web.context.layout]
-        # adds to [context.layout] instead of replacing it.
+        # Merged like template frontmatter, so [transform.web.context.theme.layout]
+        # adds to [context.theme.layout] instead of replacing it.
         merged = merge_deep(
             self.template_context,
             self.template_context_by_type.get(key, {}) if key else None,
@@ -759,6 +944,13 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     chunking_tables = _chunking_tables(data.get('chunking'))
     index_data = _section_table(data.get('index'))
     project_data = _section_table(data.get('project'))
+    raw_profiles = project_data.get('profiles', [])
+    if isinstance(raw_profiles, str):
+        profiles = (raw_profiles,)
+    elif isinstance(raw_profiles, list):
+        profiles = tuple(str(p) for p in raw_profiles)
+    else:
+        profiles = ()
     document_data = data.get('document')
 
     # Per-type tables: prefer [transform.<type>], accept legacy top-level [<type>].
@@ -778,7 +970,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
     raw_context = data.get('context', {})
     if not isinstance(raw_context, dict):
         raise ValueError('opm.toml: [context] must be a table')
-    # Values are handed to Jinja2 untouched: whatever TOML can express, a
+    # Values are handed to the templates untouched: whatever TOML can express, a
     # template can read. No coercion, no key whitelist.
     template_context = dict(raw_context)
     template_context_by_type = {
@@ -861,12 +1053,15 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
             raise ValueError(
                 f'opm.toml: transform.collections["{uri}"].documents must be a string or list',
             )
-        collections.append(
-            CollectionConfig(
-                uri=uri,
-                documents=tuple(config_path.parent / str(p) for p in raw_members),
-            ),
-        )
+        members: list[Path] = []
+        for raw in raw_members:
+            pattern = str(raw)
+            if any(ch in pattern for ch in '*?['):
+                # A glob (`data/letters/*.xml`), in a stable order.
+                members.extend(sorted(p for p in config_path.parent.glob(pattern) if p.is_file()))
+            else:
+                members.append(config_path.parent / pattern)
+        collections.append(CollectionConfig(uri=uri, documents=tuple(members)))
 
     raw_namespaces = transform.get('namespaces', {})
     if not isinstance(raw_namespaces, dict):
@@ -932,6 +1127,8 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         _parse_chunking(table, config_path) for table in chunking_tables
     ]
     _check_run_output_dirs(chunking_runs, chunking_tables)
+
+    pages = parse_pages(data.get('pages'), config_path.parent)
 
     raw_pythonpath = project_data.get('pythonpath', [])
     if isinstance(raw_pythonpath, str):
@@ -1004,13 +1201,16 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         parameters=parameters,
         chunking=chunking,
         chunking_runs=tuple(chunking_runs),
+        pages=pages,
         document=_document_config(document_data, config_path),
         index_max_chars=int(index_data.get('max_chars', 1500)),
         index_min_chars=int(index_data.get('min_chars', 40)),
         index_overlap=int(index_data.get('overlap', 1)),
         index_fields=index_fields,
         index_units=_index_units(index_data),
+        index_granularity=_index_granularity(index_data),
         pythonpath=pythonpath,
         transform_odd=transform_odd,
         transform_odds=transform_odds,
+        profiles=profiles,
     )

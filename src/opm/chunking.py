@@ -12,11 +12,14 @@ from __future__ import annotations
 import json
 import re
 import shutil
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import unquote, urlsplit
+
+if TYPE_CHECKING:
+    from opm.project import Project
 
 from lxml import etree
 from lxml import html as lxml_html
@@ -35,6 +38,7 @@ from opm.transform import (
     run_transform,
     xpath_select,
 )
+from opm.jinks_templates.merge import merge_deep
 from opm.template_frontmatter import template_context
 from opm.template_rendering import (
     DEFAULT_INDEX_TEMPLATE_NAME,
@@ -100,8 +104,7 @@ class ChunkProcessor:
         module_path: The compiled transform module for chunk content.
         xml_root: Root element of the parsed document.
         config: The ``[chunking]`` settings, with fragment modules compiled.
-        project_root: The directory ``config.output_dir`` is relative to.
-        project_config: The project settings (parameters, template context).
+        project: The Project instance, providing root, config, and profile support.
         webcomponents: Enable web-component mode.
         xpath_env: The XPath environment to evaluate in; see
             [`opm.transform.project_xpath_env`][opm.transform.project_xpath_env].
@@ -115,8 +118,8 @@ class ChunkProcessor:
         module_path: Path,
         xml_root: etree._Element,
         config: ChunkingConfig,
-        project_root: Path,
-        project_config: ProjectConfig | None = None,
+        project: Any,
+        *,
         webcomponents: bool = False,
         xpath_env: XPathEnvironment | None = None,
         source_dir: Path | None = None,
@@ -125,8 +128,24 @@ class ChunkProcessor:
         anchors: Mapping[str, str] | None = None,
         merge_manifest: bool = False,
         footnote_order: str | Callable | None = None,
+        shared_root: Path | None = None,
+        url_prefix: str | None = None,
+        role: str = 'document',
+        template_variables: Mapping[str, Any] | None = None,
+        context: Mapping[str, Any] | None = None,
     ):
         self.module = load_transform_module(module_path)
+        # Further variables for the page template, beside the built-in ones
+        # (an auxiliary page's list of the site's documents, `site_documents`).
+        self.template_variables: dict[str, Any] = dict(template_variables or {})
+        # An auxiliary page ([[pages]]) writes into its own directory below the
+        # output root but shares the root's css/ and assets/; *shared_root* and
+        # *url_prefix* say where that root is and how to reach it, replacing
+        # the link_doc-derived defaults. *role* tags the manifest so the
+        # collection index can tell a page's directory from a document's.
+        self._shared_root_override = shared_root
+        self._url_prefix_override = url_prefix
+        self.role = role
         # A later run of a multi-run config: add to the manifest an earlier run
         # of the same invocation wrote, rather than replace it.
         self.merge_manifest = merge_manifest
@@ -153,10 +172,15 @@ class ChunkProcessor:
                         self._fragment_modules[key] = load_transform_module(frag.module)
         self.xml_root = xml_root
         self.config = config
-        self.project_root = project_root
-        self.output_dir = project_root / config.output_dir
+        self.project = project
+        # Extract project_root and project_config from project object
+        # (which can be a Project instance or any object with .root and .config)
+        self.project_root = project.root
+        self.output_dir = self.project_root / config.output_dir
         self.webcomponents = webcomponents
-        cfg = project_config or ProjectConfig()
+        # Use project.config for project-wide settings
+        # project can be a Project instance or any object with .config attribute
+        cfg = project.config
         # Chunk pages are HTML, which places its own footnotes, so each chunk
         # run orders them; an explicit argument beats [transform] footnote_order.
         self.footnote_order: str | Callable | None = (
@@ -164,8 +188,10 @@ class ChunkProcessor:
         )
         # Chunk pages are HTML, so the web overlay applies. Includes the derived
         # webcomponents_url when web-component mode is on.
-        self.template_context: dict[str, Any] = cfg.context_for(
-            'web', webcomponents=webcomponents,
+        # An auxiliary page's own `context` table goes on top, merged the
+        # same way.
+        self.template_context: dict[str, Any] = merge_deep(
+            cfg.context_for('web', webcomponents=webcomponents), dict(context or {}),
         )
         # The project's parameters, with this run's own on top: a run that
         # renders the same document differently (the documentation site's home
@@ -189,9 +215,8 @@ class ChunkProcessor:
         self.odd_css: str = getattr(self.module, 'ODD_GENERATED_CSS', '') or ''
         self.chunks: list[etree._Element] = []
         self.results: list[ChunkResult] = []
-        self._jinja_env: Any | None = None
-        self._jinja_template: Any | None = None
-        self._jinja_context: dict[str, Any] = {}
+        self._page_template: Any | None = None
+        self._page_context: dict[str, Any] = {}
         # Built once per document; each chunk derives a run of its own from it.
         self._base_context: Any | None = None
         self._id_index: dict[str, etree._Element] | None = None
@@ -277,12 +302,16 @@ class ChunkProcessor:
         Each document gets its own subdirectory, so stylesheets and assets
         belong one level up, beside the collection index — one copy for the
         whole edition. Without ``link_doc`` the output directory is itself the
-        root.
+        root. An explicit *shared_root* (an auxiliary page) wins over both.
         """
+        if self._shared_root_override is not None:
+            return self._shared_root_override
         return self.output_dir.parent if self.config.link_doc else self.output_dir
 
     def url_prefix(self) -> str:
         """Return the relative path from a chunk page back to [`shared_root`][opm.chunking.ChunkProcessor.shared_root]."""
+        if self._url_prefix_override is not None:
+            return self._url_prefix_override
         return '../' if self.config.link_doc else ''
 
     def write_shared_files(
@@ -302,7 +331,7 @@ class ChunkProcessor:
 
         With *html*, the stylesheet of the packaged page layout is written to
         ``css/opm-layout.css`` too, and ``layout_css_url`` points at it —
-        whether or not the page template extends ``opm/layout.html.j2``. A
+        whether or not the page template extends ``opm/layout.html.tpl``. A
         project copy at ``opm/opm-layout.css`` under *templates_dir* (the page
         template's directory) replaces the packaged one.
 
@@ -315,7 +344,7 @@ class ChunkProcessor:
             'index_url': f'{prefix}index.html' if self.config.link_doc else '',
         }
 
-        # For pages extending opm/layout.html.j2; written for every HTML run
+        # For pages extending opm/layout.html.tpl; written for every HTML run
         # rather than working out which templates do.
         if html:
             css_dir = root / 'css'
@@ -482,7 +511,7 @@ class ChunkProcessor:
         chunk_id = f"chunk-{index + 1:03d}"
         chunk_file = self._chunk_file(chunk, index)
 
-        # Filename stems so templates can link them as {{ chunk.prev }}.html.
+        # Filename stems so templates can link them as [[ $chunk?prev ]].html.
         prev_id = (
             Path(self._chunk_file(self.chunks[index - 1], index - 1)).stem
             if index > 0 else None
@@ -837,19 +866,16 @@ class ChunkProcessor:
     def _load_chunk_template(self, template_path: Path | None) -> Any | None:
         """The compiled chunk template, built once and reused for every chunk.
 
-        Also merges the template's frontmatter into the context once. *None*
-        when there is no template, and chunks are written as raw HTML.
+        *None* when there is no template, and chunks are written as raw HTML.
         """
-        if self._jinja_template is None:
+        if self._page_template is None:
             chunk_template = self._chunk_template_path(template_path)
             if chunk_template is None:
                 return None
-            self._jinja_env = template_environment(chunk_template)
-            self._jinja_template = load_template(self._jinja_env, chunk_template)
-            self._jinja_context = template_context(
-                self._jinja_env, chunk_template.name, self.template_context,
-            )
-        return self._jinja_template
+            env = template_environment(chunk_template, self.xpath_env, self.project)
+            self._page_template = load_template(env, chunk_template)
+            self._page_context = template_context(self.template_context)
+        return self._page_template
 
     def render_chunk_template(
         self, 
@@ -886,15 +912,19 @@ class ChunkProcessor:
                 # and XPath never disagree about a parameter's value.
                 parameters=self._expand_placeholders(self.parameters),
                 lang="",
-                context=self._jinja_context,
+                context=self._page_context,
                 # Add chunk-specific context
                 fragments=all_fragments,
+                # Relative URL of the output root ('' or '../'), for links
+                # into files written there, such as a search index.
+                site_root=self.url_prefix(),
                 chunk=chunk_result.metadata,
                 document=self.document,
                 documents=self.documents,
                 # Stylesheet URLs, plus an assets prefix when configured.
                 # The inline strings above stay available either way.
                 **self._shared_urls,
+                **self.template_variables,
             )
             
             return rendered
@@ -924,7 +954,7 @@ class ChunkProcessor:
         """Process all chunks and save files.
 
         Args:
-            template_path: Optional Jinja2 template path (ignored for ``output_format='json'``).
+            template_path: Optional page template path (ignored for ``output_format='json'``).
             on_progress: Optional callback ``(current, total)`` called after each chunk is written.
             output_format: ``'html'`` (default) or ``'json'``.  JSON mode writes one
                 ``<stem>.json`` per chunk containing all fields as a JSON object, and
@@ -1017,6 +1047,10 @@ class ChunkProcessor:
         one the later run's own links resolved to.
         """
         payload = asdict(manifest)
+        if self.role != 'document':
+            # An auxiliary page's directory must not read as a document in
+            # the collection index (see collect_index_entries).
+            payload['role'] = self.role
         if self.config.name:
             for entry in payload['chunks']:
                 entry['run'] = self.config.name
@@ -1405,10 +1439,9 @@ def chunk_document(
     module_path: Path | None,
     xml_path: Path,
     config: ChunkingConfig,
-    project_root: Path,
+    project: Any,
     template_path: Path | None = None,
     on_progress: Callable[[int, int], None] | None = None,
-    project_config: ProjectConfig | None = None,
     webcomponents: bool = False,
     xpath_extensions: tuple[str, ...] | None = None,
     output_format: str = 'html',
@@ -1417,6 +1450,11 @@ def chunk_document(
     anchors: Mapping[str, str] | None = None,
     merge_manifest: bool = False,
     footnote_order: str | Callable | None = None,
+    shared_root: Path | None = None,
+    url_prefix: str | None = None,
+    role: str = 'document',
+    template_variables: Mapping[str, Any] | None = None,
+    context: Mapping[str, Any] | None = None,
 ) -> dict[str, str]:
     """Chunk a document using the specified configuration.
 
@@ -1434,6 +1472,12 @@ def chunk_document(
     they are placed, overriding ``[transform] footnote_order``; see
     [`inject_cached_footnotes`][opm.runtime.pm_runtime.inject_cached_footnotes].
 
+    *template_variables* are passed to the page template beside the built-in
+    variables; auxiliary pages (``[[pages]]``) use them to hand their
+    templates the site's documents. *context* is merged over the project's
+    template context with [`merge_deep`][opm.jinks_templates.merge.merge_deep]:
+    a page's own ``context`` table.
+
     Returns the run's anchor map, ``xml:id`` → chunk file. Pass it as
     *anchors* to a later run over the same output directory, and ``#id``
     links there into this run's pages resolve as if both were one run. Pass
@@ -1444,9 +1488,10 @@ def chunk_document(
     from opm.config import resolve_base_css
     from opm.odd_cache import ensure_compiled_module
 
+    # Use project directly - it's required
     # Same base override the CLI applies, so calling this directly as a
     # library gives the same stylesheet as `opm chunk`.
-    base_css = resolve_base_css((project_config or ProjectConfig()).document_css, project_root)
+    base_css = resolve_base_css(project.config.document_css, project.root)
     resolved_module = module_path or config.module
     if resolved_module is None and config.odd is not None:
         resolved_module, _ = ensure_compiled_module(
@@ -1470,14 +1515,12 @@ def chunk_document(
 
     tree = xml_parse(str(xml_path))
     root = tree.getroot()
-    cfg = project_config or ProjectConfig()
 
-    xpath_env = project_xpath_env(cfg, xml_path, extensions=xpath_extensions)
+    xpath_env = project_xpath_env(project.config, xml_path, extensions=xpath_extensions)
     document = config.link_doc or xml_path.name
 
     processor = ChunkProcessor(
-        resolved_module, root, config, project_root,
-        project_config=project_config,
+        resolved_module, root, config, project,
         webcomponents=webcomponents,
         xpath_env=xpath_env,
         source_dir=xml_path.parent,
@@ -1486,6 +1529,11 @@ def chunk_document(
         anchors=anchors,
         merge_manifest=merge_manifest,
         footnote_order=footnote_order,
+        shared_root=shared_root,
+        url_prefix=url_prefix,
+        role=role,
+        template_variables=template_variables,
+        context=context,
     )
     if output_format == 'pb-view':
         processor.export_pb_view(doc_path=doc_path, on_progress=on_progress)
@@ -1531,6 +1579,9 @@ def collect_index_entries(output_dir: Path) -> list[IndexEntry]:
             data = json.loads(manifest_file.read_text(encoding='utf-8'))
         except (OSError, json.JSONDecodeError):
             continue
+        if data.get('role') and data['role'] != 'document':
+            # An auxiliary page's directory ([[pages]]), not a chunked document.
+            continue
 
         doc_dir = manifest_file.parent
         chunks = data.get('chunks') or []
@@ -1560,6 +1611,7 @@ def build_index(
     project_root: Path | None = None,
     chunking_config: ChunkingConfig | None = None,
     webcomponents: bool = False,
+    project: Any = None,
 ) -> Path | None:
     """Render ``<output_dir>/index.html`` listing every chunked document.
 
@@ -1599,7 +1651,7 @@ def build_index(
     rendered = render_index_template(
         entries=entries,
         template_path=resolve_template_path(
-            template_path, default_name=DEFAULT_INDEX_TEMPLATE_NAME
+            template_path, default_name=DEFAULT_INDEX_TEMPLATE_NAME, project=project,
         ),
         title=title or output_dir.name,
         odd_css=odd_css,
@@ -1612,13 +1664,20 @@ def build_index(
         context=(project_config or ProjectConfig()).context_for(
             'web', webcomponents=webcomponents,
         ),
+        xpath_env=XPathEnvironment(
+            namespaces=dict(project_config.xpath_namespaces),
+            extensions=project_config.xpath_extensions,
+        ) if project_config is not None else None,
+        project=project,
     )
     index_file = output_dir / 'index.html'
     index_file.write_text(rendered, encoding='utf-8')
     return index_file
 
 
-def build_index_json(output_dir: Path, *, title: str | None = None) -> Path | None:
+def build_index_json(
+    output_dir: Path, *, title: str | None = None,
+) -> Path | None:
     """Write ``<output_dir>/index.json`` listing every chunked document.
 
     The JSON counterpart of [`build_index`][opm.chunking.build_index]. A directory run splits its

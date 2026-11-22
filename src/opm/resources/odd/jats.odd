@@ -324,7 +324,7 @@ padding: 0 4px;
                             <desc>Everything a journal title block needs about one contributor,
                                 beyond the plain name above. A metadata key holds a flat list of
                                 strings, so the four fields travel as one pipe-joined record for the
-                                template to split apart (see examples/jats/templates/article.typ.j2);
+                                template to split apart (see examples/jats/templates/article.typ.tpl);
                                 shells that only want names read 'authors' and ignore this. The
                                 affiliation is not a child of contrib: it is reached through
                                 xref/@rid, the way JATS links the two.</desc>

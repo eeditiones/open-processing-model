@@ -51,9 +51,9 @@ def test_config_sections_are_the_render_modes_plus_json() -> None:
 
 def test_template_arguments_follow_the_mode(tmp_path: Path) -> None:
     cfg = ProjectConfig(
-        document_template=tmp_path / 'web.html.j2',
-        print_template=tmp_path / 'print.html.j2',
-        typst_template=tmp_path / 'doc.typ.j2',
+        document_template=tmp_path / 'web.html.tpl',
+        print_template=tmp_path / 'print.html.tpl',
+        typst_template=tmp_path / 'doc.typ.tpl',
         document_docx_template=tmp_path / 'style.docx',
     )
     override = tmp_path / 'override'

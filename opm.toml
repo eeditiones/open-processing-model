@@ -70,8 +70,8 @@ xpath_extensions = [
 
 [transform.web]
 # Optional override: odd = "odd/web-only.odd"
-# Jinja2 template used to wrap full-document HTML output.
-# template = "templates/default.html.j2"
+# Jinks template used to wrap full-document HTML output.
+# template = "templates/default.html.tpl"
 # Enable TEI Publisher web-component output mode by default.
 webcomponents = false
 
@@ -80,8 +80,8 @@ webcomponents = false
 # [transform.web.context]
 # webcomponents_url = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.8/dist/pb-components-bundle.js"
 
-# Free-form values handed to every Jinja2 template as `context`, e.g.
-# {{ context.site_name }}. TOML types are preserved, so booleans, numbers,
+# Free-form values handed to every template as `context`, e.g.
+# [[ $context?site_name ]]. TOML types are preserved, so booleans, numbers,
 # arrays and sub-tables all arrive intact. Templates only — XPath never sees
 # these; that is what [transform.parameters] is for.
 # [context]
@@ -100,8 +100,8 @@ webcomponents = false
 [transform.typst]
 # Optional override: odd = "odd/typst-only.odd"
 # Typst document-shell template used for Typst output.
-# template = "templates/book.typ.j2"      # TEI (ilm)
-# template = "templates/docbook.typ.j2"   # DocBook (ilm + UI/callout classes)
+# template = "templates/book.typ.tpl"      # TEI (ilm)
+# template = "templates/docbook.typ.tpl"   # DocBook (ilm + UI/callout classes)
 
 [chunking]
 # ODD compiled on demand. Falls back to [transform].odd / packaged default when omitted.
@@ -125,8 +125,8 @@ depth = 2
 # Output directory for chunk files.
 output_dir = "chunks"
 
-# Jinja2 template for chunk pages.
-# template = "templates/chunk.html.j2"
+# Jinks template for chunk pages.
+# template = "templates/chunk.html.tpl"
 
 # URL pattern for cross-chunk links.
 # Available placeholders: {file}, {stem}, {anchor}.

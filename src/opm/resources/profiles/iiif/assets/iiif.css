@@ -1,0 +1,50 @@
+/* SPDX-FileCopyrightText: 2026 e-editiones
+   SPDX-License-Identifier: CC0-1.0 */
+
+/* The iiif profile's viewer column. Uses opm's design tokens only; a project
+   sets another width with --iiif-width, or restyles it in its own
+   stylesheet, which comes after. */
+
+body.iiif--with-facs {
+  --opm-layout-after-width: var(--iiif-width, 26rem);
+}
+
+.iiif-facs {
+  min-width: 0;
+  /* Below the text on narrow screens, where a strip beside it is unusable. */
+  height: 28rem;
+  border: 1px solid var(--opm-color-rule);
+  background: var(--opm-surface);
+}
+
+.iiif-facs > :is(pb-tify, pb-facsimile) {
+  width: 100%;
+  height: 100%;
+}
+
+/* pb-facsimile is a flex container of its own, which its viewer needs to
+   get any height; only pb-tify needs telling to be a block. */
+.iiif-facs > pb-tify {
+  display: block;
+}
+
+/* Until the viewer's script has upgraded it, the element is an unknown inline
+   tag; keep the column from collapsing so the layout does not jump. */
+.iiif-facs > :not(:defined) {
+  visibility: hidden;
+}
+
+@media (min-width: 64.001em) {
+  /* The viewer stays in view below the menubar while the text scrolls. */
+  .iiif-facs {
+    position: sticky;
+    top: calc(var(--opm-menubar-height, 3rem) + 1.5rem);
+    height: min(78vh, 44rem);
+  }
+}
+
+@media print {
+  .iiif-facs {
+    display: none;
+  }
+}

@@ -1,0 +1,91 @@
+name = "registers"
+version = "1.2.0"
+description = "Shows the people, places and other entities a document mentions in a sidebar column, and adds browse pages for the people and places registers"
+
+# Copied to the output's assets/ and linked from every page.
+assets = ["assets/registers.css"]
+
+# The register column of every page.
+[templating]
+use = ["registers.html.tpl"]
+
+# The register of the whole document, from the ODD's register mode (in
+# teipublisher.odd: the people and places a document names, looked up in the
+# registers under $global:register-root). A project ODD may define its own.
+[[chunking.fragments]]
+name = "register"
+xpath = "./ancestor-or-self::*[last()]"
+parameters = { mode = "register" }
+
+# Settings; a project overrides them in [context.features.register].
+[context.features.register]
+enabled = true
+# The layout column the register goes into: "before" or "after".
+column = "after"
+# Heading above the register; empty for none.
+label = "Register"
+# Several registers shown as tabs, one per category. Each needs a fragment of
+# its own in the project's opm.toml, named register_<category>, e.g.
+#   [[chunking.fragments]]
+#   name = "register_people"
+#   xpath = "./ancestor::TEI"
+#   parameters = { mode = "register", category = "people" }
+# Empty: one panel with the "register" fragment above.
+categories = []
+
+# Tab labels by category; a category without one is shown capitalised.
+[context.features.register.category_labels]
+
+# Auxiliary browse pages for the registers, rendered by `opm chunk` into
+# <output>/places/ and <output>/people/ after the chunking runs, with the
+# project's ODD:
+#
+# - an overview: every entry in the ODD's register-overview mode (as in TEI
+#   Publisher), sorted and grouped by initial in register-index.html.tpl,
+#   with a map when the entries carry pb-geolocation pins;
+# - one page per entry, in the ODD's register-details mode (as in TEI
+#   Publisher). With `static` set, teipublisher.odd lists there the documents
+#   in collection($global:data-default) that mention the entry.
+#
+# A project changes a page by declaring a [[pages]] entry with the same path
+# in opm.toml: the keys it sets (its own `source`, a title in another
+# language as `context = { page_title = "Orte" }`) win, the rest stays. enabled = false switches a page off. When the default source is missing, its pages are
+# skipped — a project without a register simply gets none of its pages.
+[[pages]]
+path = "places/index.html"
+context = { page_title = "Places" }
+source = "data/registers/places.xml"
+xpath = "//listPlace"
+parameters = { mode = "register-overview" }
+template = "templates/register-index.html.tpl"
+
+[[pages]]
+path = "places/{xml_id}.html"
+source = "data/registers/places.xml"
+xpath = "//listPlace/place"
+parameters = { mode = "register-details", static = true }
+template = "templates/register-entry.html.tpl"
+
+[[pages]]
+path = "people/index.html"
+context = { page_title = "People" }
+source = "data/registers/persons.xml"
+xpath = "//listPerson"
+parameters = { mode = "register-overview" }
+template = "templates/register-index.html.tpl"
+
+[[pages]]
+path = "people/{xml_id}.html"
+source = "data/registers/persons.xml"
+xpath = "//listPerson/person"
+parameters = { mode = "register-details", static = true }
+template = "templates/register-entry.html.tpl"
+
+# The menubar is not configured here: it reads [context.menu] items only, so
+# a project that wants the overviews linked in the menubar lists them there
+# explicitly, e.g.
+#   [context.menu]
+#   items = [
+#       { label = "People", url = "people/index.html" },
+#       { label = "Places", url = "places/index.html" },
+#   ]

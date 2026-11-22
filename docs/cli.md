@@ -31,6 +31,7 @@ opm [OPTIONS] COMMAND [ARGS]...
 - [`index`](#opm-index): Emit embedding-ready JSONL records for a...
 - [`serve`](#opm-serve): Start a local HTTP server rooted at the...
 - [`odd`](#opm-odd): Inspect or document an ODD: corpus...
+- [`profile`](#opm-profile): List the profiles a project can use, and...
 
 ### `opm init`
 
@@ -58,9 +59,10 @@ opm init [OPTIONS] [DIRECTORY]
 | `--example, -e TEXT` | Start from a bundled example project instead of an empty one: jats, docbook, serafin, escher, monograph, shakespeare, odd. |
 | `--list-examples` | List the bundled example projects and exit. |
 | `--copy-base-odd` | TEI only: also copy packaged teipublisher.odd and tp.css into odd/. |
-| `--templates` | Also copy the alternative HTML templates (chapbook, journal, handbook, tufte, bootstrap) beside the one the project uses, and opm's plain default Typst template as `templates/document.typ.j2`. |
+| `--templates` | Also copy the alternative HTML templates (chapbook, journal, handbook) beside the one the project uses, and opm's plain default Typst template as `templates/document.typ.tpl`. |
 | `--base` | Also copy the templates the HTML templates inherit from (`templates/opm/`) and the base stylesheet (`styles/default-styles.css`), to edit them in the project. |
 | `--bare` | Skip README.md, AGENTS.md, CLAUDE.md and .gitignore. |
+| `--profile, -p TEXT` | Switch on a profile in the new project; repeat for several. See `opm profile list`. |
 | `--help` | Show this message and exit. |
 
 ### `opm transform`
@@ -91,7 +93,7 @@ opm transform [OPTIONS] [INPUT_XML]
 | `--preview, -v` | Preview output: channel web/print → browser, markdown → Rich (paged in a TTY so bold/italic survive), docx/epub → the platform default application, typst → the compiled PDF, opened by typst (typst compile --open) when the typst command is installed; other channels → plain text in the terminal. |
 | `--param, -p KEY=VALUE` | Runtime parameter for XPath $parameters (repeatable), e.g. -p mode=toc -p display=browse |
 | `--css PATH` | CSS file replacing the packaged base rules compiled into the ODD stylesheet. Falls back to transform.css in the project config. |
-| `--template PATH` | Template path: Jinja2 for HTML/print/Typst output, or .docx for DOCX output. |
+| `--template PATH` | Template path: a jinks page template (.tpl) for HTML/print/Typst output, or .docx for DOCX output. |
 | `--xpath, -x EXPR` | XPath 3.1 expression evaluated with the document root as the context item; the single selected element becomes the transform root. Unprefixed names use the same default element namespace as the document root. $parameters is bound from --param. |
 | `--xpath-extensions TEXT` | Dotted import path(s) of Python module(s) whose public callables become XPath functions in the tp: namespace (repeat option to add modules; e.g. --xpath-extensions extensions.common --xpath-extensions extensions.dates). Importing these modules runs top-level code: only use trusted code. |
 | `--footnote-order TEXT` | Dotted import path of a callable that orders each run's footnotes before they are placed, e.g. --footnote-order opm.runtime.footnote_order.labelled_first (lettered apparatus before numbered commentary). Applies to the output modes that place footnotes themselves (web, markdown). Falls back to transform.footnote_order in opm.toml. Importing the module runs top-level code: only use trusted code. |
@@ -123,14 +125,16 @@ opm chunk [OPTIONS] [INPUT_XML]
 | --- | --- |
 | `--odd, -d PATH` | ODD file to compile on demand for chunking (overrides chunking.odd in config). |
 | `--output-dir, -o PATH` | Directory to write chunked files (overrides chunking.output_dir in config). |
-| `--template, -t FILE` | Jinja2 template for chunk pages (overrides chunking.template in config). |
+| `--template, -t FILE` | Jinks page template (.tpl) for chunk pages (overrides chunking.template in config). |
 | `--force, -f` | Remove the existing output directory without prompting. |
 | `--depth INTEGER` | Maximum division/section depth for chunk splitting (overrides chunking.depth in config). |
 | `--webcomponents, --no-webcomponents` | Enable/disable tei-publisher web components mode. Falls back to transform.web.webcomponents in the project config. |
 | `--xpath-extensions TEXT` | Dotted import path(s) of Python module(s) whose public callables become XPath functions in the tp: namespace (repeatable). Falls back to transform.xpath_extensions in opm.toml. |
 | `--footnote-order TEXT` | Dotted import path of a callable that orders each run's footnotes before they are placed, e.g. --footnote-order opm.runtime.footnote_order.labelled_first (lettered apparatus before numbered commentary). Applies to the output modes that place footnotes themselves (web, markdown). Falls back to transform.footnote_order in opm.toml. Importing the module runs top-level code: only use trusted code. |
-| `--format TEXT` | Output format for chunk files: "html" (default, rendered via Jinja2 template), "json" (one JSON file per chunk containing content, head, odd_css, and fragments — suitable for static site generators such as Eleventy), or "pb-view" (index.json lookup table plus one part file per chunk, consumable by the dynamic pb-view web component in static mode). |
+| `--format TEXT` | Output format for chunk files: "html" (default, rendered via the page template), "json" (one JSON file per chunk containing content, head, odd_css, and fragments — suitable for static site generators such as Eleventy), or "pb-view" (index.json lookup table plus one part file per chunk, consumable by the dynamic pb-view web component in static mode). |
 | `--doc-path TEXT` | For --format pb-view: document path subdirectory. Data is written to <output-dir>/<doc-path>/ and must match the pb-document @path; CSS stays shared at <output-dir>/css/. Falls back to chunking.doc_path in config. |
+| `--no-pages` | Skip the auxiliary pages declared in [[pages]] (HTML output only); build the chunking runs alone. |
+| `--page TEXT` | Build only the auxiliary pages whose path starts with this prefix, e.g. --page places. HTML output only. |
 | `--preview, -v` | After chunking, start a local HTTP server rooted at the output directory and open the first page in a browser (HTML output only). |
 | `--port, -p INTEGER` | Port for --preview (default: 8080). |
 | `--strict` | Exit with an error when an XPath expression fails at run time, instead of treating it as false or empty. Expressions opm cannot run at all (eXist functions, XQuery syntax) are reported when the ODD is compiled and do not count. |
@@ -164,6 +168,7 @@ opm index [OPTIONS] [INPUT_XML]
 | --- | --- |
 | `--odd, -d PATH` | ODD file to compile on demand (overrides transform.json.odd in config). |
 | `--output, -o PATH` | JSONL file to write (default: stdout). |
+| `--granularity TEXT` | 'split' writes one record per section, cut to --max-chars, for vector search; 'page' writes one record per published page, for site search. Falls back to index.granularity in opm.toml (default: split). |
 | `--max-chars INTEGER` | Split a section longer than this at record boundaries. Falls back to index.max_chars in opm.toml (default: 1500). |
 | `--min-chars INTEGER` | Drop units shorter than this — bare headings are retrieval noise. Falls back to index.min_chars in opm.toml (default: 40). |
 | `--overlap INTEGER` | Records of context carried into the next part when a unit splits. Falls back to index.overlap in opm.toml (default: 1). |
@@ -345,4 +350,117 @@ opm odd coverage [OPTIONS] [INPUT_XML]
 | `--all, -a` | List every finding instead of the first 20 per section. |
 | `--json` | Print the whole report as JSON instead of tables. |
 | `--config, -c PATH` | Path to opm.toml. |
+| `--help` | Show this message and exit. |
+
+### `opm profile`
+
+List the profiles a project can use, and switch them on or off.
+
+**Usage:**
+
+```text
+opm profile [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--help` | Show this message and exit. |
+
+
+**Commands:**
+
+- [`list`](#opm-profile-list): List the available profiles, marking those...
+- [`add`](#opm-profile-add): Switch profiles on: add them to [project]...
+- [`show`](#opm-profile-show): Describe a profile: what it adds, what it...
+- [`remove`](#opm-profile-remove): Switch profiles off: remove them from...
+
+#### `opm profile list`
+
+List the available profiles, marking those the project uses.
+
+**Usage:**
+
+```text
+opm profile list [OPTIONS]
+```
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--config, -c PATH` | Path to opm.toml (default: ./opm.toml). |
+| `--help` | Show this message and exit. |
+
+#### `opm profile add`
+
+Switch profiles on: add them to [project] profiles in opm.toml.
+
+**Usage:**
+
+```text
+opm profile add [OPTIONS] NAMES...
+```
+
+**Arguments:**
+
+| Argument | Description |
+| --- | --- |
+| `NAMES` | Profiles to switch on. |
+
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--config, -c PATH` | Path to opm.toml (default: ./opm.toml). |
+| `--help` | Show this message and exit. |
+
+#### `opm profile show`
+
+Describe a profile: what it adds, what it needs, its settings.
+
+**Usage:**
+
+```text
+opm profile show [OPTIONS] NAME
+```
+
+**Arguments:**
+
+| Argument | Description |
+| --- | --- |
+| `NAME` | The profile to describe. |
+
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--config, -c PATH` | Path to opm.toml (default: ./opm.toml). |
+| `--help` | Show this message and exit. |
+
+#### `opm profile remove`
+
+Switch profiles off: remove them from [project] profiles in opm.toml.
+
+**Usage:**
+
+```text
+opm profile remove [OPTIONS] NAMES...
+```
+
+**Arguments:**
+
+| Argument | Description |
+| --- | --- |
+| `NAMES` | Profiles to switch off. |
+
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--config, -c PATH` | Path to opm.toml (default: ./opm.toml). |
 | `--help` | Show this message and exit. |

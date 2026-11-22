@@ -3,7 +3,7 @@
 
 /* Karl Barth-Gesamtausgabe: "Der Römerbrief" design for the EPUB.
 
-   The reading view's design (chapbook.css, monograph.css) for a reading
+   The reading view's design (opm-theme-paper.css, monograph.css) for a reading
    system: paper and ink are left to the reader's theme, everything else —
    rubric red, EB Garamond, centred heads, book-set paragraphs, the two note
    series — follows the web edition. Cascades after opm's EPUB baseline, so

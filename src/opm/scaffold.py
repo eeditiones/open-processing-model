@@ -11,8 +11,7 @@ from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 
-from jinja2 import Environment, PackageLoader
-
+from opm import jinks_templates as jinks
 from opm.output_modes import RENDER_MODES
 
 VOCABULARIES = ('tei', 'docbook', 'jats')
@@ -30,9 +29,9 @@ _ODD_PATH = {
 }
 # JATS has no Typst-specific shell of its own; the generic one fits an article.
 _TYPST_TEMPLATE = {
-    'tei': 'templates/book.typ.j2',
-    'docbook': 'templates/docbook.typ.j2',
-    'jats': 'templates/book.typ.j2',
+    'tei': 'templates/book.typ.tpl',
+    'docbook': 'templates/docbook.typ.tpl',
+    'jats': 'templates/book.typ.tpl',
 }
 # Which of the copied HTML shells `opm.toml` wires up. A journal article wants
 # the journal surface; the rest read as books or documentation.
@@ -44,16 +43,16 @@ _HTML_TEMPLATE = {
 #: Reading shells ``--templates`` copies beside the one the project wires up.
 #: Without the flag a project gets only the shell it actually uses, so the
 #: templates/ directory says what the project is rather than what it could be.
-_EXTRA_SHELLS = ('chapbook', 'journal', 'handbook', 'tufte', 'bootstrap')
+_EXTRA_SHELLS = ('chapbook', 'journal', 'handbook')
 #: The plain Typst shell opm falls back to when no template is configured, which
 #: ``--templates`` also copies, beside the book shell the project wires up.
-_TYPST_DEFAULT = ('templates/default_document.typ.j2', Path('templates') / 'document.typ.j2')
+_TYPST_DEFAULT = ('templates/default_document.typ.tpl', Path('templates') / 'document.typ.tpl')
 #: What ``--base`` copies: the packaged templates the shells extend, and the
 #: base stylesheet. opm prefers a project's copy at the same relative path
 #: (``templates/opm/…``, ``styles/default-styles.css``) over its own.
 _BASE_COPIES = (
-    ('templates/opm/base.html.j2', Path('templates') / 'opm' / 'base.html.j2'),
-    ('templates/opm/layout.html.j2', Path('templates') / 'opm' / 'layout.html.j2'),
+    ('templates/opm/base.html.tpl', Path('templates') / 'opm' / 'base.html.tpl'),
+    ('templates/opm/layout.html.tpl', Path('templates') / 'opm' / 'layout.html.tpl'),
     ('templates/opm/opm-layout.css', Path('templates') / 'opm' / 'opm-layout.css'),
     ('styles/default-styles.css', Path('styles') / 'default-styles.css'),
 )
@@ -177,12 +176,15 @@ class InitOptions:
     #: Also copy the alternative HTML shells, beside the one wired up (or, with
     #: ``example``, beside the ones the example ships).
     templates: bool = False
-    #: Also copy the packaged templates the shells extend (``opm/base.html.j2``,
-    #: ``opm/layout.html.j2`` and its stylesheet) and the base stylesheet.
+    #: Also copy the packaged templates the shells extend (``opm/base.html.tpl``,
+    #: ``opm/layout.html.tpl`` and its stylesheet) and the base stylesheet.
     base: bool = False
     #: Skip README.md, AGENTS.md, CLAUDE.md and .gitignore, for projects that
     #: live inside a repository which already has its own.
     bare: bool = False
+    #: Profiles to switch on in ``[project] profiles``, after any an example
+    #: already uses.
+    profiles: tuple[str, ...] = ()
 
 
 #: Sample document written into an empty project, relative to its root.
@@ -238,28 +240,33 @@ def _copy_file(src: Path, dest: Path, *, force: bool) -> bool:
     return True
 
 
+def shell_stylesheet(name: str) -> str:
+    """Return the file name of the theme stylesheet for the HTML shell *name*.
+
+    The packaged themes are named ``opm-theme-<shell>.css``, so in a project's
+    ``assets/`` they stand apart from its own stylesheets.
+    """
+    return f'opm-theme-{name}.css'
+
+
 def _shell_copies(names: tuple[str, ...], dest_dir: Path) -> list[tuple[str, Path]]:
     """Return ``(packaged resource, destination)`` pairs for the HTML shells *names*.
 
-    A shell is a ``.html.j2`` plus the ``.css`` beside it, when it has one —
-    linked as an asset through ``[transform.web] assets`` — while ``tufte`` and
-    ``bootstrap`` load their framework from a CDN and ship alone.
+    A shell is a ``.html.tpl`` plus its
+    theme stylesheet ([`shell_stylesheet`][opm.scaffold.shell_stylesheet]),
+    when it has one — linked as an asset through ``[transform.web] assets``.
     """
     copies: list[tuple[str, Path]] = []
     for name in names:
         copies.append(
             (
-                f'scaffold/templates/{name}.html.j2',
-                dest_dir / 'templates' / f'{name}.html.j2',
+                f'scaffold/templates/{name}.html.tpl',
+                dest_dir / 'templates' / f'{name}.html.tpl',
             )
         )
-        if _resource_root().joinpath('scaffold', 'templates', f'{name}.css').is_file():
-            copies.append(
-                (
-                    f'scaffold/templates/{name}.css',
-                    dest_dir / 'templates' / f'{name}.css',
-                )
-            )
+        css = shell_stylesheet(name)
+        if _resource_root().joinpath('scaffold', 'templates', css).is_file():
+            copies.append((f'scaffold/templates/{css}', dest_dir / 'templates' / css))
     return copies
 
 
@@ -298,12 +305,9 @@ def _record(dest: Path, written: list[Path], skipped: list[Path], did_write: boo
     (written if did_write else skipped).append(dest)
 
 
-def _jinja_env() -> Environment:
-    return Environment(
-        loader=PackageLoader('opm', 'resources/scaffold'),
-        autoescape=False,
-        keep_trailing_newline=True,
-    )
+def _scaffold_env() -> jinks.Environment:
+    """The jinks environment for the project files ``opm init`` writes."""
+    return jinks.Environment([Path(str(_resource_root().joinpath('scaffold')))])
 
 
 def find_example(name: str) -> ExampleProject:
@@ -317,7 +321,7 @@ def find_example(name: str) -> ExampleProject:
 
 
 def _agent_guidance(
-    env: Environment,
+    env: jinks.Environment,
     dest_dir: Path,
     *,
     vocabulary: str,
@@ -336,7 +340,7 @@ def _agent_guidance(
         'html_template': html_template,
         'extra_templates': extra_templates,
     }
-    template = env.get_template('agent_guidance.md.j2')
+    template = env.get_template('agent_guidance.md.tpl')
     for name, heading, intro in (
         (
             'AGENTS.md',
@@ -427,12 +431,12 @@ def _scaffold_example(options: InitOptions) -> ScaffoldResult:
         else 'odd/'
     )
     html_template = (
-        cfg.document_template.stem.removesuffix('.html')
+        cfg.document_template.name.split('.')[0]
         if cfg.document_template is not None
         else _HTML_TEMPLATE.get(example.vocabulary, 'chapbook')
     )
     _agent_guidance(
-        _jinja_env(),
+        _scaffold_env(),
         dest_dir,
         vocabulary=example.vocabulary,
         odd_path=odd_path,
@@ -462,9 +466,38 @@ def _example_result(
 
 
 def scaffold(options: InitOptions) -> ScaffoldResult:
-    """Write a project tree from *options* and return what was created."""
-    if options.example:
-        return _scaffold_example(options)
+    """Write a project tree from *options* and return what was created.
+
+    The profiles in *options* are checked before anything is written, and
+    added to the new ``opm.toml`` afterwards.
+    """
+    from opm.profile import available_profiles, read_project_profiles, write_project_profiles
+
+    dest_dir = options.directory.expanduser().resolve()
+    known = {profile.name for profile in available_profiles(dest_dir)}
+    unknown = [name for name in options.profiles if name not in known]
+    if unknown:
+        raise ScaffoldError(
+            f'Unknown profile {", ".join(map(repr, unknown))}. '
+            f'Available: {", ".join(sorted(known)) or "none"}.'
+        )
+
+    result = _scaffold_example(options) if options.example else _scaffold_project(options)
+
+    config_path = result.directory / 'opm.toml'
+    if options.profiles and config_path.is_file():
+        current = read_project_profiles(config_path)
+        wanted = current + [name for name in dict.fromkeys(options.profiles) if name not in current]
+        if wanted != current:
+            try:
+                write_project_profiles(config_path, wanted)
+            except ValueError as e:
+                raise ScaffoldError(str(e)) from e
+    return result
+
+
+def _scaffold_project(options: InitOptions) -> ScaffoldResult:
+    """Write an empty project for *options.vocabulary*."""
 
     vocab = options.vocabulary.strip().lower()
     if vocab not in VOCABULARIES:
@@ -493,11 +526,11 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
     skipped: list[Path] = []
     force = options.force
 
-    env = _jinja_env()
-    toml_text = env.get_template('opm.toml.j2').render(
+    env = _scaffold_env()
+    toml_text = env.get_template('opm.toml.tpl').render(
         odd_path=odd_path,
         webcomponents=options.webcomponents,
-        outputs=set(options.outputs),
+        outputs=sorted(options.outputs),
         typst_template=typst_template,
         chunk_selector=chunk_selector if options.chunking else '',
         chunk_depth=options.chunk_depth,
@@ -505,14 +538,18 @@ def scaffold(options: InitOptions) -> ScaffoldResult:
         breadcrumbs=vocab in _BREADCRUMBS,
         html_template=html_template,
         # The shell's stylesheet, wired up as an asset when it has one.
-        html_css=_resource_root().joinpath('scaffold', 'templates', f'{html_template}.css').is_file(),
+        html_css=(
+            shell_stylesheet(html_template)
+            if _resource_root().joinpath('scaffold', 'templates', shell_stylesheet(html_template)).is_file()
+            else ''
+        ),
         index_note_element=_INDEX_FIELD_ELEMENTS[vocab][0],
         index_name_element=_INDEX_FIELD_ELEMENTS[vocab][1],
     )
     _record(config_path, written, skipped, _write_text(config_path, toml_text, force=force))
 
     if not options.bare:
-        readme_text = env.get_template('README.md.j2').render(
+        readme_text = env.get_template('README.md.tpl').render(
             title=title,
             vocabulary=vocab,
             odd_path=odd_path,

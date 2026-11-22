@@ -20,7 +20,7 @@ needs a stylesheet, a background image and a folder of fonts:
 
 ```toml
 [transform.web]
-template = "templates/letter.html.j2"
+template = "templates/letter.html.tpl"
 assets = ["templates/letter.css", "templates/parchment.jpg", "templates/fonts"]
 ```
 
@@ -37,7 +37,7 @@ extend the list each time you add a document. The Shakespeare example keeps
 the IIIF manifests of its facsimiles in one folder per play:
 
 ```toml
-assets = ["templates/chapbook.css", "iiif/*", "icon.png"]
+assets = ["templates/opm-theme-chapbook.css", "templates/facsimile.css", "iiif/*", "icon.png"]
 ```
 
 `iiif/*` matches everything directly inside `iiif/`, e.g. the folder `iiif/F-ado.xml`. A matching folder is always copied with all its contents.
@@ -87,7 +87,7 @@ over earlier ones, put the general ones first and the more specific ones
 after them:
 
 ```toml
-assets = ["templates/chapbook.css", "templates/letter.css"]
+assets = ["templates/opm-theme-paper.css", "templates/letter.css"]
 ```
 
 Stylesheets inside a listed folder are copied, but not linked. Listing a
@@ -115,21 +115,21 @@ body {
 Images, scripts and all other assets are not added to the page automatically.
 Your template has to refer to them. Since a chunk page lies in a subfolder of
 the output, the path to the `assets/` folder differs from page to page. The
-template therefore receives the path in the variable `assets`. Put it
+template therefore receives the path as `assets` in its context map. Put it
 in front of the filename:
 
-```jinja
-<img src="{{ assets }}/parchment.jpg" alt="">
+```html
+<img src="[[ $context?assets ]]/parchment.jpg" alt="">
 ```
 
 A script is added in the same way. Put it into the `body_end` block, so it
 runs once the content of the page is in place. This is how the Escher example
 loads the script which switches between its two readings of a letter:
 
-```jinja
-{% block body_end %}
-  <script src="{{ assets }}/escher.js"></script>
-{% endblock %}
+```html
+[% template body_end %]
+  <script src="[[ $context?assets ]]/escher.js"></script>
+[% endtemplate %]
 ```
 
 The logo in the menu bar is an exception: if `logo` in `[context]` is just a

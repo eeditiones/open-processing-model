@@ -1,0 +1,176 @@
+<TEI xmlns="http://www.tei-c.org/ns/1.0" xml:id="places" type="Ort">
+    <teiHeader>
+        <fileDesc>
+            <titleStmt>
+                <title>Alfred Escher Briefedition: Ortsdaten</title>
+            </titleStmt>
+            <publicationStmt>
+                <publisher>Staatsarchiv des Kantons Zürich</publisher>
+                <availability>
+                    <licence target="https://creativecommons.org/licenses/by-sa/4.0/deed.de">
+                        <p>Distributed under the Creative Commons Attribution-ShareAlike 4.0 License.</p>
+                    </licence>
+                </availability>
+            </publicationStmt>
+            <sourceDesc>
+                <p>Information about the source</p>
+            </sourceDesc>
+        </fileDesc>
+    </teiHeader>
+    <standOff>
+        <listPlace>
+            <place xml:id="Basel" n="Basel" type="approximate">
+                <placeName type="main">Basel</placeName>
+                <location>
+                    <geo>47.557421 7.5925727</geo>
+                </location>
+                <desc>
+                    <ref target="http://www.hls-dhs-dss.ch/textes/d/D7387.php">Artikel Basel (Kanton) in HLS online</ref>
+                </desc>
+            </place>
+            <place xml:id="Basel-Landschaft" n="Basel-Landschaft" type="area">
+                <placeName type="main">Basel-Landschaft</placeName>
+                <location>
+                    <geo>47.482061 7.739353</geo>
+                </location>
+                <desc>
+                    <ref target="http://www.hls-dhs-dss.ch/textes/d/D7477.php">Artikel Basel (-Landschaft) in HLS online</ref>
+                </desc>
+            </place>
+            <place xml:id="Basel-Stadt" n="Basel-Stadt" type="approximate">
+                <placeName type="main">Basel-Stadt</placeName>
+                <location>
+                    <geo>47.547421 7.6025727</geo>
+                </location>
+                <desc>
+                    <ref target="http://www.hls-dhs-dss.ch/textes/d/D7478.php">Artikel Basel (-Stadt) in HLS online</ref>
+                </desc>
+            </place>
+            <place xml:id="Belvoir_Enge_Zürich" n="Belvoir (Enge, Zürich)" type="approximate">
+                <placeName type="main">Belvoir <add>(Enge, Zürich)</add>
+		</placeName>
+                <placeName type="add">(Enge, Zürich)</placeName>
+                <location>
+                    <geo>47.3577601 8.5333313</geo>
+                </location>
+            </place>
+            <place xml:id="Bubikon" n="Bubikon" type="approximate">
+                <placeName type="main">Bubikon</placeName>
+                <location>
+                    <geo>47.267935 8.8185296</geo>
+                </location>
+                <desc>
+                    <ref target="http://www.hls-dhs-dss.ch/textes/d/D84.php">Artikel Bubikon (Gemeinde) in HLS online</ref>
+                </desc>
+            </place>
+            <place xml:id="Enge_Zürich" n="Enge (Zürich)" type="approximate">
+                <placeName type="main">Enge <add>(Zürich) (s. a. Belvoir)</add>
+		</placeName>
+                <placeName type="add">(Zürich) (s. a. Belvoir)</placeName>
+                <location>
+                    <geo>47.3636111 8.5311111</geo>
+                </location>
+                <desc>
+                    <ref target="http://www.hls-dhs-dss.ch/textes/d/D3116.php">Artikel Enge (ZH) in HLS online</ref>
+                </desc>
+            </place>
+            <place xml:id="England" n="England" type="area">
+                <placeName type="main">England</placeName>
+                <location>
+                    <geo>51.523271 -0.133209</geo>
+                </location>
+            </place>
+            <place xml:id="Grüningen" n="Grüningen" type="approximate">
+                <placeName type="main">Grüningen</placeName>
+                <location>
+                    <geo>47.284295 8.761582</geo>
+                </location>
+                <desc>
+                    <ref target="http://www.hls-dhs-dss.ch/textes/d/D88.php">Artikel Grüningen (Gemeinde) in HLS online</ref>
+                </desc>
+            </place>
+            <place xml:id="Hard_Ermatingen" n="Hard (Ermatingen)" type="approximate">
+                <placeName type="main">Hard <add>(Ermatingen)</add>
+		</placeName>
+                <placeName type="add">(Ermatingen)</placeName>
+                <location>
+                    <geo>47.6660015 9.0812156</geo>
+                </location>
+                <desc>
+                    <ref target="http://www.hls-dhs-dss.ch/textes/d/D8188.php">Artikel Hard (TG) in HLS online</ref>
+                </desc>
+            </place>
+            <place xml:id="Liestal" n="Liestal" type="approximate">
+                <placeName type="main">Liestal</placeName>
+                <location>
+                    <geo>47.481606 7.7395731</geo>
+                </location>
+                <desc>
+                    <ref target="http://www.hls-dhs-dss.ch/textes/d/D1211.php">Artikel Liestal (Gemeinde) in HLS online</ref>
+                </desc>
+            </place>
+            <place xml:id="Pfäfers" n="Pfäfers" type="approximate">
+                <placeName type="main">Pfäfers</placeName>
+                <location>
+                    <geo>46.99044 9.500341</geo>
+                </location>
+                <desc>
+                    <ref target="http://www.hls-dhs-dss.ch/textes/d/D1355.php">Artikel Pfäfers (Gemeinde) in HLS online</ref>
+                </desc>
+            </place>
+            <place xml:id="Thurgau" n="Thurgau" type="area">
+                <placeName type="main">Thurgau</placeName>
+                <location>
+                    <geo>47.562164 8.898582</geo>
+                </location>
+                <desc>
+                    <ref target="http://www.hls-dhs-dss.ch/textes/d/D7393.php">Artikel Thurgau in HLS online</ref>
+                </desc>
+            </place>
+            <place xml:id="Vereinigte_Staaten_von_Amerika" n="Vereinigte Staaten von Amerika" type="area">
+                <placeName type="main">Vereinigte Staaten von Amerika</placeName>
+                <location>
+                    <geo>38.895308 -77.037506</geo>
+                </location>
+                <desc>
+                    <ref target="http://www.hls-dhs-dss.ch/textes/d/D3380.php">Artikel Vereinigte Staaten von Amerika in HLS online</ref>
+                </desc>
+            </place>
+            <place xml:id="Zürich_Stadt" n="Zürich (Stadt)" type="approximate">
+                <placeName type="main">Zürich <add>(Stadt) (s. a. Affoltern, Altstetten, Albisrieden, Aussersihl, Enge,
+				Fluntern, Hirslanden, Höngg, Hottingen, Leimbach, Neumünster, Oberstrass, Oerlikon,
+				Riesbach, Schwamendingen, Seebach, Seefeld, Selnau, Stadelhofen, Unterstrass,
+				Wiedikon, Wipkingen, Witikon, Wollishofen)</add>
+		</placeName>
+                <placeName type="add">(Stadt) (s. a. Affoltern, Altstetten, Albisrieden, Aussersihl, Enge,
+				Fluntern, Hirslanden, Höngg, Hottingen, Leimbach, Neumünster, Oberstrass, Oerlikon,
+				Riesbach, Schwamendingen, Seebach, Seefeld, Selnau, Stadelhofen, Unterstrass,
+				Wiedikon, Wipkingen, Witikon, Wollishofen)</placeName>
+                <location>
+                    <geo>47.372043 8.540746</geo>
+                </location>
+                <desc>
+                    <ref target="http://www.hls-dhs-dss.ch/textes/d/D171.php">Artikel Zürich (Gemeinde) in HLS online</ref>
+                </desc>
+            </place>
+            <place xml:id="Zürich" n="Zürich" type="area">
+                <placeName type="main">Zürich</placeName>
+                <location>
+                    <geo>47.373043 8.540746</geo>
+                </location>
+                <desc>
+                    <ref target="http://www.hls-dhs-dss.ch/textes/d/D7381.php">Artikel Zürich (Kanton) in HLS online</ref>
+                </desc>
+            </place>
+            <place xml:id="Zürichsee" n="Zürichsee" type="water">
+                <placeName type="main">Zürichsee</placeName>
+                <location>
+                    <geo>47.22257 8.751726</geo>
+                </location>
+                <desc>
+                    <ref target="http://www.hls-dhs-dss.ch/textes/d/D8651.php">Artikel Zürichsee in HLS online</ref>
+                </desc>
+            </place>
+        </listPlace>
+    </standOff>
+</TEI>

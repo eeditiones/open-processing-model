@@ -1,0 +1,236 @@
+/* SPDX-FileCopyrightText: 2026 e-editiones
+   SPDX-License-Identifier: CC0-1.0 */
+
+/* The registers profile's panel. Uses opm's design tokens only, so it follows
+   any theme; a project restyles it in its own stylesheet, which comes after.
+   The entries themselves are styled by the ODD's stylesheet. */
+
+.register-panel {
+  font-family: var(--opm-font-ui);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.register-panel__title {
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--opm-color);
+}
+
+.register-panel ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ── Tabs: radio, label and panel per category ───────────── */
+
+/* The labels line up on top, the panels below them (flex order); the
+   checked radio shows the panel that follows its label. */
+.register-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 1.25rem;
+}
+
+.register-tabs__radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.register-tabs__tab {
+  order: 0;
+  padding: 0 0 0.55rem;
+  border-bottom: 2px solid transparent;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--opm-color-muted);
+  cursor: pointer;
+}
+
+.register-tabs__tab:hover {
+  color: var(--opm-color);
+}
+
+.register-tabs__panel {
+  order: 1;
+  flex: 0 0 100%;
+  display: none;
+  margin-top: -1px;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--opm-color-rule);
+}
+
+.register-tabs__radio:checked + .register-tabs__tab {
+  border-bottom-color: var(--opm-color-accent);
+  color: var(--opm-color);
+  position: relative;
+  z-index: 1;
+}
+
+.register-tabs__radio:checked + .register-tabs__tab + .register-tabs__panel {
+  display: block;
+}
+
+/* Keyboard focus has to be visible on the label, not the hidden radio. */
+.register-tabs__radio:focus-visible + .register-tabs__tab {
+  outline: 2px solid var(--opm-color-accent);
+  outline-offset: 2px;
+}
+
+@media print {
+  .register-panel {
+    break-inside: avoid;
+  }
+
+  /* Every register on paper: tabs mean nothing there, so their labels come
+     back as headings. */
+  .register-tabs__tab {
+    display: none;
+  }
+
+  .register-tabs__panel {
+    display: block;
+    border-top: 0;
+  }
+
+  .register-tabs__panel::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.7rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--opm-color-rule);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--opm-color-muted);
+  }
+}
+
+/* ── Register pages: overview and entry ──────────────────── */
+
+/* The overview (register-index.html.tpl): names in two columns under their
+   initial, a row of initials to jump by, and for places a map on top. */
+.register-index,
+.register-entry {
+  max-width: var(--opm-index-width, 60rem);
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+.register-index__head {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--opm-color-rule);
+}
+
+.register-index__head h1 {
+  margin: 0 0 0.75rem;
+  font-family: var(--opm-font-display);
+  font-weight: var(--opm-display-weight, 400);
+}
+
+.register-index__count {
+  margin: 0;
+  font-family: var(--opm-font-ui);
+  font-size: 0.8rem;
+  color: var(--opm-color-muted);
+}
+
+.register-index__map {
+  display: block;
+  width: 100%;
+  height: min(40vh, 22rem);
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--opm-color-rule);
+}
+
+.register-index__letters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-bottom: 1rem;
+  font-family: var(--opm-font-ui);
+  font-size: 0.85rem;
+}
+
+.register-index__letters a {
+  color: var(--opm-color-muted);
+  text-decoration: none;
+}
+
+.register-index__letters a:hover {
+  color: var(--opm-color-accent);
+}
+
+.register-index__letter {
+  margin: 1.5rem 0 0.5rem;
+  font-family: var(--opm-font-display);
+  font-size: 1.25rem;
+  font-weight: var(--opm-display-weight, 400);
+  color: var(--opm-color-muted);
+}
+
+.register-index__list {
+  columns: 2;
+  column-gap: 2.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.register-index__item {
+  break-inside: avoid;
+  margin: 0 0 0.35rem;
+}
+
+/* The ODD's entry: a header with the link and, for a place, its pin. */
+.register-index__item > header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.register-index__item pb-geolocation {
+  flex: none;
+  color: var(--opm-color-muted);
+  cursor: pointer;
+}
+
+.register-index__item pb-geolocation:hover {
+  color: var(--opm-color-accent);
+}
+
+@media (max-width: 40rem) {
+  .register-index__list {
+    columns: 1;
+  }
+}
+
+/* The entry (register-entry.html.tpl) and the documents that mention it. */
+.register-entry__mentions {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--opm-color-rule);
+}
+
+.register-entry__mentions h2 {
+  margin: 0 0 0.5rem;
+  font-family: var(--opm-font-ui);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}

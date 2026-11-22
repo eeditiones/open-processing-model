@@ -278,7 +278,7 @@ class XPathEnvironment:
     __slots__ = (
         'base_uri', 'documents', 'collections', 'variables',
         'project_namespaces', 'odd_namespaces', 'extensions', 'parameters', 'root',
-        '_cache', '_ext_fp', '_ns_key', '_params_key',
+        '_cache', '_ext_fp', '_ns_key', '_params_key', '_loaded',
     )
 
     def __init__(
@@ -304,6 +304,7 @@ class XPathEnvironment:
         self.parameters: dict[str, Any] = dict(parameters) if parameters else {}
         self.root = root
         self._cache = cache if cache is not None else DocumentCache()
+        self._loaded: dict[int, Any] | None = None
         self._ext_fp = extension_fingerprint(self.extensions)
         self._ns_key = self._namespaces_key(self.odd_namespaces, self.project_namespaces)
         self._params_key = params_cache_key(self.parameters)
@@ -360,8 +361,28 @@ class XPathEnvironment:
         the empty sequence. The parser's static base URI is a separate thing:
         it resolves relative arguments to ``doc()`` and ``collection()`` but
         never reaches the tree, so both are supplied.
+
+        A node of a document loaded for ``doc()`` or ``collection()`` (a
+        register entry's page renders letters it finds there) keeps that
+        document's own node tree, so ``document-uri(root(.))`` names the
+        letter, not the page's source.
         """
-        return self._cache.tree(node.getroottree().getroot(), self.base_uri)
+        root = node.getroottree().getroot()
+        loaded = self._loaded_documents().get(id(root))
+        if loaded is not None:
+            return loaded
+        return self._cache.tree(root, self.base_uri)
+
+    def _loaded_documents(self) -> dict[int, Any]:
+        """The ``doc()`` and ``collection()`` documents by their root element's id."""
+        if self._loaded is None:
+            members = [*self.documents.values(), *(n for ns in self.collections.values() for n in ns)]
+            self._loaded = {
+                id(tree.getroot()): doc
+                for doc in members
+                if isinstance(tree := getattr(doc, 'document', None), etree._ElementTree)
+            }
+        return self._loaded
 
     def id_index(self, root: XPathNode) -> IdIndex:
         """``fn:id()``'s index of the node tree under *root*, built once per run.

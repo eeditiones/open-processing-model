@@ -71,14 +71,14 @@ opm transform schema.xml -t markdown --xpath 'id("HD")' -o docs.md # just one ch
 | --- | --- |
 | `opm.toml` | what to document (`[document]`), and the three chunking runs: the text, the home page (`mode = "toc"`), then one reference page per spec |
 | `odd/tagdocs.odd`, `odd/tagdocs.css` | how every page renders — the processing models |
-| `templates/page.html.j2` | the page around each chunk: header, sidebar, rails, extending opm's page layout (`opm/layout.html.j2`) |
+| `templates/page.html.tpl` | the page around each chunk: header, sidebar, rails, extending opm's page layout (`opm/layout.html.tpl`) |
 | `templates/document.css`, `search.js`, `theme.js` | the site's look, search box and light/dark switch |
 | `templates/nav.xml` | the sidebar list |
 | `templates/logo.svg` | the logo in the header and the browser tab; replace it with your own, or put another image beside it and name it under `[context]` in `opm.toml` |
-| `templates/tagdocs.typ.j2` | the PDF: title page, contents, page layout |
+| `templates/tagdocs.typ.tpl` | the PDF: title page, contents, page layout |
 | `data/tei_psalmy.odd` | a sample customisation with its own encoding guidelines |
 
-Keep `page.html.j2` and `tagdocs.typ.j2`: `opm.toml` points to them, so the
+Keep `page.html.tpl` and `tagdocs.typ.tpl`: `opm.toml` points to them, so the
 site and the PDF cannot be built without them. Delete any other file in
 `templates/` and opm uses its own copy instead; the fonts always come from
 there. The stylesheets, scripts, fonts

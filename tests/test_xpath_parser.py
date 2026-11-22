@@ -105,3 +105,21 @@ def test_root_of_agrees_with_elementpaths_get_root() -> None:
 def test_stock_parser_keeps_elementpaths_id() -> None:
     assert OpmXPathParser.symbol_table['id'] is not XPath31Parser.symbol_table['id']
     assert issubclass(OpmXPathParser.symbol_table['id'], XPath31Parser.symbol_table['id'])
+
+
+def test_a_collection_node_keeps_its_own_document_uri(tmp_path) -> None:
+    """A node found through collection() names its own file, not the source's."""
+    from opm.config import CollectionConfig
+    from opm.transform import load_xpath_collections, xpath_select
+
+    letter = tmp_path / 'letter.xml'
+    letter.write_text('<TEI><title>A letter</title></TEI>', encoding='utf-8')
+    collections, documents = load_xpath_collections([CollectionConfig('urn:letters', (letter,))])
+    source = etree.fromstring('<register/>')
+    env = XPathEnvironment(
+        base_uri=(tmp_path / 'register.xml').as_uri(),
+        documents=documents, collections=collections,
+    )
+    [title] = xpath_select(source, "collection('urn:letters')//title", xpath_env=env)
+    [uri] = xpath_select(title, 'document-uri(root(.))', xpath_env=env)
+    assert str(uri).endswith('/letter.xml')

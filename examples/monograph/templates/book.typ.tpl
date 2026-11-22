@@ -1,0 +1,232 @@
+[#
+  SPDX-FileCopyrightText: 2026 e-editiones
+  SPDX-License-Identifier: CC0-1.0
+
+  Print counterpart of monograph.html.tpl: the "Der Römerbrief" design set
+  as a book page. Paper, ink and one rubric red; EB Garamond for the text, Alegreya
+  Sans for furniture (running head, folio, note numbers). Colours and type
+  scale follow opm-theme-paper.css and monograph.css, so the two outputs read alike.
+
+  Optional context values (opm.toml [context] or [transform.typst.context]):
+  context.author (running head), context.lang (default "de", for hyphenation),
+  context.paper (default "a5").
+#]
+[% let $title = string(($context?metadata?title?*)[1]) %]
+// Karl Barth-Gesamtausgabe — "Der Römerbrief" print design.
+
+// ── Design tokens (opm-theme-paper.css, light theme) ──────────────────────────────
+#let ink = rgb("#211c16")
+#let ink-muted = rgb("#675d51")
+#let ink-faint = rgb("#8f8474")
+#let rule-color = rgb("#ddd3c2")
+#let rule-strong = rgb("#b8ab96")
+#let rubric = rgb("#962a1c")
+#let entity = rgb("#2f5468")
+
+// Fonts fall back the way the CSS stacks do; EB Garamond carries the Greek.
+#let font-serif = ("EB Garamond", "Iowan Old Style", "Libertinus Serif")
+#let font-sans = ("Alegreya Sans", "Gill Sans", "Helvetica Neue")
+
+#set document(title: "[[ $title ]]"[% if $context?author %], author: "[[ $context?author ]]"[% endif %])
+#set page(paper: "[[ ($context?paper[. != ''], 'a5')[1] ]]")
+#set text(
+  font: font-serif,
+  size: 10pt,
+  fill: ink,
+  lang: "[[ ($context?lang[. != ''], 'de')[1] ]]",
+  hyphenate: true,
+  number-type: "old-style",
+)
+// Book setting: justified, indented, no gap between paragraphs. Only a
+// paragraph that follows another is indented, as in monograph.css.
+#set par(justify: true, leading: 0.62em, spacing: 0.62em, first-line-indent: 1.4em)
+// Bold is Barth's translation of the letter: a light semibold, not black.
+#set strong(delta: 160)
+// References are set in rubric; in print they are text, not links.
+#show link: it => text(fill: rubric, it.body)
+
+[% include "opm_css_fns_default.typ" %]
+
+#show: marginalia.setup.with(
+  inner: (far: 1.6cm),
+  outer: (far: 0.5cm, width: 1.4cm, sep: 0.4cm),
+  top: 1.9cm,
+  bottom: 2.1cm,
+)
+
+// Running head: author in small caps and the work title, as in the web bar;
+// folio below. Neither on the first page.
+#set page(
+  header: context if counter(page).get().first() > 1 {
+    set text(font: font-sans, size: 7.5pt, fill: ink-muted, number-type: "lining")
+    [# Written in code mode: in markup a line break would add a space, and a
+       Typst [ right before [[ or [% would read as a template tag. #]
+    align(center, {
+      [% if $context?author %]
+      text(tracking: 0.1em, upper("[[ $context?author ]]")) + h(0.6em) + [·] + h(0.6em)
+      [% endif %]
+      text(style: "italic", "[[ $title ]]")
+    })
+  },
+  footer: context {
+    set text(font: font-sans, size: 8pt, fill: ink-muted, number-type: "lining")
+    align(center, counter(page).display())
+  },
+)
+
+// ── Original pagination ────────────────────────────────────────────────────
+// The | stays where the page of the 1922 edition turned; the page number
+// sits in the right margin at the height of that line.
+#let pb-label(n) = opm-marginnote(
+  shift: true,
+  text-style: (size: 7.5pt, style: "italic", weight: 400, tracking: 0pt, fill: ink-muted, number-type: "lining"),
+)[\[S. #n\]]
+
+// ── Heading markers ────────────────────────────────────────────────────────
+// All heads come out of the ODD as headings; like monograph.css they are told
+// apart by what they hold. Handlers leave a marker the heading rule finds.
+#let rb-mark(kind) = metadata((rb: kind))
+#let rb-has(c, kind) = {
+  if type(c) != content { return false }
+  if c.func() == metadata and type(c.value) == dictionary and c.value.at("rb", default: none) == kind { return true }
+  if kind == "lb" and c.func() == linebreak { return true }
+  if c.has("children") { return c.children.any(x => rb-has(x, kind)) }
+  if c.has("body") { return rb-has(c.body, kind) }
+  if c.has("child") { return rb-has(c.child, kind) }
+  false
+}
+
+#let opm-css-fns = opm-css-fns + (
+  monograph_pb: (n) => [#text(fill: ink-faint)[|]#pb-label(n)],
+  monograph_pb_nopipe: (n) => pb-label(n),
+  monograph_subhead: (body) => [#rb-mark("subhead")#body],
+  smallCaps: (body) => [#rb-mark("smallcaps")#smallcaps(text(tracking: 0.03em, body))],
+  sup: (body) => super(body),
+  // Quotations set off from the text (verse included).
+  block: (body) => block(above: 0.8em, below: 0.8em, inset: (left: 1.6em))[
+    #set text(size: 0.9em)
+    #set par(first-line-indent: 0em, justify: false)
+    #body
+  ],
+  // Lemma range start (a-): a lettered apparatus marker.
+  note_range_start: (body) => super(text(font: font-serif, style: "normal", fill: entity, body)),
+)
+
+[[ $context?odd_typst ]]
+
+// ── Headings ───────────────────────────────────────────────────────────────
+#set heading(numbering: none)
+#show heading: it => {
+  set text(weight: 400, number-type: "lining")
+  set par(first-line-indent: 0em, justify: false)
+  let body = it.body
+  if rb-has(body, "lb") {
+    // Chapter: "1. Kapitel" as the rubric number line, the title letterspaced
+    // in capitals, then a short rubric rule.
+    let kids = if body.has("children") { body.children } else { (body,) }
+    let i = kids.position(k => k.func() == linebreak)
+    block(above: 2.6em, below: 1.6em, sticky: true, width: 100%, align(center)[
+      #text(size: 0.75em, weight: 500, tracking: 0.14em, fill: rubric, upper(kids.slice(0, i).join()))
+      #v(0.15em)
+      #text(size: 1.5em, tracking: 0.18em, upper(kids.slice(i + 1).join()))
+      #v(0.1em)
+      #line(length: 2.2em, stroke: 0.6pt + rubric)
+    ])
+  } else if rb-has(body, "subhead") {
+    // Pericope: the Bible reference, italic, close under the section title.
+    block(above: 0.35em, below: 1.4em, sticky: true, width: 100%,
+      align(center, text(size: 0.85em, style: "italic", tracking: 0.02em, body)))
+  } else if rb-has(body, "smallcaps") or it.level > 1 {
+    // Section title.
+    block(above: 2.2em, below: 0em, sticky: true, width: 100%,
+      align(center, text(size: 1.1em, tracking: 0.05em, smallcaps(body))))
+  } else {
+    // The work title ("An die Römer").
+    block(above: 1.2em, below: 1.6em, sticky: true, width: 100%,
+      align(center, text(size: 2.2em, tracking: 0.02em, body)))
+  }
+}
+
+// ── Notes ──────────────────────────────────────────────────────────────────
+// Numbered: commentary (sans, rubric). Lettered: text-critical apparatus
+// (upright serif, blue), from the source's @n. The apparatus does not advance
+// the commentary's count, so the numbers run 1, 2, 3 as on the web.
+#let apparatus(marker) = text(font: font-serif, style: "normal", fill: entity, marker)
+#let footnote(numbering: none, body) = {
+  if numbering == none {
+    std.footnote(numbering: (n, ..) => text(font: font-sans, weight: 500, fill: rubric, number-type: "lining", str(n)), body)
+  } else {
+    let marker = numbering()
+    // A lemma range is called -a in the text and listed as a-a in the notes;
+    // the entry rule below asks for the latter with `entry: true`.
+    // Set with a non-breaking hyphen, which the rule below leaves alone.
+    let end = if marker.contains("-") { "\u{2011}" + marker.split("-").last() } else { marker }
+    let marker = marker.replace("-", "\u{2011}")
+    [#std.footnote(
+      numbering: (..args) => apparatus(if args.named().at("entry", default: false) { marker } else { end }),
+      body,
+    )<rb-apparatus>]
+    counter(std.footnote).update(n => n - 1)
+  }
+}
+
+// opm writes a range's -a as plain text in front of the note as well; the
+// note's own callout carries it here, so drop the copy.
+#show regex("-[a-z]$"): none
+
+#set std.footnote.entry(
+  separator: line(length: 2.5em, stroke: 0.5pt + rule-strong),
+  clearance: 1.1em,
+  gap: 0.35em,
+  indent: 0em,
+)
+// The apparatus comes last on each page, after the commentary. Typst lists
+// entries in the order of their callouts, so every entry keeps its own room
+// (undrawn) and the page's last entry draws all of the page's notes over that
+// room in the new order. The space taken never depends on the order, so page
+// breaks are the same as without reordering. Where the page's last note runs
+// on to the next page the drawing cannot follow it, and that page keeps the
+// order of the callouts.
+#let is-apparatus(n) = n.at("label", default: none) == <rb-apparatus>
+#let rb-entry(note) = grid(
+  columns: (1.6em, 1fr),
+  column-gutter: 0.5em,
+  align: top + left,
+  align(top + right, (note.numbering)(..counter(std.footnote).at(note.location()), entry: true)),
+  note.body,
+)
+// Laid out as usual but not drawn. hide() would do, but hidden content drops
+// out of the layout's bookkeeping and the document then fails to settle.
+#let rb-unseen(body) = {
+  show text: set text(fill: rgb(0, 0, 0, 0))
+  body
+}
+// Marks where an entry ends, to tell whether it ran on to the next page.
+#let rb-end(note) = metadata((rb-end: note.location()))
+#let rb-ends-on(note) = {
+  let ends = query(metadata).filter(m => type(m.value) == dictionary and m.value.at("rb-end", default: none) == note.location())
+  if ends.len() == 0 { none } else { ends.first().location().page() }
+}
+#show std.footnote.entry: set text(size: 8.4pt, style: "normal", weight: 400, fill: ink)
+#show std.footnote.entry: set par(justify: false, first-line-indent: 0em, leading: 0.5em, spacing: 0.5em)
+#show std.footnote.entry: it => context {
+  let loc = it.note.location()
+    let own = rb-entry(it.note)
+  let end = rb-end(it.note)
+  let on-page = query(std.footnote).filter(n => n.location().page() == loc.page())
+  let ordered = on-page.filter(n => not is-apparatus(n)) + on-page.filter(is-apparatus)
+  if on-page.len() == 0 or ordered == on-page or rb-ends-on(on-page.last()) != loc.page() {
+    own + end
+  } else if on-page.last().location() != loc {
+    rb-unseen(own) + end
+  } else {
+    // Bottom-aligned, so the stack grows upward over the hidden entries above.
+    rb-unseen(own) + end
+    place(bottom + left, stack(spacing: 0.35em, ..ordered.map(rb-entry)))
+  }
+}
+
+[% include "opm_css.typ" %]
+
+[[ $context?content_typst ]]
+[% endlet %]

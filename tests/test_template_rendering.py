@@ -63,7 +63,7 @@ def test_render_typst_document_template() -> None:
 
 
 def test_render_typst_docbook_template_includes_packaged_opm_css() -> None:
-    tpl = _scaffold_template('docbook.typ.j2')
+    tpl = _scaffold_template('docbook.typ.tpl')
     out = render_typst_document_template(
         content_typst='= Hello\n',
         template_path=tpl,
@@ -85,7 +85,7 @@ def test_render_typst_docbook_template_includes_packaged_opm_css() -> None:
 
 
 def test_render_typst_book_template_fills_metadata() -> None:
-    tpl = _scaffold_template('book.typ.j2')
+    tpl = _scaffold_template('book.typ.tpl')
     out = render_typst_document_template(
         content_typst='= Hello\n',
         template_path=tpl,
@@ -104,28 +104,28 @@ def test_render_typst_book_template_fills_metadata() -> None:
 
 
 def test_resolve_typst_template_path_raises_for_missing(tmp_path: Path) -> None:
-    missing = tmp_path / 'missing.typ.j2'
+    missing = tmp_path / 'missing.typ.tpl'
     with pytest.raises(FileNotFoundError):
         resolve_template_path(missing, default_name=DEFAULT_TYPST_TEMPLATE_NAME)
 
 
 def test_resolve_template_path_raises_for_missing_override(tmp_path: Path) -> None:
-    missing = tmp_path / 'does-not-exist.j2'
+    missing = tmp_path / 'does-not-exist.tpl'
     with pytest.raises(FileNotFoundError):
         resolve_template_path(missing)
 
 
 def _write_context_template(tmp_path: Path) -> Path:
-    tpl = tmp_path / 'page.html.j2'
+    tpl = tmp_path / 'page.html.tpl'
     tpl.write_text(
         '<!doctype html>\n'
-        '<html><head><title>{{ context.site_name }}</title>\n'
-        '{% if context.webcomponents_url %}'
-        '<script src="{{ context.webcomponents_url }}"></script>{% endif %}\n'
+        '<html><head><title>[[ $context?site_name ]]</title>\n'
+        '[% if $context?webcomponents_url %]'
+        '<script src="[[ $context?webcomponents_url ]]"></script>[% endif %]\n'
         '</head><body>\n'
-        '{% for item in context.nav %}<a href="{{ item.url }}">{{ item.label }}</a>{% endfor %}\n'
-        '{% if context.show_banner %}<p class="banner"></p>{% endif %}\n'
-        '{{ content_html }}</body></html>\n',
+        '[% for $item in $context?nav?* %]<a href="[[ $item?url ]]">[[ $item?label ]]</a>[% endfor %]\n'
+        '[% if $context?show_banner %]<p class="banner"></p>[% endif %]\n'
+        '[[ $content_html ]]</body></html>\n',
         encoding='utf-8',
     )
     return tpl
@@ -152,7 +152,7 @@ def test_render_document_template_exposes_context(tmp_path: Path) -> None:
 
 
 def test_missing_context_keys_render_as_falsy(tmp_path: Path) -> None:
-    """An absent key must not raise — templates guard on it with {% if %}."""
+    """An absent key must not raise — templates guard on it with [% if %]."""
     out = render_document_template(
         serialized_html='<html><head></head><body><p>Body</p></body></html>',
         template_path=_write_context_template(tmp_path),
@@ -166,8 +166,8 @@ def test_missing_context_keys_render_as_falsy(tmp_path: Path) -> None:
 
 
 def test_render_typst_document_template_exposes_context(tmp_path: Path) -> None:
-    tpl = tmp_path / 'doc.typ.j2'
-    tpl.write_text('#set page(paper: "{{ context.paper }}")\n{{ content_typst }}\n', encoding='utf-8')
+    tpl = tmp_path / 'doc.typ.tpl'
+    tpl.write_text('#set page(paper: "[[ $context?paper ]]")\n[[ $content_typst ]]\n', encoding='utf-8')
     out = render_typst_document_template(
         content_typst='= Hello\n',
         template_path=tpl,

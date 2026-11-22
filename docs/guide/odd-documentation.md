@@ -136,7 +136,7 @@ the ones built into `opm`. The most important ones are:
 - `odd/tagdocs.odd`, the ODD whose processing models decide how each part of
   the documentation is displayed;
 - `templates/`, which holds the page template of the website, its stylesheets
-  and scripts, and the template for the PDF (`tagdocs.typ.j2`);
+  and scripts, and the template for the PDF (`tagdocs.typ.tpl`);
 - `templates/nav.xml`, the links shown in the sidebar;
 - `opm.toml`, the settings: which ODD to document, the language of the
   documentation, and how the site is divided into pages.

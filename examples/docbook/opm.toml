@@ -3,6 +3,8 @@
 
 [project]
 pythonpath = ["."]
+# Use profiles for additional functionality
+profiles = ["pagefind"]
 
 [transform]
 odd = "odd/docbook.odd"
@@ -12,21 +14,25 @@ xpath_extensions = [
 
 # Chunk pages use the same template and stylesheet; [chunking] sets neither.
 [transform.web]
-template = "templates/handbook.html.j2"
-assets = ["templates/handbook.css"]
+template = "templates/handbook.html.tpl"
+assets = ["templates/opm-theme-handbook.css"]
 webcomponents = true
 
 [transform.print]
-template = "templates/print.html.j2"
+template = "templates/print.html.tpl"
 
 [transform.epub]
 css = "templates/epub.css"
 
 [transform.typst]
-template = "templates/docbook.typ.j2"
+template = "templates/docbook.typ.tpl"
 
 [context]
 site_name = "TEI Publisher Documentation"
+
+# opm-theme-handbook.css has a dark palette too: follow the reader's system.
+[context.theme]
+color_scheme = "auto"
 
 [chunking]
 selector = "opm.navigation.dbk_section_chunks"
@@ -36,6 +42,7 @@ output_dir = "chunks"
 # Omit for local `opm serve` so prev/next stay relative.
 # link_pattern = "/{doc}/{file}"
 doc_path = "doc"
+assets = ["templates/opm-theme-handbook.css"]
 
 [[chunking.fragments]]
 name = "title"
@@ -64,6 +71,14 @@ scope = "per-chunk"
 xpath = "."
 parameters = { mode = "breadcrumb" }
 
+[index]
+# One record per published page, as site search (Pagefind) expects
+granularity = "page"
+
 [[index.fields]]
 name = "breadcrumb"
 fragment = "breadcrumbs"
+
+[[index.fields]]
+name = "title"
+fragment = "title"

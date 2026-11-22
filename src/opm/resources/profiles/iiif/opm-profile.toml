@@ -1,0 +1,32 @@
+name = "iiif"
+version = "1.0.0"
+description = "Shows the facsimile beside the text in a IIIF viewer, turned by the page breaks of the transcription"
+
+# Copied to the output's assets/ and linked from every page.
+assets = ["assets/iiif.css"]
+
+# The viewer column of every page with text.
+[templating]
+use = ["iiif.html.tpl"]
+
+# Settings; a project overrides them in [context.features.iiif].
+#
+# The viewer follows the <pb-facs-link> elements the ODD writes for page
+# breaks (teipublisher.odd does for <pb facs>), so it needs web components:
+# [transform.web] webcomponents = true.
+[context.features.iiif]
+enabled = true
+# "pb-tify" reads IIIF manifests: each <pb-facs-link> names a manifest and a
+# page. "pb-facsimile" shows single images from a IIIF image server: each
+# <pb-facs-link> names an image, appended to base_uri.
+viewer = "pb-tify"
+base_uri = ""
+# aria-label of the column
+label = "Facsimile"
+
+# The web components resolve relative URLs against an enclosing <pb-page>.
+# Its theme should match the pb-components version in use.
+[context.pb_page]
+endpoint = "."
+api-version = "1.0.0"
+theme = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.8/css/components.css"

@@ -1,0 +1,21 @@
+name = "pagefind"
+version = "1.0.0"
+description = "Adds Pagefind static search functionality to the site"
+
+# Blocks added to every HTML page: the search button and window.
+[templating]
+use = ["pagefind.html.tpl"]
+
+# Build the search index once all pages are written (see search.py).
+[hooks]
+after_chunking = ["search.py:build_search"]
+
+# Context variables contributed by this profile, merged into the project's
+# [context]. A project overrides them in its own [context.features.pagefind].
+[context.features.pagefind]
+# Flag indicating pagefind is enabled
+enabled = true
+# Folder below assets/ the search index and Pagefind UI are written to
+base = "search"
+# Language of the search index; defaults to [context] lang, then "en"
+# language = "en"

@@ -10,7 +10,7 @@ here are the layer below it, at increasing levels of abstraction.
 [`run_transform(mod, element, ...)`][opm.transform.run_transform] is the lowest
 level. The caller supplies an already-loaded module and an already-selected
 lxml element; the function serializes and optionally wraps the result in the
-Jinja2 document template:
+page template:
 
 ```python
 from opm.odd_cache import ensure_compiled_module
@@ -462,11 +462,12 @@ def run_transform(
     fragments: dict[str, str] | None = None,
     footnote_order: str | Callable | None = None,
     xpath_env: XPathEnvironment | None = None,
+    project: Any = None,
 ) -> str | bytes:
     """Run *mod* against *root* and return the serialized output.
 
     For HTML output, if the result contains a full ``<html>`` document and
-    *apply_template* is ``True``, the result is wrapped in the Jinja2 document
+    *apply_template* is ``True``, the result is wrapped in the page
     template.  Fragment transforms (e.g. a single ``<div>``) skip this step.
 
     For DOCX / EPUB output, returns raw ``bytes`` (the package file content).
@@ -476,9 +477,9 @@ def run_transform(
         root: The lxml element to transform.
         parameters: XPath ``$parameters`` map passed to the transform.
         webcomponents: Enable TEI Publisher web-component mode.
-        apply_template: Wrap full-document HTML output in the Jinja2 template.
-        template_path: Override Jinja2 template (default: packaged template).
-        template_context: Project ``[context]`` values exposed to the Jinja2
+        apply_template: Wrap full-document HTML output in the page template.
+        template_path: Override page template (default: packaged template).
+        template_context: Project ``[context]`` values exposed to the page
             template as ``context`` (see
             [`context_for`][opm.config.ProjectConfig.context_for]).
         assets: Files the HTML template references, expected in an
@@ -486,7 +487,7 @@ def run_transform(
             ``assets`` (the directory's URL) and ``asset_styles`` (the
             stylesheets among them); copying them is up to the caller.
         docx_template: Path to a ``.docx`` file used as the Word style template.
-        typst_template_path: Jinja2 template for Typst document shell.
+        typst_template_path: Template for the Typst document shell.
         epub_chunking: Chapter selection for ``-t epub`` (defaults from TEI/DocBook).
         epub_css: Stylesheet appended last to the EPUB package.
         epub_skip_title: Omit the generated EPUB title page.
@@ -580,6 +581,7 @@ def run_transform(
             parameters=parameters or {},
             metadata=metadata,
             context=template_context,
+            xpath_env=env,
         )
     elif apply_template and is_document and mode.template == 'html':
         tpl = resolve_template_path(
@@ -595,6 +597,8 @@ def run_transform(
             assets=ASSETS_DIR if assets else '',
             asset_styles=asset_styles(resolve_assets(Path.cwd(), assets)),
             fragments=fragments,
+            xpath_env=env,
+            project=project,
         )
 
     return out
@@ -620,6 +624,7 @@ def transform_node(
     fragments: dict[str, str] | None = None,
     footnote_order: str | Callable | None = None,
     xpath_env: XPathEnvironment | None = None,
+    project: Any = None,
 ) -> str | bytes:
     """Load *script_path* as a transform module and apply it to *root*.
 
@@ -639,9 +644,9 @@ def transform_node(
             transform instead of *root*.
         parameters: XPath ``$parameters`` map passed to the transform.
         webcomponents: Enable TEI Publisher web-component mode.
-        apply_template: Wrap full-document HTML output in the Jinja2 template.
-        template_path: Override Jinja2 template (default: packaged template).
-        template_context: Project ``[context]`` values exposed to the Jinja2
+        apply_template: Wrap full-document HTML output in the page template.
+        template_path: Override page template (default: packaged template).
+        template_context: Project ``[context]`` values exposed to the page
             template as ``context``.
         assets: Files the HTML template references (see
             [`run_transform`][opm.transform.run_transform]).
@@ -683,6 +688,7 @@ def transform_node(
         fragments=fragments,
         footnote_order=footnote_order,
         xpath_env=env,
+        project=project,
     )
 
 
@@ -753,6 +759,7 @@ def transform_with_config(
     webcomponents: bool | None = None,
     template: Path | None = None,
     documents: tuple[dict[str, Any], dict[str, list]] | None = None,
+    project: Any = None,
 ) -> str | bytes:
     """Transform the already parsed *root* with *config*'s settings.
 
@@ -796,6 +803,7 @@ def transform_with_config(
             )
             if is_web and xpath is None else None
         ),
+        project=project,
     )
 
 

@@ -1,0 +1,63 @@
+/* SPDX-FileCopyrightText: 2026 e-editiones
+   SPDX-License-Identifier: CC0-1.0 */
+
+/* Edition navigation: two rows above the text, the edition's order, then the
+   same correspondence. Uses opm's design tokens only, so it follows any
+   theme; a project restyles it in its own stylesheet, which comes after. */
+
+.edition-nav {
+  max-width: var(--opm-layout-content-max, 42rem);
+  margin: 0 0 2rem;
+  font-family: var(--opm-font-ui);
+  font-size: 0.875rem;
+  color: var(--opm-color-muted);
+}
+
+.edition-nav__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+
+.edition-nav__row + .edition-nav__row {
+  border-top: 1px solid var(--opm-color-rule);
+}
+
+.edition-nav__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--opm-color);
+  text-decoration: none;
+}
+
+.edition-nav__link--end {
+  flex-direction: row-reverse;
+}
+
+a.edition-nav__link[href]:hover {
+  color: var(--opm-color-accent);
+}
+
+/* A neighbour without a page in this site: kept in place, greyed out. */
+a.edition-nav__link:not([href]) {
+  opacity: 0.45;
+}
+
+.edition-nav__icon {
+  width: 1.1em;
+  height: 1.1em;
+  flex: none;
+}
+
+.edition-nav__mark {
+  text-align: center;
+}
+
+@media print {
+  .edition-nav {
+    display: none;
+  }
+}

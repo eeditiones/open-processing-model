@@ -137,9 +137,9 @@ def test_transform_uses_packaged_default_template_for_full_html(tmp_path: Path, 
 def test_transform_uses_template_override_for_full_html(tmp_path: Path, monkeypatch) -> None:
     _write_tiny_odd(tmp_path / 'tiny.odd')
     _config_with_odd(tmp_path)
-    template = tmp_path / 'custom.j2'
+    template = tmp_path / 'custom.tpl'
     template.write_text(
-        "<html><head><meta name='x' content='y'></head><body>{{ content_html|safe }}</body></html>",
+        "<html><head><meta name='x' content='y'></head><body>[[ $content_html ]]</body></html>",
         encoding='utf-8',
     )
     xml = tmp_path / 'in.xml'
@@ -161,9 +161,9 @@ def test_transform_uses_template_override_for_full_html(tmp_path: Path, monkeypa
 def _project_with_web_assets(tmp_path: Path) -> Path:
     """A project whose [transform.web] template links its assets."""
     _write_tiny_odd(tmp_path / 'tiny.odd')
-    (tmp_path / 'page.html.j2').write_text(
-        "<html><head>{% for href in asset_styles %}<link href='{{ href }}'>{% endfor %}"
-        "</head><body>ASSETS=[{{ assets }}]{{ content_html|safe }}</body></html>",
+    (tmp_path / 'page.html.tpl').write_text(
+        "<html><head>[% for $href in $asset_styles?* %]<link href='[[ $href ]]'>[% endfor %]"
+        "</head><body>ASSETS=[[[ $assets ]]][[ $content_html ]]</body></html>",
         encoding='utf-8',
     )
     (tmp_path / 'edition.css').write_text('body { margin: 0 }', encoding='utf-8')
@@ -171,7 +171,7 @@ def _project_with_web_assets(tmp_path: Path) -> Path:
     (tmp_path / 'opm.toml').write_text(
         '[transform.web]\n'
         'odd = "tiny.odd"\n'
-        'template = "page.html.j2"\n'
+        'template = "page.html.tpl"\n'
         'assets = ["edition.css", "paper.jpg"]\n',
         encoding='utf-8',
     )
@@ -211,18 +211,18 @@ def test_transform_preview_puts_web_assets_beside_the_page(tmp_path: Path, monke
 def test_chunking_inherits_web_template_and_assets(tmp_path: Path) -> None:
     from opm.config import load_project_config
 
-    for name in ('page.html.j2', 'own.html.j2', 'edition.css', 'other.css'):
+    for name in ('page.html.tpl', 'own.html.tpl', 'edition.css', 'other.css'):
         (tmp_path / name).write_text('', encoding='utf-8')
     config_file = tmp_path / 'opm.toml'
     config_file.write_text(
         '[transform.web]\n'
-        'template = "page.html.j2"\n'
+        'template = "page.html.tpl"\n'
         'assets = ["edition.css"]\n'
         '[[chunking]]\n'
         'output_dir = "a"\n'
         '[[chunking]]\n'
         'output_dir = "a"\n'
-        'template = "own.html.j2"\n'
+        'template = "own.html.tpl"\n'
         'assets = ["other.css"]\n'
         '[[chunking]]\n'
         'output_dir = "a"\n'
@@ -233,9 +233,9 @@ def test_chunking_inherits_web_template_and_assets(tmp_path: Path) -> None:
     inherited, own, opted_out = config.chunking_runs
 
     assert config.web_assets == (tmp_path / 'edition.css',)
-    assert inherited.template == tmp_path / 'page.html.j2'
+    assert inherited.template == tmp_path / 'page.html.tpl'
     assert inherited.assets == (tmp_path / 'edition.css',)
-    assert own.template == tmp_path / 'own.html.j2'
+    assert own.template == tmp_path / 'own.html.tpl'
     assert own.assets == (tmp_path / 'other.css',)
     assert opted_out.assets == ()
 
@@ -243,8 +243,8 @@ def test_chunking_inherits_web_template_and_assets(tmp_path: Path) -> None:
 def test_transform_fragment_output_skips_template_shell(tmp_path: Path, monkeypatch) -> None:
     _write_tiny_odd(tmp_path / 'tiny.odd')
     _config_with_odd(tmp_path)
-    template = tmp_path / 'custom.j2'
-    template.write_text("<html><body>WRAP {{ content_html|safe }}</body></html>", encoding='utf-8')
+    template = tmp_path / 'custom.tpl'
+    template.write_text("<html><body>WRAP [[ $content_html ]]</body></html>", encoding='utf-8')
     xml = tmp_path / 'in.xml'
     xml.write_text('<doc><item>ok</item></doc>', encoding='utf-8')
     out = tmp_path / 'out.html'
@@ -276,7 +276,7 @@ template = "style.docx"
 
 [transform.typst]
 odd = "typst.odd"
-template = "book.typ.j2"
+template = "book.typ.tpl"
 """,
         encoding='utf-8',
     )
@@ -287,7 +287,7 @@ template = "book.typ.j2"
     assert cfg.odd_for_type('typst') == tmp_path / 'typst.odd'
     assert cfg.odd_for_type('markdown') == tmp_path / 'web.odd'  # falls back to web-as-default
     assert cfg.document_docx_template == tmp_path / 'style.docx'
-    assert cfg.typst_template == tmp_path / 'book.typ.j2'
+    assert cfg.typst_template == tmp_path / 'book.typ.tpl'
 
 
 def test_load_project_config_print_template(tmp_path: Path) -> None:
@@ -298,16 +298,16 @@ def test_load_project_config_print_template(tmp_path: Path) -> None:
 odd = "shared.odd"
 
 [transform.print]
-template = "templates/print.html.j2"
+template = "templates/print.html.tpl"
 
 [transform.web]
-template = "templates/web.html.j2"
+template = "templates/web.html.tpl"
 """,
         encoding='utf-8',
     )
     cfg = load_project_config(tmp_path / 'opm.toml')
-    assert cfg.print_template == tmp_path / 'templates' / 'print.html.j2'
-    assert cfg.document_template == tmp_path / 'templates' / 'web.html.j2'
+    assert cfg.print_template == tmp_path / 'templates' / 'print.html.tpl'
+    assert cfg.document_template == tmp_path / 'templates' / 'web.html.tpl'
     assert cfg.print_template != cfg.document_template
 
 
@@ -321,7 +321,7 @@ odd = "shared.odd"
 
 [transform.typst]
 odd = "typst-only.odd"
-template = "book.typ.j2"
+template = "book.typ.tpl"
 
 [chunking]
 xpath = "//div"
@@ -346,18 +346,18 @@ def test_load_project_config_resolves_document_and_chunking_paths(tmp_path: Path
 css = "styles/site.css"
 
 [transform.web]
-template = "templates/page.html.j2"
+template = "templates/page.html.tpl"
 
 [chunking]
-template = "templates/chunk.html.j2"
+template = "templates/chunk.html.tpl"
 """,
         encoding='utf-8',
     )
     cfg = load_project_config(tmp_path / 'opm.toml')
-    assert cfg.document_template == tmp_path / 'templates' / 'page.html.j2'
+    assert cfg.document_template == tmp_path / 'templates' / 'page.html.tpl'
     assert cfg.document_css == tmp_path / 'styles' / 'site.css'
     assert cfg.chunking is not None
-    assert cfg.chunking.template == tmp_path / 'templates' / 'chunk.html.j2'
+    assert cfg.chunking.template == tmp_path / 'templates' / 'chunk.html.tpl'
 
 
 def test_transform_config_paths_resolve_relative_to_config_file(tmp_path: Path, monkeypatch) -> None:
@@ -366,10 +366,10 @@ def test_transform_config_paths_resolve_relative_to_config_file(tmp_path: Path, 
     (project / 'templates').mkdir(parents=True)
     _write_tiny_odd(project / 'tiny.odd')
     # [transform] css is the base override, so it arrives compiled into odd_css.
-    (project / 'templates' / 'custom.j2').write_text(
-        '<html><head><!-- config-relative-template -->{{ head_html|safe }}'
-        '<style>{{ odd_css }}</style></head>'
-        '<body>{{ content_html|safe }}</body></html>',
+    (project / 'templates' / 'custom.tpl').write_text(
+        '<html><head><!-- config-relative-template -->[[ $head_html ]]'
+        '<style>[[ $odd_css ]]</style></head>'
+        '<body>[[ $content_html ]]</body></html>',
         encoding='utf-8',
     )
     (project / 'site.css').write_text('.site { color: green; }', encoding='utf-8')
@@ -379,7 +379,7 @@ css = "site.css"
 
 [transform.web]
 odd = "tiny.odd"
-template = "templates/custom.j2"
+template = "templates/custom.tpl"
 """,
         encoding='utf-8',
     )
@@ -1087,13 +1087,13 @@ def test_init_tei_creates_project(tmp_path: Path) -> None:
     assert (dest / 'odd' / 'custom.css').is_file()
     assert 'source="custom.css"' in (dest / 'odd' / 'custom.odd').read_text(encoding='utf-8')
     assert not (dest / 'odd' / 'teipublisher.odd').exists()
-    assert (dest / 'templates' / 'chapbook.html.j2').is_file()
-    assert (dest / 'templates' / 'chapbook.css').is_file()
+    assert (dest / 'templates' / 'chapbook.html.tpl').is_file()
+    assert (dest / 'templates' / 'opm-theme-chapbook.css').is_file()
     # Only the shell opm.toml wires up: --templates asks for the alternatives.
-    assert not (dest / 'templates' / 'journal.html.j2').exists()
-    assert not (dest / 'templates' / 'tufte.html.j2').exists()
-    assert (dest / 'templates' / 'book.typ.j2').is_file()
-    assert not (dest / 'templates' / 'document.typ.j2').exists()
+    assert not (dest / 'templates' / 'journal.html.tpl').exists()
+    assert not (dest / 'templates' / 'handbook.html.tpl').exists()
+    assert (dest / 'templates' / 'book.typ.tpl').is_file()
+    assert not (dest / 'templates' / 'document.typ.tpl').exists()
     assert (dest / 'templates' / 'default.docx').is_file()
     # The base rules ship inside the ODD stylesheet, so no copy is scaffolded.
     assert not (dest / 'styles' / 'default-styles.css').exists()
@@ -1107,7 +1107,7 @@ def test_init_tei_creates_project(tmp_path: Path) -> None:
     assert 'Claude Code' in (dest / 'CLAUDE.md').read_text(encoding='utf-8')
     cfg = load_project_config(dest / 'opm.toml')
     assert cfg.document_template is not None
-    assert cfg.document_template.name == 'chapbook.html.j2'
+    assert cfg.document_template.name == 'chapbook.html.tpl'
     assert cfg.chunking is not None
     assert cfg.chunking.selector == 'opm.navigation.tei_div_chunks'
     assert cfg.transform_odd is not None
@@ -1123,28 +1123,24 @@ def test_init_templates_copies_alternative_shells(tmp_path: Path) -> None:
     dest = tmp_path / 'edition'
     assert main(['init', str(dest), '--templates']) == 0
     for name in ('chapbook', 'journal', 'handbook'):
-        assert (dest / 'templates' / f'{name}.html.j2').is_file()
-        assert (dest / 'templates' / f'{name}.css').is_file()
-    # Both demo shells carry their styling inline, so they ship without a .css.
-    assert (dest / 'templates' / 'tufte.html.j2').is_file()
-    assert (dest / 'templates' / 'bootstrap.html.j2').is_file()
-    assert not (dest / 'templates' / 'tufte.css').exists()
+        assert (dest / 'templates' / f'{name}.html.tpl').is_file()
+        assert (dest / 'templates' / f'opm-theme-{name}.css').is_file()
     # The plain Typst shell opm falls back to, beside the book shell opm.toml names.
-    assert (dest / 'templates' / 'document.typ.j2').is_file()
-    assert 'template = "templates/book.typ.j2"' in (dest / 'opm.toml').read_text(encoding='utf-8')
+    assert (dest / 'templates' / 'document.typ.tpl').is_file()
+    assert 'template = "templates/book.typ.tpl"' in (dest / 'opm.toml').read_text(encoding='utf-8')
 
 
 def test_init_example_templates_keep_the_examples_own_shell(tmp_path: Path) -> None:
     """--templates adds shells beside an example's own, never over them."""
     dest = tmp_path / 'folio'
     assert main(['init', str(dest), '--example', 'shakespeare', '--templates']) == 0
-    # The example's chapbook is customised — it carries a facsimile column the
-    # packaged shell knows nothing about — so it must survive untouched.
-    shell = (dest / 'templates' / 'chapbook.html.j2').read_text(encoding='utf-8')
-    assert 'chap-facs' in shell
-    assert (dest / 'templates' / 'journal.html.j2').is_file()
-    assert (dest / 'templates' / 'handbook.html.j2').is_file()
-    assert (dest / 'templates' / 'document.typ.j2').is_file()
+    # The example's chapbook is customised — it adds the iiif profile's
+    # facsimile column to the packaged shell — so it must survive untouched.
+    shell = (dest / 'templates' / 'chapbook.html.tpl').read_text(encoding='utf-8')
+    assert 'iiif profile' in shell
+    assert (dest / 'templates' / 'journal.html.tpl').is_file()
+    assert (dest / 'templates' / 'handbook.html.tpl').is_file()
+    assert (dest / 'templates' / 'document.typ.tpl').is_file()
 
 
 def test_init_preserves_existing_agent_files(tmp_path: Path) -> None:
@@ -1168,6 +1164,77 @@ def test_init_bare_skips_project_furniture(tmp_path: Path) -> None:
         assert (dest / 'opm.toml').is_file()
         for f in ('README.md', 'AGENTS.md', 'CLAUDE.md', '.gitignore'):
             assert not (dest / f).exists()
+
+
+def test_init_profile_switches_profiles_on(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    dest = tmp_path / 'edition'
+    assert main(['init', str(dest), '--profile', 'registers', '-p', 'pagefind']) == 0
+    assert load_project_config(dest / 'opm.toml').profiles == ('registers', 'pagefind')
+    # The commented-out hint became the setting: no second `profiles` line.
+    text = (dest / 'opm.toml').read_text(encoding='utf-8')
+    assert text.count('profiles =') == 1
+
+
+def test_init_profile_adds_to_an_examples_own_profiles(tmp_path: Path) -> None:
+    from opm.config import load_project_config
+
+    dest = tmp_path / 'ex'
+    assert main(['init', str(dest), '-e', 'serafin', '-p', 'pagefind', '-p', 'registers']) == 0
+    assert load_project_config(dest / 'opm.toml').profiles == (
+        'edition-navigation', 'registers', 'pagefind',
+    )
+
+
+def test_init_unknown_profile_writes_nothing(tmp_path: Path) -> None:
+    dest = tmp_path / 'edition'
+    assert main(['init', str(dest), '-p', 'no-such-profile']) == 1
+    assert not (dest / 'opm.toml').exists()
+
+
+def test_profile_add_and_remove_edit_opm_toml(tmp_path: Path, monkeypatch) -> None:
+    from opm.config import load_project_config
+
+    dest = tmp_path / 'edition'
+    assert main(['init', str(dest)]) == 0
+    monkeypatch.chdir(dest)
+    assert main(['profile', 'add', 'registers', 'iiif']) == 0
+    assert load_project_config(dest / 'opm.toml').profiles == ('registers', 'iiif')
+    assert main(['profile', 'add', 'no-such-profile']) == 1
+    assert main(['profile', 'remove', 'registers']) == 0
+    assert load_project_config(dest / 'opm.toml').profiles == ('iiif',)
+    # Comments elsewhere in the file survive the edits.
+    assert '# Profiles add ready-made features' in (dest / 'opm.toml').read_text(encoding='utf-8')
+
+
+def test_profile_add_prints_what_to_prepare(tmp_path: Path, monkeypatch, capsys) -> None:
+    dest = tmp_path / 'edition'
+    assert main(['init', str(dest)]) == 0
+    monkeypatch.chdir(dest)
+    capsys.readouterr()
+    assert main(['profile', 'add', 'registers']) == 0
+    out = capsys.readouterr().out
+    assert 'Before you start' in out and 'data/registers/persons.xml' in out
+    assert 'opm profile show registers' in out
+
+
+def test_profile_show_prints_the_readme(tmp_path: Path, monkeypatch, capsys) -> None:
+    monkeypatch.chdir(tmp_path)
+    assert main(['profile', 'show', 'iiif']) == 0
+    out = capsys.readouterr().out
+    assert 'facsimile viewer' in out and 'Settings' in out
+    assert main(['profile', 'show', 'no-such-profile']) == 1
+
+
+def test_profile_list_marks_the_projects_profiles(tmp_path: Path, monkeypatch, capsys) -> None:
+    dest = tmp_path / 'edition'
+    assert main(['init', str(dest), '-p', 'registers']) == 0
+    monkeypatch.chdir(dest)
+    capsys.readouterr()
+    assert main(['profile', 'list']) == 0
+    out = capsys.readouterr().out
+    assert 'registers' in out and 'pagefind' in out and '✓' in out
 
 
 def test_init_refuses_existing_config_without_force(tmp_path: Path) -> None:
@@ -1214,7 +1281,7 @@ def test_init_docbook_copies_stock_odd(tmp_path: Path) -> None:
     assert cfg.chunking.selector == 'opm.navigation.dbk_section_chunks'
     assert cfg.transform_odd is not None
     assert cfg.transform_odd.name == 'docbook.odd'
-    assert (dest / 'templates' / 'docbook.typ.j2').is_file()
+    assert (dest / 'templates' / 'docbook.typ.tpl').is_file()
 
 
 def test_init_jats_copies_stock_odd(tmp_path: Path) -> None:
@@ -1246,27 +1313,17 @@ def test_init_jats_wires_journal_shell(tmp_path: Path) -> None:
     assert main(['init', str(dest), '--vocabulary', 'jats']) == 0
     cfg = load_project_config(dest / 'opm.toml')
     assert cfg.document_template is not None
-    assert cfg.document_template.name == 'journal.html.j2'
+    assert cfg.document_template.name == 'journal.html.tpl'
     assert cfg.chunking is not None
     assert cfg.chunking.template is not None
-    assert cfg.chunking.template.name == 'journal.html.j2'
+    assert cfg.chunking.template.name == 'journal.html.tpl'
     # The wired shell travels with its stylesheet; the alternatives are only
     # copied on --templates.
-    assert (dest / 'templates' / 'journal.css').is_file()
-    assert not (dest / 'templates' / 'chapbook.html.j2').exists()
+    assert (dest / 'templates' / 'opm-theme-journal.css').is_file()
+    assert not (dest / 'templates' / 'chapbook.html.tpl').exists()
     # ...and is linked as an asset, for single pages and chunks alike.
-    assert cfg.web_assets == (dest / 'templates' / 'journal.css',)
+    assert cfg.web_assets == (dest / 'templates' / 'opm-theme-journal.css',)
     assert cfg.chunking.assets == cfg.web_assets
-
-
-def test_init_shell_without_stylesheet_wires_no_asset(tmp_path: Path) -> None:
-    from opm.config import load_project_config
-    from opm.scaffold import InitOptions, scaffold
-
-    dest = tmp_path / 'tufte'
-    scaffold(InitOptions(directory=dest, html_template='tufte', bare=True))
-    assert load_project_config(dest / 'opm.toml').web_assets == ()
-    assert '# assets = ' in (dest / 'opm.toml').read_text(encoding='utf-8')
 
 
 def test_init_jats_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
@@ -1287,8 +1344,8 @@ def test_init_jats_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
     # A pb:template inside a no-namespace ODD must keep the markup it builds.
     assert '<li id="ref1">' in text
     # The shell's stylesheet is copied beside the page and linked, not inlined.
-    assert '<link rel="stylesheet" href="assets/journal.css">' in text
-    assert (dest / 'assets' / 'journal.css').is_file()
+    assert '<link rel="stylesheet" href="assets/opm-theme-journal.css">' in text
+    assert (dest / 'assets' / 'opm-theme-journal.css').is_file()
     assert main(['transform', 'data/sample.xml', '-t', 'markdown', '-o', str(dest / 'out.md')]) == 0
     typ = dest / 'out.typ'
     assert main(['transform', 'data/sample.xml', '-t', 'typst', '-o', str(typ)]) == 0
@@ -1303,8 +1360,8 @@ def test_init_jats_transform_and_chunk(tmp_path: Path, monkeypatch) -> None:
     assert len(chunks) == 4
     # @id anchors resolve across chunks even though JATS has no xml:id.
     assert 'href="004.html#ref1"' in chunks[2].read_text(encoding='utf-8')
-    assert (dest / 'chunks' / 'assets' / 'journal.css').is_file()
-    assert 'href="../assets/journal.css"' in chunks[0].read_text(encoding='utf-8')
+    assert (dest / 'chunks' / 'assets' / 'opm-theme-journal.css').is_file()
+    assert 'href="../assets/opm-theme-journal.css"' in chunks[0].read_text(encoding='utf-8')
 
 
 def test_init_from_example_copies_project(tmp_path: Path) -> None:
@@ -1314,7 +1371,7 @@ def test_init_from_example_copies_project(tmp_path: Path) -> None:
     assert main(['init', str(dest), '--example', 'jats']) == 0
     assert (dest / 'opm.toml').is_file()
     assert (dest / 'odd' / 'jats.odd').is_file()
-    assert (dest / 'templates' / 'journal.html.j2').is_file()
+    assert (dest / 'templates' / 'journal.html.tpl').is_file()
     assert (dest / 'data' / 'article' / 'hertziana-digital-editions.xml').is_file()
     # Furniture the example tree does not carry itself.
     assert (dest / '.gitignore').is_file()
@@ -1423,14 +1480,14 @@ def test_init_picker_only_prompts_on_a_terminal(tmp_path: Path, monkeypatch) -> 
     monkeypatch.setattr('sys.stdin.isatty', lambda: False)
     assert main(['init', str(tmp_path / 'piped')]) == 0
     assert (tmp_path / 'piped' / 'odd' / 'custom.odd').is_file()
-    assert not (tmp_path / 'piped' / 'templates' / 'journal.html.j2').exists()
+    assert not (tmp_path / 'piped' / 'templates' / 'journal.html.tpl').exists()
 
     # On a terminal, the answer selects the row.
     monkeypatch.setattr('sys.stdin.isatty', lambda: True)
     monkeypatch.setattr(cli, '_choose_start', lambda: (None, 'jats'))
     monkeypatch.setattr(cli, '_ask_extra_templates', lambda: False)
     assert main(['init', str(tmp_path / 'picked')]) == 0
-    assert (tmp_path / 'picked' / 'templates' / 'journal.html.j2').is_file()
+    assert (tmp_path / 'picked' / 'templates' / 'journal.html.tpl').is_file()
     assert (tmp_path / 'picked' / 'data' / 'article').is_dir()
 
 
@@ -1449,11 +1506,12 @@ def test_init_picker_asks_about_extra_templates(tmp_path: Path, monkeypatch) -> 
     monkeypatch.setattr('sys.stdin.isatty', lambda: True)
     monkeypatch.setattr(cli, '_choose_start', lambda: ('tei', None))
     monkeypatch.setattr(cli, '_ask_extra_templates', lambda: True)
+    monkeypatch.setattr(cli, '_ask_profiles', lambda: [])
     dest = tmp_path / 'asked'
     assert main(['init', str(dest)]) == 0
-    assert (dest / 'templates' / 'chapbook.html.j2').is_file()
-    assert (dest / 'templates' / 'journal.html.j2').is_file()
-    assert (dest / 'templates' / 'handbook.html.j2').is_file()
+    assert (dest / 'templates' / 'chapbook.html.tpl').is_file()
+    assert (dest / 'templates' / 'journal.html.tpl').is_file()
+    assert (dest / 'templates' / 'handbook.html.tpl').is_file()
 
 
 def test_init_templates_flag_skips_the_question(tmp_path: Path, monkeypatch) -> None:
@@ -1466,9 +1524,32 @@ def test_init_templates_flag_skips_the_question(tmp_path: Path, monkeypatch) -> 
     monkeypatch.setattr('sys.stdin.isatty', lambda: True)
     monkeypatch.setattr(cli, '_choose_start', lambda: ('tei', None))
     monkeypatch.setattr(cli, '_ask_extra_templates', _refuse)
+    monkeypatch.setattr(cli, '_ask_profiles', lambda: [])
     dest = tmp_path / 'flagged'
     assert main(['init', str(dest), '--templates']) == 0
-    assert (dest / 'templates' / 'journal.html.j2').is_file()
+    assert (dest / 'templates' / 'journal.html.tpl').is_file()
+
+
+def test_init_picker_asks_about_profiles(tmp_path: Path, monkeypatch) -> None:
+    """An empty project's interactive init offers the profiles; --profile skips that."""
+    from opm import cli
+    from opm.config import load_project_config
+
+    monkeypatch.setattr('sys.stdin.isatty', lambda: True)
+    monkeypatch.setattr(cli, '_choose_start', lambda: ('tei', None))
+    monkeypatch.setattr(cli, '_ask_extra_templates', lambda: False)
+    monkeypatch.setattr(cli, '_ask_profiles', lambda: ['registers'])
+    dest = tmp_path / 'asked'
+    assert main(['init', str(dest)]) == 0
+    assert load_project_config(dest / 'opm.toml').profiles == ('registers',)
+
+    def _refuse() -> list[str]:
+        raise AssertionError('should not ask when --profile was passed')
+
+    monkeypatch.setattr(cli, '_ask_profiles', _refuse)
+    dest = tmp_path / 'flagged'
+    assert main(['init', str(dest), '-p', 'pagefind']) == 0
+    assert load_project_config(dest / 'opm.toml').profiles == ('pagefind',)
 
 
 def test_init_copy_base_odd_tei(tmp_path: Path) -> None:
@@ -1483,7 +1564,7 @@ def test_init_base_copies_inherited_templates(tmp_path: Path, monkeypatch) -> No
     """--base copies the templates the shells extend, and the base stylesheet."""
     dest = tmp_path / 'edition'
     assert main(['init', str(dest), '--base']) == 0
-    for name in ('base.html.j2', 'layout.html.j2', 'opm-layout.css'):
+    for name in ('base.html.tpl', 'layout.html.tpl', 'opm-layout.css'):
         assert (dest / 'templates' / 'opm' / name).is_file()
     assert (dest / 'styles' / 'default-styles.css').is_file()
     # The project's copies are the ones used, by chunking too.

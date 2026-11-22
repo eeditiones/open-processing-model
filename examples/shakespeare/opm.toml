@@ -3,6 +3,9 @@
 
 [project]
 pythonpath = ["."]
+# The facsimile beside the text: a IIIF viewer (<pb-tify>) turned by the
+# <pb-facs-link> each folio emits. pb-tify is the iiif profile's default viewer.
+profiles = ["iiif"]
 
 [transform]
 odd = "odd/shakespeare.odd"
@@ -45,7 +48,7 @@ context-path = "{prefix}assets"
 css = "templates/epub.css"
 
 [transform.typst]
-template = "templates/book.typ.j2"
+template = "templates/book.typ.tpl"
 
 # Overlays [context] for Typst only. The Folio title runs to two sentences,
 # which is unusable as a running head, so print needs a short form; the web
@@ -57,7 +60,7 @@ source_note = "Bodleian First Folio, Arch. G c.7"
 line_number_every = 5
 
 [transform.web]
-template = "templates/chapbook.html.j2"
+template = "templates/chapbook.html.tpl"
 # Copied verbatim into an assets/ directory beside the output (for chunks,
 # <output-root>/assets/), keeping each directory name — so
 # iiif/F-ado.xml/manifest.json lands at assets/F-ado.xml/manifest.json. That is
@@ -65,11 +68,11 @@ template = "templates/chapbook.html.j2"
 # to; nothing serves the iiif/ directory itself. The glob copies every play's
 # manifest, so adding one needs no change here. [chunking] sets no assets of
 # its own, so it uses these.
-assets = ["templates/chapbook.css", "iiif/*", "icon.png"]
+assets = ["templates/opm-theme-chapbook.css", "templates/facsimile.css", "iiif/*", "icon.png"]
 # The <pb> model emits <pb-facs-link>, which stays inert markup showing the
 # folio number until the pb-components bundle is loaded. With it on, each folio
 # announces its manifest and page index on the "transcription" channel and the
-# <pb-tify> viewer in the template turns to that page.
+# iiif profile's <pb-tify> viewer turns to that page.
 webcomponents = true
 # Render the whole play folio by folio, as the chunks do, rather than as one
 # flow: each folio gets a <section class="opm-page"> of its own, which
@@ -85,16 +88,6 @@ site_name = "Shakespeare Plays"
 # Shown in the menu bar. The template looks it up in the copied assets, so the
 # same name works on chunk pages and on a whole-document page.
 logo = "icon.png"
-# Module scripts the page loads after the pb-components bundle. pb-tify (a IIIF
-# viewer wrapping Tify) is published as its own entry point rather than inside
-# pb-components-bundle.js, so the facsimile column needs it listed here.
-scripts = [
-    "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.8/dist/pb-tify.js",
-]
-
-# <pb-page> loads a component theme stylesheet; left unset it looks for
-# components.css beside the page and 404s. Point it at the packaged one.
-webcomponents_theme = "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components@3.6.8/css/components.css"
 
 # One chunk per <pb/> milestone rather than per division: `tei_pb_chunks`
 # reconstructs the page as a synthetic tree, carrying the intervening <div>,

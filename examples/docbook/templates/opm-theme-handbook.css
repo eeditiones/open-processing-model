@@ -1,0 +1,698 @@
+/* SPDX-FileCopyrightText: 2026 e-editiones
+   SPDX-License-Identifier: CC0-1.0 */
+
+/* Here rather than in the template, so every page that links this file,
+   the collection index too, gets the same faces. */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Sora:wght@500;600;700&display=swap");
+
+/* Handbook — documentation reading surface (Starlight-inspired)
+
+   Built on opm's packaged layout and design tokens (opm/opm-layout.css):
+   this file sets the --opm-* tokens, which restyle everything opm draws
+   (menubar, breadcrumbs, drawers, the collection index), and adds only
+   what handbook has of its own: the sidebar navigation, the page with its
+   "On this page" outline, content typography and the pager.
+
+   Dark colours apply with theme.color_scheme = "auto" or "dark" in
+   opm.toml [context]. */
+
+:root {
+  /* Colour */
+  --opm-background-color: #f7f9fc;
+  --opm-surface: #ffffff;
+  --opm-color: #0b1220;
+  --opm-color-muted: #5b6b7c;
+  --opm-color-rule: #d5dde8;
+  --opm-color-accent: #0b6bcb;
+  --opm-color-accent-soft: rgba(11, 107, 203, 0.12);
+  --opm-menubar-background: color-mix(in srgb, var(--opm-surface) 88%, transparent);
+  --opm-background-color-drawer: var(--hb-sidebar);
+  --hb-sidebar: #eef2f7;
+  --hb-accent-strong: #084b8a;
+
+  /* Type */
+  --opm-font-display: "Sora", "Avenir Next", "Segoe UI", sans-serif;
+  --opm-font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --opm-font-ui: var(--opm-font-body);
+  --opm-font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --opm-display-weight: 600;
+  --opm-display-tracking: -0.02em;
+
+  /* Shape and chrome */
+  --opm-radius: 0.45rem;
+  --opm-menubar-height: 3.25rem;
+  --opm-menubar-max: 100%;
+  --opm-breadcrumb-separator: "/";
+  --opm-drawer-padding: 0px;
+
+  /* Handbook's own measures */
+  --hb-sidebar-w: 16.5rem;
+  --hb-outline-w: 13.5rem;
+  --hb-measure: 46rem;
+  --hb-pad: clamp(1.1rem, 3.5vw, 2.25rem);
+}
+
+:root[data-opm-color-scheme="dark"] {
+  --opm-background-color: #0b1220;
+  --opm-surface: #111827;
+  --opm-color: #e8eef7;
+  --opm-color-muted: #9aa8b8;
+  --opm-color-rule: #243044;
+  --opm-color-accent: #5eb1ff;
+  --opm-color-accent-soft: rgba(94, 177, 255, 0.16);
+  --hb-sidebar: #0f172a;
+  --hb-accent-strong: #93c9ff;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-opm-color-scheme="auto"] {
+    --opm-background-color: #0b1220;
+    --opm-surface: #111827;
+    --opm-color: #e8eef7;
+    --opm-color-muted: #9aa8b8;
+    --opm-color-rule: #243044;
+    --opm-color-accent: #5eb1ff;
+    --opm-color-accent-soft: rgba(94, 177, 255, 0.16);
+    --hb-sidebar: #0f172a;
+    --hb-accent-strong: #93c9ff;
+    color-scheme: dark;
+  }
+}
+
+body {
+  line-height: 1.65;
+  text-rendering: optimizeLegibility;
+}
+
+/* Reading pages: the navigation at the left edge, the text filling the rest. */
+body.handbook {
+  --opm-layout-gutter: 0px;
+  --opm-layout-gap: 0px;
+  --opm-layout-before-width: var(--hb-sidebar-w);
+}
+
+/* ── Menubar ──────────────────────────────────────────────── */
+
+.menubar {
+  gap: 0.85rem;
+  padding: 0 var(--hb-pad);
+}
+
+.menubar a {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.logo__title {
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+/* The drawer trigger: a burger button. Its text stays for screen readers. */
+.menubar .trigger label {
+  position: relative;
+  display: block;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--opm-color-rule);
+  border-radius: var(--opm-radius);
+  background:
+    linear-gradient(var(--opm-color), var(--opm-color)) center / 1rem 1.5px no-repeat,
+    var(--opm-surface);
+  font-size: 0;
+  cursor: pointer;
+}
+
+.menubar .trigger label::before,
+.menubar .trigger label::after {
+  content: "";
+  position: absolute;
+  left: calc(50% - 0.5rem);
+  width: 1rem;
+  height: 1.5px;
+  background: var(--opm-color);
+  border-radius: 1px;
+}
+
+.menubar .trigger label::before {
+  top: calc(50% - 0.3rem - 0.75px);
+}
+
+.menubar .trigger label::after {
+  top: calc(50% + 0.3rem - 0.75px);
+}
+
+/* ── Sidebar navigation ───────────────────────────────────── */
+
+.handbook .opm-layout > .before {
+  background: var(--hb-sidebar);
+  border-right: 1px solid var(--opm-color-rule);
+}
+
+/* Wide screens: the navigation fills the height below the menubar. */
+@media (min-width: 64.01em) {
+  .handbook .opm-layout > .before {
+    height: calc(100vh - var(--opm-menubar-height));
+  }
+}
+
+@media (max-width: 64em) {
+  .handbook .opm-layout > .before {
+    border-right: 0;
+  }
+}
+
+.hb-sidebar {
+  padding: 0.65rem 0.65rem 1.75rem;
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.hb-sidebar .toc,
+.hb-sidebar nav {
+  margin: 0;
+}
+
+.hb-sidebar ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.hb-sidebar > ul > li {
+  margin: 0 0 0.55rem;
+}
+
+.hb-sidebar > ul > li + li {
+  margin-top: 0.85rem;
+}
+
+/* Nested lists: indent + vertical rail (Starlight-style) */
+.hb-sidebar li > ul,
+.hb-sidebar details > ul {
+  margin: 0.15rem 0 0.35rem 0.35rem;
+  padding: 0.15rem 0 0.15rem 0.75rem;
+  border-left: 1px solid var(--opm-color-rule);
+}
+
+.hb-sidebar li > ul ul,
+.hb-sidebar details > ul ul {
+  margin-left: 0.15rem;
+  padding-left: 0.7rem;
+}
+
+/* Leaf / nested page links */
+.hb-sidebar a,
+.hb-sidebar pb-link {
+  display: block;
+  padding: 0.32rem 0.55rem;
+  border-radius: var(--opm-radius);
+  color: var(--opm-color-muted);
+  text-decoration: none;
+  transition: color 0.15s ease, background-color 0.15s ease;
+  cursor: pointer;
+}
+
+.hb-sidebar a:hover,
+.hb-sidebar pb-link:hover {
+  color: var(--opm-color);
+  background: color-mix(in srgb, var(--opm-surface) 72%, transparent);
+}
+
+.hb-sidebar a[aria-current="page"],
+.hb-sidebar .is-active > a,
+.hb-sidebar li.active > a,
+.hb-sidebar pb-link[aria-current="page"] {
+  color: var(--hb-accent-strong);
+  background: var(--opm-color-accent-soft);
+  box-shadow: inset 3px 0 0 var(--opm-color-accent);
+  font-weight: 500;
+}
+
+.hb-sidebar .tei-title,
+.hb-sidebar span {
+  font-weight: inherit;
+}
+
+/* Group headers: details/summary (sections with children) */
+.hb-sidebar details {
+  margin: 0;
+}
+
+.hb-sidebar summary,
+.hb-sidebar > ul > li > a,
+.hb-sidebar > ul > li > pb-link {
+  color: var(--opm-color);
+  font-family: var(--opm-font-display);
+  font-size: 0.9rem;
+  font-weight: var(--opm-display-weight);
+  letter-spacing: -0.01em;
+}
+
+.hb-sidebar summary {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  list-style: none;
+  cursor: pointer;
+  border-radius: var(--opm-radius);
+  line-height: 1.3;
+  user-select: none;
+}
+
+.hb-sidebar summary::-webkit-details-marker {
+  display: none;
+}
+
+.hb-sidebar summary::marker {
+  content: "";
+}
+
+.hb-sidebar summary::after {
+  content: "";
+  flex: none;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-left: auto;
+  margin-right: 0.35rem;
+  border-right: 1.75px solid var(--opm-color-muted);
+  border-bottom: 1.75px solid var(--opm-color-muted);
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+  opacity: 0.75;
+}
+
+.hb-sidebar details[open] > summary::after {
+  transform: rotate(-135deg);
+  margin-top: 0.2rem;
+}
+
+.hb-sidebar summary:hover {
+  background: color-mix(in srgb, var(--opm-surface) 65%, transparent);
+}
+
+/* Link inside a group header keeps group weight/color */
+.hb-sidebar summary a,
+.hb-sidebar summary pb-link {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0.45rem;
+  color: inherit;
+  font: inherit;
+  background: transparent;
+}
+
+.hb-sidebar summary a:hover,
+.hb-sidebar summary pb-link:hover {
+  color: var(--hb-accent-strong);
+  background: transparent;
+}
+
+/* Top-level leaf (no children): still read as a section entry */
+.hb-sidebar > ul > li > a,
+.hb-sidebar > ul > li > pb-link {
+  padding: 0.4rem 0.55rem;
+}
+
+/* ── Page, breadcrumbs and outline ────────────────────────── */
+
+.hb-main {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The breadcrumb toolbar above the page, centred like the page below it.
+   With the outline beside the text, both sit in the column left of it. */
+.handbook .content-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 72em) {
+  .hb-main:has(.hb-outline:not([hidden])),
+  .handbook:has(.hb-outline:not([hidden])) .content-top {
+    grid-template-columns: minmax(0, 1fr) var(--hb-outline-w);
+  }
+}
+
+.hb-page,
+.handbook .toolbar {
+  width: min(100%, calc(var(--hb-measure) + 2 * var(--hb-pad)));
+  margin: 0 auto;
+  padding: clamp(1.5rem, 4vh, 2.5rem) var(--hb-pad) 3rem;
+}
+
+.handbook .toolbar {
+  padding-bottom: 0;
+  font-size: 0.82rem;
+}
+
+/* Under the breadcrumbs the page needs no space of its own above. */
+.handbook .content-top:has(> :not(.toolbar), li, .breadcrumb > *) + .opm-main .hb-page {
+  padding-top: 1.25rem;
+}
+
+.hb-outline {
+  display: none;
+  position: sticky;
+  top: calc(var(--opm-menubar-height) + 1rem);
+  align-self: start;
+  max-height: calc(100vh - var(--opm-menubar-height) - 2rem);
+  overflow: auto;
+  margin: 1.5rem var(--hb-pad) 2rem 0;
+  padding: 0.25rem 0 0.25rem 1rem;
+  border-left: 1px solid var(--opm-color-rule);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--opm-color-muted);
+}
+
+@media (min-width: 72em) {
+  .hb-outline:not([hidden]) {
+    display: block;
+  }
+}
+
+.hb-outline__title {
+  margin: 0 0 0.65rem;
+  font-family: var(--opm-font-display);
+  font-size: 0.72rem;
+  font-weight: var(--opm-display-weight);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--opm-color);
+}
+
+.hb-outline__nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.hb-outline__nav li {
+  margin: 0.2rem 0;
+}
+
+.hb-outline__h3 {
+  padding-left: 0.75rem;
+}
+
+.hb-outline__nav a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.hb-outline__nav a:hover {
+  color: var(--opm-color-accent);
+}
+
+/* ── Content typography ───────────────────────────────────── */
+
+.hb-page .content > :first-child {
+  margin-top: 0;
+}
+
+.hb-page .content :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--opm-font-display);
+  font-weight: var(--opm-display-weight);
+  line-height: 1.25;
+  letter-spacing: var(--opm-display-tracking);
+  color: var(--opm-color);
+  text-wrap: balance;
+}
+
+.hb-page .content h1 {
+  margin: 0 0 1rem;
+  font-size: clamp(1.75rem, 3.2vw, 2.35rem);
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--opm-color-rule);
+}
+
+.hb-page .content h2 {
+  margin: 2.35rem 0 0.75rem;
+  font-size: 1.35rem;
+}
+
+.hb-page .content h3 {
+  margin: 1.85rem 0 0.6rem;
+  font-size: 1.12rem;
+}
+
+.hb-page .content :is(h4, h5, h6) {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.hb-page--chunk .content > :is(h1, h2, h3, h4, h5, h6):first-child,
+.hb-page--chunk .content > :first-child > :is(h1, h2, h3, h4, h5, h6):first-child,
+.hb-page--chunk .content > :first-child > :first-child > :is(h1, h2, h3, h4, h5, h6):first-child {
+  margin-top: 0;
+}
+
+.hb-page .content p {
+  margin: 0 0 1em;
+}
+
+.hb-page .content a {
+  color: var(--opm-color-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.16em;
+  text-decoration-color: color-mix(in srgb, var(--opm-color-accent) 45%, transparent);
+}
+
+.hb-page .content a:hover {
+  color: var(--hb-accent-strong);
+  text-decoration-color: var(--opm-color-accent);
+  background-color: var(--opm-color-accent-soft);
+}
+
+.hb-page .content :is(code, kbd, samp) {
+  font-family: var(--opm-font-mono);
+  font-size: 0.88em;
+}
+
+.hb-page .content :not(pre) > code {
+  padding: 0.12em 0.35em;
+  border-radius: 0.3rem;
+  background: color-mix(in srgb, var(--hb-sidebar) 80%, var(--opm-color-rule));
+  border: 1px solid color-mix(in srgb, var(--opm-color-rule) 80%, transparent);
+}
+
+.hb-page .content pre {
+  margin: 1.25em 0;
+  padding: 0.95rem 1.1rem;
+  overflow: auto;
+  border: 1px solid var(--opm-color-rule);
+  border-radius: var(--opm-radius);
+  background: var(--hb-sidebar);
+  font-family: var(--opm-font-mono);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.hb-page .content pre code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: inherit;
+}
+
+/* Syntax colours: the light set, and the dark set wherever dark applies. */
+.hb-page .content pre {
+  --hb-code-attr: #0a7a5c;
+  --hb-code-string: #a14a1a;
+  --hb-code-keyword: #6d28d9;
+  --hb-code-number: #b45309;
+}
+
+:root[data-opm-color-scheme="dark"] .hb-page .content pre {
+  --hb-code-attr: #5dcaa0;
+  --hb-code-string: #e0a06a;
+  --hb-code-keyword: #c4b5fd;
+  --hb-code-number: #fbbf24;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-opm-color-scheme="auto"] .hb-page .content pre {
+    --hb-code-attr: #5dcaa0;
+    --hb-code-string: #e0a06a;
+    --hb-code-keyword: #c4b5fd;
+    --hb-code-number: #fbbf24;
+  }
+}
+
+.hb-page .content pre :is(.p, .o, .ow) { color: var(--opm-color-muted); }
+.hb-page .content pre .nt { color: var(--opm-color-accent); font-weight: 600; }
+.hb-page .content pre .nb { color: var(--opm-color-accent); }
+.hb-page .content pre .na { color: var(--hb-code-attr); }
+.hb-page .content pre :is(.s, .s1, .s2) { color: var(--hb-code-string); }
+.hb-page .content pre :is(.c, .c1, .cm, .cp) { color: var(--opm-color-muted); font-style: italic; }
+.hb-page .content pre :is(.k, .kc, .kd, .kn, .kt) { color: var(--hb-code-keyword); }
+.hb-page .content pre :is(.m, .mi, .mf) { color: var(--hb-code-number); }
+
+.hb-page .content blockquote {
+  margin: 1.35em 0;
+  padding: 0.15em 0 0.15em 1rem;
+  border-left: 3px solid var(--opm-color-accent);
+  color: var(--opm-color-muted);
+}
+
+.hb-page .content hr {
+  margin: 2em 0;
+  border: 0;
+  border-top: 1px solid var(--opm-color-rule);
+}
+
+.hb-page .content :is(ul, ol) {
+  margin: 0 0 1em;
+  padding-left: 1.35em;
+}
+
+.hb-page .content li {
+  margin-bottom: 0.35em;
+}
+
+.hb-page .content figure {
+  margin: 1.5em 0;
+}
+
+.hb-page .content :is(figcaption, .tei-figDesc) {
+  margin-top: 0.45em;
+  font-size: 0.86rem;
+  color: var(--opm-color-muted);
+}
+
+.hb-page .content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--opm-radius);
+}
+
+.hb-page .content table {
+  width: 100%;
+  margin: 1.35em 0;
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+
+.hb-page .content :is(th, td) {
+  padding: 0.45em 0.6em;
+  border-bottom: 1px solid var(--opm-color-rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+.hb-page .content th {
+  font-family: var(--opm-font-display);
+  font-size: 0.78em;
+  font-weight: var(--opm-display-weight);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--opm-color-muted);
+  background: color-mix(in srgb, var(--hb-sidebar) 65%, transparent);
+}
+
+.hb-page .content :is(.tei-note, note) {
+  font-size: 0.92em;
+  color: var(--opm-color-muted);
+}
+
+.hb-page .content .alternate {
+  position: relative;
+  display: inline;
+  cursor: help;
+  border-bottom: 1px dotted color-mix(in srgb, var(--opm-color-accent) 55%, transparent);
+}
+
+.hb-page .content .alternate .altcontent {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 0.35rem);
+  z-index: 20;
+  min-width: 8rem;
+  max-width: min(22rem, 70vw);
+  padding: 0.45rem 0.65rem;
+  transform: translateX(-50%);
+  border: 1px solid var(--opm-color-rule);
+  border-radius: var(--opm-radius);
+  background: var(--opm-surface);
+  box-shadow: var(--opm-shadow);
+  color: var(--opm-color);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.hb-page .content .alternate:is(:hover, :focus-within) .altcontent {
+  display: block;
+}
+
+.hb-page .content pb-popover {
+  --pb-popover-theme: "light-border";
+}
+
+/* ── Prev / next pager ────────────────────────────────────── */
+
+.hb-pager {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  margin-top: 2.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--opm-color-rule);
+}
+
+.hb-pager a {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 4.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--opm-color-rule);
+  border-radius: var(--opm-radius);
+  background: var(--opm-surface);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hb-pager__next a {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.hb-pager a:hover {
+  border-color: color-mix(in srgb, var(--opm-color-accent) 55%, var(--opm-color-rule));
+  background: var(--opm-color-accent-soft);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--opm-color-accent) 25%, transparent);
+}
+
+.hb-pager__dir {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--opm-color-muted);
+}
+
+.hb-pager__label {
+  font-family: var(--opm-font-display);
+  font-size: 0.95rem;
+  font-weight: var(--opm-display-weight);
+  letter-spacing: -0.01em;
+  color: var(--hb-accent-strong);
+}
+
+@media (max-width: 480px) {
+  .hb-pager {
+    grid-template-columns: 1fr;
+  }
+
+  .hb-pager__next a {
+    align-items: flex-start;
+    text-align: left;
+  }
+}

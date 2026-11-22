@@ -1,10 +1,17 @@
 # Chunking
 
-Large documents are awkward to serve as one giant HTML page. `opm chunk` splits a
-document into smaller pieces, transforms each one, and writes the results plus a
-manifest — this is ideal for static site generators and web components.
+While `opm transform` transforms a single input to a single output, `opm chunk` operates on a whole collection of XML files.
+It can also split large documents into smaller pieces to make them easier to read. The split may happen at page boundaries – if marked up –
+or per division and is configurable.
 
-Three different types of output are supported (use `--format` to switch between them):
+Besides the main content, chunking may also produce other content fragments, e.g. for a sidebar
+or breadcrumbs. Every piece of content is transformed through ODD.
+
+In `html` mode, the combined result of each chunking run – i.e. main content plus fragments – will be passed on
+to a template, which assembles the different pieces into an output page. However, there are two other modes, which generate raw
+data instead of a complete page. Those are intended to be consumed by external tools, which will handle the final rendering.
+
+The three different types of output modes are (use `--format` to switch between them):
 
 - **`html`** (default) — renders each chunk through a template
   (`chunking.template`, else the `[transform.web]` template), generating a series of HTML files. Use this for quick previews
@@ -159,14 +166,14 @@ parameters = { mode = "breadcrumb" }
 | `odd` / `mode` | Rare. Use a different ODD for this fragment only (`odd`), compiled for output channel `mode` (`web` by default — not the same as `$parameters?mode` above). Omit to reuse the chunking ODD. |
 
 <!-- TODO: A string result (as with a bare `string(…)` xpath) is used as-is — fine inside a
-Jinja template, but not valid as a standalone `.html` file. Prefer selecting an
+template, but not valid as a standalone `.html` file. Prefer selecting an
 element and transforming it (e.g. `parameters = { mode = "title" }`) when the
-fragment is also written to disk. In a Jinja template:
+fragment is also written to disk. In a template:
 
-```jinja
-<title>{{ fragments.title | striptags | trim }}</title>
+```html
+<title>[[ normalize-space($context?fragments?title) ]]</title>
 …
-{{ fragments.breadcrumbs | safe }}
+[[ $context?fragments?breadcrumbs ]]
 ```
 --> 
 ## Manifest and navigation
@@ -218,6 +225,105 @@ name. The search index (`opm index`) covers all runs; an EPUB is built from the
 first.
 
 A single `[chunking]` table works exactly as before.
+
+## Auxiliary pages
+
+The primary purpose of OPM is to transform a set of input documents into a collection of outputs.
+This is what `[[chunking]]` was designed for.
+
+However, `[[chunking]]` makes some assumptions:
+
+* it always needs at least one XML input file
+* every processed document produces exactly one output directory in html mode
+* appends to the list of documents appearing on the default browse page
+
+On its own, `[[chunking]]` is sufficient to create a nice basic website
+with reading views for each document and a landing page listing the content.
+
+But a full website usually needs more than that: besides the main content, there will be auxiliary pages, which may or may not
+have been generated from XML. The configuration therefore supports another category: `pages`. This allows you to render any number
+of auxiliary content pages by appending their configurations to the `[[pages]]` array. Contrary to `[[chunking]]`, `[[pages]]` are
+more generic: 
+
+* they don't require an XML input at all, but can just be static HTML
+* you have full control over where the output is stored
+
+In other words: _pages_ are the missing building block you need to create a full static website with OPM.
+
+`opm chunk` automatically processes `[[pages]]`, but only if the output format is `html`. For the other formats, `json` and `pb-view`,
+`[[pages]]` is ignored: those are exchange formats, which produce raw data, not a complete website.
+
+```toml
+# A static page: no source, the template alone is rendered.
+[[pages]]
+path = "about.html"
+template = "templates/about.html.tpl"
+context = { page_title = "About" }    # this page's <title>
+
+# One page listing every place.
+[[pages]]
+path = "places/index.html"
+context = { page_title = "Places" }
+source = "data/registers/places.xml"   # the page's own source, not the letters
+xpath = "//listPlace"                  # must select exactly one node
+parameters = { mode = "register-overview" }
+
+# One page per place, named by its xml:id: places/Krakow.html, …
+[[pages]]
+path = "places/{xml_id}.html"
+source = "data/registers/places.xml"
+xpath = "//listPlace/place"
+```
+
+A page with `source` is rendered through the same ODD machinery as a chunk —
+same selector, fragments, link rewriting — so the difference is only the
+contract with the site: a fixed `path` (a placeholder like `{xml_id}`,
+`{ident}`, `{stem}` or `{index}` yields one page per selected node; without a
+placeholder the path is a single page and must select exactly one node), no
+per-document subdirectory, no prev/next, and no listing in `index.html`.
+Link to a page from the menubar with `[context.menu] items`. Pages receive the
+chunking runs' anchors, so they can link into the reading view; links to a
+page itself use its stable path. A page template also receives
+`site_documents`: for every document of the site its `name` and the `href`
+of its first page. Which documents mention a register entry is up to the ODD,
+which can search them with `collection()` (see the registers profile). Links written the TEI Publisher way, from
+the site root and without `.html` (`places/Krakow`), are pointed at the page
+opm wrote. A page directory's `manifest.json` is tagged
+`"role": "page"` so the collection index skips it.
+
+A page's `context` table is merged over the project's `[context]` for that
+page only, the way a template's frontmatter is: tables combine key by key.
+That is how a page passes its template what the project as a whole does not
+know, such as its title: `page_title` becomes the page's `<title>` in the
+standard layout, and a template can read it as `$context?page_title`. A
+project that changes a profile's page merges its `context` with the
+profile's the same way.
+
+The menubar is not derived from pages: it reads `[context.menu] items` only,
+so a page you want linked there — e.g. a profile's browse page — is listed
+explicitly:
+
+```toml
+[context.menu]
+items = [{ label = "Places", url = "places/index.html" }]
+```
+
+Menu URLs are relative to the site root and the layout prefixes them with the
+page's path back to it (`../` from a chunk page, nothing at the root) — where
+a TEI Publisher application prefixes them with the context-path. Set
+`enabled = false` on a `[[pages]]` entry to switch a page (e.g. one a profile
+contributed) off.
+
+Pages inherit the first chunking run's ODD, template, assets and parameters;
+`template`, `odd`, `parameters` and `[[pages.fragments]]` override them per
+page. Pages are HTML-only: `--format json` and `--format pb-view` skip them,
+since those feed an external site generator that builds its own pages. Use
+`--no-pages` to build the reading view alone, or `--page places` to build only
+the pages whose path starts with a prefix.
+
+Profiles can declare `[[pages]]` in their `opm-profile.toml` (see
+[Profiles](profiles.md)); a project entry with the same `path` replaces the
+profile's, so the project can repoint `source` at its own data.
 
 ## `$parameters?root`
 
@@ -274,17 +380,17 @@ rules, so a project can change the default style without losing the ODD's
 own renditions. <!--Because it changes the compiled stylesheet it is part of the ODD
 cache key, so a project overriding it gets its own compiled module.-->
 
-```jinja
-<link rel="stylesheet" href="{{ odd_css_url }}">
+```html
+<link rel="stylesheet" href="[[ $odd_css_url ]]">
 ```
 <!--
 The `odd_css` string is still passed, so a template that inlines it keeps
 working, and the URL is empty when the stylesheet turns out to be empty — hence
 the defensive form used by the packaged template:
 
-```jinja
-{% if odd_css_url %}<link rel="stylesheet" href="{{ odd_css_url }}">
-{% elif odd_css %}<style>{{ odd_css }}</style>{% endif %}
+```html
+[% if $odd_css_url %]<link rel="stylesheet" href="[[ $odd_css_url ]]">
+[% elif $odd_css %]<style>[[ $odd_css ]]</style>[% endif %]
 ```
 -->
 Anything else a page needs, such as the template's own stylesheet, images,
@@ -319,14 +425,9 @@ once and cached.-->
 ## Collection index
 
 Chunking writes one subdirectory per document, plus an `index.html` at the
-output root listing them all — one document or fifty. `http.server` serves
-`index.html` in preference to a directory listing, so `opm serve` shows a real
-landing page with no further configuration.
+output root listing them all. Each entry in the `index.html` links to its document first page.
 
-Each entry links to its document's first chunk. What the entry *shows* comes
-from the document's global fragments, so the index is built the same way TEI
-Publisher builds `browse.html` — through the ODD. This is thus done by declaring a fragment using the
-`display='browse'` models the stock ODDs already provide:
+How a document appears in the list is determined by the ODD and is taken from a fragment named `browse` in `opm.toml`. The default ODD renders a short title if parameter `display` is set to `browse`:
 
 ```toml
 [[chunking.fragments]]
@@ -336,43 +437,61 @@ xpath = "(/article/info, /book/info)[1]"   # TEI: "//teiHeader"
 parameters = { display = "browse" }
 ```
 
-Those models emit the whole browse record — heading, author, description — and
-build their own link from `$parameters?doc`. That parameter is supplied
-automatically, per document. To use a different
-URL scheme, set it explicitly; `{doc}`, `{doc_stem}`, `{file}` and `{stem}`
-expand exactly as in `link_pattern`:
+The corresponding ODD models build the link to the document from `$parameters?doc`. That parameter is supplied automatically, per document. To use a different URL scheme, set it explicitly; `{doc}`, `{doc_stem}`, `{file}` and `{stem}` expand exactly as in `link_pattern`:
 
 ```toml
 parameters = { display = "browse", doc = "/exist/apps/edition/{doc}/{stem}" }
 ```
 
-The same expansion applies to `[transform.parameters]`, with one placeholder
-more: `{prefix}` is the path from a chunk page back to the output root, where
-the shared `css/` and `assets/` live — `../` for the pages `opm chunk` writes,
-and empty for `opm transform`, which writes `assets/` right beside its output.
-A parameter holding a URL into `assets/` should use it rather than hard-coding
-that hop:
+The index page degrades gracefully when a project has no such models: it falls back to a `title` fragment if one is declared, and to a readable form of the filename otherwise. Every entry stays clickable in all three cases.
+
+The default template for the index page includes a hero section above the list of documents. This includes the name of your edition, a short description and how many documents it holds. Set the name and the description
+in `opm.toml`:
 
 ```toml
-[transform.parameters]
-context-path = "{prefix}assets"
+[context]
+site_name = "Briefedition Alfred Escher"
+description = "Letters to and from Alfred Escher, 1831–1882."
 ```
 
-The index degrades gracefully when a project has no such models: it falls back
-to a `title` fragment if one is declared, and to a readable form of the filename
-otherwise. Every entry stays clickable in all three cases.
+The hero may also have a background image. Add the image to your project, have opm copy it into the output's `assets/` folder, and name it under `[context.theme.index.hero]`:
+
+```toml
+[transform.web]
+assets = ["templates/cover.jpg"]
+
+[context.theme.index.hero]
+image = "cover.jpg"
+position = "center 30%"
+text = "light"            # or "dark" for a pale picture
+```
+
+`opm` darkens the picture behind light text, or lightens it behind dark text,
+so the words stay readable. `image` can also be a path or a full URL.
+
+Readers can narrow the list by typing into the filter box (press <kbd>/</kbd> to
+jump there), and switch between a list and a grid of cards. The words on the
+page, the view it opens with and when the filter box appears are set under
+`[context.theme.index]`; see `opm/defaults.toml` in the package for all of them:
+
+```toml
+[context.theme.index]
+eyebrow = "Briefe"
+filter_placeholder = "Briefe filtern …"
+view = "grid"
+```
 
 You can override the page itself with `chunking.index_template`. The template receives
 `documents` — each with `name`, `stem`, `label`, `href`, `chunks` and
 `fragments` — plus `title`:
 
-```jinja
-{% for doc in documents %}
+```html
+[% for $doc in $documents?* %]
   <article>
-    {{ doc.fragments.browse or doc.fragments.title or doc.label }}
-    <a href="{{ doc.href }}">{{ doc.chunks }} sections</a>
+    [[ ($doc?fragments?browse, $doc?fragments?title, $doc?label)[1] ]]
+    <a href="[[ $doc?href ]]">[[ $doc?chunks ]] sections</a>
   </article>
-{% endfor %}
+[% endfor %]
 ```
 
 Because `fragments` is passed whole, adding an author or date column needs no
@@ -382,23 +501,24 @@ The template also receives `odd_css` and the assets' stylesheets, exactly as
 chunk pages do, so the `tei-*` classes of a browse record are styled the same
 way on the index as inside the edition.
 
-The `serafin` example goes one step further. Its letter pages and its index
-both extend one template of its own, `serafin.html.j2`, which holds the menu
-bar and the breadcrumb band:
+An index template of your own works best if it extends the same page layout
+as your pages, `opm/layout.html.tpl`, and keeps its own rules in the same
+stylesheet. The landing page then cannot drift from the pages it links to,
+and the design can be changed in one place:
 
-```jinja
-{% extends "serafin.html.j2" %}
+```html
+---json
+{ "templating": { "extends": "opm/layout.html.tpl" } }
+---
+[% template breadcrumb %][[ $context?title ]][% endtemplate %]
 
-{% block breadcrumb %}{{ title }}{% endblock %}
-{% block content %}
-  <ul class="letter-list">…</ul>
-{% endblock %}
+<ul class="letter-list">…</ul>
 ```
 
-So the landing page cannot drift from the letters it links to. The list's own
-rules live in `letter.css` too, under `.letter-list`, rather than in a
-`<style>` block on the index — thus the design can be changed from just one
-place. See [Template inheritance](templates-and-css.md#template-inheritance).
+Often you need no template at all: the packaged index already uses the page
+layout, and its texts can be changed under `[context.theme.index]`. The
+`serafin` and `escher` examples do this. See
+[Template inheritance](templates-and-css.md#template-inheritance).
 
 ## Previewing
 

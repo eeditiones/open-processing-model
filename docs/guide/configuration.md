@@ -14,6 +14,8 @@ the config file.
 [project]
 # Additional Python paths (relative to the config file) for custom extensions
 pythonpath = ["."]
+# Ready-made features to add to every page (see the Profiles guide)
+profiles = ["edition-navigation"]
 
 [transform]
 # Default ODD for every output mode (compiled on demand)
@@ -30,8 +32,8 @@ footnote_order = "opm.runtime.footnote_order.labelled_first"
 css = "styles/default-styles.css"
 
 [transform.web]
-# Default Jinja2 template for full-document HTML output (overridable with --template)
-template = "templates/default.html.j2"
+# Jinks page template for full-document HTML output (overridable with --template)
+template = "templates/default.html.tpl"
 # Emit tei-publisher web components (overridable with --webcomponents/--no-webcomponents).
 # The bundle URL is a template value: set webcomponents_url in [transform.web.context]
 # to serve it yourself or pin another version.
@@ -51,11 +53,11 @@ assets = ["templates/edition.css", "templates/parchment.jpg"]
 template = "templates/corporate.docx"
 
 [transform.typst]
-# Default Typst (.typ.j2) template for Typst output
-template = "templates/book.typ.j2"
+# Typst (.typ.tpl) template for Typst output
+template = "templates/book.typ.tpl"
 
 [context]
-# Free-form values handed to every Jinja2 template as `context`. TOML types are
+# Free-form values handed to every template's context map. TOML types are
 # preserved; a [transform.<type>.context] table overlays this per output type.
 site_name = "The Serafin Letters"
 show_downloads = true
@@ -80,12 +82,12 @@ depth = 2
 # document_name = "/TEI/@xml:id"
 # Output directory for chunk files
 output_dir = "chunks"
-# Jinja2 template for chunk pages (default: the [transform.web] template)
-template = "templates/chunk.html.j2"
+# Page template for chunk pages (default: the [transform.web] template)
+template = "templates/chunk.html.tpl"
 # URL pattern for cross-chunk links ({file}, {stem}, {anchor}, {doc}, {doc_stem})
 link_pattern = "/{doc}/{file}"
-# Jinja2 template for the collection index written when chunking a directory
-index_template = "templates/index.html.j2"
+# Page template for the collection index written when chunking a directory
+index_template = "templates/index.html.tpl"
 # Heading for that index (default: the input directory name)
 index_title = "Correspondence"
 # Files copied into <output-root>/assets/ instead of the [transform.web] assets
@@ -96,7 +98,8 @@ index_title = "Correspondence"
 
 | Section | Purpose | Related guide |
 | --- | --- | --- |
-| `[project]` | `pythonpath` additions so local extension modules import | [XPath extensions](xpath-extensions.md) |
+| `[project]` | `pythonpath` additions so local extension modules import; `profiles` to switch on | [XPath extensions](xpath-extensions.md), [Profiles](profiles.md) |
+| `[context.features.<name>]` | Settings of a profile | [Profiles](profiles.md) |
 | `[transform]` | Shared settings (`odd`, `xpath_extensions`, `documents`, `footnote_order`, `parameters`, base `css`) | [Output formats](output-formats.md), [ODD `$parameters`](odd-files.md#parameters), [Footnotes](footnotes.md), [Templates & CSS](templates-and-css.md#adding-custom-css) |
 | `[transform.web]` | Optional web-only `odd` override, HTML `template` and its `assets` | [Templates & CSS](templates-and-css.md), [Assets](assets.md) |
 | `[transform.print]` | Optional print `odd` and HTML `template` | [Output formats](output-formats.md#print-paged-media) |
@@ -110,7 +113,7 @@ index_title = "Correspondence"
 | `[context]` | Free-form values exposed to every template as `context` | [Templates & CSS](templates-and-css.md#template-context) |
 | `[transform.<type>.context]` | Per-output-type overlay on `[context]` | [Templates & CSS](templates-and-css.md#template-context) |
 | `[chunking]` | Splitting rules, output, templates, fragments | [Chunking](chunking.md) |
-| `[index]` | `max_chars`, `min_chars`, `overlap`, `[[index.units]]` and `[[index.fields]]` for `opm index` | [Search indexing](search-indexing.md) |
+| `[index]` | `granularity`, `max_chars`, `min_chars`, `overlap`, `[[index.units]]` and `[[index.fields]]` for `opm index` | [Search indexing](search-indexing.md) |
 
 Loaded programmatically, these map to
 [`ProjectConfig`](../api/config.md) and

@@ -1,0 +1,124 @@
+[#
+  SPDX-FileCopyrightText: 2026 e-editiones
+  SPDX-License-Identifier: CC0-1.0
+
+  chapbook: multi-page, text-centric reading, on opm's packaged page layout
+  (opm/layout.html.tpl). The layout writes the menubar (logo and <title>
+  from site_name or the work's title) and the breadcrumb toolbar; chapbook
+  adds its text-size buttons to the menubar, the contents as the `before`
+  column and page-turn links around the text, as opm-reader-* classes.
+  Any reader theme styles them: opm-theme-chapbook.css by default, which
+  sets opm's design tokens and styles what is the reader's own.
+
+  Its stylesheet, opm-theme-chapbook.css, is listed under [transform.web]
+  assets in opm.toml: copied next to the output and linked by the base
+  template.
+  Shakespeare adds a facsimile column to the scaffold shell: a IIIF viewer
+  (<pb-tify>) beside the transcription, turned by the <pb-facs-link> each
+  folio emits. It comes from the iiif profile ([project] profiles in
+  opm.toml); facsimile.css fits it into chapbook's measurements.
+#]
+---toml
+[theme.body]
+classes = ["opm-reader"]
+
+[templating]
+extends = "opm/layout.html.tpl"
+---
+[% template body_class %][% if $context?fragments?toc %]opm-reader--with-toc[% endif %][% endtemplate %]
+
+[# Reader-set text size, remembered per browser. #]
+[% template menu.toggles %]
+  <li class="opm-reader-zoom">
+    <button type="button" data-chap-zoom="-0.1" title="Smaller text" aria-label="Smaller text">A&minus;</button>
+    <button type="button" data-chap-zoom="0.1" title="Larger text" aria-label="Larger text">A+</button>
+  </li>
+[% endtemplate %]
+
+[% template before %]
+  [% if $context?fragments?toc %]
+  <nav class="opm-reader-toc" aria-label="Contents">
+    <p class="opm-reader-toc__title">Contents</p>
+    [[ $context?fragments?toc ]]
+  </nav>
+  [% endif %]
+[% endtemplate %]
+
+<div class="opm-reader-page[[ if (exists($context?chunk)) then ' opm-reader-page--chunk' else '' ]][[ if ($context?fragments?toc) then ' opm-reader-page--with-toc' else '' ]]">
+  <div class="opm-reader-body">
+    <article class="content" id="opm-reader-content">
+      [[ $context?content_html ]]
+    </article>
+  </div>
+
+  [% if $context?chunk?prev or $context?chunk?next %]
+  <nav class="opm-reader-folio-nav__foot" aria-label="Page navigation">
+    <div>
+      [% if $context?chunk?prev %]<a href="[[ $context?chunk?prev ]].html" rel="prev">&#8592; Previous</a>[% endif %]
+    </div>
+    <div>
+      [% if $context?chunk?next %]<a href="[[ $context?chunk?next ]].html" rel="next">Next &#8594;</a>[% endif %]
+    </div>
+  </nav>
+  [% endif %]
+</div>
+
+[# A footer across the bottom of every page. Fill it in, e.g.
+   <div class="opm-reader-footer"><div class="opm-reader-footer__inner">© My Edition</div></div>
+   (opm-theme-chapbook.css styles these classes), or delete it if you need none. #]
+[% template footer %]
+[% endtemplate %]
+
+[% template body_end %]
+  [% if $context?chunk?prev %]
+  <div class="opm-reader-folio-nav__rail opm-reader-folio-nav__rail--prev">
+    <a href="[[ $context?chunk?prev ]].html" rel="prev" title="Previous page (left arrow key)">
+      <span class="opm-reader-folio-nav__chevron" aria-hidden="true">&#8592;</span>
+      <span class="opm-reader-folio-nav__dir">Previous</span>
+    </a>
+  </div>
+  [% endif %]
+  [% if $context?chunk?next %]
+  <div class="opm-reader-folio-nav__rail opm-reader-folio-nav__rail--next">
+    <a href="[[ $context?chunk?next ]].html" rel="next" title="Next page (right arrow key)">
+      <span class="opm-reader-folio-nav__chevron" aria-hidden="true">&#8594;</span>
+      <span class="opm-reader-folio-nav__dir">Next</span>
+    </a>
+  </div>
+  [% endif %]
+
+  <script>
+  (function () {
+    var content = document.getElementById('opm-reader-content');
+    if (content) {
+      var KEY = 'opm-reader-font-size';
+      try {
+        var saved = localStorage.getItem(KEY);
+        if (saved) content.style.fontSize = saved + 'rem';
+      } catch (e) { /* private mode: text stays at its default size */ }
+
+      document.querySelectorAll('[data-chap-zoom]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          var step = parseFloat(button.getAttribute('data-chap-zoom'));
+          var current = parseFloat(getComputedStyle(content).fontSize) / 16;
+          var next = Math.max(0.8, Math.min(2, current + step)).toFixed(2);
+          content.style.fontSize = next + 'rem';
+          try { localStorage.setItem(KEY, next); } catch (e) { /* not remembered */ }
+        });
+      });
+    }
+
+    [# Arrow keys turn the page, as the rails do. #]
+    var prev = document.querySelector('.opm-reader-folio-nav__rail--prev a');
+    var next = document.querySelector('.opm-reader-folio-nav__rail--next a');
+    if (!prev && !next) return;
+    document.addEventListener('keydown', function (event) {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+      var active = document.activeElement;
+      if (active && (active.isContentEditable || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(active.tagName))) return;
+      if (event.key === 'ArrowLeft' && prev) window.location.assign(prev.getAttribute('href'));
+      else if (event.key === 'ArrowRight' && next) window.location.assign(next.getAttribute('href'));
+    });
+  })();
+  </script>
+[% endtemplate %]

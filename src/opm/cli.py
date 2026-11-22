@@ -58,6 +58,13 @@ app = typer.Typer(
     context_settings={'help_option_names': ['-h', '--help']},
 )
 
+profile_app = typer.Typer(
+    name='profile',
+    help='List the profiles a project can use, and switch them on or off.',
+    no_args_is_help=True,
+    context_settings={'help_option_names': ['-h', '--help']},
+)
+
 odd_app = typer.Typer(
     name='odd',
     help='Inspect or document an ODD: corpus coverage, static schema reference sites.',
@@ -163,9 +170,9 @@ def init_cmd(
             '--templates',
             help=(
                 'Also copy the alternative HTML templates (chapbook, journal, '
-                'handbook, tufte, bootstrap) beside the one the project uses, '
+                'handbook) beside the one the project uses, '
                 "and opm's plain default Typst template as "
-                '`templates/document.typ.j2`.'
+                '`templates/document.typ.tpl`.'
             ),
         ),
     ] = False,
@@ -187,6 +194,17 @@ def init_cmd(
             help='Skip README.md, AGENTS.md, CLAUDE.md and .gitignore.',
         ),
     ] = False,
+    profile: Annotated[
+        Optional[list[str]],
+        typer.Option(
+            '--profile',
+            '-p',
+            help=(
+                'Switch on a profile in the new project; repeat for several. '
+                'See `opm profile list`.'
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Create a local project: an empty one or a copy of a bundled example."""
     if list_examples:
@@ -202,6 +220,9 @@ def init_cmd(
         # starting point; --templates has already answered the question.
         if not templates and example != 'odd':
             templates = _ask_extra_templates()
+        # An empty project has no profiles yet; an example comes with its own.
+        if example is None and not profile:
+            profile = _ask_profiles()
 
     if example is not None and copy_base_odd:
         _note('--copy-base-odd does not apply to --example; ignoring it.')
@@ -220,6 +241,7 @@ def init_cmd(
                 base=base,
                 bare=bare,
                 copy_base_odd=copy_base_odd and vocab == 'tei' and example is None,
+                profiles=tuple(profile or ()),
             )
         )
     except ScaffoldError as e:
@@ -428,6 +450,61 @@ def _ask_extra_templates() -> bool:
         return bool(Confirm.ask(question, default=False))
     except (EOFError, KeyboardInterrupt):
         _die('cancelled.')
+
+
+def _ask_profiles() -> list[str]:
+    """Ask which profiles a new empty project should use.
+
+    Only prompts on a terminal, like the other questions of ``opm init``;
+    elsewhere a project starts without profiles and ``--profile`` adds them.
+    """
+    if not sys.stdin.isatty():
+        return []
+    from opm.profile import available_profiles
+
+    profiles = available_profiles()
+    if not profiles:
+        return []
+    question = 'Add profiles (ready-made features you can also add later)?'
+    try:
+        import questionary
+        from questionary import Choice
+    except ImportError:
+        pass
+    else:
+        try:
+            picked = questionary.checkbox(
+                question,
+                choices=[
+                    Choice(title=f'{p.name} — {_fit(p.description, 70)}', value=p.name)
+                    for p in profiles
+                ],
+                qmark='',
+                instruction='(space to select, enter to confirm)',
+            ).unsafe_ask()
+            return list(picked or [])
+        except KeyboardInterrupt:
+            _die('cancelled.')
+        except Exception:
+            # No full-screen terminal: fall through to the plain prompt.
+            pass
+
+    from rich.console import Console
+    from rich.prompt import Prompt
+
+    console = Console()
+    console.print(question)
+    for number, p in enumerate(profiles, 1):
+        console.print(f'  [bold]{number}[/bold]  {p.name}  [dim]{p.description}[/dim]')
+    try:
+        answer = Prompt.ask('Numbers, separated by spaces (enter for none)', default='')
+    except (EOFError, KeyboardInterrupt):
+        _die('cancelled.')
+    chosen = []
+    for token in answer.replace(',', ' ').split():
+        if token.isdigit() and 1 <= int(token) <= len(profiles):
+            chosen.append(profiles[int(token) - 1].name)
+    return list(dict.fromkeys(chosen))
 
 
 def _stderr_message(prefix: str, style: str, message: str) -> None:
@@ -965,7 +1042,7 @@ def transform_cmd(
         Optional[Path],
         typer.Option(
             '--template',
-            help='Template path: Jinja2 for HTML/print/Typst output, or .docx for DOCX output.',
+            help='Template path: a jinks page template (.tpl) for HTML/print/Typst output, or .docx for DOCX output.',
         ),
     ] = None,
     xpath: Annotated[
@@ -1124,7 +1201,7 @@ def chunk(
             '-t',
             exists=True,
             dir_okay=False,
-            help='Jinja2 template for chunk pages (overrides chunking.template in config).',
+            help='Jinks page template (.tpl) for chunk pages (overrides chunking.template in config).',
         ),
     ] = None,
     force: Annotated[
@@ -1182,7 +1259,7 @@ def chunk(
         typer.Option(
             '--format',
             help=(
-                'Output format for chunk files: "html" (default, rendered via Jinja2 template), '
+                'Output format for chunk files: "html" (default, rendered via the page template), '
                 '"json" (one JSON file per chunk containing content, head, odd_css, and '
                 'fragments — suitable for static site generators such as Eleventy), or '
                 '"pb-view" (index.json lookup table plus one part file per chunk, consumable '
@@ -1198,6 +1275,26 @@ def chunk(
                 'For --format pb-view: document path subdirectory. Data is written to '
                 '<output-dir>/<doc-path>/ and must match the pb-document @path; CSS stays '
                 'shared at <output-dir>/css/. Falls back to chunking.doc_path in config.'
+            ),
+        ),
+    ] = None,
+    no_pages: Annotated[
+        bool,
+        typer.Option(
+            '--no-pages',
+            help=(
+                'Skip the auxiliary pages declared in [[pages]] (HTML output only); '
+                'build the chunking runs alone.'
+            ),
+        ),
+    ] = False,
+    page: Annotated[
+        Optional[str],
+        typer.Option(
+            '--page',
+            help=(
+                'Build only the auxiliary pages whose path starts with this prefix, '
+                'e.g. --page places. HTML output only.'
             ),
         ),
     ] = None,
@@ -1285,6 +1382,21 @@ def chunk(
             # Total arrives with the first callback: only the chunker knows how
             # many chunks a document splits into. Until then the bar pulses.
             chunk_task = progress.add_task('Processing chunks', total=None)
+            # The task on_progress feeds: the chunks, then each later step.
+            current = [chunk_task]
+
+            def _finish(task_id) -> None:
+                # A step without a count (the index, a hook) shows as done.
+                task = next(t for t in progress.tasks if t.id == task_id)
+                done = task.total if task.total is not None else max(task.completed, 1)
+                progress.update(task_id, total=done, completed=done)
+
+            def _on_step(label: str) -> None:
+                # Every document is chunked once the later steps begin.
+                if file_task is not None:
+                    progress.update(file_task, completed=len(input_files))
+                _finish(current[0])
+                current[0] = progress.add_task(label, total=None)
 
             def _on_document(position: int, xml_file: Path) -> None:
                 if file_task is None:
@@ -1296,8 +1408,8 @@ def chunk(
                     chunk_task, completed=0, description=f'Chunking {xml_file.name}'
                 )
 
-            def _on_progress(current: int, total: int) -> None:
-                progress.update(chunk_task, completed=current, total=total)
+            def _on_progress(done: int, total: int) -> None:
+                progress.update(current[0], completed=done, total=total)
 
             run = project.chunk(
                 input_xml,
@@ -1314,7 +1426,10 @@ def chunk(
                 overwrite=True,
                 on_document=_on_document,
                 on_progress=_on_progress,
+                on_step=_on_step,
+                pages=False if no_pages else page,
             )
+            _finish(current[0])
             if file_task is not None:
                 progress.update(file_task, completed=len(input_files))
 
@@ -1337,6 +1452,10 @@ def chunk(
             typer.echo(f'  - <document>.xml/*.{ext}: chunk files')
             if run.index_file is not None:
                 typer.echo('  - index.html: collection index served at the site root')
+        if run.pages:
+            typer.echo('  - auxiliary pages ([[pages]]):')
+            for page_file in run.pages:
+                typer.echo(f'    - {page_file.relative_to(out_dir).as_posix()}')
 
         _report_xpath_errors(xpath_log, strict=strict)
 
@@ -1407,10 +1526,16 @@ def _serve_directory(root: Path, port: int, *, open_browser: bool = False) -> No
     if not root.is_dir():
         _die(f'directory {root} does not exist.')
 
-    handler = functools.partial(
-        http.server.SimpleHTTPRequestHandler,
-        directory=str(root),
-    )
+    class _RevalidatingHandler(http.server.SimpleHTTPRequestHandler):
+        # The browser must ask before reusing a file: every opm site served
+        # here has assets/ and css/ at the same addresses, so a cached
+        # stylesheet of one project would otherwise style the next.
+        # Unchanged files still come back as 304 Not Modified.
+        def end_headers(self) -> None:
+            self.send_header('Cache-Control', 'no-cache')
+            super().end_headers()
+
+    handler = functools.partial(_RevalidatingHandler, directory=str(root))
     try:
         httpd, bound_port = _bind_http_server(handler, port)
     except OSError as e:
@@ -1484,6 +1609,18 @@ def index_cmd(
             help='JSONL file to write (default: stdout).',
         ),
     ] = None,
+    granularity: Annotated[
+        Optional[str],
+        typer.Option(
+            '--granularity',
+            help=(
+                "'split' writes one record per section, cut to --max-chars, for "
+                "vector search; 'page' writes one record per published page, for "
+                'site search. Falls back to index.granularity in opm.toml '
+                '(default: split).'
+            ),
+        ),
+    ] = None,
     max_chars: Annotated[
         Optional[int],
         typer.Option(
@@ -1549,6 +1686,7 @@ def index_cmd(
             overlap=overlap if overlap is not None else cfg.index_overlap,
             fields=cfg.index_fields,
             units=cfg.index_units,
+            granularity=granularity if granularity is not None else cfg.index_granularity,
         )
         with collect_xpath_errors() as xpath_log:
             records = project.index(input_files, odd=odd, options=options)
@@ -2210,6 +2348,137 @@ def coverage_cmd(
 # ``opm coverage`` shipped in 0.9.0; keep it as a hidden alias of ``odd coverage``.
 app.command('coverage', hidden=True, deprecated=True)(coverage_cmd)
 app.add_typer(odd_app, name='odd')
+
+
+_CONFIG_OPTION = typer.Option('--config', '-c', help='Path to opm.toml (default: ./opm.toml).')
+
+
+def _project_config_path(config: Path | None) -> Path:
+    path = config if config is not None else Path('opm.toml')
+    if not path.is_file():
+        _die(f'{path} not found. Run this in a project directory, or pass --config.')
+    return path
+
+
+@profile_app.command('list')
+def profile_list_cmd(
+    config: Annotated[Optional[Path], _CONFIG_OPTION] = None,
+) -> None:
+    """List the available profiles, marking those the project uses."""
+    from rich.console import Console
+    from rich.table import Table
+
+    from opm.profile import available_profiles, read_project_profiles
+
+    path = config if config is not None else Path('opm.toml')
+    used = read_project_profiles(path) if path.is_file() else []
+    profiles = available_profiles(path.resolve().parent)
+    table = Table(box=None, padding=(0, 2, 0, 0))
+    table.add_column('', width=1)
+    table.add_column('profile', style='bold')
+    table.add_column('from', style='dim')
+    table.add_column('what it adds')
+    for p in profiles:
+        table.add_row('✓' if p.name in used else '', p.name, p.origin, p.description)
+    console = Console()
+    console.print(table)
+    missing = [name for name in used if name not in {p.name for p in profiles}]
+    if missing:
+        _note(f'{path} names profiles that were not found: {", ".join(missing)}')
+    console.print('\nSwitch one on with: opm profile add <name>')
+
+
+@profile_app.command('add')
+def profile_add_cmd(
+    names: Annotated[list[str], typer.Argument(help='Profiles to switch on.')],
+    config: Annotated[Optional[Path], _CONFIG_OPTION] = None,
+) -> None:
+    """Switch profiles on: add them to [project] profiles in opm.toml."""
+    from opm.profile import available_profiles, read_project_profiles, write_project_profiles
+
+    path = _project_config_path(config)
+    known = {p.name: p for p in available_profiles(path.resolve().parent)}
+    unknown = [name for name in names if name not in known]
+    if unknown:
+        _die(
+            f'Unknown profile {", ".join(map(repr, unknown))}. '
+            f'Available: {", ".join(sorted(known)) or "none"}.'
+        )
+    current = read_project_profiles(path)
+    added = [name for name in dict.fromkeys(names) if name not in current]
+    if not added:
+        typer.echo(f'Already in {path}: {", ".join(names)}')
+        return
+    try:
+        write_project_profiles(path, current + added)
+    except ValueError as e:
+        _die(str(e), cause=e)
+    from rich.console import Console
+    from rich.markdown import Markdown
+    from rich.padding import Padding
+
+    from opm.profile import SETUP_HEADING, profile_readme, readme_section
+
+    console = Console()
+    for name in added:
+        console.print(f'[bold]Added {name}[/bold]: {known[name].description}')
+        readme = profile_readme(known[name].path)
+        setup = readme_section(readme) if readme else None
+        if setup:
+            console.print(f'\n{SETUP_HEADING}:')
+            console.print(Padding(Markdown(setup), (0, 0, 0, 2)))
+        if readme:
+            console.print(f'[dim]More: opm profile show {name}[/dim]\n')
+
+
+@profile_app.command('show')
+def profile_show_cmd(
+    name: Annotated[str, typer.Argument(help='The profile to describe.')],
+    config: Annotated[Optional[Path], _CONFIG_OPTION] = None,
+) -> None:
+    """Describe a profile: what it adds, what it needs, its settings."""
+    from rich.console import Console
+    from rich.markdown import Markdown
+
+    from opm.profile import available_profiles, profile_readme, top_level_headings
+
+    path = config if config is not None else Path('opm.toml')
+    known = {p.name: p for p in available_profiles(path.resolve().parent)}
+    profile = known.get(name)
+    if profile is None:
+        _die(f'Unknown profile {name!r}. Available: {", ".join(sorted(known)) or "none"}.')
+    readme = profile_readme(profile.path)
+    console = Console()
+    if readme is None:
+        console.print(f'[bold]{profile.name}[/bold]: {profile.description or "(no description)"}')
+        console.print(f'[dim]No README.md in {profile.path}[/dim]')
+        return
+    console.print(Markdown(top_level_headings(readme)))
+    console.print(f'\n[dim]{profile.origin} profile in {profile.path}[/dim]')
+
+
+@profile_app.command('remove')
+def profile_remove_cmd(
+    names: Annotated[list[str], typer.Argument(help='Profiles to switch off.')],
+    config: Annotated[Optional[Path], _CONFIG_OPTION] = None,
+) -> None:
+    """Switch profiles off: remove them from [project] profiles in opm.toml."""
+    from opm.profile import read_project_profiles, write_project_profiles
+
+    path = _project_config_path(config)
+    current = read_project_profiles(path)
+    kept = [name for name in current if name not in names]
+    if kept == current:
+        typer.echo(f'Not in {path}: {", ".join(names)}')
+        return
+    try:
+        write_project_profiles(path, kept)
+    except ValueError as e:
+        _die(str(e), cause=e)
+    typer.echo(f'Removed {", ".join(n for n in current if n not in kept)} from {path}')
+
+
+app.add_typer(profile_app, name='profile')
 
 
 @app.command('serve')

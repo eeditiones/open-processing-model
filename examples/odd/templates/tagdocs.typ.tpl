@@ -1,0 +1,141 @@
+[#
+  SPDX-FileCopyrightText: 2026 e-editiones
+  SPDX-License-Identifier: CC0-1.0
+#]
+// Typst shell for ODD documentation: `opm odd document -t typst`.
+// odd/tagdocs.odd writes the body; this adds the cover, the table of contents
+// and the page layout, with the ilm template the DocBook example uses too.
+
+#import "@preview/ilm:2.1.0": *
+
+[% let $title = ($context?metadata?title?*, 'ODD documentation')[1] %]
+[% let $edition = string(($context?metadata?edition?*)[1]) %]
+[% let $subtitle = string(($context?metadata?subtitle?*)[1]) %]
+[% let $author = string(($context?metadata?author?*)[1]) %]
+#set text(lang: "[[ ($context?parameters?lng, 'en')[1] ]]")
+
+#show: ilm.with(
+  title: [[[ $title ]]],
+  authors: "",
+  date: none,
+  cover-page: [
+    #set par(justify: false, leading: 0.5em)
+    #set text(font: ("Libertinus Serif",))
+    #place(top + left, dx: -1.2cm, dy: 0cm, rect(width: 0.35cm, height: 100%, fill: rgb("#f7a823"), stroke: none))
+    #v(1fr)
+    #text(size: 2.9em, weight: "bold", [[[ $title ]]])
+[% if $subtitle %]
+    #v(0.6em)
+    #text(size: 1.35em, style: "italic", fill: rgb("#6e6860"), [[[ $subtitle ]]])
+[% endif %]
+    #v(1.4em)
+    #line(length: 4cm, stroke: (paint: rgb("#f7a823"), thickness: 2pt, cap: "round"))
+[% if $author %]
+    #v(1.4em)
+    #text(size: 1.15em, tracking: 0.04em, [[[ $author ]]])
+[% endif %]
+    #v(2fr)
+[% if $edition %]
+    #text(size: 0.9em, fill: rgb("#6e6860"), [[[ $edition ]]])
+[% endif %]
+  ],
+  abstract: none,
+  table-of-contents: outline(depth: 2),
+  raw-text: (font: ("DejaVu Sans Mono", "Menlo", "Courier New"), size: 0.82em),
+)
+
+[% include "opm_css_fns_default.typ" %]
+
+// No margin notes in the documentation: keep the outer column narrow.
+#show: marginalia.setup.with(
+  inner: (far: 2.2cm),
+  outer: (far: 1.6cm, width: 0.4cm, sep: 0.4em),
+  top: 2.4cm,
+  bottom: 2.4cm,
+)
+
+[% include "opm_css.typ" %]
+
+[[ $context?odd_typst ]]
+
+// Palette and type follow the HTML site (document.css): serif text, warm
+// paper tones, amber accents. Fonts fall back to what Typst ships with.
+#let amber = rgb("#9a6510")
+#let ink = rgb("#222120")
+#let muted = rgb("#6e6860")
+#let rule = rgb("#e5dfd4")
+#let wash = rgb("#f6f3ec")
+#let serif = ("Libertinus Serif",)
+#let sans = ("Work Sans", "Avenir Next", "Helvetica Neue", "Libertinus Serif")
+
+// ilm's body size is set for a thesis; a reference of this length reads
+// better smaller.
+#set text(size: 10pt, font: serif, fill: ink)
+#set par(leading: 0.7em, spacing: 0.95em)
+// The outline labels are part of each heading already ("Chapter 3", "iv.1.",
+// "Appendix A"): no numbering of ilm's on top.
+#set heading(numbering: none)
+#show heading: set text(font: serif, fill: ink, weight: "semibold")
+#show heading: set par(justify: false)
+#set list(spacing: 1.1em)
+#set enum(spacing: 1.1em)
+#show heading.where(level: 1): it => {
+  pagebreak(weak: true)
+  block(width: 100%, above: 0pt, below: 1.4em, {
+  text(size: 1.6em, weight: "bold", it.body)
+  v(0.35em, weak: true)
+  line(length: 100%, stroke: (paint: rgb("#f7a823"), thickness: 2pt, cap: "round"))
+  })
+}
+#show heading.where(level: 2): it => block(above: 1.9em, below: 0.9em, {
+  text(size: 1.3em, it.body)
+  v(0.25em, weak: true)
+  line(length: 100%, stroke: 0.5pt + rule)
+})
+#show heading.where(level: 3): it => block(above: 1.5em, below: 0.7em,
+  text(size: 1.05em, fill: amber, it.body))
+#show heading.where(level: 4): it => block(above: 1.2em, below: 0.5em,
+  text(size: 0.95em, style: "italic", it.body))
+
+// Contents: chapters set apart from their sections.
+#show outline.entry.where(level: 1): it => {
+  v(0.5em, weak: true)
+  strong(it)
+}
+#show outline.entry.where(level: 2): set text(fill: muted)
+
+// Code: a warm panel with an amber edge, as on the site.
+#show raw: set text(fill: rgb("#55504a"))
+#show raw.where(block: true): block.with(
+  width: 100%,
+  inset: (x: 0.9em, y: 0.7em),
+  radius: (right: 3pt),
+  fill: wash,
+  stroke: (left: 2.5pt + rgb("#f7a823")),
+)
+#show raw.where(block: false): it => box(
+  fill: wash, inset: (x: 0.25em), outset: (y: 0.3em), radius: 2pt, it)
+#show quote.where(block: true): set text(style: "italic", fill: muted)
+// Links into the document (element names, pointers) and out of it.
+#show link: set text(fill: amber)
+
+// Running footer: the page number on the outer edge, the current chapter
+// beside it — ilm's alternating footer, which only names numbered chapters.
+#set page(footer: context {
+  let page-number = counter(page).get().first()
+  let chapters = heading.where(level: 1)
+  let opens-chapter = query(chapters).any(it => it.location().page() == here().page())
+  let before = query(chapters.before(here()))
+  let chapter = if not opens-chapter and before.len() > 0 {
+    upper(text(size: 0.68em, before.last().body))
+  }
+  let gap = 1.75em
+  if calc.odd(here().page()) {
+    align(right, text(fill: muted, [#chapter #h(gap) #page-number]))
+  } else {
+    align(left, text(fill: muted, [#page-number #h(gap) #chapter]))
+  }
+})
+
+[[ $context?content_typst ]]
+[% endlet %][% endlet %][% endlet %][% endlet %]

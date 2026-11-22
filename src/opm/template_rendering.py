@@ -1,24 +1,37 @@
 # SPDX-FileCopyrightText: 2026 e-editiones
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Helpers for wrapping transform output in Jinja2 templates (HTML and Typst)."""
+"""Helpers for wrapping transform output in page templates (HTML and Typst).
+
+Page templates are jinks templates
+([`opm.jinks_templates`][opm.jinks_templates.environment]), conventionally
+named ``*.tpl`` (``page.html.tpl``, ``book.typ.tpl``). Jinja2 templates
+(``*.j2``) are no longer supported.
+"""
 
 from __future__ import annotations
 
+import dataclasses
 from importlib import resources
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from jinja2 import Environment, TemplateNotFound
 from lxml import etree
 
+from opm import jinks_templates as jinks
+from opm.jinks_templates.environment import convert_results
 from opm.output_modes import RENDER_MODES
-from opm.template_frontmatter import FrontmatterLoader, template_context
+from opm.runtime.xpath_env import XPathEnvironment
+from opm.runtime.xpath_extensions import build_extension_parser, load_extension_callables
+from opm.template_frontmatter import template_context
+
+if TYPE_CHECKING:
+    from opm.project import Project
 
 DEFAULT_TEMPLATE_NAME: str = RENDER_MODES['web'].default_template  # type: ignore[assignment]
 DEFAULT_PRINT_TEMPLATE_NAME: str = RENDER_MODES['print'].default_template  # type: ignore[assignment]
 DEFAULT_TYPST_TEMPLATE_NAME: str = RENDER_MODES['typst'].default_template  # type: ignore[assignment]
-DEFAULT_INDEX_TEMPLATE_NAME = 'default_index.html.j2'
+DEFAULT_INDEX_TEMPLATE_NAME = 'default_index.html.tpl'
 
 
 def default_template_path(template_name: str = DEFAULT_TEMPLATE_NAME) -> Path:
@@ -32,25 +45,35 @@ def resolve_template_path(
     template_path: Path | None,
     *,
     default_name: str = DEFAULT_TEMPLATE_NAME,
+    project: Any = None,
 ) -> Path:
-    """Resolve override template path or packaged default template."""
-    path = (
-        template_path
-        if template_path is not None
-        else default_template_path(default_name)
-    )
+    """Resolve override template path or the default template.
+
+    Without *template_path*, a template named *default_name* in one of
+    *project*'s profiles replaces the packaged default; where several profiles
+    ship one, the profile listed last wins.
+    """
+    path = template_path
+    if path is None and project is not None:
+        for _, profile_path in reversed(getattr(project, '_profiles', ())):
+            candidate = profile_path / 'templates' / default_name
+            if candidate.is_file():
+                path = candidate
+                break
+    if path is None:
+        path = default_template_path(default_name)
     if not path.is_file():
         raise FileNotFoundError(f'Template not found: {path}')
     return path
 
 
-#: The stylesheet of the packaged page layout (``opm/layout.html.j2``), in
+#: The stylesheet of the packaged page layout (``opm/layout.html.tpl``), in
 #: ``resources/templates/opm/``.
 LAYOUT_CSS_NAME = 'opm-layout.css'
 
 
 def layout_css(templates_dir: Path | None = None) -> str:
-    """The stylesheet behind ``opm/layout.html.j2``.
+    """The stylesheet behind ``opm/layout.html.tpl``.
 
     Chunking writes it to ``css/opm-layout.css`` and passes ``layout_css_url``;
     a single transformed page has no such file, so the layout inlines it.
@@ -69,60 +92,168 @@ def packaged_templates_dir() -> Path:
     return default_template_path().parent
 
 
-class TrimmedBlocks:
-    """A template's blocks, each rendered on first use and trimmed.
+#: Suffix of jinks templates.
+JINKS_SUFFIX = '.tpl'
 
-    Templates get one through the ``trimmed`` global: ``{% set blocks =
-    trimmed(self) %}``, then ``blocks.before`` is the rendered ``before``
-    block, an empty string when it holds only whitespace. That lets a layout
-    test whether a region has content before it writes the region's wrapper.
+#: Suffix of Jinja2 templates, which opm no longer renders.
+_JINJA_SUFFIX = '.j2'
+
+#: Variables holding HTML opm rendered itself, written unescaped by jinks
+#: templates in html mode.
+_MARKUP_VARIABLES = ('content_html', 'head_html', 'odd_css', 'base_css')
+
+
+def _reject_jinja(template_path: Path) -> None:
+    if template_path.name.endswith(_JINJA_SUFFIX):
+        raise ValueError(
+            f'{template_path}: Jinja2 templates are no longer supported; '
+            f'rewrite it as a jinks template ({JINKS_SUFFIX}).'
+        )
+
+
+def _searchpaths(template_path: Path, project: Any = None) -> list[str]:
+    """Build search paths for template loading.
+    
+    Args:
+        template_path: The path to the template being loaded
+        project: Optional Project instance to get profile template paths from
+        
+    Returns:
+        List of directory paths to search for templates
     """
-
-    def __init__(self, template_ref: Any) -> None:
-        self._ref = template_ref
-        self._rendered: dict[str, str] = {}
-
-    def __getattr__(self, name: str) -> str:
-        if name.startswith('_'):
-            raise AttributeError(name)
-        if name not in self._rendered:
-            self._rendered[name] = str(self._ref[name]()).strip()
-        return self._rendered[name]
-
-
-def template_environment(template_path: Path) -> Environment:
-    """A Jinja2 environment for rendering *template_path*.
-
-    Templates are looked up in *template_path*'s directory first, then among
-    the packaged ones, so a project template can ``{% extends
-    "opm/layout.html.j2" %}`` and can replace a packaged file by giving its
-    own the same relative path. Frontmatter is removed from every source and
-    feeds the template ``context`` (see
-    [`template_context`][opm.template_frontmatter.template_context]). The
-    global ``trimmed`` gives access to a template's rendered blocks (see
-    [`TrimmedBlocks`][opm.template_rendering.TrimmedBlocks]).
-    """
-    searchpaths = [str(template_path.parent)]
+    # Use absolute paths for consistency
+    searchpaths = [str(template_path.parent.resolve())]
+    
+    # Add profile template directories from project first
+    # This allows profiles to override default templates
+    if project is not None:
+        for profile_config, profile_path in project._profiles:
+            templates_dir = profile_path / "templates"
+            if templates_dir.is_dir():
+                searchpaths.append(str(templates_dir.resolve()))
+    
+    # Also check for a profiles/ directory in the project
+    project_dir = template_path.parent.parent.resolve()  # templates/ -> project root
+    profiles_dir = project_dir / "profiles"
+    if profiles_dir.is_dir():
+        for profile_dir in profiles_dir.iterdir():
+            if profile_dir.is_dir():
+                templates_dir = profile_dir / "templates"
+                if templates_dir.is_dir() and str(templates_dir.resolve()) not in searchpaths:
+                    searchpaths.append(str(templates_dir.resolve()))
+    
+    # Add packaged templates last
     packaged = str(packaged_templates_dir())
     if packaged not in searchpaths:
         searchpaths.append(packaged)
-    env = Environment(loader=FrontmatterLoader(searchpaths), autoescape=False)
-    env.globals['trimmed'] = TrimmedBlocks
+    
+    return searchpaths
+
+
+def _jinks_parser_factory(xpath_env: XPathEnvironment | None):
+    """Parsers with the project's namespaces and ``tp:`` extension functions."""
+    plain = jinks.Environment().parser(frozenset())
+    callables: dict = {}
+    project_ns: dict[str, str] = {}
+    if xpath_env is not None:
+        project_ns = xpath_env.namespaces
+        for module in xpath_env.extensions:
+            callables.update(load_extension_callables(module))
+    callables = {name: convert_results(fn, plain) for name, fn in callables.items()}
+
+    def factory(namespaces: dict[str, str]):
+        return build_extension_parser('', callables, namespaces={**project_ns, **namespaces})
+    return factory
+
+
+class JinksPageTemplate:
+    """A jinks page template rendered with ``render(**variables)``.
+
+    The variables opm passes (``content_html``, ``chunk``, ``fragments``, …)
+    and ``context`` form one jinks context map, with the frontmatter merged
+    over it by the engine. Where a key exists in both, the project's
+    ``context`` wins. HTML opm produced itself (``content_html``, ``head_html`` and the
+    stylesheets) is marked as markup, so html mode writes it unescaped. Each
+    fragment is a [`Fragment`][opm.jinks_templates.Fragment]: expressions see
+    it as nodes, and writing it gives back the HTML unchanged.
+    """
+
+    def __init__(self, template: jinks.Template, use: tuple[str, ...] = ()) -> None:
+        self.template = template
+        #: Templates the profiles add to every page, before any the context names.
+        self.use = use
+
+    def render(self, **variables: Any) -> str:
+        context = variables.pop('context', None) or {}
+        if self.use:
+            templating = dict(context.get('templating') or {})
+            named = templating.get('use') or []
+            named = [named] if isinstance(named, str) else list(named)
+            templating['use'] = [*self.use, *(f for f in named if f not in self.use)]
+            context = {**context, 'templating': templating}
+        for name in _MARKUP_VARIABLES:
+            if isinstance(variables.get(name), str):
+                variables[name] = jinks.Markup(variables[name])
+        if isinstance(variables.get('fragments'), dict):
+            variables['fragments'] = _markup_fragments(variables['fragments'])
+        if isinstance(variables.get('documents'), list):
+            # Index entries carry the fragments of each document.
+            variables['documents'] = [_index_entry_map(entry) for entry in variables['documents']]
+        return self.template.render({**variables, **context})
+
+
+def _markup_fragments(fragments: dict) -> dict:
+    return {k: jinks.Fragment(v) if isinstance(v, str) else v for k, v in fragments.items()}
+
+
+def _index_entry_map(entry: Any) -> Any:
+    if dataclasses.is_dataclass(entry) and not isinstance(entry, type):
+        entry = {f.name: getattr(entry, f.name) for f in dataclasses.fields(entry)}
+    if isinstance(entry, dict) and isinstance(entry.get('fragments'), dict):
+        entry = {**entry, 'fragments': _markup_fragments(entry['fragments'])}
+    return entry
+
+
+def template_environment(
+    template_path: Path, xpath_env: XPathEnvironment | None = None, project: Any = None,
+) -> jinks.Environment:
+    """The jinks environment for rendering *template_path*.
+
+    Templates are looked up in *template_path*'s directory first, then among
+    the packaged ones, so a project template can extend
+    ``opm/layout.html.tpl`` and can replace a packaged file by giving its
+    own the same relative path. ``extends``, ``use`` and includes resolve
+    along that search path. XPath in the template sees the project's
+    namespaces and ``tp:`` extension functions from *xpath_env*.
+
+    Raises:
+        ValueError: *template_path* is a Jinja2 template (``.j2``).
+    
+    If *project* is provided, profile template directories are added to the
+    search path, allowing templates to use profile templates via the ``use``
+    directive.
+    """
+    _reject_jinja(template_path)
+    searchpaths = _searchpaths(template_path, project)
+    env = jinks.Environment(searchpaths, parser_factory=_jinks_parser_factory(xpath_env))
+    # HTML pages take the blocks of every profile's `use` templates; a
+    # Typst template, sharing the context, must not.
+    if project is not None and '.html' in template_path.name:
+        env.profile_use = tuple(
+            file for profile, _ in getattr(project, '_profiles', ()) for file in profile.use
+        )
     return env
 
 
-def load_template(env: Environment, template_path: Path, label: str = 'Template'):
+def load_template(env: jinks.Environment, template_path: Path,
+                  label: str = 'Template') -> JinksPageTemplate:
     """Load *template_path* from *env*, raising ``FileNotFoundError`` if missing."""
     try:
-        template = env.get_template(template_path.name)
-        if isinstance(env.loader, FrontmatterLoader):
-            # Resolve the extends chain now, so a missing parent is reported
-            # here rather than as a Jinja2 error halfway through rendering.
-            env.loader.chain(env, template_path.name)
-        return template
-    except TemplateNotFound as e:
-        missing = '' if e.name == template_path.name else f' (needed by {template_path.name})'
-        raise FileNotFoundError(f'{label} not found: {e.name}{missing}') from e
+        return JinksPageTemplate(
+            env.get_template(template_path.name), use=getattr(env, 'profile_use', ()),
+        )
+    except jinks.TemplateNotFound as e:
+        raise FileNotFoundError(f'{label} not found: {e}') from e
 
 
 def _inner_html(el: etree._Element | None) -> str:
@@ -158,8 +289,10 @@ def render_document_template(
     assets: str = '',
     asset_styles: list[str] | None = None,
     fragments: dict[str, str] | None = None,
+    xpath_env: XPathEnvironment | None = None,
+    project: Any = None,
 ) -> str:
-    """Render a full HTML document through the selected Jinja2 template.
+    """Render a full HTML document through the selected page template.
 
     *context* is the project's ``[context]`` table (see
     [`context_for`][opm.config.ProjectConfig.context_for]), exposed to the template
@@ -181,6 +314,8 @@ def render_document_template(
     *fragments* are the rendered global fragments of ``[chunking]`` (the
     title, a table of contents), under the same ``fragments`` name chunk pages
     get them, so one template serves both.
+
+    *xpath_env* supplies namespaces and ``tp:`` functions to a jinks template.
     """
     html_root = _first_html_root(serialized_html)
     if html_root is None:
@@ -190,7 +325,7 @@ def render_document_template(
     body = html_root.find('body')
     # HtmlOutputFunctions.document() already puts the ODD CSS in <head>. Take
     # it out again and hand it over as odd_css, so a template places it where
-    # it belongs in the cascade (opm/base.html.j2: after the page's own
+    # it belongs in the cascade (opm/base.html.tpl: after the page's own
     # stylesheets) and a template rendering both variables does not repeat it.
     if head is not None and odd_css:
         for style in head.findall('style'):
@@ -198,7 +333,7 @@ def render_document_template(
                 head.remove(style)
     head_content = _inner_html(head)
     effective_odd_css = odd_css or ''
-    env = template_environment(template_path)
+    env = template_environment(template_path, xpath_env, project)
     tpl = load_template(env, template_path)
     return tpl.render(
         head_html=head_content,
@@ -207,7 +342,7 @@ def render_document_template(
         base_css=base_css or '',
         parameters=parameters or {},
         lang=html_root.get('lang', ''),
-        context=template_context(env, template_path.name, context),
+        context=template_context(context),
         assets=assets,
         asset_styles=asset_styles or [],
         fragments=fragments or {},
@@ -225,6 +360,9 @@ def render_index_template(
     asset_styles: list[str] | None = None,
     layout_css_url: str = '',
     context: dict | None = None,
+    xpath_env: XPathEnvironment | None = None,
+    project: Any = None,
+    site_root: str = '',
 ) -> str:
     """Render a collection index listing chunked documents.
 
@@ -239,17 +377,19 @@ def render_index_template(
     by declaring global fragments in ``opm.toml`` — no code change needed to add
     an author or date column.
     """
-    env = template_environment(template_path)
+    env = template_environment(template_path, xpath_env, project)
     tpl = load_template(env, template_path)
     return tpl.render(
         documents=entries,
+        # The index sits at the output root, so menu URLs need no prefix.
+        site_root=site_root,
         title=title,
         odd_css=odd_css or '',
         odd_css_url=odd_css_url,
         assets=assets,
         asset_styles=asset_styles or [],
         layout_css_url=layout_css_url,
-        context=template_context(env, template_path.name, context),
+        context=template_context(context),
     )
 
 
@@ -261,14 +401,15 @@ def render_typst_document_template(
     parameters: dict[str, str],
     metadata: dict | None = None,
     context: dict | None = None,
+    xpath_env: XPathEnvironment | None = None,
 ) -> str:
-    """Render Typst body content through the selected Jinja2 document shell."""
-    env = template_environment(template_path)
+    """Render Typst body content through the selected document shell."""
+    env = template_environment(template_path, xpath_env)
     tpl = load_template(env, template_path, 'Typst template')
     return tpl.render(
         content_typst=content_typst,
         odd_typst=odd_typst or '',
         parameters=parameters or {},
         metadata=metadata or {},
-        context=template_context(env, template_path.name, context),
+        context=template_context(context),
     )
