@@ -252,6 +252,12 @@ class ChunkingConfig:
     ``<output_dir>/css/``). Must match the ``path`` of the consuming
     ``pb-document``. When unset the data is written directly into ``output_dir``.
     """
+    webcomponents: bool | None = None
+    """Web-component mode for this run's HTML pages, e.g. for a facsimile view.
+
+    Unset, the run follows ``[transform.web] webcomponents``; ``--webcomponents``
+    / ``--no-webcomponents`` on the command line override every run.
+    """
     input: str | None = None
     """The documents this run reads, instead of the input given on the command line.
 
@@ -607,6 +613,7 @@ def _parse_chunking(data: dict[str, Any], config_path: Path) -> ChunkingConfig:
         parameters=data.get('parameters'),
         doc_path=data.get('doc_path'),
         input=str(config_path.parent / str(data['input'])) if data.get('input') else None,
+        webcomponents=data.get('webcomponents'),
     )
 
 

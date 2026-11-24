@@ -389,7 +389,8 @@ example and `templates/article.typ.tpl` in the `jats` example.
 
 Expressions can call the [XPath extension functions](xpath-extensions.md) of
 your project (`tp:` functions) and use the namespace prefixes declared in
-`[transform.namespaces]`. A template can declare more prefixes in its
+`[transform.namespaces]`. `doc()` and `collection()` read the documents and
+`[[transform.collections]]` configured in `opm.toml`, as in the ODD. A template can declare more prefixes in its
 frontmatter:
 
 ```json

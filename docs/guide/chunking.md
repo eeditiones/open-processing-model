@@ -290,6 +290,32 @@ template = "templates/handbook.html.tpl"
 xpath = "/TEI/text"        # the whole text on one page
 ```
 
+Two runs may read the same files, for two presentations of the same
+documents, as long as their `document_name` puts them in different
+directories. A run can also switch web components on for its own pages, for
+example for a facsimile view beside a plain reading view:
+
+```toml
+[[chunking]]
+name = "single"
+input = "data/works/*/*.xml"
+document_name = "/TEI/@xml:id || '/single'"
+xpath = "/TEI/text"                       # the whole text on one page
+
+[[chunking]]
+name = "facs"
+input = "data/works/*/*.xml"
+document_name = "/TEI/@xml:id || '/facs'"
+selector = "opm.navigation.tei_pb_chunks" # one page per <pb>
+view = "page"
+webcomponents = true                      # for the iiif profile's viewer
+parameters = { iiif-viewer = "pb-facsimile" }
+```
+
+`document_name` can also use the file's location: `document-uri(/)` is its
+`file:` URL, so `tokenize(document-uri(/), '/')[last() - 1]` is the name of
+the directory it is in.
+
 Runs without an `input` read the input given on the command line, together,
 as before. A run with an `input` ignores it, and `opm chunk` reports this; if
 every run has one, the command-line input is not used at all. A file may be
@@ -392,6 +418,32 @@ page. Pages are HTML-only: `--format json` and `--format pb-view` skip them,
 since those feed an external site generator that builds its own pages. Use
 `--no-pages` to build the reading view alone, or `--page places` to build only
 the pages whose path starts with a prefix.
+
+A page with `path = "index.html"` is the site's own landing page: it takes
+the place of the collection index `opm chunk` would otherwise write there. Its
+template can read the project's `[[transform.collections]]` with
+`collection()`, so a landing page can list things that are not chunked
+documents themselves, and link those that are through `site_documents`:
+
+```toml
+[[transform.collections]]
+uri = "urn:works"
+documents = ["data/index/*/index.xml"]
+
+[[pages]]
+path = "index.html"
+template = "templates/works-index.html.tpl"
+```
+
+```html
+[% for $work in collection('urn:works') %]
+[% let $slug = tokenize(document-uri($work), '/')[last() - 1] %]
+[% let $intro = $context?site_documents?*[?name = $slug || '/intro'] %]
+<h2>[[ ($work//tei:titleStmt/tei:title)[1] ]]</h2>
+[% if exists($intro) %]<a href="[[ $intro?href ]]">Introduction</a>[% endif %]
+[% endlet %][% endlet %]
+[% endfor %]
+```
 
 Profiles can declare `[[pages]]` in their `opm-profile.toml` (see
 [Profiles](profiles.md)); a project entry with the same `path` replaces the

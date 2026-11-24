@@ -12,7 +12,9 @@
 
   context.pb_page wraps the body in the <pb-page> element TEI Publisher's web
   components need, with its endpoint, api-version and theme attributes:
-  pb_page = { endpoint = ".", api-version = "1.0.0" }.
+  pb_page = { endpoint = ".", api-version = "1.0.0" }. Only pages built with
+  web components (webcomponents_url set) get it: elsewhere it would be an
+  unknown element around the page.
 
   Stylesheets are linked in cascade order: the layout's own (block
   layout_styles), context.styles, the assets' stylesheets (asset_styles),
@@ -58,7 +60,7 @@
   [% block scripts %][% endblock %]
 </head>
 <body class="[[ string-join($context?theme?body?classes?*, ' ') ]] [% block body_class %][% endblock %]">
-[% if exists($context?pb_page) %]
+[% if exists($context?pb_page) and $context?webcomponents_url %]
 <pb-page endpoint="![[ $context?pb_page?endpoint ]]" api-version="![[ $context?pb_page?api-version ]]" theme="![[ $context?pb_page?theme ]]">
 [% endif %]
 [% block body %]
@@ -66,7 +68,7 @@
     [[ $context?content_html ]]
   </article>
 [% endblock %]
-[% if exists($context?pb_page) %]
+[% if exists($context?pb_page) and $context?webcomponents_url %]
 </pb-page>
 [% endif %]
 [% block body_end %][% endblock %]

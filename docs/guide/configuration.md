@@ -70,6 +70,8 @@ items = [{ label = "Home", url = "/" }]
 # What `opm chunk` reads without an argument: an XML file, a directory, or a
 # glob pattern (** matches any number of subdirectories), relative to opm.toml
 # input = "data/**/*.xml"
+# Web components for this run's pages only (default: [transform.web] webcomponents)
+# webcomponents = true
 # ODD used for chunking (falls back to [transform].odd / packaged default)
 # odd = "odd/my-customisation.odd"
 # XPath expression selecting chunk root elements

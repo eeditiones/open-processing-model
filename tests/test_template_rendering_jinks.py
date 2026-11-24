@@ -261,7 +261,8 @@ def test_default_typst_template_takes_the_metadata_title(tmp_path: Path) -> None
 def test_base_template_wraps_body_in_pb_page(tmp_path: Path) -> None:
     page = tmp_path / 'page.html.tpl'
     page.write_text(
-        '---toml\n[pb_page]\nendpoint = "."\napi-version = "1.0.0"\n\n'
+        '---toml\nwebcomponents_url = "pb-components-bundle.js"\n'
+        '[pb_page]\nendpoint = "."\napi-version = "1.0.0"\n\n'
         '[templating]\nextends = "opm/base.html.tpl"\n---\n', encoding='utf-8')
     out = render_document_template(serialized_html=_DOC, template_path=page, odd_css='',
                                    parameters={})
@@ -273,6 +274,13 @@ def test_base_template_wraps_body_in_pb_page(tmp_path: Path) -> None:
                      encoding='utf-8')
     assert '<pb-page' not in render_document_template(
         serialized_html=_DOC, template_path=plain, odd_css='', parameters={})
+    # Without web components on the page there is nothing for <pb-page> to do.
+    no_components = tmp_path / 'no-components.html.tpl'
+    no_components.write_text(
+        '---toml\n[pb_page]\nendpoint = "."\n\n'
+        '[templating]\nextends = "opm/base.html.tpl"\n---\n', encoding='utf-8')
+    assert '<pb-page' not in render_document_template(
+        serialized_html=_DOC, template_path=no_components, odd_css='', parameters={})
 
 
 def test_scaffolded_shells_exist() -> None:

@@ -489,13 +489,19 @@ def test_iiif_profile_can_use_pb_facsimile(tmp_path: Path) -> None:
         '[context.features.iiif]\nviewer = "pb-facsimile"\nbase_uri = "https://images.test/iiif/"\n'
     )).chunk(tmp_path / 'doc.xml', template=_layout_page(tmp_path), webcomponents=True)
     page = (run.output_dir / 'doc.xml' / '001.html').read_text(encoding='utf-8')
-    assert '<pb-facsimile base-uri="https://images.test/iiif/"' in _after_column(page)
+    viewer = _after_column(page)
+    assert '<pb-facsimile base-uri="https://images.test/iiif/"' in viewer
+    # A <pb-facs-link subscribe="transcription"> only waits for a viewer that
+    # emits on "transcription"; without it the link announces its image first.
+    assert 'subscribe="transcription" emit="transcription"></pb-facsimile>' in viewer
     assert 'pb-tify' not in page
 
 
 def test_iiif_profile_needs_web_components(tmp_path: Path) -> None:
     run = _iiif_project(tmp_path).chunk(tmp_path / 'doc.xml', template=_layout_page(tmp_path))
-    assert 'iiif-facs' not in (run.output_dir / 'doc.xml' / '001.html').read_text(encoding='utf-8')
+    page = (run.output_dir / 'doc.xml' / '001.html').read_text(encoding='utf-8')
+    assert 'iiif-facs' not in page
+    assert '<pb-page' not in page
 
 
 def _odd(models: str = _MODELS) -> str:

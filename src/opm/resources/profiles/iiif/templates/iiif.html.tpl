@@ -6,7 +6,10 @@
   webcomponents_url. Settings: [context.features.iiif].
 
   pb-facsimile prefixes the image each <pb-facs-link facs> names with
-  base-uri. Tiles from another origin need cors="Anonymous", or
+  base-uri. Like pb-tify it emits on "transcription" as well: a link that
+  subscribes to that channel (teipublisher.odd's pb-facsimile model does)
+  only waits for viewers emitting on it (wait() in pb-mixin.js), and would
+  otherwise announce its image before the viewer, later on the page, listens. Tiles from another origin need cors="Anonymous", or
   OpenSeadragon's WebGL drawer may not upload them and the viewer stays
   empty. The sequence mode shows one page at a time instead of stacking them.
 #]
@@ -27,7 +30,7 @@
     <aside class="iiif-facs" aria-label="[[ $settings?label ]]">
       [% if $settings?viewer = 'pb-facsimile' %]
       <pb-facsimile base-uri="[[ $settings?base_uri ]]" cors="Anonymous" default-zoom-level="0"
-        show-sequence-control show-navigator show-navigation-control subscribe="transcription"></pb-facsimile>
+        show-sequence-control show-navigator show-navigation-control subscribe="transcription" emit="transcription"></pb-facsimile>
       [% else %]
       <pb-tify subscribe="transcription" emit="transcription"></pb-tify>
       [% endif %]

@@ -82,9 +82,13 @@ class ChunkRun:
     modules: tuple[ResolvedTransform, ...]
     """The transform modules used: the main one first, then the fragment ones."""
     index_file: Path | None = None
-    """The ``index.html`` an HTML run writes at the output root."""
+    """The ``index.html`` at the output root: the generated collection index, or
+    the project's own page when a ``[[pages]]`` entry has ``path = "index.html"``."""
     document_dirs: dict[Path, str] = field(default_factory=dict)
-    """Each document's directory name below [`output_dir`][opm.project.ChunkRun.output_dir], by source file."""
+    """Each document's directory name below [`output_dir`][opm.project.ChunkRun.output_dir], by source file.
+
+    A file read by several runs is listed with the first run's directory.
+    """
     pages: tuple[Path, ...] = ()
     """The auxiliary pages (``[[pages]]``) written below [`output_dir`][opm.project.ChunkRun.output_dir], absolute."""
 
@@ -178,18 +182,19 @@ def document_names(
             )
         taken[name] = path
         names[path] = name
-    _check_document_dirs(names)
+    _check_document_dirs(names.items())
     return names
 
 
-def _check_document_dirs(names: dict[Path, str]) -> None:
+def _check_document_dirs(names: Iterable[tuple[Path, str]]) -> None:
     """No two documents share a directory, and none lies inside another's.
 
     A document's directory holding another's would mix their pages, and the
-    collection index could not tell them apart.
+    collection index could not tell them apart. A file read by two runs
+    appears twice, once per directory.
     """
     taken: dict[str, Path] = {}
-    for path, name in names.items():
+    for path, name in names:
         if name in taken:
             raise ValueError(
                 f'{taken[name].name} and {path.name} would both be written to {name}/.',
@@ -248,9 +253,12 @@ def chunk_inputs(
     every run has its own input, *source* is not used (see
     [`runs_ignoring_source`][opm.project.runs_ignoring_source]).
 
+    Two runs may read the same files, as long as their ``document_name``
+    puts them in different directories (one presentation per run).
+
     Raises:
-        ValueError: A run has neither an input of its own nor a *source*, an
-            input matches no file, or one file is read by two inputs.
+        ValueError: A run has neither an input of its own nor a *source*, or
+            an input matches no file.
     """
     groups: list[ChunkInput] = []
     shared = tuple(run for run in runs if run.input is None)
@@ -265,7 +273,6 @@ def chunk_inputs(
                     'line or set input in opm.toml.'
                 )
             groups.append(ChunkInput(shared, source, ()))
-    seen: dict[Path, Path | str] = {}
     result: list[ChunkInput] = []
     for group in groups:
         files = chunk_input_files(group.source)
@@ -274,13 +281,6 @@ def chunk_inputs(
             if is_glob_pattern(group.source):
                 raise ValueError(f'no files match {group.source} ([[chunking]] run {where}).')
             raise ValueError(f'no XML files found in {group.source} ([[chunking]] run {where}).')
-        for xml_file in files:
-            key = xml_file.resolve()
-            if key in seen:
-                raise ValueError(
-                    f'{xml_file} is read twice, by the inputs {seen[key]} and {group.source}.',
-                )
-            seen[key] = group.source
         result.append(replace(group, files=tuple(files)))
     return result
 
@@ -844,7 +844,10 @@ class Project:
         groups: list[tuple[list[ChunkingConfig], list[Path]]] = [
             ([runs[position[id(run)]] for run in item.runs], list(item.files)) for item in inputs
         ]
-        all_files = [xml_file for _, group_files in groups for xml_file in group_files]
+        # A file read by several runs is listed once.
+        all_files = list(dict.fromkeys(
+            xml_file for _, group_files in groups for xml_file in group_files
+        ))
 
         out_dir = self.chunk_output_dir(chunking.output_dir)
         _clear_output_dir(out_dir, overwrite)
@@ -859,29 +862,40 @@ class Project:
         # What each document's directory is called: its file name, or the
         # document_name of the run that reads it. pb-view data stays
         # addressed by file.
-        doc_names: dict[Path, str] = {}
-        for group_runs, group_files in groups:
-            doc_names.update(document_names(
+        group_names = [
+            document_names(
                 group_files,
                 None if format == 'pb-view' else group_runs[0].document_name,
                 self.config,
                 extensions=extensions,
-            ))
-        _check_document_dirs(doc_names)
+            )
+            for group_runs, group_files in groups
+        ]
+        _check_document_dirs(
+            (xml_file, name) for names_of_group in group_names
+            for xml_file, name in names_of_group.items()
+        )
+        # Each file's first directory, for what is keyed by file.
+        doc_names: dict[Path, str] = {}
+        for names_of_group in group_names:
+            for xml_file, name in names_of_group.items():
+                doc_names.setdefault(xml_file, name)
         # Built once and shared: templates test links against it.
-        names = frozenset(doc_names.values())
+        names = frozenset(
+            name for names_of_group in group_names for name in names_of_group.values()
+        )
 
-        # Each document's anchor map, kept so the auxiliary pages can link
-        # into the reading view: id → the document's directory + chunk file.
-        anchors_by_doc: dict[Path, dict[str, str]] = {}
+        # Each document directory's anchor map, kept so the auxiliary pages
+        # can link into the reading view: id → the directory + chunk file.
+        anchors_by_dir: dict[str, dict[str, str]] = {}
 
         documents = [
-            (group_runs, xml_file)
-            for group_runs, group_files in groups
+            (group_runs, xml_file, names_of_group[xml_file])
+            for (group_runs, group_files), names_of_group in zip(groups, group_names)
             for xml_file in group_files
         ]
         multi_document = len(inputs) > 1 or is_multi_document(inputs[0].source)
-        for position, (group_runs, xml_file) in enumerate(documents):
+        for position, (group_runs, xml_file, doc_name) in enumerate(documents):
             if on_document is not None:
                 on_document(position, xml_file)
             if multi_document and format == 'pb-view':
@@ -905,11 +919,14 @@ class Project:
                 anchors = chunk_document(
                     module_path=run.module,
                     xml_path=xml_file,
-                    config=_document_config(run, xml_file, format, doc_names[xml_file]),
+                    config=_document_config(run, xml_file, format, doc_name),
                     project=self,
                     template_path=run.template,
                     on_progress=progress,
-                    webcomponents=enabled,
+                    webcomponents=(
+                        enabled if format in ('json', 'pb-view') or webcomponents is not None
+                        or run.webcomponents is None else run.webcomponents
+                    ),
                     xpath_extensions=extensions,
                     output_format=format,
                     doc_path=document_doc_path,
@@ -918,7 +935,7 @@ class Project:
                     merge_manifest=index > 0,
                 ) or {}  # a wrapped or stubbed chunk_document may still return None
                 written = len(set(anchors.values()))
-            anchors_by_doc[xml_file] = anchors
+            anchors_by_dir[doc_name] = anchors
 
         # Auxiliary pages ([[pages]]): rendered after the runs, into the same
         # output root. They receive every document's anchors (prefixed with
@@ -927,11 +944,12 @@ class Project:
         if format == 'html' and pages is not False:
             from opm.pages import render_pages
 
-            page_anchors = {
-                xml_id: f'{doc_names[xml_file]}/{chunk_file}'
-                for xml_file, doc_anchors in anchors_by_doc.items()
-                for xml_id, chunk_file in doc_anchors.items()
-            }
+            # An id found in several directories (a file read by two runs)
+            # links to the first run's page.
+            page_anchors: dict[str, str] = {}
+            for doc_name, doc_anchors in anchors_by_dir.items():
+                for xml_id, chunk_file in doc_anchors.items():
+                    page_anchors.setdefault(xml_id, f'{doc_name}/{chunk_file}')
             from opm.chunking import collect_index_entries
 
             # The documents just chunked, for pages that list or search them
@@ -939,12 +957,12 @@ class Project:
             first_pages = {entry.name: entry.href for entry in collect_index_entries(out_dir)}
             site_documents = [
                 {
-                    'name': doc_names[xml_file],
+                    'name': doc_name,
                     'path': str(xml_file.resolve()),
-                    'href': first_pages[doc_names[xml_file]],
+                    'href': first_pages[doc_name],
                 }
-                for xml_file in all_files
-                if doc_names[xml_file] in first_pages
+                for _, xml_file, doc_name in documents
+                if doc_name in first_pages
             ]
             if on_step is not None and self.config.pages:
                 on_step('Building pages')
@@ -962,9 +980,14 @@ class Project:
         page_files = tuple(file for result in page_results for file in result.files)
 
         # Every HTML run leaves one subdirectory per document, which a web
-        # server would otherwise show as a bare listing.
+        # server would otherwise show as a bare listing. A [[pages]] entry
+        # with path "index.html" is the project's own landing page: it was
+        # just written and takes the place of the generated index.
         index_file: Path | None = None
-        if format == 'html':
+        own_index = out_dir / 'index.html'
+        if own_index in page_files:
+            index_file = own_index
+        elif format == 'html':
             if on_step is not None:
                 on_step('Writing index')
             index_file = build_index(

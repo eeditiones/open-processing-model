@@ -1080,6 +1080,112 @@ def test_chunk_run_without_input_needs_one_on_the_command_line(
     assert 'no input for [[chunking]] run "collation"' in capsys.readouterr().err
 
 
+def test_chunk_two_runs_read_the_same_files_into_their_own_directories(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """One presentation per run: the same documents, split and rendered differently."""
+    _write_glob_fixture(tmp_path)
+    (tmp_path / 'page.html.tpl').write_text(
+        '<html><body data-wc="[[ $context?webcomponents_url ]]">'
+        '[[ $context?content_html ]]</body></html>',
+        encoding='utf-8',
+    )
+    (tmp_path / 'opm.toml').write_text(
+        """[[chunking]]
+name = "single"
+odd = "teipublisher.odd"
+input = "data/*/*.col.xml"
+document_name = "/doc/@xml:id || '/single'"
+template = "page.html.tpl"
+output_dir = "html-site"
+xpath = "/doc/body"
+
+[[chunking]]
+name = "pages"
+odd = "teipublisher.odd"
+input = "data/*/*.col.xml"
+document_name = "/doc/@xml:id || '/pages'"
+template = "page.html.tpl"
+xpath = "//body/div[@type='chunk']"
+webcomponents = true
+""",
+        encoding='utf-8',
+    )
+    _set_doc_ids(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['chunk', '-c', 'opm.toml'])
+
+    assert rc == 0
+    site = tmp_path / 'html-site'
+    for name in ('one', 'two'):
+        single = json.loads((site / name / 'single' / 'manifest.json').read_text(encoding='utf-8'))
+        assert len(single['chunks']) == 1
+        assert (site / name / 'pages' / '002.html').is_file()
+    # Only the run that asks for web components gets them.
+    assert 'data-wc=""' in (site / 'one' / 'single' / '001.html').read_text(encoding='utf-8')
+    assert 'data-wc="http' in (site / 'one' / 'pages' / '001.html').read_text(encoding='utf-8')
+
+
+def test_chunk_runs_reading_the_same_file_need_different_directories(
+    tmp_path: Path, monkeypatch, capsys,
+) -> None:
+    _write_glob_fixture(tmp_path)
+    (tmp_path / 'opm.toml').write_text(
+        """[[chunking]]
+odd = "teipublisher.odd"
+input = "data/*/*.col.xml"
+output_dir = "html-site"
+
+[[chunking]]
+odd = "teipublisher.odd"
+input = "data/*/*.col.xml"
+""",
+        encoding='utf-8',
+    )
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['chunk', '-c', 'opm.toml'])
+
+    assert rc == 1
+    assert 'would both be written to one.col.xml/' in capsys.readouterr().err
+
+
+def test_chunk_page_at_index_html_replaces_the_collection_index(tmp_path: Path, monkeypatch) -> None:
+    """A source-less page lists what collection() holds and links the documents built."""
+    _write_glob_fixture(
+        tmp_path,
+        'input = "data/*/*.col.xml"\ndocument_name = "/doc/@xml:id || \'/collation\'"\n',
+    )
+    _set_doc_ids(tmp_path)
+    (tmp_path / 'home.html.tpl').write_text(
+        '<html><body><ul>'
+        '[% for $d in collection(\'urn:notes\') %]'
+        '[% let $slug = tokenize(document-uri($d), \'/\')[last() - 1] %]'
+        '<li data-slug="[[ $slug ]]">[[ $context?site_documents?*[?name = $slug || \'/collation\']?href ]]</li>'
+        '[% endlet %][% endfor %]'
+        '</ul></body></html>',
+        encoding='utf-8',
+    )
+    config = tmp_path / 'opm.toml'
+    config.write_text(
+        '[[transform.collections]]\nuri = "urn:notes"\ndocuments = ["data/*/notes_*.xml"]\n\n'
+        + config.read_text(encoding='utf-8')
+        + '\n[[pages]]\npath = "index.html"\ntemplate = "home.html.tpl"\n',
+        encoding='utf-8',
+    )
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['chunk', '-c', 'opm.toml'])
+
+    assert rc == 0
+    index = (tmp_path / 'html-site' / 'index.html').read_text(encoding='utf-8')
+    assert '<li data-slug="one">one/collation/001.html</li>' in index
+    assert '<li data-slug="two">two/collation/001.html</li>' in index
+    # The generated collection index did not overwrite the page.
+    assert 'opm-masthead' not in index
+
+
 def test_prepare_chunk_output_dir_noop_if_missing(tmp_path: Path) -> None:
     out = tmp_path / 'chunks'
     _prepare_chunk_output_dir(out, force=False)
