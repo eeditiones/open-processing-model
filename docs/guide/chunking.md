@@ -37,6 +37,35 @@ opm chunk data/F-ado.xml -o pages/ --force    # override chunking.output_dir
 opm chunk data --doc-path demo --format pb-view --force
 ```
 
+### Selecting the documents
+
+The input of `opm chunk` is one XML file, a directory, or a glob pattern:
+
+- **A directory** stands for the `*.xml` files directly inside it. Subdirectories
+  are not searched.
+- **A glob pattern** selects files anywhere below a directory, and only those
+  whose name fits. `**` matches any number of subdirectories. Quote the pattern,
+  so that opm expands it rather than the shell:
+
+    ```bash
+    opm chunk 'data/collation/**/*.col.xml' --force
+    ```
+
+A directory and a pattern are both treated as a collection: every document goes
+to a subdirectory of its own, and an `index.html` lists them. The subdirectory
+is named after the file (`aarets-historie.col.xml/`) unless `document_name` derives
+a name from the document. If two files in different directories have the same
+name, opm stops and asks you to set `document_name`.
+
+To build the same set of documents every time, put the input in `opm.toml`.
+A relative path is resolved against the directory of `opm.toml`, and
+`opm chunk` without an argument then reads it:
+
+```toml
+[chunking]
+input = "data/collation/**/*.col.xml"
+```
+
 Serafin example:
 
 ```bash
