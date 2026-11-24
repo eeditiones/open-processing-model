@@ -202,6 +202,11 @@ class Environment:
         self.parser_factory = parser_factory or self._default_parser
         self.convert = convert
         self.mode = mode
+        #: What ``doc()`` and ``collection()`` read in template expressions:
+        #: parsed documents by URI and collection members by URI, as an
+        #: elementpath ``XPathContext`` takes them. Empty by default.
+        self.documents: dict[str, Any] = {}
+        self.collections: dict[str, Any] = {}
         self._loaded: dict[str, _Loaded] = {}
         self._templates: dict[str, Template] = {}
         self._parsers: dict[frozenset, XPath31Parser] = {}
@@ -580,7 +585,11 @@ class _Renderer:
                 variables[key] = convert(value)
         variables['context'] = XPathMap(
             parser, {k: variables[k] if k in variables else convert(v) for k, v in merged.items()})
-        self.ctx = XPathContext(root=_DUMMY_ROOT, variables={})
+        self.ctx = XPathContext(
+            root=_DUMMY_ROOT, variables={},
+            documents=self.env.documents or None,
+            collections=self.env.collections or None,
+        )
         self.ctx.variables.update(variables)
 
     # ── evaluation ──────────────────────────────────────────────────────────

@@ -224,7 +224,8 @@ def template_environment(
     ``opm/layout.html.tpl`` and can replace a packaged file by giving its
     own the same relative path. ``extends``, ``use`` and includes resolve
     along that search path. XPath in the template sees the project's
-    namespaces and ``tp:`` extension functions from *xpath_env*.
+    namespaces, ``tp:`` extension functions, documents and collections
+    (``doc()``, ``collection()``) from *xpath_env*.
 
     Raises:
         ValueError: *template_path* is a Jinja2 template (``.j2``).
@@ -236,6 +237,12 @@ def template_environment(
     _reject_jinja(template_path)
     searchpaths = _searchpaths(template_path, project)
     env = jinks.Environment(searchpaths, parser_factory=_jinks_parser_factory(xpath_env))
+    if xpath_env is not None:
+        # The project's documents and [[transform.collections]], so that a
+        # template, like the ODD, can read them with doc() and collection():
+        # e.g. a landing page listing works it has no source for.
+        env.documents = xpath_env.documents
+        env.collections = xpath_env.collections
     # HTML pages take the blocks of every profile's `use` templates; a
     # Typst template, sharing the context, must not.
     if project is not None and '.html' in template_path.name:
