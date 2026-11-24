@@ -246,6 +246,19 @@ class ChunkingConfig:
     ``<output_dir>/css/``). Must match the ``path`` of the consuming
     ``pb-document``. When unset the data is written directly into ``output_dir``.
     """
+    input: str | None = None
+    """The documents ``opm chunk`` reads when no input is given on the command line.
+
+    An XML file, a directory (the XML files directly inside it), or a glob
+    pattern; ``**`` matches any number of subdirectories:
+
+    ```toml
+    input = "data/collation/**/*.col.xml"
+    ```
+
+    A relative path is resolved against the config file's directory. With
+    several ``[[chunking]]`` runs, only the first run's ``input`` is used.
+    """
 
 
 @dataclass
@@ -582,6 +595,7 @@ def _parse_chunking(data: dict[str, Any], config_path: Path) -> ChunkingConfig:
         map=data.get('map'),
         parameters=data.get('parameters'),
         doc_path=data.get('doc_path'),
+        input=str(config_path.parent / str(data['input'])) if data.get('input') else None,
     )
 
 

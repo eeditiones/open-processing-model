@@ -23,6 +23,8 @@ The lower-level functions in [`opm.transform`][opm.transform], [`opm.chunking`][
 
 from __future__ import annotations
 
+import glob
+import itertools
 import shutil
 import threading
 from dataclasses import dataclass, field, fields, replace
@@ -134,6 +136,15 @@ def document_names(
             name, or two documents get the same name.
     """
     if not expr:
+        # Files matched by a glob pattern may share a name across directories.
+        taken_by_file: dict[str, Path] = {}
+        for path in files:
+            if path.name in taken_by_file:
+                raise ValueError(
+                    f'{taken_by_file[path.name]} and {path} would both be written to '
+                    f'{path.name}/; set [chunking] document_name to name the documents apart.',
+                )
+            taken_by_file[path.name] = path
         return {path: path.name for path in files}
     from opm.chunking import _safe_file_stem
     from opm.transform import project_xpath_env
@@ -167,13 +178,51 @@ def document_names(
     return names
 
 
-def chunk_input_files(source: Path) -> list[Path]:
+def is_glob_pattern(source: Path | str) -> bool:
+    """Whether *source* is a glob pattern rather than a path: it holds ``*``, ``?`` or ``[``.
+
+    A file or directory that exists under that very name is a path, so a
+    directory called ``data[old]`` still works.
+    """
+    return any(char in str(source) for char in '*?[') and not Path(source).exists()
+
+
+def is_multi_document(source: Path | str) -> bool:
+    """Whether a chunk run over *source* may read several documents: a directory or a glob pattern.
+
+    Such a run writes each document to a subdirectory of its own and, for
+    HTML, an ``index.html`` listing them.
+    """
+    return is_glob_pattern(source) or Path(source).is_dir()
+
+
+def _source_label(source: Path | str) -> str:
+    """A name for *source* in the collection index: its last component, or for
+    a glob pattern the last directory before the first wildcard
+    (``data/collation/**/*.col.xml`` → ``collation``).
+    """
+    path = Path(source)
+    if not is_glob_pattern(source):
+        return path.name
+    fixed = list(itertools.takewhile(lambda part: not is_glob_pattern(part), path.parts))
+    return Path(*fixed).resolve().name if fixed else Path.cwd().name
+
+
+def chunk_input_files(source: Path | str) -> list[Path]:
     """The XML files a chunk run over *source* reads.
 
-    That is *source* itself, or the ``*.xml`` files directly inside it when it
-    is a directory. Subdirectories are not searched: a chunk run publishes the
-    pages of a given set of documents.
+    That is *source* itself; the ``*.xml`` files directly inside it when it
+    is a directory; or the files matching it when it is a glob pattern, where
+    ``**`` matches any number of subdirectories. A directory is not searched
+    recursively: a chunk run publishes the pages of a given set of documents,
+    and a pattern is how to name a set filed in subdirectories.
     """
+    if is_glob_pattern(source):
+        return sorted(
+            Path(path) for path in glob.glob(str(source), recursive=True)
+            if Path(path).is_file()
+        )
+    source = Path(source)
     if source.is_dir():
         return sorted(
             path for path in source.iterdir()
@@ -583,7 +632,7 @@ class Project:
 
     def chunk(
         self,
-        source: Path | str,
+        source: Path | str | None = None,
         *,
         format: str = 'html',
         output_dir: Path | str | None = None,
@@ -601,9 +650,10 @@ class Project:
     ) -> ChunkRun:
         """Split *source* into pages, as ``opm chunk`` does.
 
-        *source* is one XML file or a directory of them. For a directory,
-        each document goes to a subdirectory named after it, and an HTML run
-        also writes ``index.html`` listing the documents. ``pb-view`` output
+        *source* is one XML file, a directory of them, or a glob pattern
+        (``data/**/*.xml``); without it, ``[chunking] input``. For a directory
+        or a pattern, each document goes to a subdirectory named after it, and
+        an HTML run also writes ``index.html`` listing the documents. ``pb-view`` output
         puts every document's data under ``<doc_path>/<name>.xml/`` instead.
 
         The arguments override the ``[chunking]`` settings of the same name.
@@ -619,8 +669,9 @@ class Project:
         the returned [`ChunkRun`][opm.project.ChunkRun].
 
         Args:
-            source: An XML file, or a directory of XML files (not searched
-                recursively).
+            source: An XML file, a directory of XML files (not searched
+                recursively), or a glob pattern, where ``**`` matches any
+                number of subdirectories. Defaults to ``[chunking] input``.
             format: ``html`` (pages rendered with the chunk template),
                 ``json`` (one JSON file per chunk, for static site
                 generators) or ``pb-view`` (data for the ``pb-view`` web
@@ -651,16 +702,25 @@ class Project:
 
         Raises:
             ValueError: The config has no ``[chunking]`` section, *format* is
-                unknown, or a directory contains no XML files.
+                unknown, there is no *source* and no ``[chunking] input``, a
+                directory contains no XML files, a pattern matches no file, or
+                two documents would be written to the same subdirectory.
             FileExistsError: The output directory exists and *overwrite*
                 does not allow replacing it.
         """
         if format not in CHUNK_FORMATS:
             raise ValueError(f'format must be "html", "json" or "pb-view", got {format!r}')
-        source = Path(source)
+        if source is None:
+            source = self._chunking().input
+            if source is None:
+                raise ValueError(
+                    'no input given and no [chunking] input in the config.'
+                )
         files = chunk_input_files(source)
-        by_directory = source.is_dir()
+        by_directory = is_multi_document(source)
         if by_directory and not files:
+            if is_glob_pattern(source):
+                raise ValueError(f'no files match {source}.')
             raise ValueError(f'no XML files found in directory {source}.')
 
         overrides: dict[str, Any] = {}
@@ -804,7 +864,7 @@ class Project:
             index_file = build_index(
                 out_dir,
                 template_path=chunking.index_template,
-                title=chunking.index_title or source.name,
+                title=chunking.index_title or _source_label(source),
                 module_path=chunking.module,
                 project_config=self.config,
                 project_root=self.root,

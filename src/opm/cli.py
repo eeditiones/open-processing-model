@@ -43,7 +43,13 @@ from opm.scaffold import (
     VOCABULARIES,
     scaffold,
 )
-from opm.project import CHUNK_FORMATS, Project, chunk_input_files
+from opm.project import (
+    CHUNK_FORMATS,
+    Project,
+    chunk_input_files,
+    is_glob_pattern,
+    is_multi_document,
+)
 from opm.assets import copy_assets
 from opm.transform import load_transform_module, template_assets
 from opm.runtime.xpath_diagnostics import XPathErrorLog, collect_xpath_errors
@@ -1173,9 +1179,13 @@ def transform_cmd(
 @app.command()
 def chunk(
     input_xml: Annotated[
-        Optional[Path],
+        Optional[str],
         typer.Argument(
-            help='XML file to transform and chunk, or a directory of XML files.',
+            help=(
+                'XML file to transform and chunk, a directory of XML files, or a '
+                'quoted glob pattern such as "data/**/*.xml" (** matches any '
+                'number of subdirectories). Defaults to [chunking] input in opm.toml.'
+            ),
         ),
     ] = None,
     odd: Annotated[
@@ -1336,12 +1346,17 @@ def chunk(
         if footnote_order is not None:
             project = project.with_config(footnote_order=footnote_order)
 
-        if input_xml is None:
-            _die('input XML file or directory is required.')
-
         chunking = project.config.chunking
         if not chunking:
             _die('no [chunking] section found in config.')
+
+        source: str | None = input_xml if input_xml is not None else chunking.input
+        if source is None:
+            _die(
+                'input XML file, directory or glob pattern is required '
+                '(or set [chunking] input in opm.toml).'
+            )
+        multi_document = is_multi_document(source)
         
         if output_format not in CHUNK_FORMATS:
             _die(
@@ -1353,10 +1368,11 @@ def chunk(
         for resolved in modules:
             _report_resolved_module(resolved)
 
-        input_files = chunk_input_files(input_xml)
-        if input_xml.is_dir():
-            if not input_files:
-                _die(f'no XML files found in directory {input_xml}.')
+        input_files = chunk_input_files(source)
+        if multi_document and not input_files:
+            if is_glob_pattern(source):
+                _die(f'no files match {source}.')
+            _die(f'no XML files found in directory {source}.')
 
         # Asked here rather than left to Project.chunk, so the prompt comes
         # before the progress display starts.
@@ -1364,13 +1380,13 @@ def chunk(
         _prepare_chunk_output_dir(out_dir, force=force)
 
         module_path = modules[0].module_path
-        if input_xml.is_dir():
+        if multi_document:
             typer.echo(
-                f'Chunking {len(input_files)} XML files from {input_xml} '
+                f'Chunking {len(input_files)} XML files from {source} '
                 f'using {module_path}...'
             )
         else:
-            typer.echo(f'Chunking {input_xml} using {module_path}...')
+            typer.echo(f'Chunking {source} using {module_path}...')
         # ``on_progress`` counts chunks *within one document*, so a directory run
         # gets a second task counting files — one bar per unit, rather than
         # trading chunk-level detail for a file count.
@@ -1412,7 +1428,7 @@ def chunk(
                 progress.update(current[0], completed=done, total=total)
 
             run = project.chunk(
-                input_xml,
+                source,
                 format=output_format,
                 output_dir=output_dir,
                 # Unlike the configured one, a --template path is relative to
@@ -1436,7 +1452,7 @@ def chunk(
         typer.echo(f'Chunks written to {out_dir}/')
         chunk_doc_path = doc_path or chunking.doc_path
         if output_format == 'pb-view':
-            if input_xml.is_dir():
+            if multi_document:
                 data_subdir = f'{(chunk_doc_path or "").rstrip("/")}/<document>.xml/'
                 if data_subdir.startswith('/'):
                     data_subdir = data_subdir[1:]

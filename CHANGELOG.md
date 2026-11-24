@@ -19,6 +19,9 @@ All notable changes to this project are documented here. The format follows
 - More design tokens: `--opm-display-weight`, `--opm-display-tracking`, `--opm-font-mono`, `--opm-menubar-background`, `--opm-menubar-color`, `--opm-menubar-link-color`, `--opm-menubar-link-hover`, `--opm-breadcrumb-separator`, `--opm-drawer-padding`
 - The menubar logo and `<title>` fall back to the document's `title` fragment, so themes need not override them
 - `theme.layout.logo_title = false` shows `context.logo` alone, for a wordmark that spells the name; the name becomes its alt text
+- `opm chunk` accepts a quoted glob pattern as input (`opm chunk 'data/**/*.col.xml'`), for documents filed in subdirectories; `**` matches any number of them. A pattern behaves like a directory: one subdirectory per document and a collection index
+- `[chunking] input`: the file, directory or glob pattern `opm chunk` reads when none is given on the command line, relative to `opm.toml`
+- `opm chunk` stops with an error when two input files would be written to the same document directory, and suggests `document_name`
 
 ### Changed
 
