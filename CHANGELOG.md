@@ -13,6 +13,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- `opm update` brings the files `opm init` copied up to date with a newer opm: untouched files are replaced, files changed on both sides get an `.opm-new` copy beside them, and profiles whose version changed are listed. `opm init` records what it wrote in `.opm/init.json`
 - Design tokens in `opm-layout.css` (`--opm-surface`, `--opm-font-display`, `--opm-color-accent-soft`, `--opm-radius`, `--opm-shadow`, …) with a default "rubric" palette and an opt-in dark scheme (`theme.color_scheme = "auto"` or `"dark"`)
 - Collection index redesigned: masthead with `site_name`, `description` and counts, a filter box, list/grid views and a length bar per document; its words are under `theme.index`
 - `theme.index.hero` (`image`, `position`, `text`) and `--opm-masthead-image` / `-position` / `-overlay` / `-min-height` / `-color*`: a picture behind the index masthead with a scrim for light or dark text

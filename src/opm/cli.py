@@ -283,6 +283,99 @@ def init_cmd(
         typer.echo('  see README.md for what this project shows')
 
 
+@app.command('update')
+def update_cmd(
+    directory: Annotated[
+        Path,
+        typer.Argument(help='Project directory (default: current directory).'),
+    ] = Path('.'),
+    apply: Annotated[
+        bool,
+        typer.Option('--apply', help='Write the changes; without it, only show what would change.'),
+    ] = False,
+    theirs: Annotated[
+        bool,
+        typer.Option(
+            '--theirs',
+            help=(
+                "Replace files changed both in the project and in opm with opm's "
+                'version, instead of writing it beside them as .opm-new. '
+                'Never applies to opm.toml.'
+            ),
+        ),
+    ] = False,
+    resolve: Annotated[
+        Optional[list[str]],
+        typer.Option(
+            '--resolve',
+            help=(
+                'Mark a conflicting file as merged by hand: remove its .opm-new '
+                'file and accept the current version. Repeat for several.'
+            ),
+        ),
+    ] = None,
+) -> None:
+    """Update the project's files to match the current version of opm."""
+    from opm.update import CONFLICT_SUFFIX, UpdateError, update_project
+
+    try:
+        report = update_project(directory, apply=apply, theirs=theirs, resolve=tuple(resolve or ()))
+    except UpdateError as e:
+        _die(str(e), cause=e)
+
+    root = report.directory
+    if resolve:
+        verb = 'Marked as merged' if apply else 'Would mark as merged'
+        _print_path_tree(root, [root / c.path for c in report.files], f'{verb}:')
+        if not apply:
+            typer.echo('\nRun again with --apply to record this.')
+        return
+
+    if report.recorded_opm != report.opm:
+        typer.echo(f'Project files from opm {report.recorded_opm or "?"}; this is opm {report.opm}.\n')
+
+    sections = (
+        ('added', 'New files', 'Would add'),
+        ('updated', 'Updated', 'Would update'),
+        ('replaced', 'Replaced (--theirs)', 'Would replace (--theirs)'),
+        ('conflict', f'Changed here and in opm; new version written beside them as {CONFLICT_SUFFIX}',
+         f'Changed here and in opm; would write the new version beside them as {CONFLICT_SUFFIX}'),
+        ('deleted', 'Changed in opm but deleted here; left out', 'Changed in opm but deleted here; would leave out'),
+        ('removed', 'No longer shipped by opm; kept', 'No longer shipped by opm; would keep'),
+    )
+    for action, done, planned in sections:
+        changes = report.by_action(action)
+        if changes:
+            _print_path_tree(root, [root / c.path for c in changes], done if apply else planned)
+            typer.echo('')
+
+    for p in report.profiles:
+        if p.recorded is None:
+            line = f'Profile {p.name}: version {p.available or "?"}'
+        elif p.recorded != p.available:
+            line = f'Profile {p.name}: {p.recorded} → {p.available or "not found"}'
+        else:
+            line = f'Profile {p.name}: {p.available}'
+        if p.breaking:
+            line += ' (new major version: check `opm profile show ' + p.name + '` for what changed)'
+        if p.shadowed:
+            line += f'; your own copy shadows the packaged version {p.shadowed}'
+        typer.echo(line)
+    if report.profiles:
+        typer.echo('')
+
+    if not report.files and not report.profiles:
+        typer.echo('Up to date.')
+        return
+    if not apply:
+        typer.echo('Nothing written. Run again with --apply to make these changes.')
+    elif report.by_action('conflict'):
+        typer.echo(
+            f'Merge each {CONFLICT_SUFFIX} file into its original, then run '
+            '`opm update --resolve <file> --apply`.'
+        )
+
+
 #: How the vocabularies are spelled in the picker.
 _VOCABULARY_LABELS = {'tei': 'TEI', 'docbook': 'DocBook', 'jats': 'JATS'}
 
@@ -2440,6 +2533,9 @@ def profile_add_cmd(
         write_project_profiles(path, current + added)
     except ValueError as e:
         _die(str(e), cause=e)
+    from opm.update import record_profiles
+
+    record_profiles(path.resolve().parent)
     from rich.console import Console
     from rich.markdown import Markdown
     from rich.padding import Padding
@@ -2502,6 +2598,9 @@ def profile_remove_cmd(
         write_project_profiles(path, kept)
     except ValueError as e:
         _die(str(e), cause=e)
+    from opm.update import record_profiles
+
+    record_profiles(path.resolve().parent)
     typer.echo(f'Removed {", ".join(n for n in current if n not in kept)} from {path}')
 
 

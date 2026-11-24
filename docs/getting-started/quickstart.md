@@ -39,6 +39,8 @@ it demonstrates,`.gitignore` and agent guidance.
 | `monograph` | Monograph (TEI): critical edition of a book chapter, with the original pagination in the margin, two note series and breadcrumbs |
 | `shakespeare` | Shakespeare play (TEI): chunked by page rather than division, with IIIF facsimiles |
 
+When a later version of opm improves the files `opm init` copied, `opm update` brings those improvements into your project without overwriting your own changes. See [Keeping a project up to date](../guide/updating.md).
+
 The client distinguishes two modes of processing: `transform` and `chunk`.
 
 * `transform` is meant to transform a single input file into a single output. It's mainly used for generating a quick HTML preview or

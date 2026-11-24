@@ -394,15 +394,27 @@ def write_project_profiles(config_path: Path, profiles: list[str]) -> None:
     """Set ``[project] profiles`` in the ``opm.toml`` at *config_path*.
 
     Only that one setting changes: the rest of the file, comments included,
-    stays as written. An existing ``profiles = [...]`` (on one line or
-    several) is replaced, else a commented-out ``# profiles = ...`` line;
-    otherwise the line goes right below ``[project]``,
-    and a missing ``[project]`` table is added before the first table.
+    stays as written (see [`set_profiles_text`][opm.profile.set_profiles_text]).
 
     Raises:
         ValueError: The edited file would not read back with *profiles*.
     """
     text = config_path.read_text(encoding='utf-8')
+    config_path.write_text(set_profiles_text(text, profiles, source=config_path), encoding='utf-8')
+
+
+def set_profiles_text(text: str, profiles: list[str], *, source: object = 'opm.toml') -> str:
+    """Return the ``opm.toml`` *text* with ``[project] profiles`` set to *profiles*.
+
+    An existing ``profiles = [...]`` (on one line or several) is replaced,
+    else a commented-out ``# profiles = ...`` line; otherwise the line goes
+    right below ``[project]``, and a missing ``[project]`` table is added
+    before the first table. *source* names the file in error messages.
+
+    Raises:
+        ValueError: The edited text would not read back with *profiles*.
+    """
+    config_path = source
     lines = text.splitlines(keepends=True)
     newline = '\r\n' if '\r\n' in text else '\n'
     value = f'profiles = [{", ".join(_toml_string(name) for name in profiles)}]{newline}'
@@ -446,7 +458,7 @@ def write_project_profiles(config_path: Path, profiles: list[str]) -> None:
         raise ValueError(f'{config_path}: could not set [project] profiles: {exc}') from exc
     if reread != list(profiles):
         raise ValueError(f'{config_path}: could not set [project] profiles; edit the file by hand')
-    config_path.write_text(edited, encoding='utf-8')
+    return edited
 
 
 def _toml_string(value: str) -> str:

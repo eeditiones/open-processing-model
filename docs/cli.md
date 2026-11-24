@@ -26,6 +26,7 @@ opm [OPTIONS] COMMAND [ARGS]...
 **Commands:**
 
 - [`init`](#opm-init): Create a local project: an empty one or a...
+- [`update`](#opm-update): Update the project's files to match the...
 - [`transform`](#opm-transform): Transform an XML document via an ODD with...
 - [`chunk`](#opm-chunk): Chunk a large XML document into smaller...
 - [`index`](#opm-index): Emit embedding-ready JSONL records for a...
@@ -63,6 +64,32 @@ opm init [OPTIONS] [DIRECTORY]
 | `--base` | Also copy the templates the HTML templates inherit from (`templates/opm/`) and the base stylesheet (`styles/default-styles.css`), to edit them in the project. |
 | `--bare` | Skip README.md, AGENTS.md, CLAUDE.md and .gitignore. |
 | `--profile, -p TEXT` | Switch on a profile in the new project; repeat for several. See `opm profile list`. |
+| `--help` | Show this message and exit. |
+
+### `opm update`
+
+Update the project's files to match the current version of opm.
+
+**Usage:**
+
+```text
+opm update [OPTIONS] [DIRECTORY]
+```
+
+**Arguments:**
+
+| Argument | Description |
+| --- | --- |
+| `DIRECTORY` | Project directory (default: current directory). |
+
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--apply` | Write the changes; without it, only show what would change. |
+| `--theirs` | Replace files changed both in the project and in opm with opm's version, instead of writing it beside them as .opm-new. Never applies to opm.toml. |
+| `--resolve TEXT` | Mark a conflicting file as merged by hand: remove its .opm-new file and accept the current version. Repeat for several. |
 | `--help` | Show this message and exit. |
 
 ### `opm transform`

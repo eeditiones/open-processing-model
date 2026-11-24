@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import re
-import shutil
 from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
@@ -46,15 +45,15 @@ _HTML_TEMPLATE = {
 _EXTRA_SHELLS = ('chapbook', 'journal', 'handbook')
 #: The plain Typst shell opm falls back to when no template is configured, which
 #: ``--templates`` also copies, beside the book shell the project wires up.
-_TYPST_DEFAULT = ('templates/default_document.typ.tpl', Path('templates') / 'document.typ.tpl')
+_TYPST_DEFAULT = ('templates/default_document.typ.tpl', 'templates/document.typ.tpl')
 #: What ``--base`` copies: the packaged templates the shells extend, and the
 #: base stylesheet. opm prefers a project's copy at the same relative path
 #: (``templates/opm/…``, ``styles/default-styles.css``) over its own.
 _BASE_COPIES = (
-    ('templates/opm/base.html.tpl', Path('templates') / 'opm' / 'base.html.tpl'),
-    ('templates/opm/layout.html.tpl', Path('templates') / 'opm' / 'layout.html.tpl'),
-    ('templates/opm/opm-layout.css', Path('templates') / 'opm' / 'opm-layout.css'),
-    ('styles/default-styles.css', Path('styles') / 'default-styles.css'),
+    ('templates/opm/base.html.tpl', 'templates/opm/base.html.tpl'),
+    ('templates/opm/layout.html.tpl', 'templates/opm/layout.html.tpl'),
+    ('templates/opm/opm-layout.css', 'templates/opm/opm-layout.css'),
+    ('styles/default-styles.css', 'styles/default-styles.css'),
 )
 # Elements the commented-out [[index.fields]] examples point at, per vocabulary:
 # (footnote-like element, person-name element).
@@ -185,6 +184,8 @@ class InitOptions:
     #: Profiles to switch on in ``[project] profiles``, after any an example
     #: already uses.
     profiles: tuple[str, ...] = ()
+    #: Project title for the README; empty: the directory's name.
+    title: str = ''
 
 
 #: Sample document written into an empty project, relative to its root.
@@ -208,36 +209,56 @@ class ScaffoldError(Exception):
     """User-facing scaffold failure (existing project, bad vocabulary, …)."""
 
 
+@dataclass(frozen=True)
+class PlannedFile:
+    """One file ``opm init`` writes, with the exact bytes it writes."""
+
+    #: Path relative to the project root, with forward slashes.
+    path: str
+    data: bytes
+    #: Never replace an existing file on ``opm init``, even with ``--force``.
+    keep: bool = False
+    #: The project's own configuration, which ``opm update`` never replaces.
+    config: bool = False
+
+
+@dataclass
+class ScaffoldPlan:
+    """Everything ``opm init`` would write for a set of [`InitOptions`][opm.scaffold.InitOptions].
+
+    [`opm.update`][opm.update] computes the same plan again with a newer opm
+    and compares it with what the project holds.
+    """
+
+    directory: Path
+    title: str
+    vocabulary: str
+    sample_path: str = SAMPLE_PATH
+    example: str | None = None
+    files: list[PlannedFile] = field(default_factory=list)
+
+    def add(self, path: str, data: bytes | str, *, keep: bool = False, config: bool = False) -> None:
+        """Plan *data* for *path*, unless the plan already holds that path."""
+        if any(f.path == path for f in self.files):
+            return
+        if isinstance(data, str):
+            data = data.encode('utf-8')
+        self.files.append(PlannedFile(path, data, keep=keep, config=config))
+
+    def add_packaged(self, src_rel: str, path: str, *, keep: bool = False) -> None:
+        """Plan the packaged resource *src_rel* (relative to ``opm/resources``) for *path*."""
+        self.add(path, _read_packaged(src_rel), keep=keep)
+
+
 def _resource_root():
     return resources.files('opm').joinpath('resources')
 
 
-def _copy_packaged(src_rel: str, dest: Path, *, force: bool) -> bool:
-    """Copy a packaged resource to *dest*. Return True if written."""
+def _read_packaged(src_rel: str) -> bytes:
     packaged = _resource_root().joinpath(*src_rel.split('/'))
-    with resources.as_file(packaged) as src:
-        src_path = Path(src)
-        if not src_path.exists():
-            raise FileNotFoundError(f'Packaged resource not found: {src_rel}')
-        if dest.exists() and not force:
-            return False
-        if src_path.is_dir():
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            if dest.exists() and force:
-                shutil.copytree(src_path, dest, dirs_exist_ok=True)
-            else:
-                shutil.copytree(src_path, dest)
-            return True
-        return _copy_file(src_path, dest, force=force)
-
-
-def _copy_file(src: Path, dest: Path, *, force: bool) -> bool:
-    """Copy one file to *dest*, honouring *force*. Return True if written."""
-    if dest.exists() and not force:
-        return False
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src, dest)
-    return True
+    if not packaged.is_file():
+        raise FileNotFoundError(f'Packaged resource not found: {src_rel}')
+    return packaged.read_bytes()
 
 
 def shell_stylesheet(name: str) -> str:
@@ -249,24 +270,19 @@ def shell_stylesheet(name: str) -> str:
     return f'opm-theme-{name}.css'
 
 
-def _shell_copies(names: tuple[str, ...], dest_dir: Path) -> list[tuple[str, Path]]:
-    """Return ``(packaged resource, destination)`` pairs for the HTML shells *names*.
+def _shell_copies(names: tuple[str, ...]) -> list[tuple[str, str]]:
+    """Return ``(packaged resource, project path)`` pairs for the HTML shells *names*.
 
     A shell is a ``.html.tpl`` plus its
     theme stylesheet ([`shell_stylesheet`][opm.scaffold.shell_stylesheet]),
     when it has one — linked as an asset through ``[transform.web] assets``.
     """
-    copies: list[tuple[str, Path]] = []
+    copies: list[tuple[str, str]] = []
     for name in names:
-        copies.append(
-            (
-                f'scaffold/templates/{name}.html.tpl',
-                dest_dir / 'templates' / f'{name}.html.tpl',
-            )
-        )
+        copies.append((f'scaffold/templates/{name}.html.tpl', f'templates/{name}.html.tpl'))
         css = shell_stylesheet(name)
         if _resource_root().joinpath('scaffold', 'templates', css).is_file():
-            copies.append((f'scaffold/templates/{css}', dest_dir / 'templates' / css))
+            copies.append((f'scaffold/templates/{css}', f'templates/{css}'))
     return copies
 
 
@@ -293,18 +309,6 @@ def strip_repo_only(text: str) -> str:
     return re.sub(r'\n{3,}', '\n\n', ''.join(out))
 
 
-def _write_text(dest: Path, text: str, *, force: bool) -> bool:
-    if dest.exists() and not force:
-        return False
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(text, encoding='utf-8')
-    return True
-
-
-def _record(dest: Path, written: list[Path], skipped: list[Path], did_write: bool) -> None:
-    (written if did_write else skipped).append(dest)
-
-
 def _scaffold_env() -> jinks.Environment:
     """The jinks environment for the project files ``opm init`` writes."""
     return jinks.Environment([Path(str(_resource_root().joinpath('scaffold')))])
@@ -320,19 +324,17 @@ def find_example(name: str) -> ExampleProject:
     )
 
 
-def _agent_guidance(
+def _plan_agent_guidance(
+    plan: ScaffoldPlan,
     env: jinks.Environment,
-    dest_dir: Path,
     *,
     vocabulary: str,
     odd_path: str,
     html_template: str,
     sample: str,
     extra_templates: bool,
-    written: list[Path],
-    skipped: list[Path],
 ) -> None:
-    """Write AGENTS.md / CLAUDE.md — never overwritten, even with ``--force``."""
+    """Plan AGENTS.md / CLAUDE.md — never overwritten by ``opm init``, even with ``--force``."""
     context = {
         'vocabulary': vocabulary,
         'odd_path': odd_path,
@@ -353,81 +355,94 @@ def _agent_guidance(
             'This file provides guidance to Claude Code (claude.ai/code) when working with this project.',
         ),
     ):
-        text = template.render(heading=heading, intro=intro, **context)
-        _record(
-            dest_dir / name,
-            written,
-            skipped,
-            _write_text(dest_dir / name, text, force=False),
-        )
+        plan.add(name, template.render(heading=heading, intro=intro, **context), keep=True)
 
 
-def _scaffold_example(options: InitOptions) -> ScaffoldResult:
-    """Copy a bundled example project into *options.directory*."""
+def _with_profiles(toml_text: str, profiles: tuple[str, ...]) -> str:
+    """*toml_text* with *profiles* switched on after those it already names."""
+    import tomllib
+
+    from opm.profile import set_profiles_text
+
+    if not profiles:
+        return toml_text
+    project = tomllib.loads(toml_text).get('project')
+    raw = project.get('profiles', []) if isinstance(project, dict) else []
+    current = [raw] if isinstance(raw, str) else [str(n) for n in raw]
+    wanted = current + [name for name in dict.fromkeys(profiles) if name not in current]
+    if wanted == current:
+        return toml_text
+    try:
+        return set_profiles_text(toml_text, wanted)
+    except ValueError as e:
+        raise ScaffoldError(str(e)) from e
+
+
+def plan_project(options: InitOptions) -> ScaffoldPlan:
+    """Compute the files ``opm init`` writes for *options*, without writing any."""
+    if options.example:
+        return _plan_example(options)
+    return _plan_empty(options)
+
+
+def _plan_example(options: InitOptions) -> ScaffoldPlan:
+    """Plan a copy of a bundled example project."""
     from opm.config import load_project_config
     from opm.resources import example_dir
 
     example = find_example((options.example or '').strip().lower())
     try:
-        source = example_dir(example.name)
+        source = example_dir(example.name).resolve()
     except FileNotFoundError as e:
         raise ScaffoldError(str(e)) from e
 
-    dest_dir = options.directory.expanduser().resolve()
-    dest_dir.mkdir(parents=True, exist_ok=True)
-
-    config_path = dest_dir / 'opm.toml'
-    if config_path.exists() and not options.force:
-        raise ScaffoldError(
-            f'{config_path} already exists. Pass --force to overwrite.'
-        )
-
-    written: list[Path] = []
-    skipped: list[Path] = []
-    force = options.force
+    plan = ScaffoldPlan(
+        directory=options.directory.expanduser().resolve(),
+        title=example.title,
+        vocabulary=example.vocabulary,
+        sample_path=example.sample,
+        example=example.name,
+    )
 
     for src in sorted(source.rglob('*')):
-        if not src.is_file() or _EXAMPLE_SKIP & set(src.relative_to(source).parts):
+        rel = src.relative_to(source)
+        if not src.is_file() or _EXAMPLE_SKIP & set(rel.parts):
             continue
-        dest = dest_dir / src.relative_to(source)
-        if options.bare and src.relative_to(source).as_posix() == 'README.md':
-            continue
-        if src.name == 'README.md':
-            text = strip_repo_only(src.read_text(encoding='utf-8'))
-            _record(dest, written, skipped, _write_text(dest, text, force=force))
+        rel_path = rel.as_posix()
+        if rel_path == 'opm.toml':
+            text = _with_profiles(src.read_text(encoding='utf-8'), options.profiles)
+            plan.add(rel_path, text, config=True)
+        elif src.name == 'README.md':
+            if options.bare and rel_path == 'README.md':
+                continue
+            plan.add(rel_path, strip_repo_only(src.read_text(encoding='utf-8')))
         else:
-            _record(dest, written, skipped, _copy_file(src, dest, force=force))
+            plan.add(rel_path, src.read_bytes())
 
     if not options.bare:
-        _record(
-            dest_dir / '.gitignore',
-            written,
-            skipped,
-            _copy_packaged('scaffold/gitignore', dest_dir / '.gitignore', force=force),
-        )
+        plan.add_packaged('scaffold/gitignore', '.gitignore')
 
+    # The plan holds the example's own files first, so a shell or base
+    # template the example ships wins over the packaged one: the example's copy
+    # may be customised (the Shakespeare chapbook carries a facsimile column
+    # the packaged one knows nothing about). `keep` stops --force from
+    # replacing a file a previous run left in the project.
     if options.templates:
-        # Never overwrite a shell the example ships, even with --force: the
-        # example's own copy may be customised (the Shakespeare chapbook
-        # carries a facsimile column the packaged one knows nothing about).
-        for src_rel, dest in [*_shell_copies(_EXTRA_SHELLS, dest_dir), (_TYPST_DEFAULT[0], dest_dir / _TYPST_DEFAULT[1])]:
-            _record(dest, written, skipped, _copy_packaged(src_rel, dest, force=False))
-
+        for src_rel, rel_path in [*_shell_copies(_EXTRA_SHELLS), _TYPST_DEFAULT]:
+            plan.add_packaged(src_rel, rel_path, keep=True)
     if options.base:
-        # Same rule: an example may already carry its own copy.
-        for src_rel, rel in _BASE_COPIES:
-            dest = dest_dir / rel
-            _record(dest, written, skipped, _copy_packaged(src_rel, dest, force=False))
+        for src_rel, rel_path in _BASE_COPIES:
+            plan.add_packaged(src_rel, rel_path, keep=True)
 
     if options.bare or not example.agent_guidance:
-        return _example_result(example, dest_dir, written, skipped)
+        return plan
 
     # The ODD and reading shell the example actually wires up, so its agent
     # guidance points at the right files.
-    cfg = load_project_config(config_path)
+    cfg = load_project_config(source / 'opm.toml')
     odd_path = (
-        cfg.transform_odd.relative_to(dest_dir).as_posix()
-        if cfg.transform_odd is not None and cfg.transform_odd.is_relative_to(dest_dir)
+        cfg.transform_odd.resolve().relative_to(source).as_posix()
+        if cfg.transform_odd is not None and cfg.transform_odd.resolve().is_relative_to(source)
         else 'odd/'
     )
     html_template = (
@@ -435,9 +450,9 @@ def _scaffold_example(options: InitOptions) -> ScaffoldResult:
         if cfg.document_template is not None
         else _HTML_TEMPLATE.get(example.vocabulary, 'chapbook')
     )
-    _agent_guidance(
+    _plan_agent_guidance(
+        plan,
         _scaffold_env(),
-        dest_dir,
         vocabulary=example.vocabulary,
         odd_path=odd_path,
         html_template=html_template,
@@ -445,60 +460,12 @@ def _scaffold_example(options: InitOptions) -> ScaffoldResult:
         # guidance that told an agent to transform one would simply be wrong.
         sample=example.sample,
         extra_templates=options.templates,
-        written=written,
-        skipped=skipped,
     )
-    return _example_result(example, dest_dir, written, skipped)
+    return plan
 
 
-def _example_result(
-    example: ExampleProject, dest_dir: Path, written: list[Path], skipped: list[Path],
-) -> ScaffoldResult:
-    return ScaffoldResult(
-        directory=dest_dir,
-        written=sorted(written),
-        skipped=sorted(skipped),
-        title=example.title,
-        vocabulary=example.vocabulary,
-        sample_path=example.sample,
-        example=example.name,
-    )
-
-
-def scaffold(options: InitOptions) -> ScaffoldResult:
-    """Write a project tree from *options* and return what was created.
-
-    The profiles in *options* are checked before anything is written, and
-    added to the new ``opm.toml`` afterwards.
-    """
-    from opm.profile import available_profiles, read_project_profiles, write_project_profiles
-
-    dest_dir = options.directory.expanduser().resolve()
-    known = {profile.name for profile in available_profiles(dest_dir)}
-    unknown = [name for name in options.profiles if name not in known]
-    if unknown:
-        raise ScaffoldError(
-            f'Unknown profile {", ".join(map(repr, unknown))}. '
-            f'Available: {", ".join(sorted(known)) or "none"}.'
-        )
-
-    result = _scaffold_example(options) if options.example else _scaffold_project(options)
-
-    config_path = result.directory / 'opm.toml'
-    if options.profiles and config_path.is_file():
-        current = read_project_profiles(config_path)
-        wanted = current + [name for name in dict.fromkeys(options.profiles) if name not in current]
-        if wanted != current:
-            try:
-                write_project_profiles(config_path, wanted)
-            except ValueError as e:
-                raise ScaffoldError(str(e)) from e
-    return result
-
-
-def _scaffold_project(options: InitOptions) -> ScaffoldResult:
-    """Write an empty project for *options.vocabulary*."""
-
+def _plan_empty(options: InitOptions) -> ScaffoldPlan:
+    """Plan an empty project for *options.vocabulary*."""
     vocab = options.vocabulary.strip().lower()
     if vocab not in VOCABULARIES:
         raise ScaffoldError(
@@ -506,15 +473,7 @@ def _scaffold_project(options: InitOptions) -> ScaffoldResult:
         )
 
     dest_dir = options.directory.expanduser().resolve()
-    dest_dir.mkdir(parents=True, exist_ok=True)
-
-    config_path = dest_dir / 'opm.toml'
-    if config_path.exists() and not options.force:
-        raise ScaffoldError(
-            f'{config_path} already exists. Pass --force to overwrite.'
-        )
-
-    title = dest_dir.name
+    title = options.title or dest_dir.name
     is_tei = vocab == 'tei'
     odd_path = _ODD_PATH[vocab]
     typst_template = _TYPST_TEMPLATE[vocab]
@@ -522,9 +481,7 @@ def _scaffold_project(options: InitOptions) -> ScaffoldResult:
     title_xpath = _TITLE_XPATH[vocab]
     html_template = options.html_template.strip() or _HTML_TEMPLATE[vocab]
 
-    written: list[Path] = []
-    skipped: list[Path] = []
-    force = options.force
+    plan = ScaffoldPlan(directory=dest_dir, title=title, vocabulary=vocab)
 
     env = _scaffold_env()
     toml_text = env.get_template('opm.toml.tpl').render(
@@ -546,102 +503,122 @@ def _scaffold_project(options: InitOptions) -> ScaffoldResult:
         index_note_element=_INDEX_FIELD_ELEMENTS[vocab][0],
         index_name_element=_INDEX_FIELD_ELEMENTS[vocab][1],
     )
-    _record(config_path, written, skipped, _write_text(config_path, toml_text, force=force))
+    plan.add('opm.toml', _with_profiles(toml_text, options.profiles), config=True)
 
     if not options.bare:
-        readme_text = env.get_template('README.md.tpl').render(
-            title=title,
-            vocabulary=vocab,
-            odd_path=odd_path,
-            sample=SAMPLE_PATH,
-            html_template=html_template,
-            extra_templates=options.templates,
+        plan.add(
+            'README.md',
+            env.get_template('README.md.tpl').render(
+                title=title,
+                vocabulary=vocab,
+                odd_path=odd_path,
+                sample=SAMPLE_PATH,
+                html_template=html_template,
+                extra_templates=options.templates,
+            ),
         )
-        _record(
-            dest_dir / 'README.md',
-            written,
-            skipped,
-            _write_text(dest_dir / 'README.md', readme_text, force=force),
-        )
-
-        _agent_guidance(
+        _plan_agent_guidance(
+            plan,
             env,
-            dest_dir,
             vocabulary=vocab,
             odd_path=odd_path,
             html_template=html_template,
             sample=SAMPLE_PATH,
             extra_templates=options.templates,
-            written=written,
-            skipped=skipped,
         )
+        plan.add_packaged('scaffold/gitignore', '.gitignore')
 
-        _record(
-            dest_dir / '.gitignore',
-            written,
-            skipped,
-            _copy_packaged('scaffold/gitignore', dest_dir / '.gitignore', force=force),
-        )
-
-    _record(
-        dest_dir / 'extensions' / '__init__.py',
-        written,
-        skipped,
-        _write_text(
-            dest_dir / 'extensions' / '__init__.py',
-            # Scaffolded files are CC0 (LICENSING.md, Part A §4), so they say so
-            # in the reader's own tree rather than only in ours. Fenced off because
-            # this file is AGPL and REUSE would otherwise read the literal below as
-            # a second licence declaration for scaffold.py itself.
-            # REUSE-IgnoreStart
-            '# SPDX-FileCopyrightText: 2026 e-editiones\n'
-            '# SPDX-License-Identifier: CC0-1.0\n\n'
-            # REUSE-IgnoreEnd
-            '"""Project-local XPath extension modules (imported via [project] pythonpath)."""\n',
-            force=force,
-        ),
+    plan.add(
+        'extensions/__init__.py',
+        # Scaffolded files are CC0 (LICENSING.md, Part A §4), so they say so
+        # in the reader's own tree rather than only in ours. Fenced off because
+        # this file is AGPL and REUSE would otherwise read the literal below as
+        # a second licence declaration for scaffold.py itself.
+        # REUSE-IgnoreStart
+        '# SPDX-FileCopyrightText: 2026 e-editiones\n'
+        '# SPDX-License-Identifier: CC0-1.0\n\n'
+        # REUSE-IgnoreEnd
+        '"""Project-local XPath extension modules (imported via [project] pythonpath)."""\n',
     )
 
     # The shell opm.toml wires up; --templates adds the alternatives beside it.
     shells: tuple[str, ...] = (html_template,)
     if options.templates:
         shells += tuple(name for name in _EXTRA_SHELLS if name != html_template)
-    copies: list[tuple[str, Path]] = _shell_copies(shells, dest_dir)
+    copies: list[tuple[str, str]] = _shell_copies(shells)
     if 'typst' in options.outputs:
-        copies.append(
-            (
-                f'scaffold/templates/{Path(typst_template).name}',
-                dest_dir / typst_template,
-            )
-        )
+        copies.append((f'scaffold/templates/{Path(typst_template).name}', typst_template))
         if options.templates:
-            copies.append((_TYPST_DEFAULT[0], dest_dir / _TYPST_DEFAULT[1]))
+            copies.append(_TYPST_DEFAULT)
     if 'docx' in options.outputs:
-        copies.append(('templates/default.docx', dest_dir / 'templates' / 'default.docx'))
+        copies.append(('templates/default.docx', 'templates/default.docx'))
 
     if is_tei:
-        copies.append(('scaffold/odd/custom.odd', dest_dir / 'odd' / 'custom.odd'))
-        copies.append(('scaffold/odd/custom.css', dest_dir / 'odd' / 'custom.css'))
+        copies.append(('scaffold/odd/custom.odd', 'odd/custom.odd'))
+        copies.append(('scaffold/odd/custom.css', 'odd/custom.css'))
         if options.copy_base_odd:
-            copies.append(('odd/teipublisher.odd', dest_dir / 'odd' / 'teipublisher.odd'))
-            copies.append(('odd/tp.css', dest_dir / 'odd' / 'tp.css'))
+            copies.append(('odd/teipublisher.odd', 'odd/teipublisher.odd'))
+            copies.append(('odd/tp.css', 'odd/tp.css'))
     else:
         # The ODD's tagsDecl points at its stylesheet by name, so both travel together.
         stem = Path(odd_path).stem
-        copies.append((f'odd/{stem}.odd', dest_dir / 'odd' / f'{stem}.odd'))
-        copies.append((f'odd/{stem}.css', dest_dir / 'odd' / f'{stem}.css'))
-    copies.append((f'scaffold/sample/{vocab}.xml', dest_dir / SAMPLE_PATH))
+        copies.append((f'odd/{stem}.odd', f'odd/{stem}.odd'))
+        copies.append((f'odd/{stem}.css', f'odd/{stem}.css'))
+    copies.append((f'scaffold/sample/{vocab}.xml', SAMPLE_PATH))
     if options.base:
-        copies.extend((src_rel, dest_dir / rel) for src_rel, rel in _BASE_COPIES)
+        copies.extend(_BASE_COPIES)
 
-    for src_rel, dest in copies:
-        _record(dest, written, skipped, _copy_packaged(src_rel, dest, force=force))
+    for src_rel, rel_path in copies:
+        plan.add_packaged(src_rel, rel_path)
+    return plan
+
+
+def scaffold(options: InitOptions) -> ScaffoldResult:
+    """Write a project tree from *options* and return what was created.
+
+    The profiles in *options* are checked before anything is written. Beside
+    the project files, ``.opm/init.json`` records what was written, so
+    [`opm.update`][opm.update] can later bring the project up to date.
+    """
+    from opm.profile import available_profiles
+    from opm.update import write_init_manifest
+
+    dest_dir = options.directory.expanduser().resolve()
+    known = {profile.name for profile in available_profiles(dest_dir)}
+    unknown = [name for name in options.profiles if name not in known]
+    if unknown:
+        raise ScaffoldError(
+            f'Unknown profile {", ".join(map(repr, unknown))}. '
+            f'Available: {", ".join(sorted(known)) or "none"}.'
+        )
+
+    plan = plan_project(options)
+
+    config_path = dest_dir / 'opm.toml'
+    if config_path.exists() and not options.force:
+        raise ScaffoldError(
+            f'{config_path} already exists. Pass --force to overwrite.'
+        )
+
+    written: list[Path] = []
+    skipped: list[Path] = []
+    for planned in plan.files:
+        dest = dest_dir / planned.path
+        if dest.exists() and (planned.keep or not options.force):
+            skipped.append(dest)
+            continue
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(planned.data)
+        written.append(dest)
+
+    write_init_manifest(dest_dir, options, plan)
 
     return ScaffoldResult(
         directory=dest_dir,
         written=sorted(written),
         skipped=sorted(skipped),
-        title=title,
-        vocabulary=vocab,
-        sample_path=SAMPLE_PATH,
+        title=plan.title,
+        vocabulary=plan.vocabulary,
+        sample_path=plan.sample_path,
+        example=plan.example,
     )
