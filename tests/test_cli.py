@@ -821,6 +821,90 @@ output_dir = "html-site"
     assert two_manifest['anchors'] == {'a': '001.html', 'b': '002.html'}
 
 
+def _write_glob_fixture(tmp_path: Path, extra_config: str = '') -> None:
+    """Documents filed in subdirectories, with a sibling file the pattern must skip."""
+    _write_tiny_odd(tmp_path / 'teipublisher.odd')
+    for name in ('one', 'two'):
+        folder = tmp_path / 'data' / name
+        folder.mkdir(parents=True)
+        _write_chunking_fixture_xml(folder / f'{name}.col.xml')
+        _write_chunking_fixture_xml(folder / f'notes_{name}.xml')
+    (tmp_path / 'opm.toml').write_text(
+        """[chunking]
+odd = "teipublisher.odd"
+xpath = "//body/div[@type='chunk']"
+output_dir = "html-site"
+""" + extra_config,
+        encoding='utf-8',
+    )
+
+
+def test_chunk_glob_pattern_reads_matching_files_in_subdirectories(tmp_path: Path, monkeypatch) -> None:
+    _write_glob_fixture(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['chunk', 'data/**/*.col.xml', '-c', 'opm.toml'])
+
+    assert rc == 0
+    site = tmp_path / 'html-site'
+    documents = sorted(p.name for p in site.iterdir() if (p / 'manifest.json').is_file())
+    assert documents == ['one.col.xml', 'two.col.xml']
+    assert (site / 'index.html').is_file()
+
+
+def test_chunk_uses_configured_input_relative_to_config(tmp_path: Path, monkeypatch) -> None:
+    _write_glob_fixture(tmp_path, 'input = "data/**/*.col.xml"\n')
+    elsewhere = tmp_path / 'elsewhere'
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+
+    rc = main(['chunk', '-c', str(tmp_path / 'opm.toml')])
+
+    assert rc == 0
+    site = elsewhere / 'html-site'   # output_dir is relative to the working directory
+    assert (site / 'one.col.xml' / 'manifest.json').is_file()
+    assert (site / 'two.col.xml' / 'manifest.json').is_file()
+    assert not (site / 'notes_one.xml').exists()
+
+
+def test_chunk_glob_pattern_without_match_fails(tmp_path: Path, monkeypatch, capsys) -> None:
+    _write_glob_fixture(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['chunk', 'data/**/*.missing.xml', '-c', 'opm.toml'])
+
+    assert rc == 1
+    assert 'no files match data/**/*.missing.xml' in capsys.readouterr().err
+
+
+def test_chunk_glob_pattern_rejects_two_documents_with_one_name(tmp_path: Path, monkeypatch, capsys) -> None:
+    _write_glob_fixture(tmp_path)
+    _write_chunking_fixture_xml(tmp_path / 'data' / 'two' / 'one.col.xml')
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['chunk', 'data/**/*.col.xml', '-c', 'opm.toml', '--force'])
+
+    assert rc == 1
+    assert 'document_name' in capsys.readouterr().err
+
+
+def test_chunk_glob_pattern_with_document_name(tmp_path: Path, monkeypatch) -> None:
+    _write_glob_fixture(tmp_path, 'document_name = "/doc/@xml:id"\n')
+    monkeypatch.chdir(tmp_path)
+    for name in ('one', 'two'):
+        path = tmp_path / 'data' / name / f'{name}.col.xml'
+        path.write_text(
+            path.read_text(encoding='utf-8').replace('<doc>', f'<doc xml:id="{name}">', 1),
+            encoding='utf-8',
+        )
+
+    rc = main(['chunk', 'data/**/*.col.xml', '-c', 'opm.toml'])
+
+    assert rc == 0
+    assert (tmp_path / 'html-site' / 'one' / 'manifest.json').is_file()
+    assert (tmp_path / 'html-site' / 'two' / 'manifest.json').is_file()
+
+
 def test_prepare_chunk_output_dir_noop_if_missing(tmp_path: Path) -> None:
     out = tmp_path / 'chunks'
     _prepare_chunk_output_dir(out, force=False)

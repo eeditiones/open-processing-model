@@ -116,7 +116,7 @@ opm chunk [OPTIONS] [INPUT_XML]
 
 | Argument | Description |
 | --- | --- |
-| `INPUT_XML` | XML file to transform and chunk, or a directory of XML files. |
+| `INPUT_XML` | XML file to transform and chunk, a directory of XML files, or a quoted glob pattern such as "data/**/*.xml" (** matches any number of subdirectories). Defaults to [chunking] input in opm.toml. |
 
 
 **Options:**
