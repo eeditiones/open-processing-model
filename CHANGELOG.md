@@ -20,11 +20,16 @@ All notable changes to this project are documented here. The format follows
 - The menubar logo and `<title>` fall back to the document's `title` fragment, so themes need not override them
 - `theme.layout.logo_title = false` shows `context.logo` alone, for a wordmark that spells the name; the name becomes its alt text
 - `opm chunk` accepts a quoted glob pattern as input (`opm chunk 'data/**/*.col.xml'`), for documents filed in subdirectories; `**` matches any number of them. A pattern behaves like a directory: one subdirectory per document and a collection index
-- `[chunking] input`: the file, directory or glob pattern `opm chunk` reads when none is given on the command line, relative to `opm.toml`
+- `[chunking] input`: the file, directory or glob pattern a run reads, relative to `opm.toml`; a run with an input ignores the one given on the command line, and `opm chunk` reports it
 - `opm chunk` stops with an error when two input files would be written to the same document directory, and suggests `document_name`
+- Every `[[chunking]]` run may read its own `input`, with its own `document_name`, ODD and template: several collections published side by side
+- A `[[pages]]` entry with `path = "index.html"` replaces the generated collection index: the site's own landing page
+- Template expressions can read the project's documents and `[[transform.collections]]` with `doc()` and `collection()`
 
 ### Changed
 
+- A `/` in the value of `[chunking] document_name` now nests the document directory; it used to be replaced by `-`
+- `opm/base.html.tpl` writes `<pb-page>` only on pages built with web components; elsewhere it was an inert wrapper
 - Theme stylesheets are named `opm-theme-<name>.css`: `opm-theme-chapbook.css`, `opm-theme-handbook.css`, `opm-theme-journal.css`, which `opm init` copies beside the template of the same name. The monograph and Escher examples' design is the theme `opm-theme-paper.css` (formerly their `chapbook.css`)
 - The chapbook template writes `opm-reader-*` classes and `<body class="opm-reader">` instead of `chap-*` and `chapbook`, so any reader theme (chapbook, paper) can style it; chapbook's own custom properties are `--chapbook-*`
 - The packaged layout styles more of the page chrome itself: muted menu links, the current breadcrumb, the drawer's header bar, the skip link, a translucent menubar; sticky sidebars stop below the menubar by default
@@ -35,6 +40,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- iiif profile: `pb-facsimile` stayed empty when the page's `<pb-facs-link>` elements subscribe to "transcription" (as `teipublisher.odd`'s pb-facsimile model writes them): it did not emit on that channel, so the links did not wait for it and announced their images before it listened. It now emits on "transcription", like `pb-tify`
 - Breadcrumbs no longer inherit the toolbar's wide gap between items, and wrap even where an ODD stylesheet sets them `nowrap`
 - Focus rings in a coloured menubar take its text colour
 - The journal line in the journal masthead shows in the accent colour again

@@ -265,3 +265,109 @@
     display: none;
   }
 }
+
+/* --- Animated overview (docs/javascripts/opm-overview.js) -------------- */
+
+.md-typeset .opm-overview {
+  margin: 1.5rem 0 2rem;
+  border-radius: 1rem;
+}
+
+.md-typeset .opm-overview:focus-visible {
+  outline: 3px solid var(--md-accent-fg-color);
+  outline-offset: 4px;
+}
+
+.md-typeset .opm-overview > img,
+.md-typeset .opm-overview > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.md-typeset .opm-overview__controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+.md-typeset .opm-overview__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--md-default-fg-color--lightest);
+  color: var(--md-default-fg-color);
+  cursor: pointer;
+}
+
+.md-typeset .opm-overview__btn:hover,
+.md-typeset .opm-overview__btn:focus-visible {
+  background: var(--md-primary-fg-color);
+  color: var(--md-primary-bg-color);
+}
+
+.md-typeset .opm-overview__btn svg {
+  width: 1.2rem;
+  height: 1.2rem;
+  fill: currentColor;
+}
+
+.md-typeset .opm-overview__toggle {
+  width: 2.4rem;
+  height: 2.4rem;
+}
+
+.md-typeset .opm-overview__hint {
+  margin-left: 0.6rem;
+  font-size: 0.65rem;
+  color: var(--md-default-fg-color--light);
+}
+
+/* announced to screen readers only */
+.md-typeset .opm-overview__status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* fullscreen: the figure fills the screen, controls stay underneath */
+.opm-overview:fullscreen,
+.opm-overview:-webkit-full-screen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2vh 2vw;
+  border-radius: 0;
+  background: #21222C;
+}
+
+.opm-overview:fullscreen > svg,
+.opm-overview:-webkit-full-screen > svg {
+  width: 100%;
+  height: auto;
+  max-height: calc(100vh - 5rem);
+}
+
+.opm-overview:fullscreen .opm-overview__btn {
+  background: #343747;
+  color: #ECECF1;
+}
+
+.opm-overview:fullscreen .opm-overview__hint {
+  color: #9A9BB0;
+}
+
+@media screen and (max-width: 44.98em) {
+  .md-typeset .opm-overview__hint { display: none; }
+}
