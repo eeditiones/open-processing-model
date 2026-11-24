@@ -46,9 +46,9 @@ from opm.scaffold import (
 from opm.project import (
     CHUNK_FORMATS,
     Project,
-    chunk_input_files,
-    is_glob_pattern,
+    chunk_inputs,
     is_multi_document,
+    runs_ignoring_source,
 )
 from opm.assets import copy_assets
 from opm.transform import load_transform_module, template_assets
@@ -1184,7 +1184,8 @@ def chunk(
             help=(
                 'XML file to transform and chunk, a directory of XML files, or a '
                 'quoted glob pattern such as "data/**/*.xml" (** matches any '
-                'number of subdirectories). Defaults to [chunking] input in opm.toml.'
+                'number of subdirectories). Read by the [[chunking]] runs without an '
+                'input of their own in opm.toml; ignored, with a note, by the others.'
             ),
         ),
     ] = None,
@@ -1350,14 +1351,6 @@ def chunk(
         if not chunking:
             _die('no [chunking] section found in config.')
 
-        source: str | None = input_xml if input_xml is not None else chunking.input
-        if source is None:
-            _die(
-                'input XML file, directory or glob pattern is required '
-                '(or set [chunking] input in opm.toml).'
-            )
-        multi_document = is_multi_document(source)
-        
         if output_format not in CHUNK_FORMATS:
             _die(
                 '--format must be "html", "json" or "pb-view", '
@@ -1368,11 +1361,24 @@ def chunk(
         for resolved in modules:
             _report_resolved_module(resolved)
 
-        input_files = chunk_input_files(source)
-        if multi_document and not input_files:
-            if is_glob_pattern(source):
-                _die(f'no files match {source}.')
-            _die(f'no XML files found in directory {source}.')
+        # A run with an input of its own reads it; the others share the
+        # command-line input.
+        runs = project.config.chunking_runs or (chunking,)
+        ignoring = runs_ignoring_source(runs)
+        if input_xml is not None and ignoring:
+            if len(ignoring) == len(runs):
+                _note(
+                    f'the input {input_xml} is ignored: every [[chunking]] run '
+                    'reads the input set in opm.toml.'
+                )
+            else:
+                _note(
+                    f'[[chunking]] run {", ".join(ignoring)} reads the input set in '
+                    f'opm.toml, not {input_xml}.'
+                )
+        inputs = chunk_inputs(runs, input_xml)
+        input_files = [xml_file for item in inputs for xml_file in item.files]
+        multi_document = len(inputs) > 1 or is_multi_document(inputs[0].source)
 
         # Asked here rather than left to Project.chunk, so the prompt comes
         # before the progress display starts.
@@ -1380,13 +1386,18 @@ def chunk(
         _prepare_chunk_output_dir(out_dir, force=force)
 
         module_path = modules[0].module_path
-        if multi_document:
+        if len(inputs) > 1:
             typer.echo(
-                f'Chunking {len(input_files)} XML files from {source} '
+                f'Chunking {len(input_files)} XML files from '
+                f'{", ".join(str(item.source) for item in inputs)}...'
+            )
+        elif multi_document:
+            typer.echo(
+                f'Chunking {len(input_files)} XML files from {inputs[0].source} '
                 f'using {module_path}...'
             )
         else:
-            typer.echo(f'Chunking {source} using {module_path}...')
+            typer.echo(f'Chunking {inputs[0].source} using {module_path}...')
         # ``on_progress`` counts chunks *within one document*, so a directory run
         # gets a second task counting files — one bar per unit, rather than
         # trading chunk-level detail for a file count.
@@ -1428,7 +1439,7 @@ def chunk(
                 progress.update(current[0], completed=done, total=total)
 
             run = project.chunk(
-                source,
+                input_xml,
                 format=output_format,
                 output_dir=output_dir,
                 # Unlike the configured one, a --template path is relative to

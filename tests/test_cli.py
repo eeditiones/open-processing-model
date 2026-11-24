@@ -954,6 +954,132 @@ def test_chunk_document_name_rejects_a_directory_inside_another(tmp_path: Path, 
     assert 'inside the directory' in capsys.readouterr().err
 
 
+def test_chunk_later_run_with_its_own_input(tmp_path: Path, monkeypatch, capsys) -> None:
+    _write_glob_fixture(
+        tmp_path,
+        'name = "collation"\ndocument_name = "/doc/@xml:id || \'/collation\'"\n',
+    )
+    config = tmp_path / 'opm.toml'
+    config.write_text(
+        config.read_text(encoding='utf-8').replace('[chunking]', '[[chunking]]', 1)
+        + """
+[[chunking]]
+name = "intro"
+input = "data/*/notes_*.xml"
+document_name = "substring-after(/doc/@xml:id, 'notes-') || '/intro'"
+xpath = "/doc/body"
+""",
+        encoding='utf-8',
+    )
+    _set_doc_ids(tmp_path)
+    for name in ('one', 'two'):
+        path = tmp_path / 'data' / name / f'notes_{name}.xml'
+        path.write_text(
+            path.read_text(encoding='utf-8').replace('<doc>', f'<doc xml:id="notes-{name}">', 1),
+            encoding='utf-8',
+        )
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['chunk', 'data/*/*.col.xml', '-c', 'opm.toml'])
+
+    assert rc == 0
+    assert 'Chunking 4 XML files' in capsys.readouterr().out
+    site = tmp_path / 'html-site'
+    for name in ('one', 'two'):
+        # The collation run splits its document; the intro run keeps one page.
+        assert (site / name / 'collation' / '002.html').is_file()
+        intro = json.loads((site / name / 'intro' / 'manifest.json').read_text(encoding='utf-8'))
+        assert len(intro['chunks']) == 1
+    index = (site / 'index.html').read_text(encoding='utf-8')
+    assert 'one/intro/001.html' in index
+
+
+def test_chunk_later_run_input_without_match_fails(tmp_path: Path, monkeypatch, capsys) -> None:
+    _write_glob_fixture(tmp_path)
+    config = tmp_path / 'opm.toml'
+    config.write_text(
+        config.read_text(encoding='utf-8').replace('[chunking]', '[[chunking]]', 1)
+        + '\n[[chunking]]\nname = "intro"\ninput = "data/*/missing_*.xml"\n',
+        encoding='utf-8',
+    )
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['chunk', 'data/*/*.col.xml', '-c', 'opm.toml'])
+
+    assert rc == 1
+    assert 'no files match' in capsys.readouterr().err
+
+
+def _write_two_run_config(tmp_path: Path, first_input: str | None) -> None:
+    """A collation run and an intro run; the intro run always has its own input."""
+    _write_glob_fixture(tmp_path)
+    first = f'input = "{first_input}"\n' if first_input else ''
+    (tmp_path / 'opm.toml').write_text(
+        f"""[[chunking]]
+name = "collation"
+odd = "teipublisher.odd"
+xpath = "//body/div[@type='chunk']"
+output_dir = "html-site"
+{first}document_name = "/doc/@xml:id || '/collation'"
+
+[[chunking]]
+name = "intro"
+odd = "teipublisher.odd"
+input = "data/*/notes_*.xml"
+document_name = "substring-after(/doc/@xml:id, 'notes-') || '/intro'"
+xpath = "/doc/body"
+""",
+        encoding='utf-8',
+    )
+    _set_doc_ids(tmp_path)
+    for name in ('one', 'two'):
+        path = tmp_path / 'data' / name / f'notes_{name}.xml'
+        path.write_text(
+            path.read_text(encoding='utf-8').replace('<doc>', f'<doc xml:id="notes-{name}">', 1),
+            encoding='utf-8',
+        )
+
+
+def test_chunk_every_run_with_its_own_input_ignores_the_command_line(
+    tmp_path: Path, monkeypatch, capsys,
+) -> None:
+    _write_two_run_config(tmp_path, 'data/*/*.col.xml')
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['chunk', 'data/one/one.col.xml', '-c', 'opm.toml'])
+
+    assert rc == 0
+    captured = capsys.readouterr()
+    assert 'data/one/one.col.xml is ignored' in captured.err
+    # Both documents of the first run's own input were built, not just the one given.
+    assert (tmp_path / 'html-site' / 'two' / 'collation' / '001.html').is_file()
+    assert (tmp_path / 'html-site' / 'two' / 'intro' / '001.html').is_file()
+
+
+def test_chunk_reports_runs_that_do_not_read_the_command_line_input(
+    tmp_path: Path, monkeypatch, capsys,
+) -> None:
+    _write_two_run_config(tmp_path, None)
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['chunk', 'data/*/*.col.xml', '-c', 'opm.toml'])
+
+    assert rc == 0
+    assert 'run "intro" reads the input set in opm.toml' in capsys.readouterr().err
+
+
+def test_chunk_run_without_input_needs_one_on_the_command_line(
+    tmp_path: Path, monkeypatch, capsys,
+) -> None:
+    _write_two_run_config(tmp_path, None)
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['chunk', '-c', 'opm.toml'])
+
+    assert rc == 1
+    assert 'no input for [[chunking]] run "collation"' in capsys.readouterr().err
+
+
 def test_prepare_chunk_output_dir_noop_if_missing(tmp_path: Path) -> None:
     out = tmp_path / 'chunks'
     _prepare_chunk_output_dir(out, force=False)

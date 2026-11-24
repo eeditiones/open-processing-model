@@ -59,7 +59,8 @@ name, opm stops and asks you to set `document_name`.
 
 To build the same set of documents every time, put the input in `opm.toml`.
 A relative path is resolved against the directory of `opm.toml`, and
-`opm chunk` without an argument then reads it:
+`opm chunk` without an argument then reads it. An input given on the command
+line is then ignored, and `opm chunk` reports that it is:
 
 ```toml
 [chunking]
@@ -264,6 +265,36 @@ before it, so a register entry's `#chapter-3` link resolves to the text run's
 page. `manifest.json` lists every run's chunks, each tagged with its `run`
 name. The search index (`opm index`) covers all runs; an EPUB is built from the
 first.
+
+### Runs with documents of their own
+
+Any run, the first included, may set `input`. It then reads only those files
+and names their directories with its own `document_name`, so several
+collections, each with its own ODD, template and splitting, are published
+side by side. Here each work gets its collation
+and its introduction side by side, in `<slug>/collation/` and `<slug>/intro/`:
+
+```toml
+[[chunking]]
+name = "collation"
+input = "data/collation/*/*.col.xml"
+document_name = "substring-before(/TEI/@xml:id, '.col') || '/collation'"
+odd = "odd/collation.odd"
+
+[[chunking]]
+name = "intro"
+input = "data/intro/*/intro_*.xml"
+document_name = "substring-before(/TEI/@xml:id, '.intro') || '/intro'"
+odd = "odd/intro.odd"
+template = "templates/handbook.html.tpl"
+xpath = "/TEI/text"        # the whole text on one page
+```
+
+Runs without an `input` read the input given on the command line, together,
+as before. A run with an `input` ignores it, and `opm chunk` reports this; if
+every run has one, the command-line input is not used at all. A file may be
+read by one input only, and the directories of all runs must stay apart. The
+collection index lists the documents of every run.
 
 A single `[chunking]` table works exactly as before.
 

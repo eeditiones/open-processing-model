@@ -222,6 +222,74 @@ def is_multi_document(source: Path | str) -> bool:
     return is_glob_pattern(source) or Path(source).is_dir()
 
 
+@dataclass(frozen=True)
+class ChunkInput:
+    """Documents read by one or more ``[[chunking]]`` runs."""
+
+    runs: tuple[ChunkingConfig, ...]
+    """The runs reading them, in config order."""
+    source: Path | str
+    """The file, directory or glob pattern they come from."""
+    files: tuple[Path, ...]
+    """The XML files *source* stands for."""
+
+
+def _run_label(run: ChunkingConfig, runs: Sequence[ChunkingConfig]) -> str:
+    return f'"{run.name}"' if run.name else f'#{list(runs).index(run) + 1}'
+
+
+def chunk_inputs(
+    runs: Sequence[ChunkingConfig], source: Path | str | None = None,
+) -> list[ChunkInput]:
+    """Which documents each ``[[chunking]]`` run reads.
+
+    A run with an ``input`` of its own reads those files; every run without
+    one reads *source*, the input given on the command line, together. When
+    every run has its own input, *source* is not used (see
+    [`runs_ignoring_source`][opm.project.runs_ignoring_source]).
+
+    Raises:
+        ValueError: A run has neither an input of its own nor a *source*, an
+            input matches no file, or one file is read by two inputs.
+    """
+    groups: list[ChunkInput] = []
+    shared = tuple(run for run in runs if run.input is None)
+    for run in runs:
+        if run.input is not None:
+            groups.append(ChunkInput((run,), run.input, ()))
+        elif run is shared[0]:
+            if source is None:
+                labels = ', '.join(_run_label(item, runs) for item in shared)
+                raise ValueError(
+                    f'no input for [[chunking]] run {labels}: give one on the command '
+                    'line or set input in opm.toml.'
+                )
+            groups.append(ChunkInput(shared, source, ()))
+    seen: dict[Path, Path | str] = {}
+    result: list[ChunkInput] = []
+    for group in groups:
+        files = chunk_input_files(group.source)
+        if not files:
+            where = ', '.join(_run_label(run, runs) for run in group.runs)
+            if is_glob_pattern(group.source):
+                raise ValueError(f'no files match {group.source} ([[chunking]] run {where}).')
+            raise ValueError(f'no XML files found in {group.source} ([[chunking]] run {where}).')
+        for xml_file in files:
+            key = xml_file.resolve()
+            if key in seen:
+                raise ValueError(
+                    f'{xml_file} is read twice, by the inputs {seen[key]} and {group.source}.',
+                )
+            seen[key] = group.source
+        result.append(replace(group, files=tuple(files)))
+    return result
+
+
+def runs_ignoring_source(runs: Sequence[ChunkingConfig]) -> list[str]:
+    """Labels of the runs that read an ``input`` of their own and so ignore a command-line input."""
+    return [_run_label(run, runs) for run in runs if run.input is not None]
+
+
 def _source_label(source: Path | str) -> str:
     """A name for *source* in the collection index: its last component, or for
     a glob pattern the last directory before the first wildcard
@@ -677,13 +745,14 @@ class Project:
         """Split *source* into pages, as ``opm chunk`` does.
 
         *source* is one XML file, a directory of them, or a glob pattern
-        (``data/**/*.xml``); without it, ``[chunking] input``. For a directory
+        (``data/**/*.xml``). For a directory
         or a pattern, each document goes to a subdirectory named after it, and
         an HTML run also writes ``index.html`` listing the documents.
 
-        A later ``[[chunking]]`` run with an ``input`` of its own reads those
-        files instead of *source*, and names their directories with its own
-        ``document_name``. The other runs process *source*. ``pb-view`` output
+        A ``[[chunking]]`` run with an ``input`` of its own reads those files
+        instead of *source*, and names their directories with its own
+        ``document_name``; the runs without one process *source* together
+        (see [`chunk_inputs`][opm.project.chunk_inputs]). ``pb-view`` output
         puts every document's data under ``<doc_path>/<name>.xml/`` instead.
 
         The arguments override the ``[chunking]`` settings of the same name.
@@ -701,7 +770,7 @@ class Project:
         Args:
             source: An XML file, a directory of XML files (not searched
                 recursively), or a glob pattern, where ``**`` matches any
-                number of subdirectories. Defaults to ``[chunking] input``.
+                number of subdirectories. Read by the runs without an ``input``.
             format: ``html`` (pages rendered with the chunk template),
                 ``json`` (one JSON file per chunk, for static site
                 generators) or ``pb-view`` (data for the ``pb-view`` web
@@ -732,7 +801,7 @@ class Project:
 
         Raises:
             ValueError: The config has no ``[chunking]`` section, *format* is
-                unknown, there is no *source* and no ``[chunking] input``, a
+                unknown, a run has neither an ``input`` nor a *source*, a
                 directory contains no XML files, a pattern matches no file, or
                 two documents would be written to the same subdirectory.
             FileExistsError: The output directory exists and *overwrite*
@@ -740,18 +809,8 @@ class Project:
         """
         if format not in CHUNK_FORMATS:
             raise ValueError(f'format must be "html", "json" or "pb-view", got {format!r}')
-        if source is None:
-            source = self._chunking().input
-            if source is None:
-                raise ValueError(
-                    'no input given and no [chunking] input in the config.'
-                )
-        files = chunk_input_files(source)
-        by_directory = is_multi_document(source)
-        if by_directory and not files:
-            if is_glob_pattern(source):
-                raise ValueError(f'no files match {source}.')
-            raise ValueError(f'no XML files found in directory {source}.')
+        # Read before compiling anything, so a missing input fails fast.
+        inputs = chunk_inputs(self._chunking_runs(), source)
 
         overrides: dict[str, Any] = {}
         if output_dir is not None:
@@ -780,28 +839,11 @@ class Project:
             runs.append(replace(run, **changes))
         chunking = runs[0]
 
-        # Which runs read which documents: the first run, and every later run
-        # without an input of its own, read *source*; a run with its own input
-        # reads those files alone.
+        # The same grouping, now over the compiled runs.
+        position = {id(run): index for index, run in enumerate(self._chunking_runs())}
         groups: list[tuple[list[ChunkingConfig], list[Path]]] = [
-            ([run for index, run in enumerate(runs) if index == 0 or run.input is None], files),
+            ([runs[position[id(run)]] for run in item.runs], list(item.files)) for item in inputs
         ]
-        for run in runs[1:]:
-            if run.input is None:
-                continue
-            run_files = chunk_input_files(run.input)
-            if not run_files:
-                raise ValueError(f'no files match {run.input} ({_run_label(run)}).')
-            groups.append(([run], run_files))
-        seen: dict[Path, int] = {}
-        for position, (_, group_files) in enumerate(groups):
-            for xml_file in group_files:
-                key = xml_file.resolve()
-                if key in seen and seen[key] != position:
-                    raise ValueError(
-                        f'{xml_file} is read by two [[chunking]] runs with inputs of their own.',
-                    )
-                seen[key] = position
         all_files = [xml_file for _, group_files in groups for xml_file in group_files]
 
         out_dir = self.chunk_output_dir(chunking.output_dir)
@@ -838,7 +880,7 @@ class Project:
             for group_runs, group_files in groups
             for xml_file in group_files
         ]
-        multi_document = by_directory or len(groups) > 1
+        multi_document = len(inputs) > 1 or is_multi_document(inputs[0].source)
         for position, (group_runs, xml_file) in enumerate(documents):
             if on_document is not None:
                 on_document(position, xml_file)
@@ -901,7 +943,7 @@ class Project:
                     'path': str(xml_file.resolve()),
                     'href': first_pages[doc_names[xml_file]],
                 }
-                for xml_file in files
+                for xml_file in all_files
                 if doc_names[xml_file] in first_pages
             ]
             if on_step is not None and self.config.pages:
@@ -928,7 +970,7 @@ class Project:
             index_file = build_index(
                 out_dir,
                 template_path=chunking.index_template,
-                title=chunking.index_title or _source_label(source),
+                title=chunking.index_title or _source_label(inputs[0].source),
                 module_path=chunking.module,
                 project_config=self.config,
                 project_root=self.root,
@@ -938,7 +980,7 @@ class Project:
             )
         run_result = ChunkRun(
             output_dir=out_dir,
-            documents=tuple(files),
+            documents=tuple(all_files),
             format=format,
             modules=tuple(all_modules),
             index_file=index_file,

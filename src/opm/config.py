@@ -197,9 +197,12 @@ class ChunkingConfig:
 
     The expression is evaluated on the document root, in the project's XPath
     environment. An empty result, a name already used by another document
-    in the run, or a directory inside another document's, is an error. With several ``[[chunking]]`` runs, only the
-    first may set this; later runs share that directory. Ignored for
-    ``--format pb-view``, which addresses documents by file path.
+    in the run, or a directory inside another document's, is an error.
+
+    With several ``[[chunking]]`` runs, the first run sets this for its
+    documents, which later runs share; a later run with an ``input`` of its
+    own sets it for its own files. Ignored for ``--format pb-view``, which
+    addresses documents by file path.
     """
     link_pattern: str | None = None
     """Optional URL template for cross-chunk links.
@@ -250,7 +253,7 @@ class ChunkingConfig:
     ``pb-document``. When unset the data is written directly into ``output_dir``.
     """
     input: str | None = None
-    """The documents ``opm chunk`` reads when no input is given on the command line.
+    """The documents this run reads, instead of the input given on the command line.
 
     An XML file, a directory (the XML files directly inside it), or a glob
     pattern; ``**`` matches any number of subdirectories:
@@ -259,8 +262,13 @@ class ChunkingConfig:
     input = "data/collation/**/*.col.xml"
     ```
 
-    A relative path is resolved against the config file's directory. With
-    several ``[[chunking]]`` runs, only the first run's ``input`` is used.
+    A relative path is resolved against the config file's directory.
+
+    Every ``[[chunking]]`` run may set its own ``input``, and then reads only
+    those files, into directories named by its own ``document_name``: several
+    collections, each rendered with its own ODD and template, published side
+    by side. A command-line input is ignored by such a run (``opm chunk``
+    says so); the runs without an ``input`` read it together.
     """
 
 
