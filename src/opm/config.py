@@ -192,9 +192,12 @@ class ChunkingConfig:
     document_name = "'B' || substring-after(/TEI/@xml:id, 'K_')"  # → B0096/
     ```
 
+    A ``/`` in the name nests the directory (``"slug/collation"`` →
+    ``slug/collation/``); pages, shared assets and the index link accordingly.
+
     The expression is evaluated on the document root, in the project's XPath
-    environment. An empty result, or a name already used by another document
-    in the run, is an error. With several ``[[chunking]]`` runs, only the
+    environment. An empty result, a name already used by another document
+    in the run, or a directory inside another document's, is an error. With several ``[[chunking]]`` runs, only the
     first may set this; later runs share that directory. Ignored for
     ``--format pb-view``, which addresses documents by file path.
     """

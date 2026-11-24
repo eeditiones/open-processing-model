@@ -130,6 +130,18 @@ The name is also what templates get as `document`, and what `documents` lists,
 so links between documents can be built from identifiers found in the TEI
 (see the `escher` example). Two documents with the same name, or a document
 whose expression gives an empty string, stop the run with an error.
+
+A `/` in the name nests the directory. Pages then sit one level deeper, and
+their links to the shared `css/` and `assets/` and to the index climb back
+accordingly:
+
+```toml
+[chunking]
+document_name = "substring-before(/TEI/@xml:id, '.') || '/collation'"   # aarets-historie/collation/
+```
+
+A document's directory may not lie inside another document's (`a/` and
+`a/b/`).
 `--format pb-view` ignores the setting: pb-view fetches its data by file path.
 
 ## Fragments

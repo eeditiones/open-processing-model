@@ -891,6 +891,16 @@ def test_chunk_glob_pattern_rejects_two_documents_with_one_name(tmp_path: Path, 
 def test_chunk_glob_pattern_with_document_name(tmp_path: Path, monkeypatch) -> None:
     _write_glob_fixture(tmp_path, 'document_name = "/doc/@xml:id"\n')
     monkeypatch.chdir(tmp_path)
+    _set_doc_ids(tmp_path)
+
+    rc = main(['chunk', 'data/**/*.col.xml', '-c', 'opm.toml'])
+
+    assert rc == 0
+    assert (tmp_path / 'html-site' / 'one' / 'manifest.json').is_file()
+    assert (tmp_path / 'html-site' / 'two' / 'manifest.json').is_file()
+
+
+def _set_doc_ids(tmp_path: Path) -> None:
     for name in ('one', 'two'):
         path = tmp_path / 'data' / name / f'{name}.col.xml'
         path.write_text(
@@ -898,11 +908,50 @@ def test_chunk_glob_pattern_with_document_name(tmp_path: Path, monkeypatch) -> N
             encoding='utf-8',
         )
 
+
+def test_chunk_document_name_with_slash_nests_the_directory(tmp_path: Path, monkeypatch) -> None:
+    _write_glob_fixture(
+        tmp_path,
+        'document_name = "/doc/@xml:id || \'/collation\'"\ntemplate = "page.html.tpl"\n',
+    )
+    (tmp_path / 'page.html.tpl').write_text(
+        '<html><head><link rel="stylesheet" href="[[ $context?odd_css_url ]]"></head>'
+        '<body><a href="[[ $context?site_root ]]index.html">home</a>[[ $context?content_html ]]</body></html>',
+        encoding='utf-8',
+    )
+    _set_doc_ids(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
     rc = main(['chunk', 'data/**/*.col.xml', '-c', 'opm.toml'])
 
     assert rc == 0
-    assert (tmp_path / 'html-site' / 'one' / 'manifest.json').is_file()
-    assert (tmp_path / 'html-site' / 'two' / 'manifest.json').is_file()
+    site = tmp_path / 'html-site'
+    page = site / 'one' / 'collation' / '001.html'
+    assert page.is_file()
+    assert (site / 'two' / 'collation' / 'manifest.json').is_file()
+    # Shared stylesheets stay at the output root, two levels up from a page.
+    assert (site / 'css').is_dir()
+    assert not (site / 'one' / 'css').exists()
+    html = page.read_text(encoding='utf-8')
+    assert 'href="../../css/' in html
+    assert 'href="../../index.html"' in html
+    index = (site / 'index.html').read_text(encoding='utf-8')
+    assert 'one/collation/001.html' in index
+    assert 'two/collation/001.html' in index
+
+
+def test_chunk_document_name_rejects_a_directory_inside_another(tmp_path: Path, monkeypatch, capsys) -> None:
+    _write_glob_fixture(
+        tmp_path,
+        'document_name = "if (/doc/@xml:id = \'one\') then \'x\' else \'x/two\'"\n',
+    )
+    _set_doc_ids(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    rc = main(['chunk', 'data/**/*.col.xml', '-c', 'opm.toml'])
+
+    assert rc == 1
+    assert 'inside the directory' in capsys.readouterr().err
 
 
 def test_prepare_chunk_output_dir_noop_if_missing(tmp_path: Path) -> None:

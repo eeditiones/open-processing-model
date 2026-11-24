@@ -28,7 +28,7 @@ import itertools
 import shutil
 import threading
 from dataclasses import dataclass, field, fields, replace
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence, Union
 
@@ -128,12 +128,14 @@ def document_names(
     """The output directory name of each of *files*: ``[chunking] document_name``.
 
     *expr* is evaluated with each document's root as context, in the project's
-    XPath environment; its string value, with path separators replaced, is
-    the name. Without *expr* every document keeps its file name.
+    XPath environment; its string value is the name. A ``/`` in it nests the
+    directory (``aarets-historie/collation``); other unsafe characters within
+    each part are replaced. Without *expr* every document keeps its file name.
 
     Raises:
         ValueError: A document's name is empty or not a usable directory
-            name, or two documents get the same name.
+            name, two documents get the same name, or one document's directory
+            would lie inside another's.
     """
     if not expr:
         # Files matched by a glob pattern may share a name across directories.
@@ -162,8 +164,9 @@ def document_names(
                 item.xpath('string()') if isinstance(item, etree._Element) else str(item)
                 for item in value
             )
-        name = _safe_file_stem(str(value))
-        if name in ('', '.', '..'):
+        parts = [_safe_file_stem(part) for part in str(value).strip().strip('/').split('/')]
+        name = '/'.join(parts)
+        if any(part in ('', '.', '..') for part in parts):
             raise ValueError(
                 f'[chunking] document_name gives no usable name for {path.name}: '
                 f'{expr} evaluated to {str(value)!r}.',
@@ -175,7 +178,30 @@ def document_names(
             )
         taken[name] = path
         names[path] = name
+    _check_document_dirs(names)
     return names
+
+
+def _check_document_dirs(names: dict[Path, str]) -> None:
+    """No two documents share a directory, and none lies inside another's.
+
+    A document's directory holding another's would mix their pages, and the
+    collection index could not tell them apart.
+    """
+    taken: dict[str, Path] = {}
+    for path, name in names.items():
+        if name in taken:
+            raise ValueError(
+                f'{taken[name].name} and {path.name} would both be written to {name}/.',
+            )
+        taken[name] = path
+    for name, path in taken.items():
+        for parent in PurePosixPath(name).parents:
+            if str(parent) in taken:
+                raise ValueError(
+                    f'[chunking] document_name puts {path.name} ({name!r}) inside the '
+                    f'directory of {taken[str(parent)].name} ({str(parent)!r}).',
+                )
 
 
 def is_glob_pattern(source: Path | str) -> bool:
@@ -653,7 +679,11 @@ class Project:
         *source* is one XML file, a directory of them, or a glob pattern
         (``data/**/*.xml``); without it, ``[chunking] input``. For a directory
         or a pattern, each document goes to a subdirectory named after it, and
-        an HTML run also writes ``index.html`` listing the documents. ``pb-view`` output
+        an HTML run also writes ``index.html`` listing the documents.
+
+        A later ``[[chunking]]`` run with an ``input`` of its own reads those
+        files instead of *source*, and names their directories with its own
+        ``document_name``. The other runs process *source*. ``pb-view`` output
         puts every document's data under ``<doc_path>/<name>.xml/`` instead.
 
         The arguments override the ``[chunking]`` settings of the same name.
@@ -750,6 +780,30 @@ class Project:
             runs.append(replace(run, **changes))
         chunking = runs[0]
 
+        # Which runs read which documents: the first run, and every later run
+        # without an input of its own, read *source*; a run with its own input
+        # reads those files alone.
+        groups: list[tuple[list[ChunkingConfig], list[Path]]] = [
+            ([run for index, run in enumerate(runs) if index == 0 or run.input is None], files),
+        ]
+        for run in runs[1:]:
+            if run.input is None:
+                continue
+            run_files = chunk_input_files(run.input)
+            if not run_files:
+                raise ValueError(f'no files match {run.input} ({_run_label(run)}).')
+            groups.append(([run], run_files))
+        seen: dict[Path, int] = {}
+        for position, (_, group_files) in enumerate(groups):
+            for xml_file in group_files:
+                key = xml_file.resolve()
+                if key in seen and seen[key] != position:
+                    raise ValueError(
+                        f'{xml_file} is read by two [[chunking]] runs with inputs of their own.',
+                    )
+                seen[key] = position
+        all_files = [xml_file for _, group_files in groups for xml_file in group_files]
+
         out_dir = self.chunk_output_dir(chunking.output_dir)
         _clear_output_dir(out_dir, overwrite)
 
@@ -761,13 +815,17 @@ class Project:
         extensions = tuple(xpath_extensions) if xpath_extensions else None
         base_doc_path = doc_path or chunking.doc_path
         # What each document's directory is called: its file name, or the
-        # first run's document_name. pb-view data stays addressed by file.
-        doc_names = document_names(
-            files,
-            None if format == 'pb-view' else chunking.document_name,
-            self.config,
-            extensions=extensions,
-        )
+        # document_name of the run that reads it. pb-view data stays
+        # addressed by file.
+        doc_names: dict[Path, str] = {}
+        for group_runs, group_files in groups:
+            doc_names.update(document_names(
+                group_files,
+                None if format == 'pb-view' else group_runs[0].document_name,
+                self.config,
+                extensions=extensions,
+            ))
+        _check_document_dirs(doc_names)
         # Built once and shared: templates test links against it.
         names = frozenset(doc_names.values())
 
@@ -775,10 +833,16 @@ class Project:
         # into the reading view: id → the document's directory + chunk file.
         anchors_by_doc: dict[Path, dict[str, str]] = {}
 
-        for position, xml_file in enumerate(files):
+        documents = [
+            (group_runs, xml_file)
+            for group_runs, group_files in groups
+            for xml_file in group_files
+        ]
+        multi_document = by_directory or len(groups) > 1
+        for position, (group_runs, xml_file) in enumerate(documents):
             if on_document is not None:
                 on_document(position, xml_file)
-            if by_directory and format == 'pb-view':
+            if multi_document and format == 'pb-view':
                 document_doc_path = (
                     f'{base_doc_path.rstrip("/")}/{xml_file.name}' if base_doc_path
                     else xml_file.name
@@ -790,7 +854,7 @@ class Project:
             # before it, so links between their pages resolve.
             anchors: dict[str, str] = {}
             written = 0
-            for index, run in enumerate(runs):
+            for index, run in enumerate(group_runs):
                 progress = on_progress
                 if on_progress is not None and written:
                     # One count per document across its runs.

@@ -14,7 +14,7 @@ import re
 import shutil
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, asdict
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import unquote, urlsplit
 
@@ -306,13 +306,18 @@ class ChunkProcessor:
         """
         if self._shared_root_override is not None:
             return self._shared_root_override
-        return self.output_dir.parent if self.config.link_doc else self.output_dir
+        depth = self._doc_depth()
+        return self.output_dir.parents[depth - 1] if depth else self.output_dir
+
+    def _doc_depth(self) -> int:
+        """How many directories ``link_doc`` spans: 1 for ``doc.xml``, 2 for ``slug/collation``."""
+        return len(PurePosixPath((self.config.link_doc or '').strip('/')).parts)
 
     def url_prefix(self) -> str:
         """Return the relative path from a chunk page back to [`shared_root`][opm.chunking.ChunkProcessor.shared_root]."""
         if self._url_prefix_override is not None:
             return self._url_prefix_override
-        return '../' if self.config.link_doc else ''
+        return '../' * self._doc_depth()
 
     def write_shared_files(
         self, *, html: bool = True, templates_dir: Path | None = None,
@@ -1547,7 +1552,7 @@ class IndexEntry:
     """One document in a generated collection index."""
 
     name: str
-    """Output subdirectory, e.g. ``quickstart.xml``."""
+    """Output subdirectory, relative to the index, e.g. ``quickstart.xml`` or ``aarets-historie/collation``."""
     stem: str
     """Source filename without its suffix, e.g. ``quickstart``."""
     label: str
@@ -1574,7 +1579,10 @@ def collect_index_entries(output_dir: Path) -> list[IndexEntry]:
     readable manifest are skipped.
     """
     entries: list[IndexEntry] = []
-    for manifest_file in sorted(output_dir.glob('*/manifest.json')):
+    # A document's directory may be nested (document_name = "slug/collation").
+    for manifest_file in sorted(output_dir.rglob('manifest.json')):
+        if manifest_file.parent == output_dir:
+            continue
         try:
             data = json.loads(manifest_file.read_text(encoding='utf-8'))
         except (OSError, json.JSONDecodeError):
@@ -1583,16 +1591,18 @@ def collect_index_entries(output_dir: Path) -> list[IndexEntry]:
             # An auxiliary page's directory ([[pages]]), not a chunked document.
             continue
 
-        doc_dir = manifest_file.parent
+        name = manifest_file.parent.relative_to(output_dir).as_posix()
         chunks = data.get('chunks') or []
         first = chunks[0].get('file') if chunks else None
-        stem = Path(doc_dir.name).stem
+        # For a nested directory the first part names the document
+        # (aarets-historie/collation → aarets-historie).
+        stem = Path(PurePosixPath(name).parts[0]).stem
         entries.append(
             IndexEntry(
-                name=doc_dir.name,
+                name=name,
                 stem=stem,
                 label=_humanise(stem),
-                href=f'{doc_dir.name}/{first}' if first else doc_dir.name,
+                href=f'{name}/{first}' if first else name,
                 chunks=len(chunks),
                 fragments=data.get('fragments') or {},
             )
