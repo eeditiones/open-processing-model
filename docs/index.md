@@ -16,6 +16,10 @@ While originally conceived for documents following the TEI XML standard, the [TE
 
 `opm` is pure Python with minimal dependencies and implements the full _TEI Processing Model_. Most ODDs will be compatible and can be exchanged between [_TEI Publisher_](https://tei-publisher.org) and `opm`, allowing users to combine the benefits of a dynamic, database-backed website with the speed of static rendering.
 
+<div class="opm-overview">
+  <img src="images/opm-family.svg" alt="opm and TEI Publisher: two siblings built on the TEI Processing Model">
+</div>
+
 To get started, have a look at the [short tutorial](tutorials/tei-to-html.md) included in this documentation. To learn more about ODD as the underlying standard, it is best to read the [TEI Publisher documentation](https://tei-publisher.org/doc/documentation.xml?id=odd#odd).
 It also includes a more extensive tutorial in the [Gentle Introduction](https://tei-publisher.org/doc/quickstart.xml?id=pm-tutorial#pm-tutorial) document.
 
@@ -82,6 +86,10 @@ Typical usage scenarios for `opm` include:
 * prepare HTML data to be used by other systems such as static site generators
 * provide [pre-rendered content for TEI Publisher](guide/tei-publisher.md) to speed up load times
 * generate a static HTML reference site from an ODD (`opm odd document`), including processing models and the TEI Guidelines when you have `p5.xml` locally
+
+<div class="opm-overview">
+  <img src="images/opm-overview.svg" alt="Animated overview of what opm does">
+</div>
 
 ## Where to go next
 
