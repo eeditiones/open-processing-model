@@ -324,6 +324,26 @@ collection index lists the documents of every run.
 
 A single `[chunking]` table works exactly as before.
 
+### Rebuilding one run
+
+While you work on one run, say its template or its ODD, rebuilding the whole
+site each time is slow. Build everything once, then rebuild only the run you
+are changing by giving its name:
+
+```bash
+opm chunk --force                 # once: every run
+opm chunk --run reference         # afterwards: only the "reference" run
+```
+
+The pages of the other runs stay as they are, and the run still links to them
+as before. The collection index is rewritten (unless a `[[pages]]` entry at
+`index.html` is the site's own landing page, which is kept), but the auxiliary
+pages are skipped; add `--page` with a path prefix to rebuild some of them too. You can
+give `--run` more than once.
+
+If the rebuilt run changes the names of its pages, links to them from other
+runs are not updated. Build the whole site again before publishing it.
+
 ## Auxiliary pages
 
 The primary purpose of OPM is to transform a set of input documents into a collection of outputs.

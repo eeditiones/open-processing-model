@@ -49,6 +49,7 @@ from opm.project import (
     chunk_inputs,
     is_multi_document,
     runs_ignoring_source,
+    select_runs,
 )
 from opm.assets import copy_assets
 from opm.transform import load_transform_module, template_assets
@@ -1402,6 +1403,18 @@ def chunk(
             ),
         ),
     ] = None,
+    run_names: Annotated[
+        Optional[list[str]],
+        typer.Option(
+            '--run',
+            '-r',
+            help=(
+                'Rebuild only the [[chunking]] run with this name (repeatable), keeping '
+                'the rest of the existing output. Skips the [[pages]] unless --page '
+                'is given. Build every run once first; not for --format pb-view.'
+            ),
+        ),
+    ] = None,
     preview: Annotated[
         bool,
         typer.Option(
@@ -1470,16 +1483,28 @@ def chunk(
                     f'opm.toml, not {input_xml}.'
                 )
         inputs = chunk_inputs(runs, input_xml)
-        input_files = [xml_file for item in inputs for xml_file in item.files]
         multi_document = len(inputs) > 1 or is_multi_document(inputs[0].source)
+        if run_names:
+            select_runs(runs, run_names)  # an unknown name fails before any work
+            # Only the documents of the rebuilt runs are counted.
+            inputs = [
+                item for item in inputs if any(run.name in run_names for run in item.runs)
+            ]
+        input_files = [xml_file for item in inputs for xml_file in item.files]
 
-        # Asked here rather than left to Project.chunk, so the prompt comes
-        # before the progress display starts.
         out_dir = project.chunk_output_dir(output_dir)
-        _prepare_chunk_output_dir(out_dir, force=force)
+        if not run_names:
+            # Asked here rather than left to Project.chunk, so the prompt comes
+            # before the progress display starts.
+            _prepare_chunk_output_dir(out_dir, force=force)
 
         module_path = modules[0].module_path
-        if len(inputs) > 1:
+        if run_names:
+            typer.echo(
+                f'Rebuilding run {", ".join(run_names)} ({len(input_files)} XML '
+                f'file{"s" if len(input_files) != 1 else ""})...'
+            )
+        elif len(inputs) > 1:
             typer.echo(
                 f'Chunking {len(input_files)} XML files from '
                 f'{", ".join(str(item.source) for item in inputs)}...'
@@ -1548,6 +1573,7 @@ def chunk(
                 on_progress=_on_progress,
                 on_step=_on_step,
                 pages=False if no_pages else page,
+                runs=run_names or None,
             )
             _finish(current[0])
             if file_task is not None:

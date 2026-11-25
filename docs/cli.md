@@ -162,6 +162,7 @@ opm chunk [OPTIONS] [INPUT_XML]
 | `--doc-path TEXT` | For --format pb-view: document path subdirectory. Data is written to <output-dir>/<doc-path>/ and must match the pb-document @path; CSS stays shared at <output-dir>/css/. Falls back to chunking.doc_path in config. |
 | `--no-pages` | Skip the auxiliary pages declared in [[pages]] (HTML output only); build the chunking runs alone. |
 | `--page TEXT` | Build only the auxiliary pages whose path starts with this prefix, e.g. --page places. HTML output only. |
+| `--run, -r TEXT` | Rebuild only the [[chunking]] run with this name (repeatable), keeping the rest of the existing output. Skips the [[pages]] unless --page is given. Build every run once first; not for --format pb-view. |
 | `--preview, -v` | After chunking, start a local HTTP server rooted at the output directory and open the first page in a browser (HTML output only). |
 | `--port, -p INTEGER` | Port for --preview (default: 8080). |
 | `--strict` | Exit with an error when an XPath expression fails at run time, instead of treating it as false or empty. Expressions opm cannot run at all (eXist functions, XQuery syntax) are reported when the ODD is compiled and do not count. |

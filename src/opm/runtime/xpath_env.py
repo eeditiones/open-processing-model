@@ -235,11 +235,14 @@ class DocumentCache:
     long as the cache — and with it the run's environment — exists.
     """
 
-    __slots__ = ('trees', 'parameter_maps', 'id_indexes')
+    __slots__ = ('trees', 'parameter_maps', 'id_indexes', 'context_maps')
 
     def __init__(self) -> None:
         self.trees: dict[tuple, Any] = {}
         self.parameter_maps: dict[tuple, Any] = {}
+        # The documents and collections maps handed to every XPathContext,
+        # prepared once (see XPathEnvironment._context_maps).
+        self.context_maps: dict[tuple, tuple] = {}
         # Keyed by id() of the root node, which the entry keeps alive.
         self.id_indexes: dict[int, tuple[XPathNode, IdIndex]] = {}
 
@@ -438,29 +441,68 @@ class XPathEnvironment:
             if name != 'parameters':
                 variables[name] = value
 
-        documents: dict[str, Any] | None = self.documents or None
+        view_tree_root = None
         if view_root is not None:
             view_tree_root = view_root.getroottree().getroot()
-            if view_tree_root is not tree_root:
-                # Chunking transforms a synthetic copy of the page, while
-                # $parameters?root still points into the original document. The
-                # two are separate lxml trees, and XPathContext.get_root() only
-                # searches the context root's tree and `documents` — so without
-                # registering the source document, root($parameters?root) is the
-                # empty sequence, and every model reaching the teiHeader through
-                # it (page titles, facsimile links) degrades on chunk output.
-                # The wrapper is the cached one the parameters map took its root
-                # from: get_root() compares by identity.
-                documents = dict(documents) if documents else {}
-                documents.setdefault(self.base_uri or '', self.wrapped(view_tree_root))
+            if view_tree_root is tree_root:
+                view_tree_root = None
+        documents, collections = self._context_maps(view_tree_root)
 
-        return XPathContext(
+        # The documents and collections are attached after construction:
+        # XPathContext.__init__ would otherwise re-check every document and
+        # every collection member on each call, and a context is built per
+        # predicate and per param — with a few hundred collection documents
+        # that walk was most of the time spent evaluating XPath.
+        context = XPathContext(
             root=wrapped,  # type: ignore[arg-type]
             item=wrapped.elements[node],  # type: ignore[union-attr,index]
             variables=variables,
-            documents=documents,
-            collections=self.collections or None,
         )
+        if documents is not None:
+            context.documents = documents
+        if collections is not None:
+            context.collections = collections
+        return context
+
+    def _context_maps(
+        self, view_tree_root: etree._Element | None,
+    ) -> tuple[dict[str, Any] | None, dict[str, list] | None]:
+        """``(documents, collections)`` as XPathContext keeps them, built once.
+
+        *view_tree_root* is the root of the original document when a chunk (a
+        synthetic copy of the page) is transformed, else ``None``. Chunking
+        transforms that copy while $parameters?root still points into the
+        original document. The two are separate lxml trees, and
+        XPathContext.get_root() only searches the context root's tree and
+        `documents` — so without registering the source document,
+        root($parameters?root) is the empty sequence, and every model reaching
+        the teiHeader through it (page titles, facsimile links) degrades on
+        chunk output. The wrapper is the cached one the parameters map took
+        its root from: get_root() compares by identity.
+
+        The cached entry holds the maps it was built from, so the id()s in its
+        key cannot be reused while it exists.
+        """
+        key = (id(self.documents), id(self.collections), view_tree_root, self.base_uri)
+        hit = self._cache.context_maps.get(key)
+        if hit is not None:
+            return hit[0], hit[1]
+        documents: dict[str, Any] | None = None
+        if self.documents or view_tree_root is not None:
+            documents = {
+                uri: get_node_tree(doc, {}, uri) if doc is not None else doc
+                for uri, doc in self.documents.items()
+            }
+            if view_tree_root is not None:
+                documents.setdefault(self.base_uri or '', self.wrapped(view_tree_root))
+        collections: dict[str, list] | None = None
+        if self.collections:
+            collections = {
+                uri: [node for node in members if isinstance(node, XPathNode)]
+                for uri, members in self.collections.items()
+            }
+        self._cache.context_maps[key] = (documents, collections, self.documents, self.collections)
+        return documents, collections
 
     def evaluate(self, node: etree._Element, expr: str) -> list:
         """Raw elementpath results; raises `elementpath.ElementPathError`."""

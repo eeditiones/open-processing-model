@@ -495,3 +495,121 @@ def test_the_search_index_covers_every_run(tmp_path: Path) -> None:
 
     files = {record['metadata'].get('chunk') for record in records}
     assert {'intro.html', 'ref-p.html'} <= files, sorted(map(str, files))
+
+
+def _built_two_runs(tmp_path: Path) -> tuple[Project, Path, Path, dict]:
+    project = _two_run_project(tmp_path, _TWO_RUNS)
+    xml = tmp_path / 'doc.xml'
+    xml.write_text(_TWO_RUN_DOC, encoding='utf-8')
+    project.chunk(xml, format='json')
+    out = tmp_path / 'site' / 'doc.xml'
+    return project, xml, out, json.loads((out / 'manifest.json').read_text(encoding='utf-8'))
+
+
+def test_a_later_run_is_rebuilt_alone(tmp_path: Path) -> None:
+    project, xml, out, full = _built_two_runs(tmp_path)
+    (out / 'intro.json').write_text('left alone', encoding='utf-8')
+    (out / 'ref-p.json').unlink()
+
+    result = project.chunk(xml, format='json', runs=['reference'])
+
+    assert (out / 'intro.json').read_text(encoding='utf-8') == 'left alone'
+    ref = json.loads((out / 'ref-p.json').read_text(encoding='utf-8'))
+    # Still handed the text run's anchors, now read from the manifest.
+    assert 'intro.html#intro-sec' in ref['content']
+    assert json.loads((out / 'manifest.json').read_text(encoding='utf-8')) == full
+    assert result.documents == (xml,)
+
+
+def test_rebuilding_the_first_run_keeps_the_manifest_in_run_order(tmp_path: Path) -> None:
+    project, xml, out, full = _built_two_runs(tmp_path)
+    # A page the text run wrote last time and no longer writes.
+    stale = json.loads((out / 'manifest.json').read_text(encoding='utf-8'))
+    stale['chunks'].insert(1, {**stale['chunks'][0], 'file': 'gone.html'})
+    (out / 'manifest.json').write_text(json.dumps(stale), encoding='utf-8')
+    (out / 'gone.json').write_text('{}', encoding='utf-8')
+
+    project.chunk(xml, format='json', runs=['text'])
+
+    assert not (out / 'gone.json').exists()
+    assert json.loads((out / 'manifest.json').read_text(encoding='utf-8')) == full
+
+
+def test_rebuilding_a_run_needs_a_known_name_and_an_earlier_build(tmp_path: Path) -> None:
+    project = _two_run_project(tmp_path, _TWO_RUNS)
+    xml = tmp_path / 'doc.xml'
+    xml.write_text(_TWO_RUN_DOC, encoding='utf-8')
+    with pytest.raises(ValueError, match=r"no \[\[chunking\]\] run named 'nope'.*\"text\""):
+        project.chunk(xml, runs=['nope'])
+    with pytest.raises(ValueError, match='build every run once'):
+        project.chunk(xml, runs=['text'])
+    project.chunk(xml, format='json')
+    with pytest.raises(ValueError, match='pb-view'):
+        project.chunk(xml, format='pb-view', runs=['text'])
+
+
+def test_rebuilding_a_run_rewrites_the_index_and_skips_pages(tmp_path: Path) -> None:
+    project = _two_run_project(tmp_path, _TWO_RUNS)
+    xml = tmp_path / 'doc.xml'
+    xml.write_text(_TWO_RUN_DOC, encoding='utf-8')
+    project.chunk(xml)
+    index = tmp_path / 'site' / 'index.html'
+    index.unlink()
+
+    result = project.chunk(xml, runs=['reference'])
+
+    assert index.is_file() and result.index_file == index
+    assert result.pages == ()
+
+
+def test_rebuilding_a_run_keeps_the_projects_own_landing_page(tmp_path: Path) -> None:
+    """A [[pages]] entry at index.html is not overwritten by the generated index."""
+    (tmp_path / 'home.html.tpl').write_text(
+        '<html><body><p>Landing page</p></body></html>', encoding='utf-8',
+    )
+    project = _two_run_project(
+        tmp_path,
+        _TWO_RUNS + '\n[[pages]]\npath = "index.html"\ntemplate = "home.html.tpl"\n',
+    )
+    xml = tmp_path / 'doc.xml'
+    xml.write_text(_TWO_RUN_DOC, encoding='utf-8')
+    project.chunk(xml)
+    index = tmp_path / 'site' / 'index.html'
+    assert 'Landing page' in index.read_text(encoding='utf-8')
+
+    result = project.chunk(xml, runs=['reference'])
+
+    assert result.pages == ()
+    assert result.index_file == index
+    assert 'Landing page' in index.read_text(encoding='utf-8')
+
+
+def test_collections_are_parsed_once_for_all_documents_chunked(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    """Chunking many documents does not re-parse the collections for each one."""
+    import opm.transform as transform
+
+    member = tmp_path / 'lookup' / 'member.xml'
+    member.parent.mkdir()
+    member.write_text('<doc><title>Member</title></doc>', encoding='utf-8')
+    project = _project(
+        tmp_path,
+        '\n[[transform.collections]]\nuri = "urn:lookup"\ndocuments = ["lookup/*.xml"]\n',
+    )
+    for name in ('a', 'b', 'c', 'd'):
+        _doc(tmp_path / 'docs' / f'{name}.xml')
+    parsed: list[str] = []
+    real_parse = transform.parse_xml
+
+    def counting_parse(path, *args, **kwargs):
+        if Path(path) == member.resolve():
+            parsed.append(path)
+        return real_parse(path, *args, **kwargs)
+
+    monkeypatch.setattr(transform, 'parse_xml', counting_parse)
+
+    project.chunk(tmp_path / 'docs')
+
+    # Once for the document names, once for the transforms: not once per document.
+    assert 1 <= len(parsed) <= 2

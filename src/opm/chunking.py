@@ -1521,7 +1521,14 @@ def chunk_document(
     tree = xml_parse(str(xml_path))
     root = tree.getroot()
 
-    xpath_env = project_xpath_env(project.config, xml_path, extensions=xpath_extensions)
+    # The [transform] documents and collections, parsed once per Project and
+    # shared by every document of every run (as Project.transform does), not
+    # re-parsed for each document chunked.
+    shared = getattr(project, '_documents', None)
+    xpath_env = project_xpath_env(
+        project.config, xml_path, extensions=xpath_extensions,
+        documents=shared() if callable(shared) else None,
+    )
     document = config.link_doc or xml_path.name
 
     processor = ChunkProcessor(

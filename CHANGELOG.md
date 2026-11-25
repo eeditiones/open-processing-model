@@ -41,6 +41,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- `opm chunk` parses the `[transform] documents` and `[[transform.collections]]` once per build instead of once per document chunked, and XPath evaluation no longer re-checks every one of them for each expression. A project with a few hundred collection documents built in 11 minutes before and in under a minute now, with the same output
+- `opm chunk --run` keeps the project's own landing page (a `[[pages]]` entry at `index.html`) instead of overwriting it with the generated collection index
 - iiif profile: `pb-facsimile` stayed empty when the page's `<pb-facs-link>` elements subscribe to "transcription" (as `teipublisher.odd`'s pb-facsimile model writes them): it did not emit on that channel, so the links did not wait for it and announced their images before it listened. It now emits on "transcription", like `pb-tify`
 - Breadcrumbs no longer inherit the toolbar's wide gap between items, and wrap even where an ODD stylesheet sets them `nowrap`
 - Focus rings in a coloured menubar take its text colour

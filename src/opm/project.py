@@ -25,12 +25,13 @@ from __future__ import annotations
 
 import glob
 import itertools
+import json
 import shutil
 import threading
 from dataclasses import dataclass, field, fields, replace
 from pathlib import Path, PurePosixPath
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Sequence, Union
 
 from urllib.parse import urlparse
 from urllib.request import url2pathname
@@ -377,6 +378,113 @@ def _clear_output_dir(out_dir: Path, overwrite: bool) -> None:
         shutil.rmtree(out_dir)
     else:
         out_dir.unlink()
+
+
+def select_runs(
+    all_runs: Sequence[ChunkingConfig], names: Sequence[str] | None,
+) -> set[int] | None:
+    """Positions of the runs called *names*, or ``None`` when every run is built.
+
+    Raises:
+        ValueError: A name matches no run.
+    """
+    if names is None:
+        return None
+    known = [run.name for run in all_runs if run.name]
+    unknown = [name for name in names if name not in known]
+    if unknown:
+        listed = ', '.join(f'"{name}"' for name in known) or 'none (only named runs can be rebuilt)'
+        raise ValueError(
+            f'no [[chunking]] run named {", ".join(repr(name) for name in unknown)}; '
+            f'named runs: {listed}.',
+        )
+    return {index for index, run in enumerate(all_runs) if run.name in names}
+
+
+def _read_manifest(manifest_file: Path) -> dict[str, Any]:
+    if not manifest_file.is_file():
+        return {'chunks': [], 'fragments': {}, 'anchors': {}}
+    return json.loads(manifest_file.read_text(encoding='utf-8'))
+
+
+def _rebuild_run(
+    group_runs: Sequence[ChunkingConfig],
+    position: int,
+    doc_dir: Path,
+    build: Callable[[Mapping[str, str]], dict[str, str]],
+) -> dict[str, str]:
+    """Rebuild one named run of one document inside its existing output.
+
+    *group_runs* are the runs reading the document, in config order, and
+    *position* the rebuilt run's place among them. *build* chunks the
+    document with the anchors it is handed and writes a manifest of its own;
+    that manifest is then merged into the one the other runs left, the way a
+    full build merges them: chunks in run order, a global fragment from the
+    first run that has it, and for an id two runs know, the later run's
+    anchor. The run's chunk files from the earlier build are removed first,
+    so pages it no longer writes do not linger.
+
+    Returns the run's anchor map, as *build* returned it.
+    """
+    run = group_runs[position]
+    manifest_file = doc_dir / 'manifest.json'
+    old = _read_manifest(manifest_file)
+    # Where each run sits; chunks of an unnamed run carry no "run" key, so
+    # they belong to the first unnamed run.
+    place: dict[str | None, int] = {}
+    for index, item in enumerate(group_runs):
+        place.setdefault(item.name, index)
+
+    def owner(entry: Mapping[str, Any]) -> int:
+        return place.get(entry.get('run'), -1)
+
+    old_chunks = old.get('chunks') or []
+    file_owner = {entry['file']: owner(entry) for entry in old_chunks}
+    for entry in old_chunks:
+        if entry.get('run') == run.name:
+            stale = doc_dir / entry['file']
+            for path in (stale, stale.with_suffix('.json')):
+                path.unlink(missing_ok=True)
+
+    old_anchors: dict[str, str] = old.get('anchors') or {}
+    earlier = {
+        xml_id: file for xml_id, file in old_anchors.items()
+        if file_owner.get(file, -1) < position
+    }
+    later = {
+        xml_id: file for xml_id, file in old_anchors.items()
+        if file_owner.get(file, -1) > position
+    }
+    anchors = build(earlier)
+    new = _read_manifest(manifest_file)
+
+    chunks = sorted(
+        [entry for entry in old_chunks if entry.get('run') != run.name] + (new.get('chunks') or []),
+        key=owner,
+    )
+    own_names = {fragment.name for fragment in run.fragments or ()}
+    earlier_names = {
+        fragment.name for item in group_runs[:position] for fragment in item.fragments or ()
+    }
+    other_names = {
+        fragment.name for index, item in enumerate(group_runs) if index != position
+        for fragment in item.fragments or ()
+    }
+    fragments = {
+        name: value for name, value in (old.get('fragments') or {}).items()
+        if name in other_names or name not in own_names
+    }
+    for name, value in (new.get('fragments') or {}).items():
+        if name not in earlier_names:
+            fragments[name] = value
+    payload = {
+        **{key: value for key, value in old.items() if key not in ('chunks', 'fragments', 'anchors')},
+        'chunks': chunks,
+        'fragments': fragments,
+        'anchors': {**earlier, **anchors, **later},
+    }
+    manifest_file.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding='utf-8')
+    return anchors
 
 
 class Project:
@@ -741,6 +849,7 @@ class Project:
         on_progress: Callable[[int, int], None] | None = None,
         on_step: Callable[[str], None] | None = None,
         pages: bool | str | None = None,
+        runs: Sequence[str] | None = None,
     ) -> ChunkRun:
         """Split *source* into pages, as ``opm chunk`` does.
 
@@ -762,6 +871,16 @@ class Project:
         *pages* is ``False``; a *pages* string limits the build to pages whose
         ``path`` starts with it (``--page``). Non-HTML formats skip pages:
         they feed external site generators, which build their own.
+
+        *runs* rebuilds only the named ``[[chunking]]`` runs inside the
+        existing output, which a full build must have written first: the other
+        runs' pages stay as they are, the rebuilt runs' pages from the earlier
+        build are replaced, and each document's ``manifest.json`` is merged as
+        a full build would merge it. The auxiliary pages are then skipped
+        unless *pages* asks for some; the collection index is rewritten, except
+        where a ``[[pages]]`` entry at ``index.html`` is the landing page. A
+        later run's links into a rebuilt run are not updated, so a rebuilt run
+        that changes its file names needs a full build.
 
         Once every page and the index are written, the ``after_chunking``
         hooks of the project's profiles run, each called with the project and
@@ -797,7 +916,11 @@ class Project:
                 and each ``after_chunking`` hook.
             pages: ``False`` skips the ``[[pages]]`` auxiliary pages; a
                 string builds only pages whose ``path`` starts with it;
-                ``None`` (default) builds them all. HTML output only.
+                ``None`` (default) builds them all, or none with *runs*.
+                HTML output only.
+            runs: Names of the ``[[chunking]]`` runs to rebuild in the
+                existing output; ``None`` (default) builds every run into a
+                fresh output directory. Not for ``pb-view``.
 
         Raises:
             ValueError: The config has no ``[chunking]`` section, *format* is
@@ -809,6 +932,12 @@ class Project:
         """
         if format not in CHUNK_FORMATS:
             raise ValueError(f'format must be "html", "json" or "pb-view", got {format!r}')
+        selected = select_runs(self._chunking_runs(), runs)
+        if selected is not None:
+            if format == 'pb-view':
+                raise ValueError('single runs cannot be rebuilt for pb-view output; build them all.')
+            if pages is None:
+                pages = False
         # Read before compiling anything, so a missing input fails fast.
         inputs = chunk_inputs(self._chunking_runs(), source)
 
@@ -824,7 +953,7 @@ class Project:
 
         # One or several runs ([[chunking]]), each with its modules compiled
         # and the call's overrides applied. They share the output directory.
-        runs: list[ChunkingConfig] = []
+        compiled_runs: list[ChunkingConfig] = []
         all_modules: list[ResolvedTransform] = []
         for run in self._chunking_runs():
             modules = self._run_modules(run, odd)
@@ -836,21 +965,22 @@ class Project:
                     replace(fragment, module=next(compiled).module_path if fragment.odd else None)
                     for fragment in run.fragments
                 ]
-            runs.append(replace(run, **changes))
-        chunking = runs[0]
+            compiled_runs.append(replace(run, **changes))
+        chunking = compiled_runs[0]
 
         # The same grouping, now over the compiled runs.
         position = {id(run): index for index, run in enumerate(self._chunking_runs())}
         groups: list[tuple[list[ChunkingConfig], list[Path]]] = [
-            ([runs[position[id(run)]] for run in item.runs], list(item.files)) for item in inputs
+            ([compiled_runs[position[id(run)]] for run in item.runs], list(item.files))
+            for item in inputs
         ]
-        # A file read by several runs is listed once.
-        all_files = list(dict.fromkeys(
-            xml_file for _, group_files in groups for xml_file in group_files
-        ))
-
         out_dir = self.chunk_output_dir(chunking.output_dir)
-        _clear_output_dir(out_dir, overwrite)
+        if selected is None:
+            _clear_output_dir(out_dir, overwrite)
+        elif not out_dir.is_dir():
+            raise ValueError(
+                f'{out_dir} does not exist: build every run once before rebuilding single runs.',
+            )
 
         enabled = (
             True if format in ('json', 'pb-view')
@@ -895,7 +1025,12 @@ class Project:
             for xml_file in group_files
         ]
         multi_document = len(inputs) > 1 or is_multi_document(inputs[0].source)
-        for position, (group_runs, xml_file, doc_name) in enumerate(documents):
+        config_position = {id(run): index for index, run in enumerate(compiled_runs)}
+        todo = documents if selected is None else [
+            document for document in documents
+            if any(config_position[id(run)] in selected for run in document[0])
+        ]
+        for position, (group_runs, xml_file, doc_name) in enumerate(todo):
             if on_document is not None:
                 on_document(position, xml_file)
             if multi_document and format == 'pb-view':
@@ -911,31 +1046,56 @@ class Project:
             anchors: dict[str, str] = {}
             written = 0
             for index, run in enumerate(group_runs):
+                if selected is not None and config_position[id(run)] not in selected:
+                    continue
                 progress = on_progress
                 if on_progress is not None and written:
                     # One count per document across its runs.
                     def progress(done: int, total: int, _base: int = written) -> None:
                         on_progress(_base + done, _base + total)
-                anchors = chunk_document(
-                    module_path=run.module,
-                    xml_path=xml_file,
-                    config=_document_config(run, xml_file, format, doc_name),
-                    project=self,
-                    template_path=run.template,
-                    on_progress=progress,
-                    webcomponents=(
-                        enabled if format in ('json', 'pb-view') or webcomponents is not None
-                        or run.webcomponents is None else run.webcomponents
-                    ),
-                    xpath_extensions=extensions,
-                    output_format=format,
-                    doc_path=document_doc_path,
-                    documents=names,
-                    anchors=anchors,
-                    merge_manifest=index > 0,
-                ) or {}  # a wrapped or stubbed chunk_document may still return None
+                document_config = _document_config(run, xml_file, format, doc_name)
+
+                def build(
+                    handed: Mapping[str, str],
+                    *,
+                    _run: ChunkingConfig = run,
+                    _config: ChunkingConfig = document_config,
+                    _progress: Callable[[int, int], None] | None = progress,
+                    _merge: bool = False,
+                ) -> dict[str, str]:
+                    return chunk_document(
+                        module_path=_run.module,
+                        xml_path=xml_file,
+                        config=_config,
+                        project=self,
+                        template_path=_run.template,
+                        on_progress=_progress,
+                        webcomponents=(
+                            enabled if format in ('json', 'pb-view') or webcomponents is not None
+                            or _run.webcomponents is None else _run.webcomponents
+                        ),
+                        xpath_extensions=extensions,
+                        output_format=format,
+                        doc_path=document_doc_path,
+                        documents=names,
+                        anchors=handed,
+                        merge_manifest=_merge,
+                    ) or {}  # a wrapped or stubbed chunk_document may still return None
+
+                if selected is None:
+                    anchors = build(anchors, _merge=index > 0)
+                else:
+                    anchors = _rebuild_run(
+                        group_runs, index, self.root / document_config.output_dir, build,
+                    )
                 written = len(set(anchors.values()))
             anchors_by_dir[doc_name] = anchors
+        if selected is not None:
+            # The runs left alone keep their anchors in their manifests.
+            anchors_by_dir = {
+                doc_name: _read_manifest(out_dir / doc_name / 'manifest.json').get('anchors') or {}
+                for _, _, doc_name in documents
+            }
 
         # Auxiliary pages ([[pages]]): rendered after the runs, into the same
         # output root. They receive every document's anchors (prefixed with
@@ -987,6 +1147,16 @@ class Project:
         own_index = out_dir / 'index.html'
         if own_index in page_files:
             index_file = own_index
+        elif (
+            format == 'html'
+            and any(page.path == 'index.html' for page in self.config.pages)
+            and own_index.is_file()
+        ):
+            # The landing page was not rebuilt this time (--run without
+            # --page, or a --page filter that leaves it out): keep the one an
+            # earlier build wrote rather than overwrite it with the generated
+            # index.
+            index_file = own_index
         elif format == 'html':
             if on_step is not None:
                 on_step('Writing index')
@@ -1003,7 +1173,8 @@ class Project:
             )
         run_result = ChunkRun(
             output_dir=out_dir,
-            documents=tuple(all_files),
+            # A file read by several runs is listed once.
+            documents=tuple(dict.fromkeys(xml_file for _, xml_file, _ in todo)),
             format=format,
             modules=tuple(all_modules),
             index_file=index_file,
