@@ -18,16 +18,19 @@ Read these before guessing at `opm` options or writing XSLT; `opm --help` and
 ## Commands
 
 ```bash
-opm transform [[ $sample ]] --preview
+opm transform [[ $sample ]] --preview          # one document, HTML in the browser
 opm transform [[ $sample ]] -t markdown --preview
-opm transform [[ $sample ]] -t typst -o output.typ
-opm transform [[ $sample ]] -t docx -o output.docx
-opm chunk [[ $sample ]] --force --preview
+opm transform [[ $sample ]] -t typst -o output.typ   # or -t docx -o output.docx
+opm chunk [[ $sample ]] --force --preview      # the site: every chunking run, then the pages
+opm chunk --run <name>                         # rebuild one run after a full build, keep the rest
+opm chunk --run <name> --page index.html       # … and the pages whose path starts with index.html
 opm serve
 ```
 
-ODDs compile on demand into the user cache — there is no separate compile step.
-Defaults (ODD path, templates, chunking) come from `opm.toml`; CLI flags override them.
+ODDs compile on demand into the user cache: `opm transform` and `opm chunk` are the
+whole build, with no separate compile step or pipeline to add. Defaults (ODD path,
+templates, chunking) come from `opm.toml`; CLI flags override them. To try a change
+without touching the site, copy the output folder and pass it with `-o` to `opm chunk --run`.
 
 ## Layout
 
@@ -35,10 +38,13 @@ Defaults (ODD path, templates, chunking) come from `opm.toml`; CLI flags overrid
 | --- | --- |
 | `opm.toml` | Project config (ODD, templates, CSS, chunking, XPath extensions) |
 | `[[ $odd_path ]]` | Processing model (edit this to change rendering) |
-| `templates/` | HTML / Typst / DOCX templates |
-| `styles/` | Shared CSS |
+| `templates/` | HTML / Typst / DOCX templates, and the stylesheets they use |
 | `extensions/` | Project-local Python XPath extensions (`[project] pythonpath`) |
-| `[[ $sample ]]` | Source document |
+| `[[ $sample ]]` | Sample document; a chunking run with an `input` reads its own documents |
+
+opm's own templates (the page layout the HTML templates extend, its defaults and
+stylesheet) are not copied into the project: `opm templates list` lists them,
+`opm templates show <name>` prints one.
 
 ## Customizing output
 
@@ -50,9 +56,10 @@ Defaults (ODD path, templates, chunking) come from `opm.toml`; CLI flags overrid
 
 ## Patterns agents should respect
 
-- Unprefixed XPath names resolve against the document default namespace — no extra prefix bookkeeping.
+- In ODD XPath, unprefixed names resolve against the document's default namespace. Template XPath does not: declare a prefix under `templating.namespaces` in the template's frontmatter, or write `*:title`.
+- `doc()` and `collection()`, in the ODD and in templates, only see the files listed under `[transform] documents` or `[% raw %][[transform.collections]][% endraw %]` in `opm.toml`.
 - Runtime parameters (`-p key=value`) are available in ODD XPath as `$parameters`.
-- Templates use the jinks syntax of TEI Publisher, with XPath expressions: `[% raw %][[ $context?title ]][% endraw %]`, `[% raw %][% if … %][% endraw %]`, `[% raw %][% for $x in … %][% endraw %]`, `[% raw %][% template name %][% endraw %]` filling a `[% raw %][% block name %][% endraw %]` of the layout named under `templating.extends` in the frontmatter.
-- Chunking uses `[chunking]` in `opm.toml` (selector, depth, fragments such as title/breadcrumbs).
-- Do not invent a separate compile or build pipeline; `opm transform` / `opm chunk` are enough.
-- Do not overwrite `CLAUDE.md` or `AGENTS.md` if the user already customized them.
+- Templates use the jinks syntax of TEI Publisher, with XPath expressions: `[% raw %][[ $context?title ]][% endraw %]`, `[% raw %][% if … %][% endraw %]`, `[% raw %][% for $x in … %][% endraw %]`, `[% raw %][% template name %][% endraw %]` filling a `[% raw %][% block name %][% endraw %]` of the layout named under `templating.extends` in the frontmatter, `[% raw %][% include "file.html.tpl" %][% endraw %]` for a shared piece.
+- A chunk page's template sees `$context?document` (the document's name, `[chunking] document_name`), `$context?site_root` (the way back to the output root, for links), `$context?fragments?<name>` (the run's fragments) and `$context?chunk?prev` / `next`. Only `[% raw %][[pages]][% endraw %]` templates get `$context?site_documents`, the documents built with their first pages.
+- Chunking is one `[chunking]` table, or several `[% raw %][[chunking]][% endraw %]` runs writing into one output folder, each with its own `input`, `document_name`, `odd`, `template` and fragments. `[% raw %][[pages]][% endraw %]` add pages without a document of their own; one at `index.html` replaces the generated collection index.
+- `opm init` never overwrites `CLAUDE.md` or `AGENTS.md`: when the project grows (new runs, ODDs, collections), update them by hand.
