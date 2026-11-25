@@ -26,6 +26,7 @@ All notable changes to this project are documented here. The format follows
 - Every `[[chunking]]` run may read its own `input`, with its own `document_name`, ODD and template: several collections published side by side
 - A `[[pages]]` entry with `path = "index.html"` replaces the generated collection index: the site's own landing page
 - Template expressions can read the project's documents and `[[transform.collections]]` with `doc()` and `collection()`
+- `opm templates list` and `opm templates show <name>` (`--header`, `--path`) list or display the default templates of opm without copying them into the project (`opm/layout.html.tpl`, `opm/defaults.toml`, `opm/opm-layout.css`, profile templates).
 
 ### Changed
 
@@ -42,6 +43,7 @@ All notable changes to this project are documented here. The format follows
 ### Fixed
 
 - `opm chunk` parses the `[transform] documents` and `[[transform.collections]]` once per build instead of once per document chunked, and XPath evaluation no longer re-checks every one of them for each expression. A project with a few hundred collection documents built in 11 minutes before and in under a minute now, with the same output
+- Menubar: the title beside a `context.logo` image is centred on it, no longer lifted to the top of the row (the logo link aligned its contents by baseline)
 - `opm chunk --run` keeps the project's own landing page (a `[[pages]]` entry at `index.html`) instead of overwriting it with the generated collection index
 - iiif profile: `pb-facsimile` stayed empty when the page's `<pb-facs-link>` elements subscribe to "transcription" (as `teipublisher.odd`'s pb-facsimile model writes them): it did not emit on that channel, so the links did not wait for it and announced their images before it listened. It now emits on "transcription", like `pb-tify`
 - Breadcrumbs no longer inherit the toolbar's wide gap between items, and wrap even where an ODD stylesheet sets them `nowrap`

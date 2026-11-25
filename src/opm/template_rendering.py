@@ -111,43 +111,50 @@ def _reject_jinja(template_path: Path) -> None:
         )
 
 
-def _searchpaths(template_path: Path, project: Any = None) -> list[str]:
-    """Build search paths for template loading.
-    
-    Args:
-        template_path: The path to the template being loaded
-        project: Optional Project instance to get profile template paths from
-        
-    Returns:
-        List of directory paths to search for templates
+def template_search_dirs(template_dir: Path, project: Any = None) -> list[tuple[Path, str]]:
+    """The directories a template in *template_dir* is looked up in, in order.
+
+    Each comes with its origin: ``project`` for *template_dir* itself,
+    ``profile <name>`` for the ``templates/`` of a profile (the project's
+    profiles first, then any under a ``profiles/`` folder beside
+    *template_dir*'s parent), ``opm`` for the packaged templates last. The
+    first directory holding a name wins, for ``extends``, ``use`` and
+    ``include`` alike; `opm templates` lists them from the same order.
     """
-    # Use absolute paths for consistency
-    searchpaths = [str(template_path.parent.resolve())]
-    
-    # Add profile template directories from project first
-    # This allows profiles to override default templates
+    template_dir = template_dir.resolve()
+    packaged = packaged_templates_dir().resolve()
+    dirs: list[tuple[Path, str]] = [
+        (template_dir, 'opm' if template_dir == packaged else 'project'),
+    ]
+
+    # Profile template directories from the project, so that profiles can
+    # override the packaged templates.
     if project is not None:
-        for profile_config, profile_path in project._profiles:
-            templates_dir = profile_path / "templates"
+        for _profile_config, profile_path in project._profiles:
+            templates_dir = profile_path / 'templates'
             if templates_dir.is_dir():
-                searchpaths.append(str(templates_dir.resolve()))
-    
-    # Also check for a profiles/ directory in the project
-    project_dir = template_path.parent.parent.resolve()  # templates/ -> project root
-    profiles_dir = project_dir / "profiles"
+                dirs.append((templates_dir.resolve(), f'profile {profile_path.name}'))
+
+    # Also a profiles/ directory in the project (templates/ -> project root).
+    profiles_dir = template_dir.parent / 'profiles'
     if profiles_dir.is_dir():
-        for profile_dir in profiles_dir.iterdir():
-            if profile_dir.is_dir():
-                templates_dir = profile_dir / "templates"
-                if templates_dir.is_dir() and str(templates_dir.resolve()) not in searchpaths:
-                    searchpaths.append(str(templates_dir.resolve()))
-    
-    # Add packaged templates last
-    packaged = str(packaged_templates_dir())
-    if packaged not in searchpaths:
-        searchpaths.append(packaged)
-    
-    return searchpaths
+        for profile_dir in sorted(profiles_dir.iterdir()):
+            templates_dir = profile_dir / 'templates'
+            if templates_dir.is_dir() and templates_dir.resolve() not in {d for d, _ in dirs}:
+                dirs.append((templates_dir.resolve(), f'profile {profile_dir.name}'))
+
+    # The packaged templates last.
+    if packaged not in {d for d, _ in dirs}:
+        dirs.append((packaged, 'opm'))
+    return dirs
+
+
+def _searchpaths(template_path: Path, project: Any = None) -> list[str]:
+    """Search paths for loading *template_path* and what it extends or includes.
+
+    See [`template_search_dirs`][opm.template_rendering.template_search_dirs].
+    """
+    return [str(d) for d, _ in template_search_dirs(template_path.parent, project)]
 
 
 def _jinks_parser_factory(xpath_env: XPathEnvironment | None):
@@ -420,3 +427,135 @@ def render_typst_document_template(
         metadata=metadata or {},
         context=template_context(context),
     )
+
+
+# ── listing the templates (opm templates) ────────────────────────────────────
+
+#: Files `opm templates` lists: templates and the files they extend or include.
+#: Binary files (default.docx) and Python caches are left out.
+TEMPLATE_FILE_SUFFIXES = ('.tpl', '.css', '.js', '.toml', '.typ')
+
+
+@dataclasses.dataclass(frozen=True)
+class TemplateEntry:
+    """One template file as `opm templates list` shows it."""
+
+    #: The name a template uses for it in ``extends``/``include``, e.g.
+    #: ``opm/layout.html.tpl``.
+    name: str
+    #: ``project``, ``profile <name>`` or ``opm``.
+    origin: str
+    path: Path
+    #: A copy earlier in the lookup order is used instead of this one.
+    overridden: bool
+    #: The first sentence of its header comment, or ``''``.
+    summary: str
+
+
+def project_template_dir(project: Any) -> Path:
+    """The folder a project's page templates live in, ``templates/`` by convention."""
+    return Path(project.root) / 'templates'
+
+
+def available_templates(project: Any = None, *, include_project: bool = False) -> list[TemplateEntry]:
+    """Every template file, in lookup order per name, as rendering resolves them.
+
+    Without *project*, opm's packaged templates. With one, its profiles'
+    templates and its own copies of packaged or profile templates come first,
+    and the copies they shadow are marked ``overridden``. The project's other
+    templates (its page templates) are listed only with *include_project*.
+    """
+    by_name: dict[str, list[tuple[Path, str]]] = {}
+    for directory, origin in _listing_dirs(project):
+        if not directory.is_dir():
+            continue
+        for path in sorted(directory.rglob('*')):
+            if not path.is_file() or path.suffix not in TEMPLATE_FILE_SUFFIXES:
+                continue
+            if '__pycache__' in path.parts:
+                continue
+            name = path.relative_to(directory).as_posix()
+            by_name.setdefault(name, []).append((path, origin))
+    entries: list[TemplateEntry] = []
+    for name in sorted(by_name, key=lambda n: (n.count('/') == 0, n)):
+        copies = by_name[name]
+        if copies[0][1] == 'project' and len(copies) == 1 and not include_project:
+            continue
+        for i, (path, origin) in enumerate(copies):
+            entries.append(TemplateEntry(name, origin, path, i > 0, template_summary(path)))
+    return entries
+
+
+def _listing_dirs(project: Any) -> list[tuple[Path, str]]:
+    """Lookup order for `opm templates`: a project's, or opm's templates alone.
+
+    Outside a project no profile is in use, so only the packaged templates
+    count (opm's own profiles/ folder beside them is not a project's).
+    """
+    if project is None:
+        return [(packaged_templates_dir().resolve(), 'opm')]
+    return template_search_dirs(project_template_dir(project), project)
+
+
+def find_template(name: str, project: Any = None) -> Path | None:
+    """The file rendering would use for the template *name*, or ``None``."""
+    for directory, _origin in _listing_dirs(project):
+        candidate = directory / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def template_header(path: Path) -> str | None:
+    """The leading comment of a template file: its documentation, or ``None``.
+
+    ``[# … #]`` in a ``.tpl``, ``/* … */`` in a ``.css`` or ``.js``, the
+    leading ``#`` lines of a ``.toml`` and ``//`` lines of a ``.typ``. The
+    comment markers are kept, so the result is the file's own opening text.
+    """
+    text = path.read_text(encoding='utf-8')
+    stripped = text.lstrip()
+    for opening, closing in (('[#', '#]'), ('/*', '*/')):
+        if stripped.startswith(opening):
+            end = stripped.find(closing, len(opening))
+            return stripped[:end + len(closing)] if end != -1 else None
+    for marker in ('#', '//'):
+        if stripped.startswith(marker) and not stripped.startswith('#let'):
+            lines = []
+            for line in stripped.splitlines():
+                if not line.startswith(marker):
+                    break
+                lines.append(line)
+            return '\n'.join(lines)
+    return None
+
+
+def template_summary(path: Path) -> str:
+    """The first sentence of *path*'s header comment, on one line."""
+    header = template_header(path)
+    if not header:
+        return ''
+    words: list[str] = []
+    for line in header.splitlines():
+        line = line.strip()
+        for marker in ('[#', '#]', '/*', '*/', '//', '#'):
+            line = line.removeprefix(marker).removesuffix(marker) if marker in ('#]', '*/') else line.removeprefix(marker)
+        line = line.strip()
+        if line.startswith('SPDX-'):
+            continue
+        if not line:
+            if words:
+                break
+            continue
+        words.append(line)
+    text = ' '.join(words)
+    cut = text.find('. ')
+    if cut != -1:
+        text = text[:cut + 1]
+    if len(text) > _SUMMARY_MAX:
+        text = text[:_SUMMARY_MAX - 1].rsplit(' ', 1)[0] + ' …'
+    return text.rstrip(':')
+
+
+#: Longest summary `opm templates list` shows.
+_SUMMARY_MAX = 100

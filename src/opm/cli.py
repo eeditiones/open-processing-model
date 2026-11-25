@@ -72,6 +72,16 @@ profile_app = typer.Typer(
     context_settings={'help_option_names': ['-h', '--help']},
 )
 
+templates_app = typer.Typer(
+    name='templates',
+    help=(
+        "Lists or displays the default templates of opm without copying them into the project (opm's base layout, "
+        "its defaults and stylesheet, profile templates). Useful for checking what layout areas are defined and what variables are handled by the template."
+    ),
+    no_args_is_help=True,
+    context_settings={'help_option_names': ['-h', '--help']},
+)
+
 odd_app = typer.Typer(
     name='odd',
     help='Inspect or document an ODD: corpus coverage, static schema reference sites.',
@@ -2631,6 +2641,103 @@ def profile_remove_cmd(
 
 
 app.add_typer(profile_app, name='profile')
+
+
+def _templates_project(config: Path | None) -> Project | None:
+    """The project whose lookup order `opm templates` follows, if there is one.
+
+    An explicit --config must exist; without it, ./opm.toml is used when
+    present, and opm's own templates alone otherwise.
+    """
+    path = config if config is not None else Path('opm.toml')
+    if not path.is_file():
+        if config is not None:
+            _die(f'{path} not found.')
+        return None
+    try:
+        return Project.load(path)
+    except (OSError, ValueError) as e:
+        _die(f'{path}: {e}', cause=e)
+
+
+@templates_app.command('list')
+def templates_list_cmd(
+    config: Annotated[Optional[Path], _CONFIG_OPTION] = None,
+    show_all: Annotated[
+        bool,
+        typer.Option('--all', '-a', help="Also list the project's own page templates."),
+    ] = False,
+) -> None:
+    """List the templates, as rendering finds them: the project's copies first.
+
+    In a project, a copy of an opm or profile template in its templates/
+    folder is used in place of the original, which is then shown as
+    overridden. Outside a project, opm's own templates are listed.
+    """
+    from rich.console import Console
+    from rich.markup import escape
+    from rich.table import Table
+
+    from opm.template_rendering import available_templates
+
+    project = _templates_project(config)
+    entries = available_templates(project, include_project=show_all)
+    table = Table(box=None, padding=(0, 2, 0, 0))
+    table.add_column('template', style='bold', no_wrap=True)
+    table.add_column('from', style='dim', no_wrap=True)
+    table.add_column('what it is')
+    for entry in entries:
+        if entry.overridden:
+            table.add_row(f'[dim]{escape(entry.name)}[/dim]', escape(entry.origin), '[dim](overridden)[/dim]')
+        else:
+            table.add_row(escape(entry.name), escape(entry.origin), escape(entry.summary))
+    console = Console()
+    console.print(table)
+    console.print(
+        '\nRead one with: opm templates show <template>'
+        '   (--header: only its documentation, --path: where it is)'
+    )
+
+
+@templates_app.command('show')
+def templates_show_cmd(
+    name: Annotated[str, typer.Argument(help='The template, as `opm templates list` names it, e.g. opm/layout.html.tpl.')],
+    config: Annotated[Optional[Path], _CONFIG_OPTION] = None,
+    header: Annotated[
+        bool,
+        typer.Option('--header', help='Print only its leading comment: the blocks and settings it documents.'),
+    ] = False,
+    path_only: Annotated[
+        bool,
+        typer.Option('--path', help='Print only the path of the file rendering uses.'),
+    ] = False,
+) -> None:
+    """Print a template: the copy rendering would use, raw, to stdout."""
+    import difflib
+
+    from opm.template_rendering import available_templates, find_template, template_header
+
+    project = _templates_project(config)
+    found = find_template(name, project)
+    if found is None:
+        names = sorted({e.name for e in available_templates(project, include_project=True)})
+        close = difflib.get_close_matches(name, names, n=3, cutoff=0.4)
+        hint = f' Did you mean: {", ".join(close)}?' if close else ''
+        _die(f'No template {name!r}.{hint} `opm templates list` shows them all.')
+    if path_only:
+        typer.echo(str(found))
+        return
+    if header:
+        text = template_header(found)
+        if text is None:
+            _die(f'{name} has no leading comment; `opm templates show {name}` prints all of it.')
+        typer.echo(text)
+        return
+    sys.stdout.write(found.read_text(encoding='utf-8'))
+    sys.stdout.flush()
+
+
+app.add_typer(templates_app, name='templates')
 
 
 @app.command('serve')

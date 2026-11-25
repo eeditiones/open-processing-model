@@ -44,8 +44,9 @@ Defaults (ODD path, templates, chunking) come from `opm.toml`; CLI flags overrid
 
 1. Prefer editing `[[ $odd_path ]]` (element behaviours, CSS in the ODD `tagsDecl`).
 2. Adjust HTML/chunk chrome in `templates/[[ $html_template ]].html.tpl` — the template `opm.toml` sets — and its design in the stylesheet listed under `[transform.web] assets`.[% if $extra_templates %] The other templates copied beside it (`chapbook`, `journal`, `handbook`) are alternatives to switch to, not partials to include.[% else %] `opm init --templates` copies the alternative templates (`chapbook`, `journal`, `handbook`) if you want to switch to one; they are whole page templates, not partials to include.[% endif %]
-3. Add XPath helpers under `extensions/` and list modules in `[transform] xpath_extensions`.
-4. Keep relative paths in `opm.toml` relative to that file's directory.
+3. Before writing CSS or overriding a block of the page layout, read `opm templates show opm/layout.html.tpl --header`: it lists the blocks a template fills and the `[context]` settings (site name, logo, menu, columns, toolbar); their defaults are in `opm templates show opm/defaults.toml`. Many layout changes are a setting, not CSS. `opm templates list` shows every template and which copy is used.
+4. Add XPath helpers under `extensions/` and list modules in `[transform] xpath_extensions`.
+5. Keep relative paths in `opm.toml` relative to that file's directory.
 
 ## Patterns agents should respect
 

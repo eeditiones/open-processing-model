@@ -33,6 +33,7 @@ opm [OPTIONS] COMMAND [ARGS]...
 - [`serve`](#opm-serve): Start a local HTTP server rooted at the...
 - [`odd`](#opm-odd): Inspect or document an ODD: corpus...
 - [`profile`](#opm-profile): List the profiles a project can use, and...
+- [`templates`](#opm-templates): Lists or displays the default templates of...
 
 ### `opm init`
 
@@ -491,4 +492,74 @@ opm profile remove [OPTIONS] NAMES...
 | Option | Description |
 | --- | --- |
 | `--config, -c PATH` | Path to opm.toml (default: ./opm.toml). |
+| `--help` | Show this message and exit. |
+
+### `opm templates`
+
+Lists or displays the default templates of opm without copying them into the project (opm's base layout, its defaults and stylesheet, profile templates). Useful for checking what layout areas are defined and what variables are handled by the template.
+
+**Usage:**
+
+```text
+opm templates [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--help` | Show this message and exit. |
+
+
+**Commands:**
+
+- [`list`](#opm-templates-list): List the templates, as rendering finds...
+- [`show`](#opm-templates-show): Print a template: the copy rendering would...
+
+#### `opm templates list`
+
+List the templates, as rendering finds them: the project's copies first.
+
+In a project, a copy of an opm or profile template in its templates/
+folder is used in place of the original, which is then shown as
+overridden. Outside a project, opm's own templates are listed.
+
+**Usage:**
+
+```text
+opm templates list [OPTIONS]
+```
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--config, -c PATH` | Path to opm.toml (default: ./opm.toml). |
+| `--all, -a` | Also list the project's own page templates. |
+| `--help` | Show this message and exit. |
+
+#### `opm templates show`
+
+Print a template: the copy rendering would use, raw, to stdout.
+
+**Usage:**
+
+```text
+opm templates show [OPTIONS] NAME
+```
+
+**Arguments:**
+
+| Argument | Description |
+| --- | --- |
+| `NAME` | The template, as `opm templates list` names it, e.g. opm/layout.html.tpl. |
+
+
+**Options:**
+
+| Option | Description |
+| --- | --- |
+| `--config, -c PATH` | Path to opm.toml (default: ./opm.toml). |
+| `--header` | Print only its leading comment: the blocks and settings it documents. |
+| `--path` | Print only the path of the file rendering uses. |
 | `--help` | Show this message and exit. |
