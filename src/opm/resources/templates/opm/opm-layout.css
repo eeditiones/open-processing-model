@@ -254,9 +254,11 @@
   align-self: stretch;
 }
 
+/* Logo image and title on one centre line. Aligned by baseline, the title
+   rode at the top of the row beside an image taller than its text. */
 .menubar .logo a {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.75rem;
   min-width: 0;
   color: inherit;
