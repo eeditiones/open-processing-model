@@ -408,6 +408,25 @@ def _append_nodes(parent: etree._Element, nodes: Sequence[Any]) -> None:
                 last.tail = (last.tail or '') + str(node)
 
 
+def _document_shell(nodes: Sequence[Any]) -> etree._Element:
+    """Wrap a transform result in ``<html><head/><body>…</body></html>``.
+
+    The ``lang`` of the first element carrying one becomes the page language.
+    """
+    html = etree.Element('html')
+    lang = next(
+        (n.get('lang') for n in nodes if isinstance(n, etree._Element) and n.get('lang')),
+        None,
+    )
+    if lang:
+        html.set('lang', lang)
+    head = etree.SubElement(html, 'head')
+    etree.SubElement(head, 'meta', charset='utf-8')
+    body = etree.SubElement(html, 'body')
+    _append_nodes(body, nodes)
+    return html
+
+
 def _page_sections(
     mod: ModuleType,
     root: etree._Element,
@@ -551,6 +570,14 @@ def run_transform(
          if isinstance(item, etree._Element) and etree.QName(item).localname == 'html'),
         None,
     )
+    if (html_root is None and apply_template and mode.template == 'html'
+            and root.getparent() is None):
+        # The whole document was transformed, but its root model is not
+        # `document` (TEI Publisher ODDs often render TEI as a `section` for
+        # embedding in pb-view). Give it an <html> shell so the page
+        # template, its stylesheets and the ODD CSS still apply.
+        html_root = _document_shell(result)
+        result = [html_root]
     is_document = html_root is not None
     body = html_root.find('body') if html_root is not None else None
     if pages and body is not None and mode.template == 'html':

@@ -167,3 +167,37 @@ def test_whole_document_page_turns_pb_links_into_anchors() -> None:
         '<li><a href="#browsing"><span>Browsing</span></a></li>'
         '<pb-link path="other.xml">Other</pb-link>'
     )
+
+
+_SECTION_MODULE = """from lxml import etree
+
+OUTPUT_MODE = 'web'
+
+
+def transform(root, options=None, *, xpath_env=None):
+    section = etree.Element('section', lang='de')
+    section.text = 'Text'
+    return [section]
+"""
+
+
+def test_document_rendered_as_section_still_gets_the_page_template(tmp_path: Path) -> None:
+    """TEI Publisher ODDs often render TEI as a `section` for web; the page template still applies."""
+    from lxml import etree
+
+    from opm.transform import load_transform_module, run_transform
+
+    module = tmp_path / 'section_web.py'
+    module.write_text(_SECTION_MODULE, encoding='utf-8')
+    template = tmp_path / 'page.html.tpl'
+    template.write_text(
+        '<html lang="[[ $lang ]]"><body><main>[[ $content_html ]]</main></body></html>',
+        encoding='utf-8',
+    )
+    mod = load_transform_module(module)
+
+    out = run_transform(mod, etree.fromstring('<TEI/>'), template_path=template)
+    fragment = run_transform(mod, etree.fromstring('<TEI><div/></TEI>')[0], template_path=template)
+
+    assert out.startswith('<html lang="de"><body><main><section lang="de">Text</section>')
+    assert '<main>' not in fragment
