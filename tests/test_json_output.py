@@ -434,6 +434,29 @@ def test_models_table_holds_what_records_cannot() -> None:
     assert 'tei-castList1' not in pruned
 
 
+def test_models_table_tolerates_an_unknown_behaviour(tmp_path) -> None:
+    """A behaviour opm lacks renders the content without one; json must not fail on it.
+
+    The other output modes fall back quietly, so an ODD written for TEI
+    Publisher (``behaviour="footnote"``) worked everywhere except here.
+    """
+    from opm.odd_compiler.codegen.python_generator import PythonGenerator
+    from opm.odd_compiler.parse_odd import load_odd
+
+    odd = tmp_path / 'custom.odd'
+    odd.write_text(
+        f'<TEI xmlns="{TEI}"><text><body><schemaSpec ident="custom">'
+        '<elementSpec ident="note" mode="change"><model behaviour="footnote"/></elementSpec>'
+        '</schemaSpec></body></text></TEI>',
+        encoding='utf-8',
+    )
+    src = PythonGenerator().generate_module(load_odd(str(odd)), 'm', output_mode='json')
+    namespace: dict = {}
+    start = src.index('ODD_MODELS = {')
+    exec(src[start:src.index('\n\n', start)], namespace)  # noqa: S102
+    assert namespace['ODD_MODELS']['tei-note1']['behaviour'] == 'footnote'
+
+
 def test_relevant_models_degrades_without_a_root() -> None:
     from opm.runtime.json_output_functions import _relevant_models
 

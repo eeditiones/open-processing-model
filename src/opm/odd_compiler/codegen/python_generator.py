@@ -609,8 +609,11 @@ def transform(root, options=None, *, xpath_env=None):
                 behaviour = model_el.get('behaviour')
                 entry: dict = {
                     'element': ident,
+                    # An unknown behaviour renders the content without one
+                    # (see _emit_leaf_model); keep its ODD name so the table can
+                    # still say what the model asked for.
                     'behaviour': (
-                        method_for_behaviour(behaviour) if behaviour else None
+                        BEHAVIOUR_METHOD.get(behaviour, behaviour) if behaviour else None
                     ),
                 }
                 if _pb_template(model_el) is not None:
