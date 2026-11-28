@@ -3,8 +3,11 @@
 
 """The XPath parser opm evaluates ODD expressions with.
 
-XPath 3.1 as elementpath implements it, with one change: ``fn:id()`` answers
-from a per-document index instead of walking the whole document on every call.
+XPath 3.1 as elementpath implements it, with three changes: ``fn:id()`` answers
+from a per-document index instead of walking the whole document on every call,
+a lookup may start a path (``$parameters?root/ancestor::TEI``), and paths
+return their nodes in document order (see
+[`_PathOperatorMixin`][opm.runtime.xpath_parser._PathOperatorMixin]).
 elementpath visits every node of the target document for each lookup, which on
 register-heavy editions — ``id($key, collection(...))`` in a predicate or param
 — dominated whole runs. ODDs are shared with TEI Publisher, so the fix has to
@@ -127,4 +130,57 @@ class _IndexedIdFunction(XPath31Parser.symbol_table['id']):  # type: ignore[misc
 # A subclass holds its own copy of the symbol table, so the stock XPath31Parser
 # keeps elementpath's implementation.
 OpmXPathParser.symbol_table['id'] = _IndexedIdFunction
+
+
+def _document_order(nodes: list) -> list:
+    """*nodes* sorted in document order; trees in the order they first appear."""
+    trees: dict[int, int] = {}
+    for node in nodes:
+        trees.setdefault(id(getattr(node, 'tree', None)), len(trees))
+    return sorted(nodes, key=lambda n: (trees[id(getattr(n, 'tree', None))], n.position))
+
+
+class _PathOperatorMixin:
+    """``/`` and ``//`` as XPath 3.1 defines them, where elementpath 5 does not.
+
+    Two differences:
+
+    - A lookup may stand on the left. XPath 3.1 allows any postfix expression
+      before ``/``, so ``$parameters?root/ancestor::TEI`` is a path starting at
+      the node the lookup returns; TEI Publisher ODDs use exactly that.
+      elementpath only accepts a fixed list of left operands and rejects a
+      lookup with ``XPST0003``.
+    - The result is in document order. elementpath yields the step results
+      context node by context node, so when the context nodes are nested the
+      order breaks: in ``note//persName`` a name directly in the note comes
+      before one inside an earlier ``bibl``, and ``head(note//persName)``
+      picks the wrong one. A path ending in atomic values (``…/string()``)
+      keeps its order, as the specification says.
+    """
+
+    def led(self, left: Any) -> Any:
+        if left.symbol == '?' and len(left) in (1, 2):
+            if self.parser.next_token.label not in self.parser.PATH_STEP_LABELS:  # type: ignore[attr-defined]
+                self.parser.expected_next(*self.parser.PATH_STEP_SYMBOLS)  # type: ignore[attr-defined]
+            self[:] = left, self.parser.expression(75)  # type: ignore[attr-defined]
+            return self
+        return super().led(left)  # type: ignore[misc]
+
+    def select(self, context: Any = None) -> Iterator[Any]:
+        results = super().select(context)  # type: ignore[misc]
+        if len(self) != 2:  # type: ignore[arg-type]
+            yield from results
+            return
+        items = list(results)
+        if len(items) > 1 and all(isinstance(item, XPathNode) for item in items):
+            items = _document_order(items)
+        yield from items
+
+
+for _symbol in ('/', '//'):
+    _base = OpmXPathParser.symbol_table[_symbol]
+    OpmXPathParser.symbol_table[_symbol] = type(
+        _base.__name__, (_PathOperatorMixin, _base), {'__module__': __name__},
+    )
+del _symbol, _base
 OpmXPathParser.build()

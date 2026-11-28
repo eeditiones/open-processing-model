@@ -123,3 +123,51 @@ def test_a_collection_node_keeps_its_own_document_uri(tmp_path) -> None:
     [title] = xpath_select(source, "collection('urn:letters')//title", xpath_env=env)
     [uri] = xpath_select(title, 'document-uri(root(.))', xpath_env=env)
     assert str(uri).endswith('/letter.xml')
+
+
+# ── a lookup may start a path ────────────────────────────────────────────────
+
+_PREFACE = (
+    '<TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><profileDesc><textClass>'
+    '<keywords><term>preface</term></keywords></textClass></profileDesc></teiHeader>'
+    '<text><body><div n="1"><p><pb xml:id="pr14"/></p></div></body></text></TEI>'
+)
+
+
+@pytest.mark.parametrize('expr', [
+    '$m?root/x', '$m?root//x', '$m?*/x', '$m?1/x', '$m?root/@a', '$m?a?b/x', '?root/x',
+])
+def test_lookup_before_path_parses(expr: str) -> None:
+    OpmXPathParser().parse(expr)
+
+
+@pytest.mark.parametrize('expr, expected', [
+    ("$parameters?root/ancestor::TEI/teiHeader/profileDesc/textClass/keywords/term='preface'", True),
+    ('$parameters?root/@n/string()', '1'),
+    ('count($parameters?root//pb)', 1),
+])
+def test_lookup_path_follows_the_looked_up_node(expr: str, expected) -> None:
+    root = etree.fromstring(_PREFACE)
+    div = root.find('.//{http://www.tei-c.org/ns/1.0}div')
+    pb = root.find('.//{http://www.tei-c.org/ns/1.0}pb')
+    assert XPathEnvironment().with_root(div).select(pb, expr) == expected
+
+
+def test_unary_lookup_path_in_predicate() -> None:
+    root = etree.fromstring('<a><b n="x"/></a>')
+    expr = "count((map{'r': b}, map{'r': ()})[?r/@n = 'x'])"
+    assert XPathEnvironment().select(root, expr) == 1
+
+
+# ── paths return document order ──────────────────────────────────────────────
+
+@pytest.mark.parametrize('expr, expected', [
+    ('//d/p ! string(@n)', ['1', '2']),
+    ('(/r//d)/p ! string(@n)', ['1', '2']),
+    ('/r/d//p ! string(@n)', ['1', '2']),
+    ('head(/r/d//p)/@n/string()', '1'),
+])
+def test_paths_return_nodes_in_document_order(expr: str, expected) -> None:
+    # The first p sits deeper than the second: elementpath yields the second first.
+    doc = etree.fromstring('<r><d n="a"><d n="b"><p n="1"/></d><p n="2"/></d></r>')
+    assert XPathEnvironment().select(doc, expr) == expected
