@@ -71,7 +71,7 @@ def test_project_extensions_import_through_the_configured_pythonpath(
     )
     cfg = ProjectConfig(
         pythonpath=(project / 'extensions',),
-        xpath_extensions=('opm_pythonpath_probe',),
+        extensions=('opm_pythonpath_probe',),
     )
 
     env = project_xpath_env(cfg)

@@ -211,6 +211,7 @@ def build_context(
     """
     from opm.output_modes import load_callable, output_mode  # noqa: PLC0415
 
+    from .extensions import extended_output_functions  # noqa: PLC0415
     from .xpath_env import XPathEnvironment  # noqa: PLC0415
 
     entry = output_mode(mode)
@@ -221,7 +222,8 @@ def build_context(
     order = opts.get('footnote_order')
     return RenderContext(
         output=entry.name,
-        pmf=entry.output_functions()(),
+        # Behaviours of the project's extension modules join the stock ones.
+        pmf=extended_output_functions(entry.output_functions(), env.extensions, entry.name)(),
         parameters=parameters,
         xpath=env.for_odd(odd_namespaces).with_parameters(parameters),
         webcomponents=bool(opts.get('webcomponents')) and entry.webcomponents,

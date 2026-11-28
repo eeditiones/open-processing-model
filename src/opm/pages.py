@@ -151,7 +151,6 @@ def _render_data_page(
     out_root: Path,
     run: ChunkingConfig,
     webcomponents: bool,
-    xpath_extensions: Sequence[str] | None,
     anchors: Mapping[str, str] | None,
     on_progress: Callable[[int, int], None] | None,
     documents: Sequence[Mapping[str, str]] = (),
@@ -196,7 +195,7 @@ def _render_data_page(
         link_doc=None,
         module=module_path,
     )
-    xpath_env = project_xpath_env(project.config, page.source, extensions=xpath_extensions)
+    xpath_env = project_xpath_env(project.config, page.source)
     _check_selection(page, xpath_env)
     # The inherited anchors are relative to the output root; from a page one
     # directory down they need the page's own prefix.
@@ -211,7 +210,6 @@ def _render_data_page(
         config=synth,
         project=project,
         webcomponents=webcomponents,
-        xpath_extensions=tuple(xpath_extensions) if xpath_extensions else None,
         output_format='html',
         anchors=page_anchors,
         merge_manifest=False,
@@ -291,7 +289,6 @@ def render_pages(
     out_dir: Path,
     run: ChunkingConfig,
     webcomponents: bool = False,
-    xpath_extensions: Sequence[str] | None = None,
     anchors: Mapping[str, str] | None = None,
     only: str | None = None,
     on_progress: Callable[[int, int], None] | None = None,
@@ -330,7 +327,7 @@ def render_pages(
             result = _render_data_page(
                 project, page,
                 out_root=out_dir, run=run, webcomponents=webcomponents,
-                xpath_extensions=xpath_extensions, anchors=anchors,
+                anchors=anchors,
                 on_progress=on_progress, documents=documents,
             )
         if result is not None:

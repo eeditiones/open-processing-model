@@ -193,7 +193,7 @@ def test_missing_extension_function_is_a_hint_not_a_failure(tmp_path: Path) -> N
 
     assert log.failures == {}
     assert list(log.hints) == ['function:tp:missing']
-    assert 'xpath_extensions' in log.hints['function:tp:missing']
+    assert '[[transform.extensions]]' in log.hints['function:tp:missing']
 
 
 # ── the CLI ──────────────────────────────────────────────────────────────────

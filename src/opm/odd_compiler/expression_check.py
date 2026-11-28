@@ -15,9 +15,10 @@ depend on the document or on the project configuration.
 
 The check is deliberately generous with what only a project can supply: any
 prefix the ODD does not declare might still be bound in ``[transform.namespaces]``,
-and ``tp:`` functions come from ``[transform] xpath_extensions``. The compiled
-module is cached per ODD, not per project, so neither can count against an
-expression here.
+and functions under ``tp:`` or any other prefix that is neither a standard XPath
+nor an eXist one (``ext-html:output-entity()``) may come from a project's
+extension modules. The compiled module is cached per ODD, not per project, so
+none of these can count against an expression here.
 """
 
 from __future__ import annotations
@@ -29,8 +30,10 @@ from elementpath.exceptions import ElementPathError
 
 # Any prefixed name in an expression.
 _PREFIX_RE = re.compile(r'(?<![\w.-])([A-Za-z_][\w.-]*):[A-Za-z_]')
-# A call to a tp: extension function.
-_TP_CALL_RE = re.compile(r'(?<![\w.-])tp:([A-Za-z_][\w.-]*)\s*\(')
+# A call to a prefixed function.
+_CALL_RE = re.compile(r'(?<![\w.-])([A-Za-z_][\w.-]*):([A-Za-z_][\w.-]*)\s*\(')
+#: Prefixes of the functions XPath 3.1 defines; never a project extension.
+STANDARD_PREFIXES = frozenset({'fn', 'xs', 'math', 'map', 'array', 'err', 'xml'})
 _UNKNOWN_FUNCTION_RE = re.compile(r"unknown function '([^']+)'")
 _UNEXPECTED_RE = re.compile(r"unexpected '([^']+)'")
 
@@ -61,7 +64,7 @@ class UnsupportedExpression:
 
 
 def _any_arity(*_args):
-    """Stand-in for a ``tp:`` function: accepts any call, is never evaluated."""
+    """Stand-in for an extension function: accepts any call, is never evaluated."""
     return None
 
 
@@ -73,8 +76,9 @@ def static_problem(
     """Why *expr* can never be evaluated by opm, or ``None`` if it can.
 
     Parses *expr* the way the runtime will, with *namespaces* from the ODD root
-    and every other prefix bound to a placeholder, and every ``tp:`` function
-    it calls registered as a stub.
+    and every other prefix bound to a placeholder, and every function it calls
+    under ``tp:`` or another prefix a project extension module could supply
+    registered as a stub.
     """
     # Imported here: opm.runtime pulls in every output backend, which the
     # compiler package must not need just to be imported.
@@ -83,9 +87,16 @@ def static_problem(
     bound = dict(namespaces)
     for prefix in set(_PREFIX_RE.findall(expr)):
         bound.setdefault(prefix, f'urn:opm:placeholder:{prefix}')
-    stubs = {name: _any_arity for name in set(_TP_CALL_RE.findall(expr))}
+    stubs: dict[str, dict] = {}
+    for prefix, name in set(_CALL_RE.findall(expr)):
+        if prefix not in STANDARD_PREFIXES and prefix not in EXIST_PREFIXES:
+            stubs.setdefault(prefix, {})[name] = _any_arity
+    tp = stubs.pop('tp', {})
+    prefixed = {prefix: (None, fns) for prefix, fns in stubs.items()}
     try:
-        build_extension_parser(default_namespace, stubs, namespaces=bound).parse(expr)
+        build_extension_parser(
+            default_namespace, tp, namespaces=bound, prefixed=prefixed,
+        ).parse(expr)
     except ElementPathError as exc:
         return describe(exc, expr)
     return None

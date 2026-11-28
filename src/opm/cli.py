@@ -1169,18 +1169,6 @@ def transform_cmd(
             ),
         ),
     ] = None,
-    xpath_extensions: Annotated[
-        Optional[list[str]],
-        typer.Option(
-            '--xpath-extensions',
-            help=(
-                'Dotted import path(s) of Python module(s) whose public callables become XPath '
-                'functions in the tp: namespace (repeat option to add modules; e.g. '
-                '--xpath-extensions extensions.common --xpath-extensions extensions.dates). '
-                'Importing these modules runs top-level code: only use trusted code.'
-            ),
-        ),
-    ] = None,
     footnote_order: Annotated[
         Optional[str],
         typer.Option(
@@ -1249,8 +1237,6 @@ def transform_cmd(
                 xpath=xpath,
                 # -p overrides [transform.parameters].
                 parameters=_parameters_from_cli(param or None),
-                # No --xpath-extensions means the configured ones.
-                xpath_extensions=xpath_extensions or None,
                 webcomponents=webcomponents,
                 template=template,
             )
@@ -1341,17 +1327,6 @@ def chunk(
             help=(
                 'Enable/disable tei-publisher web components mode. '
                 'Falls back to transform.web.webcomponents in the project config.'
-            ),
-        ),
-    ] = None,
-    xpath_extensions: Annotated[
-        Optional[list[str]],
-        typer.Option(
-            '--xpath-extensions',
-            help=(
-                'Dotted import path(s) of Python module(s) whose public callables become XPath '
-                'functions in the tp: namespace (repeatable). '
-                'Falls back to transform.xpath_extensions in opm.toml.'
             ),
         ),
     ] = None,
@@ -1577,7 +1552,6 @@ def chunk(
                 odd=odd,
                 doc_path=doc_path,
                 webcomponents=webcomponents,
-                xpath_extensions=xpath_extensions,
                 overwrite=True,
                 on_document=_on_document,
                 on_progress=_on_progress,

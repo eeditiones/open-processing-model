@@ -6,7 +6,7 @@
 An [`XPathEnvironment`][opm.runtime.xpath_env.XPathEnvironment] holds what an expression may reach beyond the node
 it is evaluated on: the source document's URI, the documents and collections
 ``doc()`` and ``collection()`` can open, project variables and namespace
-prefixes, the ``tp:`` extension modules, the ``$parameters`` map, and the node
+prefixes, the extension modules (``tp:`` and project prefixes), the ``$parameters`` map, and the node
 bound as ``$parameters?root``. It is built once per transform run. All of this
 used to travel inside the ``$parameters`` dict under reserved keys and was
 re-derived for every predicate: extension fingerprints, merged namespaces and
@@ -39,6 +39,7 @@ from lxml import etree
 
 from . import source_map
 from .xpath_diagnostics import record_xpath_error
+from .extensions import DEFAULT_PREFIX, ExtensionModule, as_extension_module
 from .xpath_extensions import (
     build_extension_parser,
     fingerprint_for_module,
@@ -160,15 +161,36 @@ def _xpath_source_node(node):
 _BUILTIN_XPATH_CALLABLES = {'source-node': _xpath_source_node}
 
 
+#: Callables of the extension modules by prefix: ``prefix → (namespace, {name: fn})``.
+PrefixedCallables = dict[str, tuple[str | None, dict]]
+
+
+def load_prefixed_callables(extensions) -> PrefixedCallables:
+    """The XPath functions of *extensions*, grouped by prefix.
+
+    Modules sharing a prefix are merged; a later module wins on a name clash.
+    """
+    grouped: PrefixedCallables = {}
+    for ext in normalize_extensions(extensions):
+        uri, fns = grouped.get(ext.prefix, (None, {}))
+        fns.update(load_extension_callables(ext.module))
+        grouped[ext.prefix] = (ext.namespace or uri, fns)
+    return grouped
+
+
 @lru_cache(maxsize=64)
-def _loaded_extension_callables(ext_fp: str) -> dict:
-    """Map a fingerprint string to the merged callables of its modules."""
-    merged: dict = {}
-    # ext_fp is one or more module fingerprints joined by '\x1f'.
+def _loaded_extension_callables(ext_fp: str) -> PrefixedCallables:
+    """Map a fingerprint string to the callables of its modules, by prefix."""
+    return load_prefixed_callables(_extensions_from_fingerprint(ext_fp))
+
+
+def _extensions_from_fingerprint(ext_fp: str) -> tuple[ExtensionModule, ...]:
+    # ext_fp is one or more ``prefix\0namespace\0module\0mtime`` items joined by '\x1f'.
+    out = []
     for item in ext_fp.split('\x1f'):
-        module_path = item.split('\0', 1)[0]
-        merged.update(load_extension_callables(module_path))
-    return merged
+        prefix, namespace, module = item.split('\0', 3)[:3]
+        out.append(ExtensionModule(module=module, prefix=prefix, namespace=namespace or None))
+    return tuple(out)
 
 
 @lru_cache(maxsize=8192)
@@ -181,33 +203,40 @@ def compiled_xpath(
 ):
     """Parse each distinct expression and static context once."""
     callables = dict(_BUILTIN_XPATH_CALLABLES)
-    if ext_fp:
-        # A project extension of the same name wins over the built-in.
-        callables.update(_loaded_extension_callables(ext_fp))
+    prefixed = dict(_loaded_extension_callables(ext_fp)) if ext_fp else {}
+    # A project extension of the same name wins over the built-in.
+    callables.update(prefixed.pop(DEFAULT_PREFIX, (None, {}))[1])
     parser = build_extension_parser(
         default_element_ns,
         callables,
         namespaces=dict(namespaces) if namespaces else {},
         base_uri=base_uri,
+        prefixed=prefixed,
     )
     return parser.parse(expr)
 
 
-def normalize_extensions(extensions) -> tuple[str, ...]:
-    """Extension modules as a tuple of non-empty dotted paths."""
+def normalize_extensions(extensions) -> tuple[ExtensionModule, ...]:
+    """Extension modules as [`ExtensionModule`][opm.runtime.extensions.ExtensionModule]s.
+
+    A plain dotted path is a ``tp:`` module; empty entries are dropped.
+    """
     if not extensions:
         return ()
-    if isinstance(extensions, str):
+    if isinstance(extensions, (str, ExtensionModule)):
         extensions = (extensions,)
-    return tuple(m for m in (str(mod).strip() for mod in extensions) if m)
+    return tuple(ext for ext in map(as_extension_module, extensions) if ext.module)
 
 
-def extension_fingerprint(extensions: tuple[str, ...]) -> str:
-    """Cache-key fragment for *extensions*: module paths plus source mtimes."""
+def extension_fingerprint(extensions: tuple[ExtensionModule, ...]) -> str:
+    """Cache-key fragment for *extensions*: prefixes, module paths and source mtimes."""
     if not extensions:
         return ''
-    # The separator does not appear in module paths.
-    return '\x1f'.join(fingerprint_for_module(module) for module in extensions)
+    # The separators do not appear in prefixes, URIs or module paths.
+    return '\x1f'.join(
+        f'{ext.prefix}\0{ext.namespace or ""}\0{fingerprint_for_module(ext.module)}'
+        for ext in extensions
+    )
 
 
 def _pipeline_values(raw: list) -> list:
@@ -270,8 +299,10 @@ class XPathEnvironment:
         variables: XPath variables, keys in Clark notation (``{ns}local``).
         namespaces: Project prefixes (``[transform.namespaces]``); they win
             over the ODD's own declarations, see [`for_odd`][opm.runtime.xpath_env.XPathEnvironment.for_odd].
-        extensions: Dotted module paths whose public callables become ``tp:``
-            functions.
+        extensions: Extension modules: dotted paths, whose public callables
+            become ``tp:`` functions, or
+            [`ExtensionModule`][opm.runtime.extensions.ExtensionModule]s with
+            a prefix of their own.
         parameters: Bound as ``$parameters``.
         root: Bound as ``$parameters?root``. ``None`` binds the document element
             of the context node, unless *parameters* has a ``root`` of its own.

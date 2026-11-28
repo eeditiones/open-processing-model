@@ -9,9 +9,11 @@ profiles = ["iiif"]
 
 [transform]
 odd = "odd/shakespeare.odd"
-xpath_extensions = [
-    "opm.runtime.common_xpath_functions"
-]
+
+# Python modules whose functions the ODD calls as tp:…(); see the
+# Extension modules guide for project prefixes and custom behaviours.
+[[transform.extensions]]
+module = "opm.runtime.common_xpath_functions"
 
 # The <pb> models build the facsimile link from the document's own path:
 # substring-after(document-uri(root($parameters?root)), $global:data-root || '/').

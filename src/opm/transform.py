@@ -201,7 +201,9 @@ def xpath_select(
         root: Document root element; its namespace determines the default element namespace.
         expr: XPath 3.1 expression with unprefixed element names.
         params: Values bound as the XPath ``$parameters`` map.
-        xpath_extensions: Dotted module paths for custom XPath functions in the ``tp:`` namespace.
+        xpath_extensions: Extension modules for custom XPath functions: dotted
+            paths (``tp:`` functions) or
+            [`ExtensionModule`][opm.runtime.extensions.ExtensionModule]s.
         xpath_env: Evaluate in this environment instead of one built from the
             other arguments; its cached document trees are then reused.
     """
@@ -292,14 +294,12 @@ def project_xpath_env(
     config: ProjectConfig,
     xml_path: Path | None = None,
     *,
-    extensions: Sequence[str] | None = None,
     documents: tuple[dict[str, Any], dict[str, list]] | None = None,
 ) -> XPathEnvironment:
     """The XPath environment a run over *xml_path* evaluates in.
 
     Registers, collections, variables, namespaces and extension modules all
-    come from *config*; *extensions* replaces the configured modules when
-    given. *xml_path* is the base URI ``doc()`` resolves against. *documents*
+    come from *config*. *xml_path* is the base URI ``doc()`` resolves against. *documents*
     is a [`load_project_documents`][opm.transform.load_project_documents] result to reuse instead of parsing the
     registers again.
 
@@ -316,7 +316,7 @@ def project_xpath_env(
         collections=collections,
         variables=dict(config.xpath_variables),
         namespaces=dict(config.xpath_namespaces),
-        extensions=tuple(extensions) if extensions is not None else config.xpath_extensions,
+        extensions=config.extensions,
     )
 
 
@@ -659,6 +659,9 @@ def transform_node(
     [`resolve_element`][opm.runtime.xpath_env.XPathEnvironment.resolve_element] to select the
     actual element to transform; unprefixed names use the document's default
     namespace.  Without *xpath*, *root* itself is the transform target.
+    The selected element is also bound as ``$parameters?root``, as for a chunk
+    and as TEI Publisher does for the fragment it displays, unless *parameters*
+    sets ``root`` itself.
 
     Args:
         script_path: Path to the compiled transform ``.py`` module, or an
@@ -697,6 +700,8 @@ def transform_node(
         if xpath
         else root
     )
+    if element is not root and 'root' not in (parameters or {}):
+        env = env.with_root(element)
     return run_transform(
         mod,
         element,
@@ -725,7 +730,6 @@ def transform_file(
     *,
     xpath: str | None = None,
     parameters: dict[str, str] | None = None,
-    xpath_extensions: Sequence[str] | None = None,
     webcomponents: bool | None = None,
     template: Path | None = None,
     config: ProjectConfig | None = None,
@@ -745,8 +749,6 @@ def transform_file(
             Unprefixed names use the document's default namespace.
         parameters: XPath ``$parameters``, over ``[transform.parameters]``.
             ``input_path`` defaults to *xml_path*.
-        xpath_extensions: Dotted module paths for custom XPath functions.
-            ``None`` uses ``[transform] xpath_extensions`` from config.
         webcomponents: Enable web-component mode.
             ``None`` uses ``[transform.web] webcomponents`` from config.
             Modes without web components (print, EPUB, JSON) ignore it.
@@ -767,7 +769,6 @@ def transform_file(
         config if config is not None else load_project_config(),
         xpath=xpath,
         parameters=parameters,
-        xpath_extensions=xpath_extensions,
         webcomponents=webcomponents,
         template=template,
         documents=documents,
@@ -782,7 +783,6 @@ def transform_with_config(
     *,
     xpath: str | None = None,
     parameters: dict[str, str] | None = None,
-    xpath_extensions: Sequence[str] | None = None,
     webcomponents: bool | None = None,
     template: Path | None = None,
     documents: tuple[dict[str, Any], dict[str, list]] | None = None,
@@ -804,7 +804,7 @@ def transform_with_config(
     )
     if xml_path is not None:
         merged_parameters.setdefault('input_path', str(xml_path))
-    env = project_xpath_env(config, xml_path, extensions=xpath_extensions, documents=documents)
+    env = project_xpath_env(config, xml_path, documents=documents)
     is_web = mode.name == 'web'
 
     return transform_node(

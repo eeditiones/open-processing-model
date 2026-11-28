@@ -16,11 +16,14 @@ import sys
 import tomllib
 from dataclasses import dataclass, field, replace
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 from opm.output_modes import CONFIG_SECTIONS, MODES
 from opm.template_frontmatter import merge_deep
+
+if TYPE_CHECKING:
+    from opm.runtime.extensions import ExtensionModule
 
 DEFAULT_WEBCOMPONENTS_URL = (
     'https://cdn.jsdelivr.net/npm/@teipublisher/pb-components'
@@ -44,6 +47,58 @@ def _section_for(transform_type: str | None) -> str:
     key = (transform_type or '').strip().lower()
     mode = MODES.get(key)
     return mode.section if mode is not None else key
+
+
+def _parse_extensions(tp_modules: tuple[str, ...], raw: Any) -> tuple[ExtensionModule, ...]:
+    """``xpath_extensions`` (``tp:`` modules) plus the ``[[transform.extensions]]`` tables."""
+    from opm.runtime.extensions import ExtensionModule, valid_prefix  # noqa: PLC0415
+
+    out = [ExtensionModule(module=m.strip()) for m in tp_modules if m.strip()]
+    if raw is None:
+        return tuple(out)
+    if not isinstance(raw, list) or not all(isinstance(t, dict) for t in raw):
+        raise ValueError(
+            'opm.toml: transform.extensions must be an array of tables, '
+            'e.g. [[transform.extensions]] with module = "..." and prefix = "..."',
+        )
+    bound: dict[str, str | None] = {}
+    for table in raw:
+        unknown = set(table) - {'module', 'prefix', 'namespace', 'output'}
+        if unknown:
+            raise ValueError(
+                f'opm.toml: unknown key(s) in [[transform.extensions]]: {", ".join(sorted(unknown))}',
+            )
+        module = table.get('module')
+        if not isinstance(module, str) or not module.strip():
+            raise ValueError('opm.toml: [[transform.extensions]] needs module = "<dotted path>"')
+        prefix = table.get('prefix', 'tp')
+        if not isinstance(prefix, str) or not valid_prefix(prefix):
+            raise ValueError(f'opm.toml: [[transform.extensions]] prefix {prefix!r} is not a valid prefix')
+        namespace = table.get('namespace')
+        if namespace is not None and (not isinstance(namespace, str) or not namespace.strip()):
+            raise ValueError('opm.toml: [[transform.extensions]] namespace must be a URI string')
+        if prefix == 'tp' and namespace is not None:
+            raise ValueError('opm.toml: the tp prefix has a fixed namespace; drop namespace or pick another prefix')
+        if prefix in bound and namespace and bound[prefix] and bound[prefix] != namespace:
+            raise ValueError(
+                f'opm.toml: prefix {prefix!r} is bound to two namespaces in [[transform.extensions]]',
+            )
+        bound[prefix] = namespace or bound.get(prefix)
+        output = table.get('output', [])
+        if isinstance(output, str):
+            output = [output]
+        if not isinstance(output, list) or not all(isinstance(o, str) for o in output):
+            raise ValueError('opm.toml: [[transform.extensions]] output must be a list of output types')
+        unknown_outputs = [o for o in output if o not in MODES]
+        if unknown_outputs:
+            raise ValueError(
+                f'opm.toml: unknown output type(s) in [[transform.extensions]]: {", ".join(unknown_outputs)}',
+            )
+        out.append(ExtensionModule(
+            module=module.strip(), prefix=prefix, namespace=namespace,
+            outputs=tuple(output),
+        ))
+    return tuple(out)
 
 
 def _section_table(value: Any) -> dict[str, Any]:
@@ -807,7 +862,12 @@ class ProjectConfig:
     only the source; an EPUB has no second panel, so selecting the same chunks
     would drop half the document. Empty means "use ``[chunking]`` unchanged".
     """
-    xpath_extensions: tuple[str, ...] = ()
+    extensions: tuple[ExtensionModule, ...] = ()
+    """Extension modules (``[[transform.extensions]]``), as [`ExtensionModule`][opm.runtime.extensions.ExtensionModule]s.
+
+    Entries of the older ``[transform] xpath_extensions`` list come first, as
+    ``tp:`` modules, then the tables in the order they are written.
+    """
     footnote_order: str | None = None
     """Dotted path of the callable that orders a run's footnotes (``[transform] footnote_order``).
 
@@ -1041,6 +1101,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
         raise ValueError(
             'opm.toml: transform.xpath_extensions must be a string or list of strings',
         )
+    extensions = _parse_extensions(xpath_extensions, transform.get('extensions'))
 
     footnote_order = transform.get('footnote_order')
     if footnote_order is not None and not isinstance(footnote_order, str):
@@ -1224,7 +1285,7 @@ def load_project_config(path: Path | None = None) -> ProjectConfig:
             for key in ('xpath', 'selector', 'depth')
             if key in epub_data
         },
-        xpath_extensions=xpath_extensions,
+        extensions=extensions,
         footnote_order=footnote_order,
         xpath_documents=xpath_documents,
         xpath_collections=tuple(collections),

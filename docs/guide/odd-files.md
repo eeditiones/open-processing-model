@@ -71,6 +71,10 @@ The special parameter, `$parameters?root`, always contains a reference to the ro
 it splits the document into fragments, and each fragment becomes a document of its own. The link to the source document therefore gets lost. Use `$parameters?root`
 to get it back.
 
+The same holds when you transform part of a document with `opm transform --xpath`:
+`$parameters?root` is then the element you selected, just as TEI Publisher binds
+it to the fragment it displays.
+
 `root($parameters?root)` always points to the document node. `teipublisher.odd`
  uses that, for example, to reach the `teiHeader` from a `div` or page:
 
@@ -120,5 +124,5 @@ Errors that mean the project configuration is missing something are shown as a
 single note naming the setting instead, and never fail a run: an undeclared
 namespace prefix (`[transform.namespaces]`), an unset variable
 (`[transform.variables]`), a `tp:` function that no configured module provides
-(`[transform] xpath_extensions`), or an unknown collection
+(`[[transform.extensions]]`), or an unknown collection
 (`[[transform.collections]]`).

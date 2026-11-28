@@ -84,11 +84,15 @@ def cache_key(odd_path: Path, output_mode: str, base_css: str | None = None) -> 
     # has to invalidate the cache. The version alone does not cover that: it
     # stays put across a working checkout, and a stale module would keep being
     # loaded after a codegen change.
+    # The XPath parser counts too: what it cannot parse is compiled out.
     from opm import output_modes
     from opm.odd_compiler import expression_check
     from opm.odd_compiler.codegen import python_generator
+    from opm.runtime import xpath_extensions, xpath_parser
 
-    for generator_module in (python_generator, expression_check, output_modes):
+    for generator_module in (
+        python_generator, expression_check, output_modes, xpath_parser, xpath_extensions,
+    ):
         h.update(Path(generator_module.__file__).read_bytes())
         h.update(b'\0')
 

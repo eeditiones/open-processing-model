@@ -10,13 +10,17 @@ profiles = ["edition-navigation", "registers", "iiif", "pagefind"]
 
 [transform]
 odd = "odd/escher.odd"
-xpath_extensions = [
-    "opm.runtime.common_xpath_functions",
-    # tp:region_image / tp:region_coords: where each line sits in the
-    # facsimile, from data/regions/<letter>_mapping.xml. Importable because of
-    # [project] pythonpath above.
-    "extensions.escher_functions",
-]
+
+# Python modules whose functions the ODD calls as tp:…(); see the
+# Extension modules guide for project prefixes and custom behaviours.
+[[transform.extensions]]
+module = "opm.runtime.common_xpath_functions"
+
+# tp:region_image / tp:region_coords: where each line sits in the
+# facsimile, from data/regions/<letter>_mapping.xml. Importable because of
+# [project] pythonpath above.
+[[transform.extensions]]
+module = "extensions.escher_functions"
 
 # The registers, under the name the ODD looks names up by:
 # collection($global:register-root)/id(@key). The letters, under the name a

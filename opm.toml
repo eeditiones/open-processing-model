@@ -8,12 +8,6 @@
 # Per-type tables may override with their own odd = "...".
 # odd = "odd/my-customisation.odd"
 
-# XPath extension modules loaded into the tp: namespace.
-xpath_extensions = [
-    "opm.runtime.common_xpath_functions"
-    # "extensions.my_functions",
-]
-
 # XML documents available to XPath doc().
 # Paths are resolved relative to this config file; doc("...") lookups resolve
 # relative to the main XML input document URI.
@@ -21,6 +15,14 @@ xpath_extensions = [
 #     "data/authority.xml",
 #     "data/lookup.xml",
 # ]
+
+# Base rules compiled into the ODD stylesheet for every output type, replacing
+# the packaged defaults (popovers, column breaks, margin notes). Not the place
+# for design CSS — list that under [chunking] assets.
+# css = "styles/default-styles.css"
+
+# The tables below end the plain [transform] keys above: anything added after
+# one of them belongs to that table, so keep new [transform] keys up here.
 
 # Namespace prefixes for XPath written inside the ODD.
 # Merged over the ODD root's own xmlns declarations, and these win on a clash.
@@ -63,10 +65,16 @@ xpath_extensions = [
 #     "data/registers/places.xml",
 # ]
 
-# Base rules compiled into the ODD stylesheet for every output type, replacing
-# the packaged defaults (popovers, column breaks, margin notes). Not the place
-# for design CSS — list that under [chunking] assets.
-# css = "styles/default-styles.css"
+# Python modules whose functions the ODD calls as tp:…(). A module may use a
+# prefix of its own, define custom behaviours, and limit them to some output
+# types; see the Extension modules guide.
+[[transform.extensions]]
+module = "opm.runtime.common_xpath_functions"
+
+# [[transform.extensions]]
+# module = "extensions.ext_html"
+# prefix = "ext-html"
+# output = ["web"]
 
 [transform.web]
 # Optional override: odd = "odd/web-only.odd"

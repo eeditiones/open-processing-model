@@ -434,7 +434,7 @@ def test_index_copies_a_breadcrumb_fragment_onto_chunk_records(
                 ),
             ],
         ),
-        xpath_extensions=('opm.runtime.common_xpath_functions',),
+        extensions=('opm.runtime.common_xpath_functions',),
         index_fields=fields,
     )
     records = index_document(

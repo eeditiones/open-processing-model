@@ -4,8 +4,9 @@ The tree-walking engine that drives a transform: `apply()` / `apply_children()`
 route each element through the generated `_dispatch` router. Every output
 function receives the run's `RenderContext` as `config`; XPath is evaluated by
 the context's `XPathEnvironment`, which is built once per document and caches
-the parsed node trees. `xpath_extensions` loads user-defined `tp:*` functions —
-see the [XPath extensions guide](../guide/xpath-extensions.md).
+the parsed node trees. Extension modules (`[[transform.extensions]]`) add
+user-defined XPath functions and behaviours — see the
+[Extension modules guide](../guide/xpath-extensions.md).
 
 To drive a compiled module yourself, build one environment per document and
 pass it to each transform:
@@ -44,6 +45,10 @@ An expression that fails at run time counts as false or empty. Wrap a run in
 ## XPath extensions
 
 ::: opm.runtime.xpath_extensions
+
+## Extension modules and custom behaviours
+
+::: opm.runtime.extensions
 
 ## Built-in XPath helper functions
 

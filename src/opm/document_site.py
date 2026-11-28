@@ -44,6 +44,7 @@ from opm.odd_schema import (
     iter_guideline_chapters,
 )
 from opm.resources import packaged_document_dir, packaged_odd
+from opm.runtime.extensions import ExtensionModule
 from opm.spec_index import (
     SPEC_TAGS,
     SpecIndex,
@@ -117,6 +118,11 @@ def build_document_site(
 
     cfg = replace(
         base_cfg,
+        # tagdocs.odd needs its formatting helpers even when the project's
+        # config names no extension modules.
+        extensions=tuple(base_cfg.extensions) or tuple(
+            ExtensionModule(module) for module in _TAGDOCS_XPATH_EXTENSIONS
+        ),
         template_context={
             **base_cfg.template_context,
             'site_name': site_title,
@@ -126,7 +132,6 @@ def build_document_site(
         },
         parameters={**base_cfg.parameters, 'lng': lang, 'mode': 'ref'},
     )
-    extensions = tuple(cfg.xpath_extensions) or _TAGDOCS_XPATH_EXTENSIONS
     runs = cfg.chunking_runs or ((cfg.chunking,) if cfg.chunking else ())
     if not runs:
         raise ValueError(f'{config_file} declares no [chunking] run')
@@ -176,7 +181,6 @@ def build_document_site(
                 template_path=chunking.template,
                 on_progress=_on_chunk_progress,
                 webcomponents=cfg.webcomponents_enabled,
-                xpath_extensions=extensions,
                 anchors=anchors,
                 merge_manifest=position > 0,
             )

@@ -102,7 +102,7 @@ nav:
       - Keeping a project up to date: guide/updating.md
       - ODD coverage: guide/coverage.md
       - ODD documentation: guide/odd-documentation.md
-      - XPath extensions: guide/xpath-extensions.md
+      - Extension modules: guide/xpath-extensions.md
       - Footnotes: guide/footnotes.md
       - Configuration (opm.toml): guide/configuration.md
   - CLI Reference: cli.md

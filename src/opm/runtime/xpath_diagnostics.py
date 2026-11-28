@@ -141,7 +141,9 @@ def _config_hint(code: str, message: str) -> tuple[str, str] | None:
         return (
             f'prefix:{prefix}',
             f'namespace prefix "{prefix}" is not declared; bind it in '
-            '[transform.namespaces] in opm.toml.',
+            '[transform.namespaces] in opm.toml, or, if the ODD calls functions '
+            f'under it, register a Python module with prefix = "{prefix}" in '
+            '[[transform.extensions]].',
         )
     if code == 'XPST0008':
         match = _VARIABLE_RE.search(message)
@@ -153,11 +155,13 @@ def _config_hint(code: str, message: str) -> tuple[str, str] | None:
     if code == 'XPST0017':
         match = _FUNCTION_RE.search(message)
         name = match.group(1) if match else ''
-        if name.startswith('tp:'):
+        prefix = name.partition(':')[0] if ':' in name else ''
+        if prefix and prefix not in ('fn', 'xs', 'math', 'map', 'array'):
+            where = '' if prefix == 'tp' else f' with prefix = "{prefix}"'
             return (
                 f'function:{name}',
-                f'{name}() is not defined; add the Python module that provides it '
-                'to [transform] xpath_extensions in opm.toml.',
+                f'{name}() is not defined; register the Python module that provides it{where} '
+                'in [[transform.extensions]] in opm.toml.',
             )
         return None
     if code == 'FODC0002':

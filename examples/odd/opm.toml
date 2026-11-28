@@ -23,12 +23,14 @@ logo = "dhlab.svg"
 
 [transform]
 odd = "odd/tagdocs.odd"
+
 # The formatting helpers odd/tagdocs.odd calls. Relations, catalogs and links
 # are already in the tree it renders: `opm odd prepare` shows it.
-xpath_extensions = [
-    "opm.runtime.common_xpath_functions",
-    "opm.runtime.spec_xpath_functions",
-]
+[[transform.extensions]]
+module = "opm.runtime.common_xpath_functions"
+
+[[transform.extensions]]
+module = "opm.runtime.spec_xpath_functions"
 
 # PDF: `opm odd document -t typst` (or --preview).
 [transform.typst]

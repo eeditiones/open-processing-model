@@ -21,8 +21,9 @@ from lxml import etree
 from opm import jinks_templates as jinks
 from opm.jinks_templates.environment import convert_results
 from opm.output_modes import RENDER_MODES
-from opm.runtime.xpath_env import XPathEnvironment
-from opm.runtime.xpath_extensions import build_extension_parser, load_extension_callables
+from opm.runtime.extensions import DEFAULT_PREFIX
+from opm.runtime.xpath_env import XPathEnvironment, load_prefixed_callables
+from opm.runtime.xpath_extensions import build_extension_parser
 from opm.template_frontmatter import template_context
 
 if TYPE_CHECKING:
@@ -158,18 +159,22 @@ def _searchpaths(template_path: Path, project: Any = None) -> list[str]:
 
 
 def _jinks_parser_factory(xpath_env: XPathEnvironment | None):
-    """Parsers with the project's namespaces and ``tp:`` extension functions."""
+    """Parsers with the project's namespaces and extension functions (``tp:`` and project prefixes)."""
     plain = jinks.Environment().parser(frozenset())
-    callables: dict = {}
+    prefixed: dict = {}
     project_ns: dict[str, str] = {}
     if xpath_env is not None:
         project_ns = xpath_env.namespaces
-        for module in xpath_env.extensions:
-            callables.update(load_extension_callables(module))
-    callables = {name: convert_results(fn, plain) for name, fn in callables.items()}
+        prefixed = {
+            prefix: (uri, {name: convert_results(fn, plain) for name, fn in fns.items()})
+            for prefix, (uri, fns) in load_prefixed_callables(xpath_env.extensions).items()
+        }
+    callables = prefixed.pop(DEFAULT_PREFIX, (None, {}))[1]
 
     def factory(namespaces: dict[str, str]):
-        return build_extension_parser('', callables, namespaces={**project_ns, **namespaces})
+        return build_extension_parser(
+            '', callables, namespaces={**project_ns, **namespaces}, prefixed=prefixed,
+        )
     return factory
 
 

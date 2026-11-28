@@ -812,9 +812,11 @@ def test_docbook_per_chunk_breadcrumbs(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=config,
-        project=Project(root=tmp_path),
+        project=Project(
+            ProjectConfig(extensions=('opm.runtime.common_xpath_functions',)),
+            root=tmp_path,
+        ),
         output_format='json',
-        xpath_extensions=('opm.runtime.common_xpath_functions',),
     )
 
     out = tmp_path / 'dbk-chunks'
@@ -903,9 +905,11 @@ def test_pb_view_export_per_chunk_breadcrumbs_xpath_dot(tmp_path: Path) -> None:
         module_path=module_path,
         xml_path=xml_path,
         config=config,
-        project=Project(root=tmp_path),
+        project=Project(
+            ProjectConfig(extensions=('opm.runtime.common_xpath_functions',)),
+            root=tmp_path,
+        ),
         output_format='pb-view',
-        xpath_extensions=('opm.runtime.common_xpath_functions',),
     )
 
     out = tmp_path / 'pb-crumbs'

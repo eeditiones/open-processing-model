@@ -687,13 +687,22 @@ def transform(root, options=None, *, xpath_env=None):
         content_expr: str | None = None,
         config_expr: str = 'config',
     ) -> str:
-        method = method_for_behaviour(behaviour)
         cls_e = self._classes_expr(ident, model_el, spec_el)
         site = (ident, spec_el, model_el)
         if content_expr is not None:
             c = content_expr
         else:
             c = self._param_to_expr(pm.get('content', '.'), site=site)
+        if behaviour not in BEHAVIOUR_METHOD:
+            # Not an opm behaviour: a project extension module may define it
+            # (opm.runtime.extensions), so pass every param and let the
+            # runtime pick what the function accepts.
+            kw = ''.join(
+                f', {self._normalize_param_name(name)}={self._param_to_expr(value, site=site, name=name)}'
+                for name, value in pm.items() if name != 'content'
+            )
+            return f'pmf.call_behaviour({behaviour!r}, {config_expr}, node, {cls_e}, {c}{kw})'
+        method = method_for_behaviour(behaviour)
 
         allowed, allows_var_kw = self._accepted_method_kwargs(output_mode, method)
         emitted: set[str] = set()
@@ -926,8 +935,6 @@ def transform(root, options=None, *, xpath_env=None):
                 )
             return self._emit_template_call(ident, tmpl, model_el, spec_el, helpers)
         if not beh:
-            return 'apply(config, child_nodes(node))'
-        if beh not in BEHAVIOUR_METHOD:
             return 'apply(config, child_nodes(node))'
         pm = _gather_params(model_el)
         return self._emit_pmf_call(ident, beh, model_el, spec_el, pm, output_mode)

@@ -1356,7 +1356,6 @@ def test_a_plain_chunk_run_needs_no_spec_index(tmp_path: Path, monkeypatch) -> N
     from opm.chunking import chunk_document
     from opm.config import load_project_config
     from opm.project import Project
-    from opm.document_site import _TAGDOCS_XPATH_EXTENSIONS
     from opm.resources import packaged_document_dir
     from opm.spec_index import SpecIndex
 
@@ -1380,7 +1379,6 @@ def test_a_plain_chunk_run_needs_no_spec_index(tmp_path: Path, monkeypatch) -> N
         config=replace(reference, output_dir='.'),
         project=Project(cfg, root=out),
         template_path=reference.template,
-        xpath_extensions=_TAGDOCS_XPATH_EXTENSIONS,
     )
 
     pages = list(out.glob('ref-*.html'))
@@ -1415,7 +1413,7 @@ def test_the_odd_example_matches_the_packaged_site() -> None:
 
     project = load_project_config(example / 'opm.toml')
     reference = load_project_config(packaged / 'opm.toml')
-    assert project.xpath_extensions == reference.xpath_extensions
+    assert project.extensions == reference.extensions
 
     def shape(runs):
         return [
@@ -1445,7 +1443,7 @@ def test_documentation_project_starts_with_the_packaged_runs(tmp_path: Path) -> 
     project = load_project_config(root / 'opm.toml')
     packaged = load_project_config(packaged_document_dir() / 'opm.toml')
     assert project.document is not None and project.document.source is None
-    assert project.xpath_extensions == packaged.xpath_extensions
+    assert project.extensions == packaged.extensions
     assert not (root / 'extensions').exists()
 
     def shape(runs):

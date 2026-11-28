@@ -127,8 +127,6 @@ def document_names(
     files: Sequence[Path],
     expr: str | None,
     config: ProjectConfig,
-    *,
-    extensions: Sequence[str] | None = None,
 ) -> dict[Path, str]:
     """The output directory name of each of *files*: ``[chunking] document_name``.
 
@@ -162,7 +160,7 @@ def document_names(
     taken: dict[str, Path] = {}
     for path in files:
         root = parse_xml(str(path)).getroot()
-        env = project_xpath_env(config, path, extensions=extensions, documents=documents)
+        env = project_xpath_env(config, path, documents=documents)
         value = env.select(root, expr)
         if isinstance(value, list):
             value = ''.join(
@@ -754,7 +752,6 @@ class Project:
         odd: Path | str | None = None,
         xpath: str | None = None,
         parameters: dict[str, str] | None = None,
-        xpath_extensions: Sequence[str] | None = None,
         webcomponents: bool | None = None,
         template: Path | None = None,
     ) -> str | bytes:
@@ -769,8 +766,6 @@ class Project:
             xpath: XPath 3.1 expression selecting the element to transform.
                 Unprefixed names use the document's default namespace.
             parameters: XPath ``$parameters``, over ``[transform.parameters]``.
-            xpath_extensions: Extension modules to use instead of the
-                configured ones.
             webcomponents: Enable web-component mode. ``None`` uses the config.
             template: The document template to use instead of the configured one.
 
@@ -785,7 +780,6 @@ class Project:
             self.config,
             xpath=xpath,
             parameters=parameters,
-            xpath_extensions=xpath_extensions,
             webcomponents=webcomponents,
             template=template,
             documents=self._documents(),
@@ -843,7 +837,6 @@ class Project:
         odd: Path | str | None = None,
         doc_path: str | None = None,
         webcomponents: bool | None = None,
-        xpath_extensions: Sequence[str] | None = None,
         overwrite: bool = False,
         on_document: Callable[[int, Path], None] | None = None,
         on_progress: Callable[[int, int], None] | None = None,
@@ -902,8 +895,6 @@ class Project:
                 written under.
             webcomponents: Enable web-component mode for HTML output. JSON
                 and ``pb-view`` output always use it.
-            xpath_extensions: Extension modules to use instead of the
-                configured ones.
             overwrite: Replace the output directory if it exists. Without
                 it, an existing directory raises `FileExistsError`.
             on_document: Called with the position and path of each document
@@ -987,7 +978,6 @@ class Project:
             else webcomponents if webcomponents is not None
             else bool(self.config.webcomponents_enabled)
         )
-        extensions = tuple(xpath_extensions) if xpath_extensions else None
         base_doc_path = doc_path or chunking.doc_path
         # What each document's directory is called: its file name, or the
         # document_name of the run that reads it. pb-view data stays
@@ -997,7 +987,6 @@ class Project:
                 group_files,
                 None if format == 'pb-view' else group_runs[0].document_name,
                 self.config,
-                extensions=extensions,
             )
             for group_runs, group_files in groups
         ]
@@ -1074,7 +1063,6 @@ class Project:
                             enabled if format in ('json', 'pb-view') or webcomponents is not None
                             or _run.webcomponents is None else _run.webcomponents
                         ),
-                        xpath_extensions=extensions,
                         output_format=format,
                         doc_path=document_doc_path,
                         documents=names,
@@ -1131,7 +1119,6 @@ class Project:
                 out_dir=out_dir,
                 run=chunking,
                 webcomponents=enabled,
-                xpath_extensions=extensions,
                 anchors=page_anchors,
                 documents=site_documents,
                 only=pages if isinstance(pages, str) else None,

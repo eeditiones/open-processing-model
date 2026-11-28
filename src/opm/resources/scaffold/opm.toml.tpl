@@ -10,9 +10,16 @@ pythonpath = ["."]
 
 [transform]
 odd = "[[ $odd_path ]]"
-xpath_extensions = [
-    "opm.runtime.common_xpath_functions"
-]
+
+# Replaces the base rules compiled into the ODD stylesheet (popovers, column
+# breaks, margin notes) for every output type. Design CSS for your pages
+# belongs under [transform.web] assets instead.
+# css = "styles/base.css"
+
+# Python modules whose functions the ODD calls as tp:…(); see the
+# Extension modules guide for project prefixes and custom behaviours.
+[% raw %][[transform.extensions]][% endraw %]
+module = "opm.runtime.common_xpath_functions"
 
 # Prefixes for XPath written inside the ODD. `global` is what teipublisher.odd
 # uses for its eXist-side settings; binding it here rather than in the ODD keeps
@@ -47,11 +54,6 @@ register-root = "urn:registers"
 # [% raw %][[transform.collections]][% endraw %]
 # uri = "urn:documents"
 # documents = ["data/*.xml"]
-
-# Replaces the base rules compiled into the ODD stylesheet (popovers, column
-# breaks, margin notes) for every output type. Design CSS for your pages
-# belongs under [transform.web] assets instead.
-# css = "styles/base.css"
 
 [transform.web]
 template = "templates/[[ $html_template ]].html.tpl"

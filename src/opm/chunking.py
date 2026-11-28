@@ -208,7 +208,7 @@ class ChunkProcessor:
         self.xpath_env = xpath_env if xpath_env is not None else XPathEnvironment(
             variables=dict(cfg.xpath_variables),
             namespaces=dict(cfg.xpath_namespaces),
-            extensions=cfg.xpath_extensions,
+            extensions=cfg.extensions,
         )
         # Includes the project's base override ([transform] css), compiled in.
         # Design CSS is not part of this — it travels through the assets setting.
@@ -1448,7 +1448,6 @@ def chunk_document(
     template_path: Path | None = None,
     on_progress: Callable[[int, int], None] | None = None,
     webcomponents: bool = False,
-    xpath_extensions: tuple[str, ...] | None = None,
     output_format: str = 'html',
     doc_path: str | None = None,
     documents: Collection[str] | None = None,
@@ -1526,7 +1525,7 @@ def chunk_document(
     # re-parsed for each document chunked.
     shared = getattr(project, '_documents', None)
     xpath_env = project_xpath_env(
-        project.config, xml_path, extensions=xpath_extensions,
+        project.config, xml_path,
         documents=shared() if callable(shared) else None,
     )
     document = config.link_doc or xml_path.name
@@ -1683,7 +1682,7 @@ def build_index(
         ),
         xpath_env=XPathEnvironment(
             namespaces=dict(project_config.xpath_namespaces),
-            extensions=project_config.xpath_extensions,
+            extensions=project_config.extensions,
         ) if project_config is not None else None,
         project=project,
     )

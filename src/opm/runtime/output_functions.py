@@ -15,11 +15,14 @@ HTML and Markdown implementations live in `opm.html_output_functions` and
 `opm.markdown_output_functions`; they are re-exported here for convenience.
 """
 
+import inspect
 import re
 from abc import ABC, abstractmethod
 from typing import Any
 
 from lxml import etree
+
+from .extensions import method_name
 
 # ── Namespace constants ────────────────────────────────────────────────────────
 
@@ -180,6 +183,22 @@ def child_nodes(node):
         if child.tail:
             result.append(child.tail)
     return result
+
+
+#: Arguments every behaviour takes by position; never passed again as a keyword.
+_POSITIONAL = frozenset({'config', 'node', 'cls', 'content'})
+
+
+def _accepted_kwargs(fn, params: dict) -> dict:
+    """The entries of *params* that *fn* accepts as keywords."""
+    try:
+        sig = inspect.signature(fn)
+    except (TypeError, ValueError):
+        return params
+    accepted = sig.parameters
+    if any(p.kind is inspect.Parameter.VAR_KEYWORD for p in accepted.values()):
+        return params
+    return {k: v for k, v in params.items() if k in accepted}
 
 
 # ── pb:template runtime engine ────────────────────────────────────────────────
@@ -583,6 +602,33 @@ class ProcessingModelFunctions(ABC):
     def code_inline(self, config, node, cls, content) -> PMResult:
         """Inline code span — raw text, no markup escaping applied to the body."""
         return self.inline(config, node, cls, content)
+
+    @property
+    def builtin(self) -> Any:
+        """The stock behaviours, bypassing those of project extension modules.
+
+        A project behaviour that replaces a built-in one (see
+        [`opm.runtime.extensions`][opm.runtime.extensions]) calls
+        ``pmf.builtin.note(...)`` to wrap the original instead of recursing
+        into itself. Without extensions this is the instance itself.
+        """
+        extended = getattr(type(self), '_opm_extended', None)
+        return self if extended is None else super(extended, self)
+
+    def call_behaviour(self, behaviour: str, config, node, cls, content, /, **params) -> PMResult:
+        """Run a behaviour opm does not ship, from a project extension module.
+
+        The generated module calls this for every ``@behaviour`` outside
+        [`BEHAVIOUR_METHOD`][opm.odd_compiler.behaviour_map.BEHAVIOUR_METHOD],
+        passing all the model's parameters; the behaviour receives those its
+        signature accepts. When no extension defines *behaviour* for this
+        output, the element's children are rendered without one, as before.
+        """
+        method = getattr(self, method_name(behaviour), None)
+        if method is None or not callable(method):
+            return config.apply(config, child_nodes(node))
+        params = {k: v for k, v in params.items() if k not in _POSITIONAL}
+        return method(config, node, cls, content, **_accepted_kwargs(method, params))
 
     def unmatched(self, config, node) -> PMResult:
         """Handle an element no model matched, i.e. the generated ``case _:`` arm.

@@ -6,9 +6,6 @@ pythonpath = ["."]
 
 [transform]
 odd = "odd/monograph.odd"
-xpath_extensions = [
-    "opm.runtime.common_xpath_functions"
-]
 
 # The Gesamtausgabe prints the text-critical apparatus (lettered notes, from
 # TEI @n) before the commentary (numbered by the running counter), whatever
@@ -16,6 +13,16 @@ xpath_extensions = [
 # and places them when the run ends, so an ordering callable gets the last word
 # — once, in Python, for every output rather than in a browser script.
 footnote_order = "opm.runtime.footnote_order.labelled_first"
+
+# Replaces the base rules compiled into the ODD stylesheet (popovers, column
+# breaks, margin notes) for every output type. Design CSS for your pages
+# belongs under [transform.web] assets instead.
+# css = "styles/base.css"
+
+# Python modules whose functions the ODD calls as tp:…(); see the
+# Extension modules guide for project prefixes and custom behaviours.
+[[transform.extensions]]
+module = "opm.runtime.common_xpath_functions"
 
 # Prefixes for XPath written inside the ODD. `global` is what teipublisher.odd
 # uses for its eXist-side settings; binding it here rather than in the ODD keeps
@@ -43,11 +50,6 @@ register-root = "urn:registers"
 #     "data/registers/persons.xml",
 #     "data/registers/places.xml",
 # ]
-
-# Replaces the base rules compiled into the ODD stylesheet (popovers, column
-# breaks, margin notes) for every output type. Design CSS for your pages
-# belongs under [transform.web] assets instead.
-# css = "styles/base.css"
 
 [transform.web]
 template = "templates/monograph.html.tpl"

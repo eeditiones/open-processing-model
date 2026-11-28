@@ -20,16 +20,21 @@ profiles = ["edition-navigation"]
 [transform]
 # Default ODD for every output mode (compiled on demand)
 odd = "odd/my-customisation.odd"
-# XPath extension modules loaded for every transform (see XPath extensions guide)
-xpath_extensions = ["extensions.my_functions"]
 # XML documents available to XPath doc(); paths are relative to this config file
 documents = ["data/authority.xml", "data/lookup.xml"]
 # Orders each run's footnotes before they are placed, for the output modes that
 # place them (web, markdown). See the Footnotes guide.
 footnote_order = "opm.runtime.footnote_order.labelled_first"
+
 # Base rules compiled into the ODD stylesheet for every output mode, replacing
 # the packaged defaults (overridable with --css)
 css = "styles/default-styles.css"
+
+# Python modules whose functions the ODD calls as tp:…(), one table each.
+# A module may use its own prefix and define behaviours (see the Extension
+# modules guide). These tables end [transform], so put them after its keys.
+[[transform.extensions]]
+module = "extensions.my_functions"
 
 [transform.web]
 # Jinks page template for full-document HTML output (overridable with --template)
@@ -104,9 +109,10 @@ index_title = "Correspondence"
 
 | Section | Purpose | Related guide |
 | --- | --- | --- |
-| `[project]` | `pythonpath` additions so local extension modules import; `profiles` to switch on | [XPath extensions](xpath-extensions.md), [Profiles](profiles.md) |
+| `[project]` | `pythonpath` additions so local extension modules import; `profiles` to switch on | [Extension modules](xpath-extensions.md), [Profiles](profiles.md) |
 | `[context.features.<name>]` | Settings of a profile | [Profiles](profiles.md) |
-| `[transform]` | Shared settings (`odd`, `xpath_extensions`, `documents`, `footnote_order`, `parameters`, base `css`) | [Output formats](output-formats.md), [ODD `$parameters`](odd-files.md#parameters), [Footnotes](footnotes.md), [Templates & CSS](templates-and-css.md#adding-custom-css) |
+| `[[transform.extensions]]` | Extension modules with their own prefix and custom behaviours (`module`, `prefix`, `namespace`, `output`) | [Extension modules](xpath-extensions.md) |
+| `[transform]` | Shared settings (`odd`, `documents`, `footnote_order`, `parameters`, base `css`) | [Output formats](output-formats.md), [ODD `$parameters`](odd-files.md#parameters), [Footnotes](footnotes.md), [Templates & CSS](templates-and-css.md#adding-custom-css) |
 | `[transform.web]` | Optional web-only `odd` override, HTML `template` and its `assets` | [Templates & CSS](templates-and-css.md), [Assets](assets.md) |
 | `[transform.print]` | Optional print `odd` and HTML `template` | [Output formats](output-formats.md#print-paged-media) |
 | `[transform.epub]` | Optional EPUB `odd`, `css` and `skip_title` | [Output formats](output-formats.md#epub) |

@@ -6,9 +6,11 @@ pythonpath = ["."]
 
 [transform]
 odd = "odd/jats.odd"
-xpath_extensions = [
-    "opm.runtime.common_xpath_functions"
-]
+
+# Python modules whose functions the ODD calls as tp:…(); see the
+# Extension modules guide for project prefixes and custom behaviours.
+[[transform.extensions]]
+module = "opm.runtime.common_xpath_functions"
 
 # Chunk pages use the same template and stylesheet; [chunking] sets neither.
 [transform.web]
